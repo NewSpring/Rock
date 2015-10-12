@@ -27,8 +27,8 @@ Write-Host "Moving test file back from temp directory"
 Move-Item "$rootfolder\temp\test.txt" "$webroot"
 
 # move connection string file back from temp
-Write-Host "Moving web.ConnectionStrings.config from temp dir"
-Move-Item "$rootfolder\temp\web.ConnectionStrings.config" "$webroot"
+# Write-Host "Moving web.ConnectionStrings.config from temp dir"
+# Move-Item "$rootfolder\temp\web.ConnectionStrings.config" "$webroot"
 
 # copy new connection string file
 # Write-Host "Copying new web.ConnectionStrings.config to web dir"
