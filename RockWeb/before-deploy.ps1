@@ -23,13 +23,13 @@ If (Test-Path "$rootfolder\temp\Content"){
 }
 
 # move content folder to temp
-Write-Host "Moving content folder to temp directory"
-Move-Item "$webroot\Content" "$rootfolder\temp\Content"
+If (Test-Path "$webroot\Content"){
+	Write-Host "Moving content folder to temp directory"
+	Move-Item "$webroot\Content" "$rootfolder\temp\Content"
+}
 
 # move connection string file
-# Write-Host "Moving web.ConnectionStrings.config to temp dir"
-# Move-Item "$webroot\web.ConnectionStrings.config" "$rootfolder\temp"
-
-# move test file to temp
-Write-Host "Moving test file to temp directory"
-Move-Item "$webroot\test.txt" "$rootfolder\temp"
+If (Test-Path "$webroot\web.connectionstrings.config"){
+	Write-Host "Moving web.connectionstrings.config to temp dir"
+	Copy-Item "$webroot\web.connectionstrings.config" "$rootfolder\temp" -force
+}

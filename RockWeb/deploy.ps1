@@ -19,20 +19,16 @@ If (Test-Path "$webroot\Content"){
 }
 
 # move content directory back from temp
-Write-Host "Moving Contents folder back from temp directory"
-Move-Item "$rootfolder\temp\Content" "$webroot"
-
-# move content directory back from temp
-Write-Host "Moving test file back from temp directory"
-Move-Item "$rootfolder\temp\test.txt" "$webroot"
+If (Test-Path "$rootfolder\temp\Content"){
+	Write-Host "Moving Contents folder back from temp directory"
+	Move-Item "$rootfolder\temp\Content" "$webroot"
+}
 
 # move connection string file back from temp
-# Write-Host "Moving web.ConnectionStrings.config from temp dir"
-# Move-Item "$rootfolder\temp\web.ConnectionStrings.config" "$webroot"
-
-# copy new connection string file
-# Write-Host "Copying new web.ConnectionStrings.config to web dir"
-# Copy-Item "$rootfolder\config\web.ConnectionStrings.config" $webroot -force
+If (Test-Path "$rootfolder\temp\web.connectionstrings.config"){
+	Write-Host "Moving web.connectionstrings.config from temp dir"
+	Copy-Item "$rootfolder\temp\web.connectionstrings.config" "$webroot" -force
+}
 
 # start web publishing service
 Write-Host "Starting Web Publishing Service"
