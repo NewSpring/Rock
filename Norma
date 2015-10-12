@@ -12,30 +12,37 @@ tasks:
   # copy over all plugin blocks/styles/etc
   copy:
     src: ".remote/**/cc_newspring/**/*"
-    dest: "RockWeb/Plugins/cc_newspring"
+    dest: "RockWeb/Plugins/"
+    base: true
 
-  # copy over sparks bookshelf plugin
+
+  # # copy over sparks bookshelf plugin
   "copy-bookshelf-package":
     "@extend": "copy"
     src: ".remote/bookshelf/org_sparkdevnetwork/**/*"
     dest: "RockWeb/Plugins/org_sparkdevnetwork/"
+    base: false
 
-  # copy over any DLLs
-  "copy-dlls":
-    "@extend": "copy"
-    src: ".remote/**/*"
-    dest: "RockWeb/Bin/"
-    ext: [
-      "dll"
-    ]
 
   "copy-plugins-for-compile":
-  "@extend": "copy"
+    "@extend": "copy"
     src: ".remote/**/cc.newspring.*/**/*"
     dest: "./"
+    base: true
 
 
   "copy-themes":
     "@extend": "copy"
     src: ".remote/themes/**/*"
     dest: "RockWeb/Themes/"
+    base: false
+
+  # copy over any DLLs
+  "copy-dlls":
+    "@extend": "copy"
+    src: ".remote/**/*"
+    dest: "RockWeb/Bin/"
+    base: false
+    # ext: [
+    #   "dll"
+    # ]

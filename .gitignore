@@ -38,3 +38,6 @@ RockWeb/Themes/NewSpring
 RockWeb/Themes/Workflows
 RockWeb/Themes/cc.*
 RockWeb/Themes/Readme.md
+cc.*
+
+!node_modules/norma-copy
