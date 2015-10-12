@@ -29,7 +29,7 @@ tasks:
     "@extend": "copy"
     src: ".remote/**/cc.newspring.*/**/*"
     dest: "./"
-    base: true
+    base: false
 
 
   "copy-themes":
