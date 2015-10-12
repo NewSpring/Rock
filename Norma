@@ -1,0 +1,6 @@
+name: "Rock"
+tasks:
+  bower:
+    ".remote":
+      plugins: "NewSpring/Rock-Plugins#develop"
+      themes: "NewSpring/rock-themes"
