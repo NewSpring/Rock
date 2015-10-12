@@ -1,0 +1,11 @@
+{
+  "name": "norma-copy",
+  "type": "package",
+  "main": "package.coffee",
+  "tasks": {
+    "copy": {
+      "src": "workbench/in/**/*",
+      "dest": "workbench/out"
+    }
+  }
+}

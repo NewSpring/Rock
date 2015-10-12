@@ -28,7 +28,6 @@ RockWeb/App_Data/PackageStaging
 /Build/*
 node_modules
 .remote/
-RockWeb/Plugins/cc.*
 RockWeb/Plugins/*
 !RockWeb/Plugins/readme.txt
 RockWeb/Themes/Fuse
@@ -39,5 +38,3 @@ RockWeb/Themes/Workflows
 RockWeb/Themes/cc.*
 RockWeb/Themes/Readme.md
 cc.*
-
-!node_modules/norma-copy
