@@ -2,25 +2,40 @@ name: "Rock"
 tasks:
   bower:
     ".remote":
-      plugins: "NewSpring/Rock-Plugins#feature-auto-deploys"
       themes: "NewSpring/rock-themes#feature-auto-deploys"
+      workflows: "NewSpring/rock-workflows"
+      cybersource: "NewSpring/rock-cybersource"
+      "attended-checkin": "NewSpring/rock-attended-checkin"
+      apollos: "NewSpring/rock-apollos#feature-auto-deploys"
       bookshelf: "https://github.com/NewSpring/rock-bookshelf.git"
 
+  # copy over all plugin blocks/styles/etc
   copy:
-    src: ".remote/plugins/**/*"
-    dest: "RockWeb/Plugins/"
+    src: ".remote/**/cc_newspring/**/*"
+    dest: "RockWeb/Plugins/cc_newspring"
 
-  "copy-themes":
-    "@extend": "copy"
-    src: ".remote/themes/**/*"
-    dest: "RockWeb/Themes/"
-
+  # copy over sparks bookshelf plugin
   "copy-bookshelf-package":
     "@extend": "copy"
     src: ".remote/bookshelf/org_sparkdevnetwork/**/*"
     dest: "RockWeb/Plugins/org_sparkdevnetwork/"
 
-  "copy-bookeshelf-dll":
+  # copy over any DLLs
+  "copy-dlls":
     "@extend": "copy"
-    src: ".remote/bookshelf/bin/**/*"
+    src: ".remote/**/*"
     dest: "RockWeb/Bin/"
+    ext: [
+      "dll"
+    ]
+
+  "copy-plugins-for-compile":
+  "@extend": "copy"
+    src: ".remote/**/cc.newspring.*/**/*"
+    dest: "./"
+
+
+  "copy-themes":
+    "@extend": "copy"
+    src: ".remote/themes/**/*"
+    dest: "RockWeb/Themes/"
