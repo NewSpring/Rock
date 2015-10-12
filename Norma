@@ -2,5 +2,14 @@ name: "Rock"
 tasks:
   bower:
     ".remote":
-      plugins: "NewSpring/Rock-Plugins#develop"
-      themes: "NewSpring/rock-themes"
+      plugins: "NewSpring/Rock-Plugins#feature-auto-deploys"
+      themes: "NewSpring/rock-themes#feature-auto-deploys"
+
+  copy:
+    src: ".remote/plugins/**/*"
+    dest: "RockWeb/Plugins/"
+
+  "copy-themes":
+    "@extend": "copy"
+    src: ".remote/plugins/RockWeb/Themes/**/*"
+    dest: "RockWeb/Themes/"
