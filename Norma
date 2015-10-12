@@ -4,6 +4,7 @@ tasks:
     ".remote":
       plugins: "NewSpring/Rock-Plugins#feature-auto-deploys"
       themes: "NewSpring/rock-themes#feature-auto-deploys"
+      bookshelf: "https://github.com/NewSpring/rock-bookshelf.git"
 
   copy:
     src: ".remote/plugins/**/*"
@@ -13,3 +14,13 @@ tasks:
     "@extend": "copy"
     src: ".remote/themes/**/*"
     dest: "RockWeb/Themes/"
+
+  "copy-bookshelf-package":
+    "@extend": "copy"
+    src: ".remote/bookshelf/org_sparkdevnetwork/**/*"
+    dest: "RockWeb/Plugins/org_sparkdevnetwork/"
+
+  "copy-bookeshelf-dll":
+    "@extend": "copy"
+    src: ".remote/bookshelf/bin/**/*"
+    dest: "RockWeb/Bin/"

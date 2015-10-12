@@ -9,6 +9,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "norma-bower": "^0.3.7"
+    "norma-bower": "^0.3.7",
+    "norma-copy": "^0.4.6"
   }
 }
