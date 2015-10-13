@@ -1,3 +1,0 @@
-[submodule ".remote/bookshelf"]
-	path = .remote/bookshelf
-	url = git@github.com:NewSpring/rock-bookshelf.git
