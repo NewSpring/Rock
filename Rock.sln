@@ -24,6 +24,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "cc.newspring.Apollos", "cc.
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "cc.newspring.Workflows", "cc.newspring.Workflows\cc.newspring.Workflows.csproj", "{48DBF7CC-422B-49B6-9CDF-EAB090B69F03}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "com.centralaz.SpiritualGifts", "com.centralaz.SpiritualGifts\com.centralaz.SpiritualGifts.csproj", "{6879E00D-7EBC-406B-A479-84EF816B10B4}"
+EndProject
 Project("{E24C65DC-7377-472B-9ABA-BC803B73C61A}") = "RockWeb", "http://vsdev:6229", "{3ADB92E5-342B-458D-B779-369FC8A66CF6}"
 	ProjectSection(WebsiteProperties) = preProject
 		UseIISExpress = "true"

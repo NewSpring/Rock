@@ -6,31 +6,23 @@ tasks:
       workflows: "NewSpring/rock-workflows#alpha"
       cybersource: "NewSpring/rock-cybersource#alpha"
       "attended-checkin": "NewSpring/rock-attended-checkin#alpha"
-      apollos: "NewSpring/rock-apollos#feature-auto-deploys#alpha"
+      apollos: "NewSpring/rock-apollos#alpha"
+      "spritual-gifts": "NewSpring/rock-spiritual-gifts#alpha"
       # bookshelf: "https://github.com/NewSpring/rock-bookshelf.git"
 
   # copy over all plugin blocks/styles/etc
   copy:
     endpoint: "NewSpring/norma-copy#feature-base-name"
-    src: ".remote/**/cc_newspring/**/*"
+    src: ".remote/**/{cc_newspring,com_centralaz,org_sparkdevnetwork}/**/*"
     dest: "RockWeb/Plugins/"
     base: true
 
-
-  # copy over sparks bookshelf plugin
-  "copy-bookshelf-package":
-    "@extend": "copy"
-    src: ".remote/bookshelf/org_sparkdevnetwork/**/*"
-    dest: "RockWeb/Plugins/org_sparkdevnetwork/"
-    base: false
-
-
+  # copy over raw projects to be compiled
   "copy-plugins-for-compile":
     "@extend": "copy"
-    src: ".remote/**/cc.newspring.*/**/*"
+    src: ".remote/**/{cc.newspring.*,com.centralaz.*}/**/*"
     dest: "./"
     base: true
-
 
   "copy-themes":
     "@extend": "copy"
