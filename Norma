@@ -39,7 +39,6 @@ tasks:
     base: false
 
   # copy over any DLLs
-  # right now this is a manual copy of BCrypt to test deploys
   "copy-dlls":
     "@extend": "copy"
     src: ".remote/**/*"
