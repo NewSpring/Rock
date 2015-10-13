@@ -17,12 +17,12 @@ tasks:
     base: true
 
 
-  # # copy over sparks bookshelf plugin
-  # "copy-bookshelf-package":
-  #   "@extend": "copy"
-  #   src: ".remote/bookshelf/org_sparkdevnetwork/**/*"
-  #   dest: "RockWeb/Plugins/org_sparkdevnetwork/"
-  #   base: false
+  # copy over sparks bookshelf plugin
+  "copy-bookshelf-package":
+    "@extend": "copy"
+    src: ".remote/bookshelf/org_sparkdevnetwork/**/*"
+    dest: "RockWeb/Plugins/org_sparkdevnetwork/"
+    base: false
 
 
   "copy-plugins-for-compile":
@@ -42,9 +42,9 @@ tasks:
   # right now this is a manual copy of BCrypt to test deploys
   "copy-dlls":
     "@extend": "copy"
-    src: ".remote/apollos/bin/BCrypt.Net"
-    dest: "RockWeb/Bin/"
-    base: false
+    src: ".remote/**/*"
+    dest: "./RockWeb/Bin"
+    files: true
     type: "sync"
     ext: [
       "dll"
