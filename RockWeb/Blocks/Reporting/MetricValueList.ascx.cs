@@ -159,7 +159,7 @@ namespace RockWeb.Blocks.Reporting
             }
             else if ( e.Key == EntityPreferenceKey )
             {
-                e.Key = hfEntityTypeName.Value;
+                e.Name = hfEntityTypeName.Value;
                 var parts = e.Value.Split( '|' );
                 if ( parts.Length >= 2 )
                 {
@@ -199,7 +199,12 @@ namespace RockWeb.Blocks.Reporting
         /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void gMetricValues_Add( object sender, EventArgs e )
         {
-            NavigateToLinkedPage( "DetailPage", "MetricValueId", 0, "MetricCategoryId", hfMetricCategoryId.ValueAsInt() );
+            var qryParams = new Dictionary<string, string>();
+            qryParams.Add( "MetricValueId", 0.ToString() );
+            qryParams.Add( "MetricCategoryId", hfMetricCategoryId.Value );
+            qryParams.Add( "ExpandedIds", PageParameter( "ExpandedIds" ) );
+            
+            NavigateToLinkedPage( "DetailPage", qryParams );
         }
 
         /// <summary>
@@ -209,7 +214,12 @@ namespace RockWeb.Blocks.Reporting
         /// <param name="e">The <see cref="RowEventArgs" /> instance containing the event data.</param>
         protected void gMetricValues_Edit( object sender, RowEventArgs e )
         {
-            NavigateToLinkedPage( "DetailPage", "MetricValueId", e.RowKeyId, "MetricCategoryId", hfMetricCategoryId.ValueAsInt() );
+            var qryParams = new Dictionary<string, string>();
+            qryParams.Add( "MetricValueId", e.RowKeyId.ToString() );
+            qryParams.Add( "MetricCategoryId", hfMetricCategoryId.Value );
+            qryParams.Add( "ExpandedIds", PageParameter( "ExpandedIds" ) );
+
+            NavigateToLinkedPage( "DetailPage", qryParams );
         }
 
         /// <summary>
@@ -384,7 +394,7 @@ namespace RockWeb.Blocks.Reporting
             }
             else
             {
-                gMetricValues.DataSource = qry.OrderBy( s => s.Order ).ThenBy( s => s.MetricValueDateTime ).ThenBy( s => s.YValue ).ThenBy( s => s.XValue ).ToList();
+                gMetricValues.DataSource = qry.OrderBy( s => s.Order ).ThenByDescending( s => s.MetricValueDateTime ).ThenBy( s => s.YValue ).ThenBy( s => s.XValue ).ToList();
             }
 
             gMetricValues.DataBind();

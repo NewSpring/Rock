@@ -27,9 +27,9 @@ using System.Collections.Generic;
 namespace Rock.Client
 {
     /// <summary>
-    /// Simple Client Model for Device
+    /// Base client model for Device that only includes the non-virtual fields. Use this for PUT/POSTs
     /// </summary>
-    public partial class Device
+    public partial class DeviceEntity
     {
         /// <summary />
         public int Id { get; set; }
@@ -38,16 +38,24 @@ namespace Rock.Client
         public string Description { get; set; }
 
         /// <summary />
-        public DefinedValue DeviceType { get; set; }
+        public int DeviceTypeValueId { get; set; }
 
         /// <summary />
-        public int DeviceTypeValueId { get; set; }
+        public Guid? ForeignGuid { get; set; }
+
+        /// <summary />
+        public string ForeignKey { get; set; }
 
         /// <summary />
         public string IPAddress { get; set; }
 
         /// <summary />
         public int? LocationId { get; set; }
+
+        /// <summary>
+        /// If the ModifiedByPersonAliasId and ModifiedDateTime properties are being set manually and should not be overwritten with current time/user when saved, set this value to true
+        /// </summary>
+        public bool ModifiedAuditValuesAlreadyUpdated { get; set; }
 
         /// <summary />
         public string Name { get; set; }
@@ -56,10 +64,48 @@ namespace Rock.Client
         public int? PrinterDeviceId { get; set; }
 
         /// <summary />
-        public int /* PrintFrom*/ PrintFrom { get; set; }
+        public Rock.Client.Enums.PrintFrom PrintFrom { get; set; }
 
         /// <summary />
-        public int /* PrintTo*/ PrintToOverride { get; set; }
+        public Rock.Client.Enums.PrintTo PrintToOverride { get; set; }
+
+        /// <summary />
+        public Guid Guid { get; set; }
+
+        /// <summary />
+        public int? ForeignId { get; set; }
+
+        /// <summary>
+        /// Copies the base properties from a source Device object
+        /// </summary>
+        /// <param name="source">The source.</param>
+        public void CopyPropertiesFrom( Device source )
+        {
+            this.Id = source.Id;
+            this.Description = source.Description;
+            this.DeviceTypeValueId = source.DeviceTypeValueId;
+            this.ForeignGuid = source.ForeignGuid;
+            this.ForeignKey = source.ForeignKey;
+            this.IPAddress = source.IPAddress;
+            this.LocationId = source.LocationId;
+            this.ModifiedAuditValuesAlreadyUpdated = source.ModifiedAuditValuesAlreadyUpdated;
+            this.Name = source.Name;
+            this.PrinterDeviceId = source.PrinterDeviceId;
+            this.PrintFrom = source.PrintFrom;
+            this.PrintToOverride = source.PrintToOverride;
+            this.Guid = source.Guid;
+            this.ForeignId = source.ForeignId;
+
+        }
+    }
+
+    /// <summary>
+    /// Client model for Device that includes all the fields that are available for GETs. Use this for GETs (use DeviceEntity for POST/PUTs)
+    /// </summary>
+    public partial class Device : DeviceEntity
+    {
+        /// <summary />
+        public DefinedValue DeviceType { get; set; }
 
         /// <summary />
         public DateTime? CreatedDateTime { get; set; }
@@ -73,18 +119,14 @@ namespace Rock.Client
         /// <summary />
         public int? ModifiedByPersonAliasId { get; set; }
 
-        /// <summary />
-        public Guid Guid { get; set; }
-
-        /// <summary />
-        public string ForeignId { get; set; }
-
-        /// <summary />
+        /// <summary>
+        /// NOTE: Attributes are only populated when ?loadAttributes is specified. Options for loadAttributes are true, false, 'simple', 'expanded' 
+        /// </summary>
         public Dictionary<string, Rock.Client.Attribute> Attributes { get; set; }
 
-
-        /// <summary />
+        /// <summary>
+        /// NOTE: AttributeValues are only populated when ?loadAttributes is specified. Options for loadAttributes are true, false, 'simple', 'expanded' 
+        /// </summary>
         public Dictionary<string, Rock.Client.AttributeValue> AttributeValues { get; set; }
-
     }
 }

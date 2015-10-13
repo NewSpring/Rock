@@ -27,9 +27,9 @@ using System.Collections.Generic;
 namespace Rock.Client
 {
     /// <summary>
-    /// Simple Client Model for RestAction
+    /// Base client model for RestAction that only includes the non-virtual fields. Use this for PUT/POSTs
     /// </summary>
-    public partial class RestAction
+    public partial class RestActionEntity
     {
         /// <summary />
         public int Id { get; set; }
@@ -41,11 +41,53 @@ namespace Rock.Client
         public int ControllerId { get; set; }
 
         /// <summary />
+        public Guid? ForeignGuid { get; set; }
+
+        /// <summary />
+        public string ForeignKey { get; set; }
+
+        /// <summary />
         public string Method { get; set; }
+
+        /// <summary>
+        /// If the ModifiedByPersonAliasId and ModifiedDateTime properties are being set manually and should not be overwritten with current time/user when saved, set this value to true
+        /// </summary>
+        public bool ModifiedAuditValuesAlreadyUpdated { get; set; }
 
         /// <summary />
         public string Path { get; set; }
 
+        /// <summary />
+        public Guid Guid { get; set; }
+
+        /// <summary />
+        public int? ForeignId { get; set; }
+
+        /// <summary>
+        /// Copies the base properties from a source RestAction object
+        /// </summary>
+        /// <param name="source">The source.</param>
+        public void CopyPropertiesFrom( RestAction source )
+        {
+            this.Id = source.Id;
+            this.ApiId = source.ApiId;
+            this.ControllerId = source.ControllerId;
+            this.ForeignGuid = source.ForeignGuid;
+            this.ForeignKey = source.ForeignKey;
+            this.Method = source.Method;
+            this.ModifiedAuditValuesAlreadyUpdated = source.ModifiedAuditValuesAlreadyUpdated;
+            this.Path = source.Path;
+            this.Guid = source.Guid;
+            this.ForeignId = source.ForeignId;
+
+        }
+    }
+
+    /// <summary>
+    /// Client model for RestAction that includes all the fields that are available for GETs. Use this for GETs (use RestActionEntity for POST/PUTs)
+    /// </summary>
+    public partial class RestAction : RestActionEntity
+    {
         /// <summary />
         public DateTime? CreatedDateTime { get; set; }
 
@@ -58,18 +100,14 @@ namespace Rock.Client
         /// <summary />
         public int? ModifiedByPersonAliasId { get; set; }
 
-        /// <summary />
-        public Guid Guid { get; set; }
-
-        /// <summary />
-        public string ForeignId { get; set; }
-
-        /// <summary />
+        /// <summary>
+        /// NOTE: Attributes are only populated when ?loadAttributes is specified. Options for loadAttributes are true, false, 'simple', 'expanded' 
+        /// </summary>
         public Dictionary<string, Rock.Client.Attribute> Attributes { get; set; }
 
-
-        /// <summary />
+        /// <summary>
+        /// NOTE: AttributeValues are only populated when ?loadAttributes is specified. Options for loadAttributes are true, false, 'simple', 'expanded' 
+        /// </summary>
         public Dictionary<string, Rock.Client.AttributeValue> AttributeValues { get; set; }
-
     }
 }

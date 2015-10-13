@@ -27,9 +27,9 @@ using System.Collections.Generic;
 namespace Rock.Client
 {
     /// <summary>
-    /// Simple Client Model for FinancialBatch
+    /// Base client model for FinancialBatch that only includes the non-virtual fields. Use this for PUT/POSTs
     /// </summary>
-    public partial class FinancialBatch
+    public partial class FinancialBatchEntity
     {
         /// <summary />
         public int Id { get; set; }
@@ -44,19 +44,68 @@ namespace Rock.Client
         public DateTime? BatchStartDateTime { get; set; }
 
         /// <summary />
-        public Campus Campus { get; set; }
-
-        /// <summary />
         public int? CampusId { get; set; }
 
         /// <summary />
         public decimal ControlAmount { get; set; }
 
         /// <summary />
+        public Guid? ForeignGuid { get; set; }
+
+        /// <summary />
+        public string ForeignKey { get; set; }
+
+        /// <summary>
+        /// If the ModifiedByPersonAliasId and ModifiedDateTime properties are being set manually and should not be overwritten with current time/user when saved, set this value to true
+        /// </summary>
+        public bool ModifiedAuditValuesAlreadyUpdated { get; set; }
+
+        /// <summary />
         public string Name { get; set; }
 
         /// <summary />
-        public int /* BatchStatus*/ Status { get; set; }
+        public string Note { get; set; }
+
+        /// <summary />
+        public Rock.Client.Enums.BatchStatus Status { get; set; }
+
+        /// <summary />
+        public Guid Guid { get; set; }
+
+        /// <summary />
+        public int? ForeignId { get; set; }
+
+        /// <summary>
+        /// Copies the base properties from a source FinancialBatch object
+        /// </summary>
+        /// <param name="source">The source.</param>
+        public void CopyPropertiesFrom( FinancialBatch source )
+        {
+            this.Id = source.Id;
+            this.AccountingSystemCode = source.AccountingSystemCode;
+            this.BatchEndDateTime = source.BatchEndDateTime;
+            this.BatchStartDateTime = source.BatchStartDateTime;
+            this.CampusId = source.CampusId;
+            this.ControlAmount = source.ControlAmount;
+            this.ForeignGuid = source.ForeignGuid;
+            this.ForeignKey = source.ForeignKey;
+            this.ModifiedAuditValuesAlreadyUpdated = source.ModifiedAuditValuesAlreadyUpdated;
+            this.Name = source.Name;
+            this.Note = source.Note;
+            this.Status = source.Status;
+            this.Guid = source.Guid;
+            this.ForeignId = source.ForeignId;
+
+        }
+    }
+
+    /// <summary>
+    /// Client model for FinancialBatch that includes all the fields that are available for GETs. Use this for GETs (use FinancialBatchEntity for POST/PUTs)
+    /// </summary>
+    public partial class FinancialBatch : FinancialBatchEntity
+    {
+        /// <summary />
+        public Campus Campus { get; set; }
 
         /// <summary />
         public ICollection<FinancialTransaction> Transactions { get; set; }
@@ -73,18 +122,14 @@ namespace Rock.Client
         /// <summary />
         public int? ModifiedByPersonAliasId { get; set; }
 
-        /// <summary />
-        public Guid Guid { get; set; }
-
-        /// <summary />
-        public string ForeignId { get; set; }
-
-        /// <summary />
+        /// <summary>
+        /// NOTE: Attributes are only populated when ?loadAttributes is specified. Options for loadAttributes are true, false, 'simple', 'expanded' 
+        /// </summary>
         public Dictionary<string, Rock.Client.Attribute> Attributes { get; set; }
 
-
-        /// <summary />
+        /// <summary>
+        /// NOTE: AttributeValues are only populated when ?loadAttributes is specified. Options for loadAttributes are true, false, 'simple', 'expanded' 
+        /// </summary>
         public Dictionary<string, Rock.Client.AttributeValue> AttributeValues { get; set; }
-
     }
 }

@@ -27,24 +27,32 @@ using System.Collections.Generic;
 namespace Rock.Client
 {
     /// <summary>
-    /// Simple Client Model for WorkflowActivityType
+    /// Base client model for WorkflowActivityType that only includes the non-virtual fields. Use this for PUT/POSTs
     /// </summary>
-    public partial class WorkflowActivityType
+    public partial class WorkflowActivityTypeEntity
     {
         /// <summary />
         public int Id { get; set; }
 
         /// <summary />
-        public ICollection<WorkflowActionType> ActionTypes { get; set; }
+        public string Description { get; set; }
 
         /// <summary />
-        public string Description { get; set; }
+        public Guid? ForeignGuid { get; set; }
+
+        /// <summary />
+        public string ForeignKey { get; set; }
 
         /// <summary />
         public bool IsActivatedWithWorkflow { get; set; }
 
         /// <summary />
         public bool? IsActive { get; set; }
+
+        /// <summary>
+        /// If the ModifiedByPersonAliasId and ModifiedDateTime properties are being set manually and should not be overwritten with current time/user when saved, set this value to true
+        /// </summary>
+        public bool ModifiedAuditValuesAlreadyUpdated { get; set; }
 
         /// <summary />
         public string Name { get; set; }
@@ -54,6 +62,42 @@ namespace Rock.Client
 
         /// <summary />
         public int WorkflowTypeId { get; set; }
+
+        /// <summary />
+        public Guid Guid { get; set; }
+
+        /// <summary />
+        public int? ForeignId { get; set; }
+
+        /// <summary>
+        /// Copies the base properties from a source WorkflowActivityType object
+        /// </summary>
+        /// <param name="source">The source.</param>
+        public void CopyPropertiesFrom( WorkflowActivityType source )
+        {
+            this.Id = source.Id;
+            this.Description = source.Description;
+            this.ForeignGuid = source.ForeignGuid;
+            this.ForeignKey = source.ForeignKey;
+            this.IsActivatedWithWorkflow = source.IsActivatedWithWorkflow;
+            this.IsActive = source.IsActive;
+            this.ModifiedAuditValuesAlreadyUpdated = source.ModifiedAuditValuesAlreadyUpdated;
+            this.Name = source.Name;
+            this.Order = source.Order;
+            this.WorkflowTypeId = source.WorkflowTypeId;
+            this.Guid = source.Guid;
+            this.ForeignId = source.ForeignId;
+
+        }
+    }
+
+    /// <summary>
+    /// Client model for WorkflowActivityType that includes all the fields that are available for GETs. Use this for GETs (use WorkflowActivityTypeEntity for POST/PUTs)
+    /// </summary>
+    public partial class WorkflowActivityType : WorkflowActivityTypeEntity
+    {
+        /// <summary />
+        public ICollection<WorkflowActionType> ActionTypes { get; set; }
 
         /// <summary />
         public DateTime? CreatedDateTime { get; set; }
@@ -67,18 +111,14 @@ namespace Rock.Client
         /// <summary />
         public int? ModifiedByPersonAliasId { get; set; }
 
-        /// <summary />
-        public Guid Guid { get; set; }
-
-        /// <summary />
-        public string ForeignId { get; set; }
-
-        /// <summary />
+        /// <summary>
+        /// NOTE: Attributes are only populated when ?loadAttributes is specified. Options for loadAttributes are true, false, 'simple', 'expanded' 
+        /// </summary>
         public Dictionary<string, Rock.Client.Attribute> Attributes { get; set; }
 
-
-        /// <summary />
+        /// <summary>
+        /// NOTE: AttributeValues are only populated when ?loadAttributes is specified. Options for loadAttributes are true, false, 'simple', 'expanded' 
+        /// </summary>
         public Dictionary<string, Rock.Client.AttributeValue> AttributeValues { get; set; }
-
     }
 }

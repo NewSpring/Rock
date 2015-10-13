@@ -27,27 +27,21 @@ using System.Collections.Generic;
 namespace Rock.Client
 {
     /// <summary>
-    /// Simple Client Model for Attribute
+    /// Base client model for Attribute that only includes the non-virtual fields. Use this for PUT/POSTs
     /// </summary>
-    public partial class Attribute
+    public partial class AttributeEntity
     {
         /// <summary />
         public int Id { get; set; }
 
         /// <summary />
-        public ICollection<AttributeQualifier> AttributeQualifiers { get; set; }
-
-        /// <summary />
-        public ICollection<Category> Categories { get; set; }
+        public bool AllowSearch { get; set; }
 
         /// <summary />
         public string DefaultValue { get; set; }
 
         /// <summary />
         public string Description { get; set; }
-
-        /// <summary />
-        public EntityType EntityType { get; set; }
 
         /// <summary />
         public int? EntityTypeId { get; set; }
@@ -59,10 +53,13 @@ namespace Rock.Client
         public string EntityTypeQualifierValue { get; set; }
 
         /// <summary />
-        public FieldType FieldType { get; set; }
+        public int FieldTypeId { get; set; }
 
         /// <summary />
-        public int FieldTypeId { get; set; }
+        public Guid? ForeignGuid { get; set; }
+
+        /// <summary />
+        public string ForeignKey { get; set; }
 
         /// <summary />
         public string IconCssClass { get; set; }
@@ -82,11 +79,70 @@ namespace Rock.Client
         /// <summary />
         public string Key { get; set; }
 
+        /// <summary>
+        /// If the ModifiedByPersonAliasId and ModifiedDateTime properties are being set manually and should not be overwritten with current time/user when saved, set this value to true
+        /// </summary>
+        public bool ModifiedAuditValuesAlreadyUpdated { get; set; }
+
         /// <summary />
         public string Name { get; set; }
 
         /// <summary />
         public int Order { get; set; }
+
+        /// <summary />
+        public Guid Guid { get; set; }
+
+        /// <summary />
+        public int? ForeignId { get; set; }
+
+        /// <summary>
+        /// Copies the base properties from a source Attribute object
+        /// </summary>
+        /// <param name="source">The source.</param>
+        public void CopyPropertiesFrom( Attribute source )
+        {
+            this.Id = source.Id;
+            this.AllowSearch = source.AllowSearch;
+            this.DefaultValue = source.DefaultValue;
+            this.Description = source.Description;
+            this.EntityTypeId = source.EntityTypeId;
+            this.EntityTypeQualifierColumn = source.EntityTypeQualifierColumn;
+            this.EntityTypeQualifierValue = source.EntityTypeQualifierValue;
+            this.FieldTypeId = source.FieldTypeId;
+            this.ForeignGuid = source.ForeignGuid;
+            this.ForeignKey = source.ForeignKey;
+            this.IconCssClass = source.IconCssClass;
+            this.IsGridColumn = source.IsGridColumn;
+            this.IsMultiValue = source.IsMultiValue;
+            this.IsRequired = source.IsRequired;
+            this.IsSystem = source.IsSystem;
+            this.Key = source.Key;
+            this.ModifiedAuditValuesAlreadyUpdated = source.ModifiedAuditValuesAlreadyUpdated;
+            this.Name = source.Name;
+            this.Order = source.Order;
+            this.Guid = source.Guid;
+            this.ForeignId = source.ForeignId;
+
+        }
+    }
+
+    /// <summary>
+    /// Client model for Attribute that includes all the fields that are available for GETs. Use this for GETs (use AttributeEntity for POST/PUTs)
+    /// </summary>
+    public partial class Attribute : AttributeEntity
+    {
+        /// <summary />
+        public ICollection<AttributeQualifier> AttributeQualifiers { get; set; }
+
+        /// <summary />
+        public ICollection<Category> Categories { get; set; }
+
+        /// <summary />
+        public EntityType EntityType { get; set; }
+
+        /// <summary />
+        public FieldType FieldType { get; set; }
 
         /// <summary />
         public DateTime? CreatedDateTime { get; set; }
@@ -100,18 +156,14 @@ namespace Rock.Client
         /// <summary />
         public int? ModifiedByPersonAliasId { get; set; }
 
-        /// <summary />
-        public Guid Guid { get; set; }
-
-        /// <summary />
-        public string ForeignId { get; set; }
-
-        /// <summary />
+        /// <summary>
+        /// NOTE: Attributes are only populated when ?loadAttributes is specified. Options for loadAttributes are true, false, 'simple', 'expanded' 
+        /// </summary>
         public Dictionary<string, Rock.Client.Attribute> Attributes { get; set; }
 
-
-        /// <summary />
+        /// <summary>
+        /// NOTE: AttributeValues are only populated when ?loadAttributes is specified. Options for loadAttributes are true, false, 'simple', 'expanded' 
+        /// </summary>
         public Dictionary<string, Rock.Client.AttributeValue> AttributeValues { get; set; }
-
     }
 }

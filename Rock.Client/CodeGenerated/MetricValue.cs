@@ -27,18 +27,21 @@ using System.Collections.Generic;
 namespace Rock.Client
 {
     /// <summary>
-    /// Simple Client Model for MetricValue
+    /// Base client model for MetricValue that only includes the non-virtual fields. Use this for PUT/POSTs
     /// </summary>
-    public partial class MetricValue
+    public partial class MetricValueEntity
     {
         /// <summary />
         public int Id { get; set; }
 
         /// <summary />
-        public long DateTimeStamp { get; set; }
+        public int? EntityId { get; set; }
 
         /// <summary />
-        public int? EntityId { get; set; }
+        public Guid? ForeignGuid { get; set; }
+
+        /// <summary />
+        public string ForeignKey { get; set; }
 
         /// <summary />
         public int MetricId { get; set; }
@@ -47,7 +50,12 @@ namespace Rock.Client
         public DateTime? MetricValueDateTime { get; set; }
 
         /// <summary />
-        public int /* MetricValueType*/ MetricValueType { get; set; }
+        public Rock.Client.Enums.MetricValueType MetricValueType { get; set; }
+
+        /// <summary>
+        /// If the ModifiedByPersonAliasId and ModifiedDateTime properties are being set manually and should not be overwritten with current time/user when saved, set this value to true
+        /// </summary>
+        public bool ModifiedAuditValuesAlreadyUpdated { get; set; }
 
         /// <summary />
         public string Note { get; set; }
@@ -56,13 +64,51 @@ namespace Rock.Client
         public int Order { get; set; }
 
         /// <summary />
-        public string SeriesId { get; set; }
-
-        /// <summary />
         public string XValue { get; set; }
 
         /// <summary />
         public decimal? YValue { get; set; }
+
+        /// <summary />
+        public Guid Guid { get; set; }
+
+        /// <summary />
+        public int? ForeignId { get; set; }
+
+        /// <summary>
+        /// Copies the base properties from a source MetricValue object
+        /// </summary>
+        /// <param name="source">The source.</param>
+        public void CopyPropertiesFrom( MetricValue source )
+        {
+            this.Id = source.Id;
+            this.EntityId = source.EntityId;
+            this.ForeignGuid = source.ForeignGuid;
+            this.ForeignKey = source.ForeignKey;
+            this.MetricId = source.MetricId;
+            this.MetricValueDateTime = source.MetricValueDateTime;
+            this.MetricValueType = source.MetricValueType;
+            this.ModifiedAuditValuesAlreadyUpdated = source.ModifiedAuditValuesAlreadyUpdated;
+            this.Note = source.Note;
+            this.Order = source.Order;
+            this.XValue = source.XValue;
+            this.YValue = source.YValue;
+            this.Guid = source.Guid;
+            this.ForeignId = source.ForeignId;
+
+        }
+    }
+
+    /// <summary>
+    /// Client model for MetricValue that includes all the fields that are available for GETs. Use this for GETs (use MetricValueEntity for POST/PUTs)
+    /// </summary>
+    public partial class MetricValue : MetricValueEntity
+    {
+        /// <summary />
+        public long DateTimeStamp { get; set; }
+
+        /// <summary />
+        public string SeriesId { get; set; }
 
         /// <summary />
         public DateTime? CreatedDateTime { get; set; }
@@ -76,18 +122,14 @@ namespace Rock.Client
         /// <summary />
         public int? ModifiedByPersonAliasId { get; set; }
 
-        /// <summary />
-        public Guid Guid { get; set; }
-
-        /// <summary />
-        public string ForeignId { get; set; }
-
-        /// <summary />
+        /// <summary>
+        /// NOTE: Attributes are only populated when ?loadAttributes is specified. Options for loadAttributes are true, false, 'simple', 'expanded' 
+        /// </summary>
         public Dictionary<string, Rock.Client.Attribute> Attributes { get; set; }
 
-
-        /// <summary />
+        /// <summary>
+        /// NOTE: AttributeValues are only populated when ?loadAttributes is specified. Options for loadAttributes are true, false, 'simple', 'expanded' 
+        /// </summary>
         public Dictionary<string, Rock.Client.AttributeValue> AttributeValues { get; set; }
-
     }
 }

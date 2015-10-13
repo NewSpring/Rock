@@ -27,9 +27,9 @@ using System.Collections.Generic;
 namespace Rock.Client
 {
     /// <summary>
-    /// Simple Client Model for FinancialScheduledTransaction
+    /// Base client model for FinancialScheduledTransaction that only includes the non-virtual fields. Use this for PUT/POSTs
     /// </summary>
-    public partial class FinancialScheduledTransaction
+    public partial class FinancialScheduledTransactionEntity
     {
         /// <summary />
         public int Id { get; set; }
@@ -41,25 +41,19 @@ namespace Rock.Client
         public DateTime? CardReminderDate { get; set; }
 
         /// <summary />
-        public DefinedValue CreditCardTypeValue { get; set; }
-
-        /// <summary />
-        public int? CreditCardTypeValueId { get; set; }
-
-        /// <summary />
-        public DefinedValue CurrencyTypeValue { get; set; }
-
-        /// <summary />
-        public int? CurrencyTypeValueId { get; set; }
-
-        /// <summary />
         public DateTime? EndDate { get; set; }
 
         /// <summary />
-        public EntityType GatewayEntityType { get; set; }
+        public int? FinancialGatewayId { get; set; }
 
         /// <summary />
-        public int? GatewayEntityTypeId { get; set; }
+        public int? FinancialPaymentDetailId { get; set; }
+
+        /// <summary />
+        public Guid? ForeignGuid { get; set; }
+
+        /// <summary />
+        public string ForeignKey { get; set; }
 
         /// <summary />
         public string GatewayScheduleId { get; set; }
@@ -73,14 +67,16 @@ namespace Rock.Client
         /// <summary />
         public DateTime? LastStatusUpdateDateTime { get; set; }
 
+        /// <summary>
+        /// If the ModifiedByPersonAliasId and ModifiedDateTime properties are being set manually and should not be overwritten with current time/user when saved, set this value to true
+        /// </summary>
+        public bool ModifiedAuditValuesAlreadyUpdated { get; set; }
+
         /// <summary />
         public DateTime? NextPaymentDate { get; set; }
 
         /// <summary />
         public int? NumberOfPayments { get; set; }
-
-        /// <summary />
-        public ICollection<FinancialScheduledTransactionDetail> ScheduledTransactionDetails { get; set; }
 
         /// <summary />
         public DateTime StartDate { get; set; }
@@ -89,10 +85,60 @@ namespace Rock.Client
         public string TransactionCode { get; set; }
 
         /// <summary />
-        public DefinedValue TransactionFrequencyValue { get; set; }
+        public int TransactionFrequencyValueId { get; set; }
 
         /// <summary />
-        public int TransactionFrequencyValueId { get; set; }
+        public Guid Guid { get; set; }
+
+        /// <summary />
+        public int? ForeignId { get; set; }
+
+        /// <summary>
+        /// Copies the base properties from a source FinancialScheduledTransaction object
+        /// </summary>
+        /// <param name="source">The source.</param>
+        public void CopyPropertiesFrom( FinancialScheduledTransaction source )
+        {
+            this.Id = source.Id;
+            this.AuthorizedPersonAliasId = source.AuthorizedPersonAliasId;
+            this.CardReminderDate = source.CardReminderDate;
+            this.EndDate = source.EndDate;
+            this.FinancialGatewayId = source.FinancialGatewayId;
+            this.FinancialPaymentDetailId = source.FinancialPaymentDetailId;
+            this.ForeignGuid = source.ForeignGuid;
+            this.ForeignKey = source.ForeignKey;
+            this.GatewayScheduleId = source.GatewayScheduleId;
+            this.IsActive = source.IsActive;
+            this.LastRemindedDate = source.LastRemindedDate;
+            this.LastStatusUpdateDateTime = source.LastStatusUpdateDateTime;
+            this.ModifiedAuditValuesAlreadyUpdated = source.ModifiedAuditValuesAlreadyUpdated;
+            this.NextPaymentDate = source.NextPaymentDate;
+            this.NumberOfPayments = source.NumberOfPayments;
+            this.StartDate = source.StartDate;
+            this.TransactionCode = source.TransactionCode;
+            this.TransactionFrequencyValueId = source.TransactionFrequencyValueId;
+            this.Guid = source.Guid;
+            this.ForeignId = source.ForeignId;
+
+        }
+    }
+
+    /// <summary>
+    /// Client model for FinancialScheduledTransaction that includes all the fields that are available for GETs. Use this for GETs (use FinancialScheduledTransactionEntity for POST/PUTs)
+    /// </summary>
+    public partial class FinancialScheduledTransaction : FinancialScheduledTransactionEntity
+    {
+        /// <summary />
+        public FinancialGateway FinancialGateway { get; set; }
+
+        /// <summary />
+        public FinancialPaymentDetail FinancialPaymentDetail { get; set; }
+
+        /// <summary />
+        public ICollection<FinancialScheduledTransactionDetail> ScheduledTransactionDetails { get; set; }
+
+        /// <summary />
+        public DefinedValue TransactionFrequencyValue { get; set; }
 
         /// <summary />
         public ICollection<FinancialTransaction> Transactions { get; set; }
@@ -109,18 +155,14 @@ namespace Rock.Client
         /// <summary />
         public int? ModifiedByPersonAliasId { get; set; }
 
-        /// <summary />
-        public Guid Guid { get; set; }
-
-        /// <summary />
-        public string ForeignId { get; set; }
-
-        /// <summary />
+        /// <summary>
+        /// NOTE: Attributes are only populated when ?loadAttributes is specified. Options for loadAttributes are true, false, 'simple', 'expanded' 
+        /// </summary>
         public Dictionary<string, Rock.Client.Attribute> Attributes { get; set; }
 
-
-        /// <summary />
+        /// <summary>
+        /// NOTE: AttributeValues are only populated when ?loadAttributes is specified. Options for loadAttributes are true, false, 'simple', 'expanded' 
+        /// </summary>
         public Dictionary<string, Rock.Client.AttributeValue> AttributeValues { get; set; }
-
     }
 }

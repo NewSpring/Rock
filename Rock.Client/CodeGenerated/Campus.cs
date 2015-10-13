@@ -27,9 +27,9 @@ using System.Collections.Generic;
 namespace Rock.Client
 {
     /// <summary>
-    /// Simple Client Model for Campus
+    /// Base client model for Campus that only includes the non-virtual fields. Use this for PUT/POSTs
     /// </summary>
-    public partial class Campus
+    public partial class CampusEntity
     {
         /// <summary />
         public int Id { get; set; }
@@ -38,22 +38,27 @@ namespace Rock.Client
         public string Description { get; set; }
 
         /// <summary />
+        public Guid? ForeignGuid { get; set; }
+
+        /// <summary />
+        public string ForeignKey { get; set; }
+
+        /// <summary />
         public bool? IsActive { get; set; }
 
         /// <summary />
         public bool IsSystem { get; set; }
 
         /// <summary />
-        public PersonAlias LeaderPersonAlias { get; set; }
-
-        /// <summary />
         public int? LeaderPersonAliasId { get; set; }
 
         /// <summary />
-        public Location Location { get; set; }
-
-        /// <summary />
         public int? LocationId { get; set; }
+
+        /// <summary>
+        /// If the ModifiedByPersonAliasId and ModifiedDateTime properties are being set manually and should not be overwritten with current time/user when saved, set this value to true
+        /// </summary>
+        public bool ModifiedAuditValuesAlreadyUpdated { get; set; }
 
         /// <summary />
         public string Name { get; set; }
@@ -71,6 +76,49 @@ namespace Rock.Client
         public string Url { get; set; }
 
         /// <summary />
+        public Guid Guid { get; set; }
+
+        /// <summary />
+        public int? ForeignId { get; set; }
+
+        /// <summary>
+        /// Copies the base properties from a source Campus object
+        /// </summary>
+        /// <param name="source">The source.</param>
+        public void CopyPropertiesFrom( Campus source )
+        {
+            this.Id = source.Id;
+            this.Description = source.Description;
+            this.ForeignGuid = source.ForeignGuid;
+            this.ForeignKey = source.ForeignKey;
+            this.IsActive = source.IsActive;
+            this.IsSystem = source.IsSystem;
+            this.LeaderPersonAliasId = source.LeaderPersonAliasId;
+            this.LocationId = source.LocationId;
+            this.ModifiedAuditValuesAlreadyUpdated = source.ModifiedAuditValuesAlreadyUpdated;
+            this.Name = source.Name;
+            this.PhoneNumber = source.PhoneNumber;
+            this.ServiceTimes = source.ServiceTimes;
+            this.ShortCode = source.ShortCode;
+            this.Url = source.Url;
+            this.Guid = source.Guid;
+            this.ForeignId = source.ForeignId;
+
+        }
+    }
+
+    /// <summary>
+    /// Client model for Campus that includes all the fields that are available for GETs. Use this for GETs (use CampusEntity for POST/PUTs)
+    /// </summary>
+    public partial class Campus : CampusEntity
+    {
+        /// <summary />
+        public PersonAlias LeaderPersonAlias { get; set; }
+
+        /// <summary />
+        public Location Location { get; set; }
+
+        /// <summary />
         public DateTime? CreatedDateTime { get; set; }
 
         /// <summary />
@@ -82,18 +130,14 @@ namespace Rock.Client
         /// <summary />
         public int? ModifiedByPersonAliasId { get; set; }
 
-        /// <summary />
-        public Guid Guid { get; set; }
-
-        /// <summary />
-        public string ForeignId { get; set; }
-
-        /// <summary />
+        /// <summary>
+        /// NOTE: Attributes are only populated when ?loadAttributes is specified. Options for loadAttributes are true, false, 'simple', 'expanded' 
+        /// </summary>
         public Dictionary<string, Rock.Client.Attribute> Attributes { get; set; }
 
-
-        /// <summary />
+        /// <summary>
+        /// NOTE: AttributeValues are only populated when ?loadAttributes is specified. Options for loadAttributes are true, false, 'simple', 'expanded' 
+        /// </summary>
         public Dictionary<string, Rock.Client.AttributeValue> AttributeValues { get; set; }
-
     }
 }

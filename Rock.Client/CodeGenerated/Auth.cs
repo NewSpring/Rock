@@ -27,9 +27,9 @@ using System.Collections.Generic;
 namespace Rock.Client
 {
     /// <summary>
-    /// Simple Client Model for Auth
+    /// Base client model for Auth that only includes the non-virtual fields. Use this for PUT/POSTs
     /// </summary>
-    public partial class Auth
+    public partial class AuthEntity
     {
         /// <summary />
         public int Id { get; set; }
@@ -47,7 +47,18 @@ namespace Rock.Client
         public int EntityTypeId { get; set; }
 
         /// <summary />
+        public Guid? ForeignGuid { get; set; }
+
+        /// <summary />
+        public string ForeignKey { get; set; }
+
+        /// <summary />
         public int? GroupId { get; set; }
+
+        /// <summary>
+        /// If the ModifiedByPersonAliasId and ModifiedDateTime properties are being set manually and should not be overwritten with current time/user when saved, set this value to true
+        /// </summary>
+        public bool ModifiedAuditValuesAlreadyUpdated { get; set; }
 
         /// <summary />
         public int Order { get; set; }
@@ -56,8 +67,43 @@ namespace Rock.Client
         public int? PersonAliasId { get; set; }
 
         /// <summary />
-        public int /* SpecialRole*/ SpecialRole { get; set; }
+        public Rock.Client.Enums.SpecialRole SpecialRole { get; set; }
 
+        /// <summary />
+        public Guid Guid { get; set; }
+
+        /// <summary />
+        public int? ForeignId { get; set; }
+
+        /// <summary>
+        /// Copies the base properties from a source Auth object
+        /// </summary>
+        /// <param name="source">The source.</param>
+        public void CopyPropertiesFrom( Auth source )
+        {
+            this.Id = source.Id;
+            this.Action = source.Action;
+            this.AllowOrDeny = source.AllowOrDeny;
+            this.EntityId = source.EntityId;
+            this.EntityTypeId = source.EntityTypeId;
+            this.ForeignGuid = source.ForeignGuid;
+            this.ForeignKey = source.ForeignKey;
+            this.GroupId = source.GroupId;
+            this.ModifiedAuditValuesAlreadyUpdated = source.ModifiedAuditValuesAlreadyUpdated;
+            this.Order = source.Order;
+            this.PersonAliasId = source.PersonAliasId;
+            this.SpecialRole = source.SpecialRole;
+            this.Guid = source.Guid;
+            this.ForeignId = source.ForeignId;
+
+        }
+    }
+
+    /// <summary>
+    /// Client model for Auth that includes all the fields that are available for GETs. Use this for GETs (use AuthEntity for POST/PUTs)
+    /// </summary>
+    public partial class Auth : AuthEntity
+    {
         /// <summary />
         public DateTime? CreatedDateTime { get; set; }
 
@@ -70,18 +116,14 @@ namespace Rock.Client
         /// <summary />
         public int? ModifiedByPersonAliasId { get; set; }
 
-        /// <summary />
-        public Guid Guid { get; set; }
-
-        /// <summary />
-        public string ForeignId { get; set; }
-
-        /// <summary />
+        /// <summary>
+        /// NOTE: Attributes are only populated when ?loadAttributes is specified. Options for loadAttributes are true, false, 'simple', 'expanded' 
+        /// </summary>
         public Dictionary<string, Rock.Client.Attribute> Attributes { get; set; }
 
-
-        /// <summary />
+        /// <summary>
+        /// NOTE: AttributeValues are only populated when ?loadAttributes is specified. Options for loadAttributes are true, false, 'simple', 'expanded' 
+        /// </summary>
         public Dictionary<string, Rock.Client.AttributeValue> AttributeValues { get; set; }
-
     }
 }

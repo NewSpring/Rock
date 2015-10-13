@@ -20,6 +20,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 using System.Data.Entity.ModelConfiguration;
 using System.Runtime.Serialization;
 
+using Rock.Chart;
 using Rock.Data;
 
 namespace Rock.Model
@@ -169,7 +170,10 @@ namespace Rock.Model
         /// </summary>
         public override Security.ISecured ParentAuthority
         {
-            get { return this.Metric; }
+            get 
+            {
+                return this.Metric != null ? this.Metric : base.ParentAuthority;
+            }
         }
 
         /// <summary>

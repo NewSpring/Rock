@@ -10,8 +10,10 @@
 // 1. Notes 
 // -------------------------
 .panel-note {
+    // panel extensions    ->      .panel-variant(@border; @heading-text-color; @heading-bg-color; @heading-border;) {}
+    .panel-variant(@panel-border; @panel-heading-text-color; @panel-heading-bg; @panel-heading-border;);
 
-    .panel-variant(darken(@gray-lighter, 5%); @text-color; @gray-lighter; darken(@gray-lighter, 5%););
+    border-top-color: @panel-top-border-color;
 
     .panel-body {
         background-color: #fffs;
@@ -31,11 +33,12 @@
 
     article {
         border-radius: @border-radius-base;
-        border: 1px solid darken(@gray-lighter, @const-border-darken-amt);
+        border: 1px solid @state-info-border;
         padding: @spacing-md-px;
         margin-bottom: @spacing-md-px;
-        background-color: @gray-lighter;
+        background-color: @state-info-bg;
         position: relative;
+        color: @state-info-text;
 
         .date {
             font-size: 13px;
@@ -52,7 +55,7 @@
         }
 
         .details {
-            margin-left: 50px; 
+            margin-left: 70px; 
 
             h5 {
                 margin-top: 0;
@@ -77,19 +80,19 @@
         }
 
         &.highlight {
-            background-color: @state-danger-bg;
-            border: 1px solid darken(spin(@state-danger-bg, -10), 3%);
-            color: @state-danger-text;
+            background-color: @note-highlight-bg;
+            border: 1px solid @note-highlight-border;
+            color: @note-highlight-text;
 
             a {
-                color: @state-danger-text;
+                color: @note-highlight-text;
             }
         }
 
         &.personal {
-            background-color: @accent-semibold-color;
-            border: 1px solid darken(spin(@accent-semibold-color, -10), 3%);
-            color: @accent-semibold-text-color;
+            background-color: @note-personal-bg;
+            border: 1px solid @note-personal-border;
+            color: @note-personal-text;
         }
 
         & > img {
@@ -193,7 +196,12 @@
 
 .panel-noteentry
 {
-    .panel-variant(@accent-color; @accent-text-color; @accent-text-color; @accent-text-color);
+    .panel-variant(@panel-border; @panel-heading-text-color; @panel-heading-bg; @panel-heading-border;);
+
+    .createDate {
+          margin-top:10px;
+          width:50%;
+    }
 
     .settings {
         margin-top: 4px;
@@ -210,6 +218,10 @@
             overflow: hidden;
         }
 
+        .noteentry-notetype {
+            margin-bottom: 4px;
+        }
+
         img {
             float: left;
             margin: 0 12px 0 4px;
@@ -223,7 +235,7 @@
     } 
 
     .panel-footer {
-        background-color: @accent-color;
+        background-color: @panel-default-heading-bg;
     }
 }
 
@@ -324,7 +336,8 @@
 .panel.workflow-activity { 
     
     &.activated-with-workflow {
-        
+       border-color:  @state-success-text;
+
        & > .panel-heading {
             background-color: @state-success-bg;
             color: @state-success-text;
@@ -372,7 +385,8 @@
 // panel for workflow entry/navigation
 .panel-group {
     .panel-workflowitem {
-        .panel-variant(darken(@gray-lighter, 5%); @text-color; @gray-lighter; darken(@gray-lighter, 5%););
+        // .panel-variant(@border; @heading-text-color; @heading-bg-color; @heading-border;) {}
+        .panel-variant(@panel-border; @panel-heading-text-color; @panel-heading-bg; @panel-heading-border;);
 
         margin-bottom: 30px;
 
@@ -382,7 +396,6 @@
 
         .panel-heading {
             padding: 30px;
-            background-color: @gray-lighter;
 
             a {
                 display: block;

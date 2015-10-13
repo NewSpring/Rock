@@ -27,21 +27,61 @@ using System.Collections.Generic;
 namespace Rock.Client
 {
     /// <summary>
-    /// Simple Client Model for RestController
+    /// Base client model for RestController that only includes the non-virtual fields. Use this for PUT/POSTs
     /// </summary>
-    public partial class RestController
+    public partial class RestControllerEntity
     {
         /// <summary />
         public int Id { get; set; }
 
         /// <summary />
-        public ICollection<RestAction> Actions { get; set; }
-
-        /// <summary />
         public string ClassName { get; set; }
 
         /// <summary />
+        public Guid? ForeignGuid { get; set; }
+
+        /// <summary />
+        public string ForeignKey { get; set; }
+
+        /// <summary>
+        /// If the ModifiedByPersonAliasId and ModifiedDateTime properties are being set manually and should not be overwritten with current time/user when saved, set this value to true
+        /// </summary>
+        public bool ModifiedAuditValuesAlreadyUpdated { get; set; }
+
+        /// <summary />
         public string Name { get; set; }
+
+        /// <summary />
+        public Guid Guid { get; set; }
+
+        /// <summary />
+        public int? ForeignId { get; set; }
+
+        /// <summary>
+        /// Copies the base properties from a source RestController object
+        /// </summary>
+        /// <param name="source">The source.</param>
+        public void CopyPropertiesFrom( RestController source )
+        {
+            this.Id = source.Id;
+            this.ClassName = source.ClassName;
+            this.ForeignGuid = source.ForeignGuid;
+            this.ForeignKey = source.ForeignKey;
+            this.ModifiedAuditValuesAlreadyUpdated = source.ModifiedAuditValuesAlreadyUpdated;
+            this.Name = source.Name;
+            this.Guid = source.Guid;
+            this.ForeignId = source.ForeignId;
+
+        }
+    }
+
+    /// <summary>
+    /// Client model for RestController that includes all the fields that are available for GETs. Use this for GETs (use RestControllerEntity for POST/PUTs)
+    /// </summary>
+    public partial class RestController : RestControllerEntity
+    {
+        /// <summary />
+        public ICollection<RestAction> Actions { get; set; }
 
         /// <summary />
         public DateTime? CreatedDateTime { get; set; }
@@ -55,18 +95,14 @@ namespace Rock.Client
         /// <summary />
         public int? ModifiedByPersonAliasId { get; set; }
 
-        /// <summary />
-        public Guid Guid { get; set; }
-
-        /// <summary />
-        public string ForeignId { get; set; }
-
-        /// <summary />
+        /// <summary>
+        /// NOTE: Attributes are only populated when ?loadAttributes is specified. Options for loadAttributes are true, false, 'simple', 'expanded' 
+        /// </summary>
         public Dictionary<string, Rock.Client.Attribute> Attributes { get; set; }
 
-
-        /// <summary />
+        /// <summary>
+        /// NOTE: AttributeValues are only populated when ?loadAttributes is specified. Options for loadAttributes are true, false, 'simple', 'expanded' 
+        /// </summary>
         public Dictionary<string, Rock.Client.AttributeValue> AttributeValues { get; set; }
-
     }
 }

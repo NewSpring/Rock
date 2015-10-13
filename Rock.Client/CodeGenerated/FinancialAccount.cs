@@ -27,15 +27,12 @@ using System.Collections.Generic;
 namespace Rock.Client
 {
     /// <summary>
-    /// Simple Client Model for FinancialAccount
+    /// Base client model for FinancialAccount that only includes the non-virtual fields. Use this for PUT/POSTs
     /// </summary>
-    public partial class FinancialAccount
+    public partial class FinancialAccountEntity
     {
         /// <summary />
         public int Id { get; set; }
-
-        /// <summary />
-        public DefinedValue AccountTypeValue { get; set; }
 
         /// <summary />
         public int? AccountTypeValueId { get; set; }
@@ -44,22 +41,36 @@ namespace Rock.Client
         public int? CampusId { get; set; }
 
         /// <summary />
-        public ICollection<FinancialAccount> ChildAccounts { get; set; }
-
-        /// <summary />
         public string Description { get; set; }
 
         /// <summary />
         public DateTime? EndDate { get; set; }
 
         /// <summary />
+        public Guid? ForeignGuid { get; set; }
+
+        /// <summary />
+        public string ForeignKey { get; set; }
+
+        /// <summary />
         public string GlCode { get; set; }
+
+        /// <summary />
+        public int? ImageBinaryFileId { get; set; }
 
         /// <summary />
         public bool IsActive { get; set; }
 
         /// <summary />
+        public bool? IsPublic { get; set; }
+
+        /// <summary />
         public bool IsTaxDeductible { get; set; }
+
+        /// <summary>
+        /// If the ModifiedByPersonAliasId and ModifiedDateTime properties are being set manually and should not be overwritten with current time/user when saved, set this value to true
+        /// </summary>
+        public bool ModifiedAuditValuesAlreadyUpdated { get; set; }
 
         /// <summary />
         public string Name { get; set; }
@@ -71,10 +82,68 @@ namespace Rock.Client
         public int? ParentAccountId { get; set; }
 
         /// <summary />
+        public string PublicDescription { get; set; }
+
+        /// <summary />
         public string PublicName { get; set; }
 
         /// <summary />
         public DateTime? StartDate { get; set; }
+
+        /// <summary />
+        public string Url { get; set; }
+
+        /// <summary />
+        public Guid Guid { get; set; }
+
+        /// <summary />
+        public int? ForeignId { get; set; }
+
+        /// <summary>
+        /// Copies the base properties from a source FinancialAccount object
+        /// </summary>
+        /// <param name="source">The source.</param>
+        public void CopyPropertiesFrom( FinancialAccount source )
+        {
+            this.Id = source.Id;
+            this.AccountTypeValueId = source.AccountTypeValueId;
+            this.CampusId = source.CampusId;
+            this.Description = source.Description;
+            this.EndDate = source.EndDate;
+            this.ForeignGuid = source.ForeignGuid;
+            this.ForeignKey = source.ForeignKey;
+            this.GlCode = source.GlCode;
+            this.ImageBinaryFileId = source.ImageBinaryFileId;
+            this.IsActive = source.IsActive;
+            this.IsPublic = source.IsPublic;
+            this.IsTaxDeductible = source.IsTaxDeductible;
+            this.ModifiedAuditValuesAlreadyUpdated = source.ModifiedAuditValuesAlreadyUpdated;
+            this.Name = source.Name;
+            this.Order = source.Order;
+            this.ParentAccountId = source.ParentAccountId;
+            this.PublicDescription = source.PublicDescription;
+            this.PublicName = source.PublicName;
+            this.StartDate = source.StartDate;
+            this.Url = source.Url;
+            this.Guid = source.Guid;
+            this.ForeignId = source.ForeignId;
+
+        }
+    }
+
+    /// <summary>
+    /// Client model for FinancialAccount that includes all the fields that are available for GETs. Use this for GETs (use FinancialAccountEntity for POST/PUTs)
+    /// </summary>
+    public partial class FinancialAccount : FinancialAccountEntity
+    {
+        /// <summary />
+        public DefinedValue AccountTypeValue { get; set; }
+
+        /// <summary />
+        public ICollection<FinancialAccount> ChildAccounts { get; set; }
+
+        /// <summary />
+        public BinaryFile ImageBinaryFile { get; set; }
 
         /// <summary />
         public DateTime? CreatedDateTime { get; set; }
@@ -88,18 +157,14 @@ namespace Rock.Client
         /// <summary />
         public int? ModifiedByPersonAliasId { get; set; }
 
-        /// <summary />
-        public Guid Guid { get; set; }
-
-        /// <summary />
-        public string ForeignId { get; set; }
-
-        /// <summary />
+        /// <summary>
+        /// NOTE: Attributes are only populated when ?loadAttributes is specified. Options for loadAttributes are true, false, 'simple', 'expanded' 
+        /// </summary>
         public Dictionary<string, Rock.Client.Attribute> Attributes { get; set; }
 
-
-        /// <summary />
+        /// <summary>
+        /// NOTE: AttributeValues are only populated when ?loadAttributes is specified. Options for loadAttributes are true, false, 'simple', 'expanded' 
+        /// </summary>
         public Dictionary<string, Rock.Client.AttributeValue> AttributeValues { get; set; }
-
     }
 }

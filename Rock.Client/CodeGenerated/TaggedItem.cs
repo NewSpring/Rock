@@ -27,9 +27,9 @@ using System.Collections.Generic;
 namespace Rock.Client
 {
     /// <summary>
-    /// Simple Client Model for TaggedItem
+    /// Base client model for TaggedItem that only includes the non-virtual fields. Use this for PUT/POSTs
     /// </summary>
-    public partial class TaggedItem
+    public partial class TaggedItemEntity
     {
         /// <summary />
         public int Id { get; set; }
@@ -38,16 +38,58 @@ namespace Rock.Client
         public Guid EntityGuid { get; set; }
 
         /// <summary />
+        public Guid? ForeignGuid { get; set; }
+
+        /// <summary />
+        public string ForeignKey { get; set; }
+
+        /// <summary />
         public bool IsSystem { get; set; }
+
+        /// <summary>
+        /// If the ModifiedByPersonAliasId and ModifiedDateTime properties are being set manually and should not be overwritten with current time/user when saved, set this value to true
+        /// </summary>
+        public bool ModifiedAuditValuesAlreadyUpdated { get; set; }
 
         /// <summary />
         public int Quantity { get; set; }
 
         /// <summary />
-        public Tag Tag { get; set; }
+        public int TagId { get; set; }
 
         /// <summary />
-        public int TagId { get; set; }
+        public Guid Guid { get; set; }
+
+        /// <summary />
+        public int? ForeignId { get; set; }
+
+        /// <summary>
+        /// Copies the base properties from a source TaggedItem object
+        /// </summary>
+        /// <param name="source">The source.</param>
+        public void CopyPropertiesFrom( TaggedItem source )
+        {
+            this.Id = source.Id;
+            this.EntityGuid = source.EntityGuid;
+            this.ForeignGuid = source.ForeignGuid;
+            this.ForeignKey = source.ForeignKey;
+            this.IsSystem = source.IsSystem;
+            this.ModifiedAuditValuesAlreadyUpdated = source.ModifiedAuditValuesAlreadyUpdated;
+            this.Quantity = source.Quantity;
+            this.TagId = source.TagId;
+            this.Guid = source.Guid;
+            this.ForeignId = source.ForeignId;
+
+        }
+    }
+
+    /// <summary>
+    /// Client model for TaggedItem that includes all the fields that are available for GETs. Use this for GETs (use TaggedItemEntity for POST/PUTs)
+    /// </summary>
+    public partial class TaggedItem : TaggedItemEntity
+    {
+        /// <summary />
+        public Tag Tag { get; set; }
 
         /// <summary />
         public DateTime? CreatedDateTime { get; set; }
@@ -61,18 +103,14 @@ namespace Rock.Client
         /// <summary />
         public int? ModifiedByPersonAliasId { get; set; }
 
-        /// <summary />
-        public Guid Guid { get; set; }
-
-        /// <summary />
-        public string ForeignId { get; set; }
-
-        /// <summary />
+        /// <summary>
+        /// NOTE: Attributes are only populated when ?loadAttributes is specified. Options for loadAttributes are true, false, 'simple', 'expanded' 
+        /// </summary>
         public Dictionary<string, Rock.Client.Attribute> Attributes { get; set; }
 
-
-        /// <summary />
+        /// <summary>
+        /// NOTE: AttributeValues are only populated when ?loadAttributes is specified. Options for loadAttributes are true, false, 'simple', 'expanded' 
+        /// </summary>
         public Dictionary<string, Rock.Client.AttributeValue> AttributeValues { get; set; }
-
     }
 }

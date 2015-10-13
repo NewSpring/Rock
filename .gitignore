@@ -25,6 +25,7 @@ StyleCop.Cache
 RockWeb/Cache/*
 RockWeb/App_Data/PackageStaging
 /scaffolding.config
+<<<<<<< HEAD
 /Build/*
 node_modules
 .remote/
@@ -38,3 +39,4 @@ RockWeb/Themes/Workflows
 RockWeb/Themes/cc.*
 RockWeb/Themes/Readme.md
 cc.*
+*.sln.GhostDoc.xml

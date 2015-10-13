@@ -27,9 +27,9 @@ using System.Collections.Generic;
 namespace Rock.Client
 {
     /// <summary>
-    /// Simple Client Model for BenevolenceResult
+    /// Base client model for BenevolenceResult that only includes the non-virtual fields. Use this for PUT/POSTs
     /// </summary>
-    public partial class BenevolenceResult
+    public partial class BenevolenceResultEntity
     {
         /// <summary />
         public int Id { get; set; }
@@ -38,19 +38,61 @@ namespace Rock.Client
         public decimal? Amount { get; set; }
 
         /// <summary />
-        public BenevolenceRequest BenevolenceRequest { get; set; }
+        public int BenevolenceRequestId { get; set; }
 
         /// <summary />
-        public int BenevolenceRequestId { get; set; }
+        public Guid? ForeignGuid { get; set; }
+
+        /// <summary />
+        public string ForeignKey { get; set; }
+
+        /// <summary>
+        /// If the ModifiedByPersonAliasId and ModifiedDateTime properties are being set manually and should not be overwritten with current time/user when saved, set this value to true
+        /// </summary>
+        public bool ModifiedAuditValuesAlreadyUpdated { get; set; }
 
         /// <summary />
         public string ResultSummary { get; set; }
 
         /// <summary />
-        public DefinedValue ResultTypeValue { get; set; }
+        public int ResultTypeValueId { get; set; }
 
         /// <summary />
-        public int? ResultTypeValueId { get; set; }
+        public Guid Guid { get; set; }
+
+        /// <summary />
+        public int? ForeignId { get; set; }
+
+        /// <summary>
+        /// Copies the base properties from a source BenevolenceResult object
+        /// </summary>
+        /// <param name="source">The source.</param>
+        public void CopyPropertiesFrom( BenevolenceResult source )
+        {
+            this.Id = source.Id;
+            this.Amount = source.Amount;
+            this.BenevolenceRequestId = source.BenevolenceRequestId;
+            this.ForeignGuid = source.ForeignGuid;
+            this.ForeignKey = source.ForeignKey;
+            this.ModifiedAuditValuesAlreadyUpdated = source.ModifiedAuditValuesAlreadyUpdated;
+            this.ResultSummary = source.ResultSummary;
+            this.ResultTypeValueId = source.ResultTypeValueId;
+            this.Guid = source.Guid;
+            this.ForeignId = source.ForeignId;
+
+        }
+    }
+
+    /// <summary>
+    /// Client model for BenevolenceResult that includes all the fields that are available for GETs. Use this for GETs (use BenevolenceResultEntity for POST/PUTs)
+    /// </summary>
+    public partial class BenevolenceResult : BenevolenceResultEntity
+    {
+        /// <summary />
+        public BenevolenceRequest BenevolenceRequest { get; set; }
+
+        /// <summary />
+        public DefinedValue ResultTypeValue { get; set; }
 
         /// <summary />
         public DateTime? CreatedDateTime { get; set; }
@@ -64,11 +106,14 @@ namespace Rock.Client
         /// <summary />
         public int? ModifiedByPersonAliasId { get; set; }
 
-        /// <summary />
-        public Guid Guid { get; set; }
+        /// <summary>
+        /// NOTE: Attributes are only populated when ?loadAttributes is specified. Options for loadAttributes are true, false, 'simple', 'expanded' 
+        /// </summary>
+        public Dictionary<string, Rock.Client.Attribute> Attributes { get; set; }
 
-        /// <summary />
-        public string ForeignId { get; set; }
-
+        /// <summary>
+        /// NOTE: AttributeValues are only populated when ?loadAttributes is specified. Options for loadAttributes are true, false, 'simple', 'expanded' 
+        /// </summary>
+        public Dictionary<string, Rock.Client.AttributeValue> AttributeValues { get; set; }
     }
 }

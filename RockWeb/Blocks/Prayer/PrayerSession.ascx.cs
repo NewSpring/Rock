@@ -98,7 +98,15 @@ namespace RockWeb.Blocks.Prayer
                 lbFlag.Visible = _enableCommunityFlagging;
             }
 
-            notesComments.NoteTypeId = NoteTypeId;
+            if ( NoteTypeId.HasValue )
+            {
+                var noteType = NoteTypeCache.Read( NoteTypeId.Value );
+                if ( noteType != null )
+                {
+                    notesComments.NoteTypes = new List<NoteTypeCache> { noteType };
+                }
+            }
+
             notesComments.EntityId = CurrentPrayerRequestId;
 
             if ( lbNext.Visible )
@@ -135,7 +143,7 @@ namespace RockWeb.Blocks.Prayer
             pnlChooseCategories.Visible = false;
 
             string settingPrefix = string.Format( "prayer-categories-{0}-", this.BlockId );
-            SaveUserPreferences( settingPrefix );
+            SavePreferences( settingPrefix );
 
             SetAndDisplayPrayerRequests( cblCategories );
         }
@@ -335,7 +343,7 @@ namespace RockWeb.Blocks.Prayer
         /// Saves the users selected prayer categories for use during the next prayer session.
         /// </summary>
         /// <param name="settingPrefix"></param>
-        private void SaveUserPreferences( string settingPrefix )
+        private void SavePreferences( string settingPrefix )
         {
             var previouslyCheckedIds = this.GetUserPreference( settingPrefix ).SplitDelimitedValues();
 
@@ -407,9 +415,9 @@ namespace RockWeb.Blocks.Prayer
             // put the request's id in the hidden field in case it needs to be flagged.
             hfIdValue.SetValue( prayerRequest.Id );
 
-            lPersonIconHtml.Text = Person.GetPhotoImageTag( prayerRequest.RequestedByPersonAlias, 50, 50 );
+            lPersonIconHtml.Text = Person.GetPhotoImageTag( prayerRequest.RequestedByPersonAlias, 50, 50, "pull-left margin-r-md img-thumbnail" );
 
-            notesComments.Visible = prayerRequest.AllowComments ?? false;
+            pnlPrayerComments.Visible = prayerRequest.AllowComments ?? false;
             if ( notesComments.Visible )
             {
                 notesComments.EntityId = prayerRequest.Id;
