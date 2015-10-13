@@ -2,7 +2,7 @@ name: "Rock"
 tasks:
   bower:
     ".remote":
-      themes: "NewSpring/rock-themes#feature-auto-deploys"
+      themes: "NewSpring/rock-themes"
       workflows: "NewSpring/rock-workflows"
       cybersource: "NewSpring/rock-cybersource"
       "attended-checkin": "NewSpring/rock-attended-checkin"
