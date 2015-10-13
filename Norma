@@ -39,11 +39,11 @@ tasks:
     base: false
 
   # copy over any DLLs
-  # "copy-dlls":
-  #   "@extend": "copy"
-  #   src: ".remote/**/*"
-  #   dest: "RockWeb/Bin/"
-  #   base: false
-  #   # ext: [
-  #   #   "dll"
-  #   # ]
+  "copy-dlls":
+    "@extend": "copy"
+    src: ".remote/**/*"
+    dest: "RockWeb/Bin/"
+    base: false
+    ext: [
+      "dll"
+    ]
