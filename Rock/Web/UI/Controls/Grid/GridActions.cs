@@ -89,6 +89,50 @@ namespace Rock.Web.UI.Controls
         }
 
         /// <summary>
+        /// Gets or sets a value indicating whether [show merge person].
+        /// </summary>
+        /// <value>
+        ///   <c>true</c> if [show merge person]; otherwise, <c>false</c>.
+        /// </value>
+        public bool ShowMergePerson
+        {
+            get
+            {
+                // if the Grid has the PersonIdField set, default ShowMergePerson to True
+                bool hasPersonIdField = !string.IsNullOrWhiteSpace( _parentGrid.PersonIdField );
+
+                return ViewState["ShowMergePerson"] as bool? ?? hasPersonIdField;
+            }
+
+            set
+            {
+                ViewState["ShowMergePerson"] = value;
+            }
+        }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether [show bulk update].
+        /// </summary>
+        /// <value>
+        ///   <c>true</c> if [show bulk update]; otherwise, <c>false</c>.
+        /// </value>
+        public bool ShowBulkUpdate
+        {
+            get
+            {
+                // if the Grid has the PersonIdField set, default ShowBulkUpdate to True
+                bool hasPersonIdField = !string.IsNullOrWhiteSpace( _parentGrid.PersonIdField );
+
+                return ViewState["ShowBulkUpdate"] as bool? ?? hasPersonIdField;
+            }
+
+            set
+            {
+                ViewState["ShowBulkUpdate"] = value;
+            }
+        }
+
+        /// <summary>
         /// Gets or sets a value indicating whether [show add].
         /// </summary>
         /// <value>
@@ -344,10 +388,33 @@ namespace Rock.Web.UI.Controls
         /// <param name="writer">The <see cref="T:System.Web.UI.HtmlTextWriter" /> object that receives the control content.</param>
         public override void RenderControl( HtmlTextWriter writer )
         {
-            bool personGrid = !string.IsNullOrWhiteSpace( _parentGrid.PersonIdField );
-            _lbPersonMerge.Visible = personGrid;
-            _lbBulkUpdate.Visible = personGrid;
-            _lbCommunicate.Visible = ShowCommunicate;
+            var rockPage = Page as RockPage;
+
+            _lbPersonMerge.Visible = ShowMergePerson && _parentGrid.CanViewTargetPage( _parentGrid.PersonMergePageRoute );
+            _lbBulkUpdate.Visible = ShowBulkUpdate && _parentGrid.CanViewTargetPage( _parentGrid.BulkUpdatePageRoute );
+
+            if ( ShowCommunicate )
+            {
+                string url = _parentGrid.CommunicationPageRoute;
+                if ( string.IsNullOrWhiteSpace( url ) )
+                {
+                    var pageRef = rockPage.Site.CommunicationPageReference;
+                    if ( pageRef.PageId > 0 )
+                    {
+                        pageRef.Parameters.AddOrReplace( "CommunicationId", "0" );
+                        url = pageRef.BuildUrl();
+                    }
+                    else
+                    {
+                        url = "~/Communication/{0}";
+                    }
+                }
+                _lbCommunicate.Visible = _parentGrid.CanViewTargetPage( url );
+            }
+            else
+            {
+                _lbCommunicate.Visible = false;
+            }
 
             _aAdd.Visible = ShowAdd && !String.IsNullOrWhiteSpace( ClientAddScript );
             _lbAdd.Visible = ShowAdd && String.IsNullOrWhiteSpace( ClientAddScript );
@@ -355,7 +422,7 @@ namespace Rock.Web.UI.Controls
             _aExcelExport.Visible = ShowExcelExport && !String.IsNullOrWhiteSpace( ClientExcelExportScript );
             _lbExcelExport.Visible = ShowExcelExport && String.IsNullOrWhiteSpace( ClientExcelExportScript );
 
-            _lbMergeTemplate.Visible = ShowMergeTemplate;
+            _lbMergeTemplate.Visible = ShowMergeTemplate && _parentGrid.CanViewTargetPage( _parentGrid.MergeTemplatePageRoute );
 
             base.RenderControl( writer );
         }

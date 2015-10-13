@@ -41,6 +41,12 @@ namespace Rock.Client
         public string Description { get; set; }
 
         /// <summary />
+        public Guid? ForeignGuid { get; set; }
+
+        /// <summary />
+        public string ForeignKey { get; set; }
+
+        /// <summary />
         public string IconCssClass { get; set; }
 
         /// <summary />
@@ -51,6 +57,11 @@ namespace Rock.Client
 
         /// <summary />
         public int? MaxWidth { get; set; }
+
+        /// <summary>
+        /// If the ModifiedByPersonAliasId and ModifiedDateTime properties are being set manually and should not be overwritten with current time/user when saved, set this value to true
+        /// </summary>
+        public bool ModifiedAuditValuesAlreadyUpdated { get; set; }
 
         /// <summary />
         public string Name { get; set; }
@@ -77,7 +88,7 @@ namespace Rock.Client
         public Guid Guid { get; set; }
 
         /// <summary />
-        public string ForeignId { get; set; }
+        public int? ForeignId { get; set; }
 
         /// <summary>
         /// Copies the base properties from a source BinaryFileType object
@@ -88,10 +99,13 @@ namespace Rock.Client
             this.Id = source.Id;
             this.AllowCaching = source.AllowCaching;
             this.Description = source.Description;
+            this.ForeignGuid = source.ForeignGuid;
+            this.ForeignKey = source.ForeignKey;
             this.IconCssClass = source.IconCssClass;
             this.IsSystem = source.IsSystem;
             this.MaxHeight = source.MaxHeight;
             this.MaxWidth = source.MaxWidth;
+            this.ModifiedAuditValuesAlreadyUpdated = source.ModifiedAuditValuesAlreadyUpdated;
             this.Name = source.Name;
             this.PreferredColorDepth = source.PreferredColorDepth;
             this.PreferredFormat = source.PreferredFormat;

@@ -47,6 +47,17 @@ namespace Rock.Client
         public int? EntityTypeId { get; set; }
 
         /// <summary />
+        public Guid? ForeignGuid { get; set; }
+
+        /// <summary />
+        public string ForeignKey { get; set; }
+
+        /// <summary>
+        /// If the ModifiedByPersonAliasId and ModifiedDateTime properties are being set manually and should not be overwritten with current time/user when saved, set this value to true
+        /// </summary>
+        public bool ModifiedAuditValuesAlreadyUpdated { get; set; }
+
+        /// <summary />
         public int ScheduledTransactionId { get; set; }
 
         /// <summary />
@@ -56,7 +67,7 @@ namespace Rock.Client
         public Guid Guid { get; set; }
 
         /// <summary />
-        public string ForeignId { get; set; }
+        public int? ForeignId { get; set; }
 
         /// <summary>
         /// Copies the base properties from a source FinancialScheduledTransactionDetail object
@@ -69,6 +80,9 @@ namespace Rock.Client
             this.Amount = source.Amount;
             this.EntityId = source.EntityId;
             this.EntityTypeId = source.EntityTypeId;
+            this.ForeignGuid = source.ForeignGuid;
+            this.ForeignKey = source.ForeignKey;
+            this.ModifiedAuditValuesAlreadyUpdated = source.ModifiedAuditValuesAlreadyUpdated;
             this.ScheduledTransactionId = source.ScheduledTransactionId;
             this.Summary = source.Summary;
             this.Guid = source.Guid;

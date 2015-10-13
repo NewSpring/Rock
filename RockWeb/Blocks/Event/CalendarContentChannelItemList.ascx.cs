@@ -256,10 +256,16 @@ namespace RockWeb.Blocks.Event
 
                 foreach ( var contentChannel in ContentChannels )
                 {
+                    string iconClass = "fa fa-bullhorn";
+                    if ( !string.IsNullOrWhiteSpace( contentChannel.IconCssClass ) )
+                    {
+                        iconClass = contentChannel.IconCssClass;
+                    }
+                                        
                     var pwItems = new PanelWidget();
                     phContentChannelGrids.Controls.Add( pwItems );
                     pwItems.ID = string.Format( "pwItems_{0}", contentChannel.Id );
-                    pwItems.Title = contentChannel.Name;
+                    pwItems.Title = string.Format( "<i class='{0}'></i> {1}", iconClass, contentChannel.Name );
                     pwItems.Expanded = ExpandedPanels.Contains( contentChannel.Id );
 
                     var divItems = new HtmlGenericControl( "div" );
@@ -288,21 +294,43 @@ namespace RockWeb.Blocks.Event
                         SortExpression = "Title"
                     } );
 
-                    gItems.Columns.Add( new DateTimeField
-                    {
-                        DataField = "StartDateTime",
-                        HeaderText = contentChannel.ContentChannelType.DateRangeType == ContentChannelDateType.DateRange ? "Start" : "Active",
-                        SortExpression = "StartDateTime"
-                    } );
-
-                    if ( contentChannel.ContentChannelType.DateRangeType == ContentChannelDateType.DateRange )
+                    if ( contentChannel.ContentChannelType.IncludeTime )
                     {
                         gItems.Columns.Add( new DateTimeField
                         {
-                            DataField = "ExpireDateTime",
-                            HeaderText = "Expire",
-                            SortExpression = "ExpireDateTime"
+                            DataField = "StartDateTime",
+                            HeaderText = contentChannel.ContentChannelType.DateRangeType == ContentChannelDateType.DateRange ? "Start" : "Active",
+                            SortExpression = "StartDateTime"
                         } );
+
+                        if ( contentChannel.ContentChannelType.DateRangeType == ContentChannelDateType.DateRange )
+                        {
+                            gItems.Columns.Add( new DateTimeField
+                            {
+                                DataField = "ExpireDateTime",
+                                HeaderText = "Expire",
+                                SortExpression = "ExpireDateTime"
+                            } );
+                        }
+                    }
+                    else
+                    {
+                        gItems.Columns.Add( new DateField
+                        {
+                            DataField = "StartDateTime",
+                            HeaderText = contentChannel.ContentChannelType.DateRangeType == ContentChannelDateType.DateRange ? "Start" : "Active",
+                            SortExpression = "StartDateTime"
+                        } );
+
+                        if ( contentChannel.ContentChannelType.DateRangeType == ContentChannelDateType.DateRange )
+                        {
+                            gItems.Columns.Add( new DateField
+                            {
+                                DataField = "ExpireDateTime",
+                                HeaderText = "Expire",
+                                SortExpression = "ExpireDateTime"
+                            } );
+                        }
                     }
 
                     if ( !contentChannel.ContentChannelType.DisablePriority )

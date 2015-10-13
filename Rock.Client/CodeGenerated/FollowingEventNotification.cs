@@ -41,13 +41,24 @@ namespace Rock.Client
         public int FollowingEventTypeId { get; set; }
 
         /// <summary />
+        public Guid? ForeignGuid { get; set; }
+
+        /// <summary />
+        public string ForeignKey { get; set; }
+
+        /// <summary />
         public DateTime LastNotified { get; set; }
+
+        /// <summary>
+        /// If the ModifiedByPersonAliasId and ModifiedDateTime properties are being set manually and should not be overwritten with current time/user when saved, set this value to true
+        /// </summary>
+        public bool ModifiedAuditValuesAlreadyUpdated { get; set; }
 
         /// <summary />
         public Guid Guid { get; set; }
 
         /// <summary />
-        public string ForeignId { get; set; }
+        public int? ForeignId { get; set; }
 
         /// <summary>
         /// Copies the base properties from a source FollowingEventNotification object
@@ -58,7 +69,10 @@ namespace Rock.Client
             this.Id = source.Id;
             this.EntityId = source.EntityId;
             this.FollowingEventTypeId = source.FollowingEventTypeId;
+            this.ForeignGuid = source.ForeignGuid;
+            this.ForeignKey = source.ForeignKey;
             this.LastNotified = source.LastNotified;
+            this.ModifiedAuditValuesAlreadyUpdated = source.ModifiedAuditValuesAlreadyUpdated;
             this.Guid = source.Guid;
             this.ForeignId = source.ForeignId;
 

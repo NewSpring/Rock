@@ -53,7 +53,18 @@ namespace Rock.Client
         public DateTime? EffectiveStartDate { get; set; }
 
         /// <summary />
+        public Guid? ForeignGuid { get; set; }
+
+        /// <summary />
+        public string ForeignKey { get; set; }
+
+        /// <summary />
         public string iCalendarContent { get; set; }
+
+        /// <summary>
+        /// If the ModifiedByPersonAliasId and ModifiedDateTime properties are being set manually and should not be overwritten with current time/user when saved, set this value to true
+        /// </summary>
+        public bool ModifiedAuditValuesAlreadyUpdated { get; set; }
 
         /// <summary />
         public string Name { get; set; }
@@ -68,7 +79,7 @@ namespace Rock.Client
         public Guid Guid { get; set; }
 
         /// <summary />
-        public string ForeignId { get; set; }
+        public int? ForeignId { get; set; }
 
         /// <summary>
         /// Copies the base properties from a source Schedule object
@@ -83,7 +94,10 @@ namespace Rock.Client
             this.Description = source.Description;
             this.EffectiveEndDate = source.EffectiveEndDate;
             this.EffectiveStartDate = source.EffectiveStartDate;
+            this.ForeignGuid = source.ForeignGuid;
+            this.ForeignKey = source.ForeignKey;
             this.iCalendarContent = source.iCalendarContent;
+            this.ModifiedAuditValuesAlreadyUpdated = source.ModifiedAuditValuesAlreadyUpdated;
             this.Name = source.Name;
             this.WeeklyDayOfWeek = source.WeeklyDayOfWeek;
             this.WeeklyTimeOfDay = source.WeeklyTimeOfDay;

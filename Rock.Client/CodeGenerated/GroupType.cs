@@ -56,6 +56,12 @@ namespace Rock.Client
         public bool? EnableLocationSchedules { get; set; }
 
         /// <summary />
+        public Guid? ForeignGuid { get; set; }
+
+        /// <summary />
+        public string ForeignKey { get; set; }
+
+        /// <summary />
         public string GroupMemberTerm { get; set; }
 
         /// <summary />
@@ -79,6 +85,11 @@ namespace Rock.Client
         /// <summary />
         public Rock.Client.Enums.GroupLocationPickerMode LocationSelectionMode { get; set; }
 
+        /// <summary>
+        /// If the ModifiedByPersonAliasId and ModifiedDateTime properties are being set manually and should not be overwritten with current time/user when saved, set this value to true
+        /// </summary>
+        public bool ModifiedAuditValuesAlreadyUpdated { get; set; }
+
         /// <summary />
         public string Name { get; set; }
 
@@ -101,7 +112,7 @@ namespace Rock.Client
         public Guid Guid { get; set; }
 
         /// <summary />
-        public string ForeignId { get; set; }
+        public int? ForeignId { get; set; }
 
         /// <summary>
         /// Copies the base properties from a source GroupType object
@@ -117,6 +128,8 @@ namespace Rock.Client
             this.DefaultGroupRoleId = source.DefaultGroupRoleId;
             this.Description = source.Description;
             this.EnableLocationSchedules = source.EnableLocationSchedules;
+            this.ForeignGuid = source.ForeignGuid;
+            this.ForeignKey = source.ForeignKey;
             this.GroupMemberTerm = source.GroupMemberTerm;
             this.GroupTerm = source.GroupTerm;
             this.GroupTypePurposeValueId = source.GroupTypePurposeValueId;
@@ -125,6 +138,7 @@ namespace Rock.Client
             this.InheritedGroupTypeId = source.InheritedGroupTypeId;
             this.IsSystem = source.IsSystem;
             this.LocationSelectionMode = source.LocationSelectionMode;
+            this.ModifiedAuditValuesAlreadyUpdated = source.ModifiedAuditValuesAlreadyUpdated;
             this.Name = source.Name;
             this.Order = source.Order;
             this.SendAttendanceReminder = source.SendAttendanceReminder;

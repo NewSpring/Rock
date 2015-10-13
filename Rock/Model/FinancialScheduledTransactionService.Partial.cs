@@ -43,24 +43,26 @@ namespace Rock.Model
         /// <returns>
         /// The <see cref="Rock.Model.FinancialTransaction" /> that matches the transaction code, this value will be null if a match is not found.
         /// </returns>
-        public IQueryable<FinancialScheduledTransaction> Get( int? personId, string givingId, bool includeInactive )
+        public IQueryable<FinancialScheduledTransaction> Get( int? personId, int? givingGroupId, bool includeInactive )
         {
             var qry = Queryable()
-                .Include(a => a.ScheduledTransactionDetails)
-                .Include(a => a.FinancialPaymentDetail.CurrencyTypeValue)
-                .Include(a => a.FinancialPaymentDetail.CreditCardTypeValue);
+                .Include( a => a.ScheduledTransactionDetails )
+                .Include( a => a.FinancialPaymentDetail.CurrencyTypeValue )
+                .Include( a => a.FinancialPaymentDetail.CreditCardTypeValue );
 
-            if (!includeInactive)
+            if ( !includeInactive )
             {
                 qry = qry.Where( t => t.IsActive );
             }
 
-            if ( !string.IsNullOrEmpty( givingId ) )
+            if ( givingGroupId.HasValue )
             {
-                qry = qry.Where( t => t.AuthorizedPersonAlias.Person.GivingId == givingId );
+                //  Person contributes with family
+                qry = qry.Where( t => t.AuthorizedPersonAlias.Person.GivingGroupId == givingGroupId );
             }
             else if ( personId.HasValue )
             {
+                // Person contributes individually
                 qry = qry.Where( t => t.AuthorizedPersonAlias.PersonId == personId );
             }
 
@@ -81,6 +83,26 @@ namespace Rock.Model
                 .FirstOrDefault();
         }
 
+        /// <summary>
+        /// Deletes the specified item.
+        /// </summary>
+        /// <param name="item">The item.</param>
+        /// <returns></returns>
+        public override bool Delete( FinancialScheduledTransaction item )
+        {
+            if ( item.FinancialPaymentDetailId.HasValue )
+            {
+                var paymentDetailsService = new FinancialPaymentDetailService( (Rock.Data.RockContext)this.Context );
+                var paymentDetail = paymentDetailsService.Get( item.FinancialPaymentDetailId.Value );
+                if ( paymentDetail != null )
+                {
+                    paymentDetailsService.Delete( paymentDetail );
+                }
+            }
+
+            return base.Delete( item );
+        }
+        
         /// <summary>
         /// Sets the status.
         /// </summary>
@@ -226,6 +248,8 @@ namespace Rock.Model
             var allTxnChanges = new Dictionary<Guid, List<string>>();
             var txnPersonNames = new Dictionary<Guid, string>();
 
+            var gatewayComponent = gateway.GetGatewayComponent();
+
             using ( var rockContext = new RockContext() )
             {
                 var accountService = new FinancialAccountService( rockContext );
@@ -247,17 +271,20 @@ namespace Rock.Model
 
                 var batchTxnChanges = new Dictionary<Guid, List<string>>();
                 var batchBatchChanges = new Dictionary<Guid, List<string>>();
+                var scheduledTransactionIds = new List<int>();
 
                 foreach ( var payment in payments.Where( p => p.Amount > 0.0M ) )
                 {
                     totalPayments++;
 
                     // Only consider transactions that have not already been added
-                    if ( txnService.GetByTransactionCode( payment.TransactionCode ) == null )
+                    if ( !txnService.Queryable().AsNoTracking().Any( p => p.TransactionCode.Equals( payment.TransactionCode ) ) )
                     {
                         var scheduledTransaction = scheduledTxnService.GetByScheduleId( payment.GatewayScheduleId );
                         if ( scheduledTransaction != null )
                         {
+                            scheduledTransactionIds.Add( scheduledTransaction.Id );
+
                             scheduledTransaction.IsActive = payment.ScheduleActive;
 
                             var txnChanges = new List<string>();
@@ -341,14 +368,14 @@ namespace Rock.Model
                                     // If the configured amount is greater than the remaining amount, only allocate
                                     // the remaining amount
                                     transaction.Summary = "Note: Downloaded transaction amount was less than the configured allocation amounts for the Scheduled Transaction.";
-                                    detail.Amount = remainingAmount;
-                                    detail.Summary = "Note: The downloaded amount was not enough to apply the configured amount to this account.";
+                                    transactionDetail.Amount = remainingAmount;
+                                    transactionDetail.Summary = "Note: The downloaded amount was not enough to apply the configured amount to this account.";
                                     remainingAmount = 0.0M;
                                 }
 
                                 transaction.TransactionDetails.Add( transactionDetail );
 
-                                History.EvaluateChange( txnChanges, detail.Account.Name, 0.0M.ToString( "C2" ), transactionDetail.Amount.ToString( "C2" ) );
+                                History.EvaluateChange( txnChanges, detail.Account.Name, 0.0M.FormatAsCurrency(), transactionDetail.Amount.FormatAsCurrency() );
                                 History.EvaluateChange( txnChanges, "Summary", string.Empty, transactionDetail.Summary );
 
                                 if ( remainingAmount <= 0.0M )
@@ -377,7 +404,7 @@ namespace Rock.Model
                                     transactionDetail.Summary = "Note: Extra amount was applied to this account.";
                                 }
 
-                                History.EvaluateChange( txnChanges, defaultAccount.Name, 0.0M.ToString( "C2" ), transactionDetail.Amount.ToString( "C2" ) );
+                                History.EvaluateChange( txnChanges, defaultAccount.Name, 0.0M.FormatAsCurrency(), transactionDetail.Amount.FormatAsCurrency() );
                                 History.EvaluateChange( txnChanges, "Summary", string.Empty, transactionDetail.Summary );
                             }
 
@@ -435,7 +462,7 @@ namespace Rock.Model
 
                     if ( initialControlAmounts.ContainsKey( batch.Guid ) )
                     {
-                        History.EvaluateChange( batchChanges, "Control Amount", initialControlAmounts[batch.Guid].ToString( "C2" ), batch.ControlAmount.ToString( "C2" ) );
+                        History.EvaluateChange( batchChanges, "Control Amount", initialControlAmounts[batch.Guid].FormatAsCurrency(), batch.ControlAmount.FormatAsCurrency() );
                     }
                 }
 
@@ -473,6 +500,11 @@ namespace Rock.Model
 
                     rockContext.SaveChanges();
                 } );
+
+                // Queue a transaction to update the status of all affected scheduled transactions
+                var updatePaymentStatusTxn = new Rock.Transactions.UpdatePaymentStatusTransaction( gateway.Id, scheduledTransactionIds );
+                Rock.Transactions.RockQueue.TransactionQueue.Enqueue( updatePaymentStatusTxn );
+
             }
              
             StringBuilder sb = new StringBuilder();
@@ -517,7 +549,7 @@ namespace Rock.Model
                         "<li>{0} transaction of {1} was added to the {2} batch.</li>" :
                         "<li>{0} transactions totaling {1} were added to the {2} batch</li>";
 
-                    sb.AppendFormat( summaryformat, items.ToString( "N0" ), sum.ToString( "C2" ), batchName );
+                    sb.AppendFormat( summaryformat, items.ToString( "N0" ), sum.FormatAsCurrency(), batchName );
                 }
             }
 

@@ -47,6 +47,12 @@ namespace Rock.Client
         public string FileName { get; set; }
 
         /// <summary />
+        public Guid? ForeignGuid { get; set; }
+
+        /// <summary />
+        public string ForeignKey { get; set; }
+
+        /// <summary />
         public bool IsSystem { get; set; }
 
         /// <summary />
@@ -54,6 +60,11 @@ namespace Rock.Client
 
         /// <summary />
         public string MimeType { get; set; }
+
+        /// <summary>
+        /// If the ModifiedByPersonAliasId and ModifiedDateTime properties are being set manually and should not be overwritten with current time/user when saved, set this value to true
+        /// </summary>
+        public bool ModifiedAuditValuesAlreadyUpdated { get; set; }
 
         /// <summary />
         public string Path { get; set; }
@@ -65,7 +76,7 @@ namespace Rock.Client
         public Guid Guid { get; set; }
 
         /// <summary />
-        public string ForeignId { get; set; }
+        public int? ForeignId { get; set; }
 
         /// <summary>
         /// Copies the base properties from a source BinaryFile object
@@ -78,9 +89,12 @@ namespace Rock.Client
             this.ContentLastModified = source.ContentLastModified;
             this.Description = source.Description;
             this.FileName = source.FileName;
+            this.ForeignGuid = source.ForeignGuid;
+            this.ForeignKey = source.ForeignKey;
             this.IsSystem = source.IsSystem;
             this.IsTemporary = source.IsTemporary;
             this.MimeType = source.MimeType;
+            this.ModifiedAuditValuesAlreadyUpdated = source.ModifiedAuditValuesAlreadyUpdated;
             this.Path = source.Path;
             this.StorageEntitySettings = source.StorageEntitySettings;
             this.Guid = source.Guid;

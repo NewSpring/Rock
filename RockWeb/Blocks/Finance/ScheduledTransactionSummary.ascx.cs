@@ -39,7 +39,7 @@ namespace RockWeb.Blocks.Finance
     [DisplayName( "Scheduled Transaction Summary" )]
     [Category( "Finance" )]
     [Description( "Block that shows a summary of the scheduled transactions for the currently logged in user." )]
-    [CodeEditorField( "Template", "Liquid template for the content to be placed on the page.", CodeEditorMode.Liquid, CodeEditorTheme.Rock, 400, true, @"{% include '~~/Assets/Lava/ScheduledTransactionSummary.lava'  %}", "", 1 )]
+    [CodeEditorField( "Template", "Liquid template for the content to be placed on the page.", CodeEditorMode.Lava, CodeEditorTheme.Rock, 400, true, @"{% include '~~/Assets/Lava/ScheduledTransactionSummary.lava'  %}", "", 1 )]
     [BooleanField("Enable Debug", "Displays a list of available merge fields using the current person's scheduled transactions.", false, "", 2)]
     [LinkedPage("Manage Scheduled Transactions Page", "Link to be used for managing an individual's scheduled transactions.", false, "", "", 3)]
     [LinkedPage( "Transaction History Page", "Link to use for viewing an individual's transaction history.", false, "", "", 4 )]
@@ -122,6 +122,9 @@ namespace RockWeb.Blocks.Finance
 
                 foreach ( FinancialScheduledTransaction schedule in schedules )
                 {
+                    string errorMsgs = string.Empty;
+                    transactionService.GetStatus( schedule, out errorMsgs );
+
                     decimal totalAmount = 0;
                     
                     Dictionary<string, object> scheduleSummary = new Dictionary<string, object>();
@@ -179,6 +182,7 @@ namespace RockWeb.Blocks.Finance
                     scheduleSummaries.Add( scheduleSummary );
                 }
 
+                rockContext.SaveChanges();
             }
 
             // added linked pages to mergefields

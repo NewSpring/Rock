@@ -41,6 +41,17 @@ namespace Rock.Client
         public int BenevolenceRequestId { get; set; }
 
         /// <summary />
+        public Guid? ForeignGuid { get; set; }
+
+        /// <summary />
+        public string ForeignKey { get; set; }
+
+        /// <summary>
+        /// If the ModifiedByPersonAliasId and ModifiedDateTime properties are being set manually and should not be overwritten with current time/user when saved, set this value to true
+        /// </summary>
+        public bool ModifiedAuditValuesAlreadyUpdated { get; set; }
+
+        /// <summary />
         public string ResultSummary { get; set; }
 
         /// <summary />
@@ -50,7 +61,7 @@ namespace Rock.Client
         public Guid Guid { get; set; }
 
         /// <summary />
-        public string ForeignId { get; set; }
+        public int? ForeignId { get; set; }
 
         /// <summary>
         /// Copies the base properties from a source BenevolenceResult object
@@ -61,6 +72,9 @@ namespace Rock.Client
             this.Id = source.Id;
             this.Amount = source.Amount;
             this.BenevolenceRequestId = source.BenevolenceRequestId;
+            this.ForeignGuid = source.ForeignGuid;
+            this.ForeignKey = source.ForeignKey;
+            this.ModifiedAuditValuesAlreadyUpdated = source.ModifiedAuditValuesAlreadyUpdated;
             this.ResultSummary = source.ResultSummary;
             this.ResultTypeValueId = source.ResultTypeValueId;
             this.Guid = source.Guid;

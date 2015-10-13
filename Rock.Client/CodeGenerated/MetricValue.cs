@@ -38,6 +38,12 @@ namespace Rock.Client
         public int? EntityId { get; set; }
 
         /// <summary />
+        public Guid? ForeignGuid { get; set; }
+
+        /// <summary />
+        public string ForeignKey { get; set; }
+
+        /// <summary />
         public int MetricId { get; set; }
 
         /// <summary />
@@ -45,6 +51,11 @@ namespace Rock.Client
 
         /// <summary />
         public Rock.Client.Enums.MetricValueType MetricValueType { get; set; }
+
+        /// <summary>
+        /// If the ModifiedByPersonAliasId and ModifiedDateTime properties are being set manually and should not be overwritten with current time/user when saved, set this value to true
+        /// </summary>
+        public bool ModifiedAuditValuesAlreadyUpdated { get; set; }
 
         /// <summary />
         public string Note { get; set; }
@@ -62,7 +73,7 @@ namespace Rock.Client
         public Guid Guid { get; set; }
 
         /// <summary />
-        public string ForeignId { get; set; }
+        public int? ForeignId { get; set; }
 
         /// <summary>
         /// Copies the base properties from a source MetricValue object
@@ -72,9 +83,12 @@ namespace Rock.Client
         {
             this.Id = source.Id;
             this.EntityId = source.EntityId;
+            this.ForeignGuid = source.ForeignGuid;
+            this.ForeignKey = source.ForeignKey;
             this.MetricId = source.MetricId;
             this.MetricValueDateTime = source.MetricValueDateTime;
             this.MetricValueType = source.MetricValueType;
+            this.ModifiedAuditValuesAlreadyUpdated = source.ModifiedAuditValuesAlreadyUpdated;
             this.Note = source.Note;
             this.Order = source.Order;
             this.XValue = source.XValue;

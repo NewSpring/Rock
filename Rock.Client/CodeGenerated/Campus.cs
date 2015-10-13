@@ -38,6 +38,12 @@ namespace Rock.Client
         public string Description { get; set; }
 
         /// <summary />
+        public Guid? ForeignGuid { get; set; }
+
+        /// <summary />
+        public string ForeignKey { get; set; }
+
+        /// <summary />
         public bool? IsActive { get; set; }
 
         /// <summary />
@@ -48,6 +54,11 @@ namespace Rock.Client
 
         /// <summary />
         public int? LocationId { get; set; }
+
+        /// <summary>
+        /// If the ModifiedByPersonAliasId and ModifiedDateTime properties are being set manually and should not be overwritten with current time/user when saved, set this value to true
+        /// </summary>
+        public bool ModifiedAuditValuesAlreadyUpdated { get; set; }
 
         /// <summary />
         public string Name { get; set; }
@@ -68,7 +79,7 @@ namespace Rock.Client
         public Guid Guid { get; set; }
 
         /// <summary />
-        public string ForeignId { get; set; }
+        public int? ForeignId { get; set; }
 
         /// <summary>
         /// Copies the base properties from a source Campus object
@@ -78,10 +89,13 @@ namespace Rock.Client
         {
             this.Id = source.Id;
             this.Description = source.Description;
+            this.ForeignGuid = source.ForeignGuid;
+            this.ForeignKey = source.ForeignKey;
             this.IsActive = source.IsActive;
             this.IsSystem = source.IsSystem;
             this.LeaderPersonAliasId = source.LeaderPersonAliasId;
             this.LocationId = source.LocationId;
+            this.ModifiedAuditValuesAlreadyUpdated = source.ModifiedAuditValuesAlreadyUpdated;
             this.Name = source.Name;
             this.PhoneNumber = source.PhoneNumber;
             this.ServiceTimes = source.ServiceTimes;

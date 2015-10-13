@@ -47,7 +47,18 @@ namespace Rock.Client
         public int? EntityTypeId { get; set; }
 
         /// <summary />
+        public Guid? ForeignGuid { get; set; }
+
+        /// <summary />
+        public string ForeignKey { get; set; }
+
+        /// <summary />
         public bool IsNonCash { get; set; }
+
+        /// <summary>
+        /// If the ModifiedByPersonAliasId and ModifiedDateTime properties are being set manually and should not be overwritten with current time/user when saved, set this value to true
+        /// </summary>
+        public bool ModifiedAuditValuesAlreadyUpdated { get; set; }
 
         /// <summary />
         public string Summary { get; set; }
@@ -59,7 +70,7 @@ namespace Rock.Client
         public Guid Guid { get; set; }
 
         /// <summary />
-        public string ForeignId { get; set; }
+        public int? ForeignId { get; set; }
 
         /// <summary>
         /// Copies the base properties from a source FinancialTransactionDetail object
@@ -72,7 +83,10 @@ namespace Rock.Client
             this.Amount = source.Amount;
             this.EntityId = source.EntityId;
             this.EntityTypeId = source.EntityTypeId;
+            this.ForeignGuid = source.ForeignGuid;
+            this.ForeignKey = source.ForeignKey;
             this.IsNonCash = source.IsNonCash;
+            this.ModifiedAuditValuesAlreadyUpdated = source.ModifiedAuditValuesAlreadyUpdated;
             this.Summary = source.Summary;
             this.TransactionId = source.TransactionId;
             this.Guid = source.Guid;

@@ -40,11 +40,15 @@ namespace Rock.Model
         /// <returns></returns>
         public IQueryable<FinancialTransactionDetail> GetGifts()
         {
+            Guid contributionTxnGuid = Rock.SystemGuid.DefinedValue.TRANSACTION_TYPE_CONTRIBUTION.AsGuid();
+
             return Queryable().AsNoTracking()
                 .Where( t =>
                     t.Account != null &&
                     t.Account.IsTaxDeductible &&
                     t.Transaction != null &&
+                    t.Transaction.TransactionTypeValue != null &&
+                    t.Transaction.TransactionTypeValue.Guid.Equals( contributionTxnGuid ) &&
                     t.Transaction.TransactionDateTime.HasValue &&
                     t.Transaction.AuthorizedPersonAlias != null &&
                     t.Transaction.AuthorizedPersonAlias.Person != null );
@@ -231,12 +235,6 @@ namespace Rock.Model
                     SeriesId = d.Key.Series.Name,
                     YValue = d.Amount
                 } ).ToList();
-            }
-
-            if ( result.Count == 1 )
-            {
-                var dummyZeroDate = start ?? DateTime.MinValue;
-                result.Insert( 0, new SummaryData { DateTime = dummyZeroDate, DateTimeStamp = dummyZeroDate.ToJavascriptMilliseconds(), SeriesId = result[0].SeriesId, YValue = 0 } );
             }
 
             return result;

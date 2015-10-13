@@ -149,6 +149,7 @@
 @panel-text:                  @text-color;                  // The text color of the panel.
 @panel-border:                darken(@theme-6, 10%);        // The panel's border color.
 @panel-top-border-color:      @theme-3;    // Color of the panel's top border often used as an accent color.
+@panel-border-radius:         @border-radius-base;
 //--
 @panel-heading-bg:            @theme-6;                  // The background color of the panel's header.
 @panel-heading-text-color:    @theme-6-text;             // The heading's text color.
@@ -185,7 +186,7 @@
 @grid-row-odd-color: @text-color;   // The odd rows text color.
 
 //// Hover
-@grid-hover-bg: #D5E6ED;            // Row background color when hovered over.
+@grid-hover-bg: darken(@panel-heading-bg, 2%);            // Row background color when hovered over.
 @grid-hover-color: @text-color;     // Row text color when hovered over.
 
 //// Section Headers
@@ -363,6 +364,11 @@
 @btn-security-border:           @btn-default-border;
 //--
 @btn-link-disabled-color:        @gray-light;
+
+// Custom Alerts
+@alert-default-bg: @theme-6; 
+@alert-default-border: darken(@alert-default-bg, 10%); 
+@alert-default-text: @theme-6-text;
 
 // Custom Labels { The bootstrap labels use the brand colors. }
 @label-campus-bg: #83758f;               // Used for identifing campuses.

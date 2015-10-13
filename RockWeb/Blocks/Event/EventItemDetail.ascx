@@ -8,7 +8,7 @@
 
 <asp:UpdatePanel ID="upnlEventItemList" runat="server">
     <Triggers>
-        <asp:AsyncPostBackTrigger ControlID="cblAdditionalCalendars" EventName="SelectedIndexChanged" />
+        <asp:AsyncPostBackTrigger ControlID="cblCalendars" EventName="SelectedIndexChanged" />
     </Triggers>
     <ContentTemplate>
 
@@ -33,10 +33,11 @@
                 <Rock:NotificationBox ID="nbEditModeMessage" runat="server" NotificationBoxType="Info" />
 
                 <asp:ValidationSummary ID="vsSummary" runat="server" HeaderText="Please Correct the Following" CssClass="alert alert-danger" />
+                <Rock:NotificationBox ID="nbValidation" runat="server" NotificationBoxType="Danger" Visible="false" />
 
                 <div id="pnlViewDetails" runat="server">
 
-                        <div class="row">
+                    <div class="row">
                             <div class="col-md-6">
                                 <Rock:RockLiteral ID="lSummary" runat="server" Label="Summary" />
                                 <Rock:RockLiteral ID="lCalendar" runat="server" Label="Calendars" />
@@ -51,7 +52,6 @@
                             </div>
                         </div>
 
-                    </div>
 
                     <div class="actions">
                         <asp:LinkButton ID="btnEdit" runat="server" AccessKey="e" Text="Edit" CssClass="btn btn-primary" OnClick="btnEdit_Click" CausesValidation="false" />
@@ -95,10 +95,10 @@
                                     </Rock:Grid>
                                 </div>
                             </Rock:RockControlWrapper>
-                            <Rock:RockCheckBoxList ID="cblAdditionalCalendars" runat="server" Label="Additional Calendars" 
-                                Help="Any other calendars that this item should be added to also."
-                                OnSelectedIndexChanged="cblAdditionalCalendars_SelectedIndexChanged" AutoPostBack="true"
-                                RepeatDirection="Horizontal" />
+                            <Rock:RockCheckBoxList ID="cblCalendars" runat="server" Label="Calendars" 
+                                Help="Calendars that this item should be added to (at least one is required)."
+                                OnSelectedIndexChanged="cblCalendars_SelectedIndexChanged" AutoPostBack="true"
+                                RepeatDirection="Horizontal" Required="true" />
                             <Rock:RockTextBox ID="tbDetailUrl" runat="server" Label="Details URL" 
                                 Help="A custom url to use for showing details of the calendar item (if the default item detail page should not be used)."/>
                         </div>

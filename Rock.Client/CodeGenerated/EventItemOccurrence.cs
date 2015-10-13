@@ -50,7 +50,18 @@ namespace Rock.Client
         public int EventItemId { get; set; }
 
         /// <summary />
+        public Guid? ForeignGuid { get; set; }
+
+        /// <summary />
+        public string ForeignKey { get; set; }
+
+        /// <summary />
         public string Location { get; set; }
+
+        /// <summary>
+        /// If the ModifiedByPersonAliasId and ModifiedDateTime properties are being set manually and should not be overwritten with current time/user when saved, set this value to true
+        /// </summary>
+        public bool ModifiedAuditValuesAlreadyUpdated { get; set; }
 
         /// <summary />
         public string Note { get; set; }
@@ -62,7 +73,7 @@ namespace Rock.Client
         public Guid Guid { get; set; }
 
         /// <summary />
-        public string ForeignId { get; set; }
+        public int? ForeignId { get; set; }
 
         /// <summary>
         /// Copies the base properties from a source EventItemOccurrence object
@@ -76,7 +87,10 @@ namespace Rock.Client
             this.ContactPersonAliasId = source.ContactPersonAliasId;
             this.ContactPhone = source.ContactPhone;
             this.EventItemId = source.EventItemId;
+            this.ForeignGuid = source.ForeignGuid;
+            this.ForeignKey = source.ForeignKey;
             this.Location = source.Location;
+            this.ModifiedAuditValuesAlreadyUpdated = source.ModifiedAuditValuesAlreadyUpdated;
             this.Note = source.Note;
             this.ScheduleId = source.ScheduleId;
             this.Guid = source.Guid;

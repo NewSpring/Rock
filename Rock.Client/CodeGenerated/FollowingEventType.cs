@@ -47,6 +47,12 @@ namespace Rock.Client
         public int? FollowedEntityTypeId { get; set; }
 
         /// <summary />
+        public Guid? ForeignGuid { get; set; }
+
+        /// <summary />
+        public string ForeignKey { get; set; }
+
+        /// <summary />
         public bool IsActive { get; set; }
 
         /// <summary />
@@ -55,8 +61,16 @@ namespace Rock.Client
         /// <summary />
         public DateTime? LastCheckDateTime { get; set; }
 
+        /// <summary>
+        /// If the ModifiedByPersonAliasId and ModifiedDateTime properties are being set manually and should not be overwritten with current time/user when saved, set this value to true
+        /// </summary>
+        public bool ModifiedAuditValuesAlreadyUpdated { get; set; }
+
         /// <summary />
         public string Name { get; set; }
+
+        /// <summary />
+        public int Order { get; set; }
 
         /// <summary />
         public bool SendOnWeekends { get; set; }
@@ -65,7 +79,7 @@ namespace Rock.Client
         public Guid Guid { get; set; }
 
         /// <summary />
-        public string ForeignId { get; set; }
+        public int? ForeignId { get; set; }
 
         /// <summary>
         /// Copies the base properties from a source FollowingEventType object
@@ -78,10 +92,14 @@ namespace Rock.Client
             this.EntityNotificationFormatLava = source.EntityNotificationFormatLava;
             this.EntityTypeId = source.EntityTypeId;
             this.FollowedEntityTypeId = source.FollowedEntityTypeId;
+            this.ForeignGuid = source.ForeignGuid;
+            this.ForeignKey = source.ForeignKey;
             this.IsActive = source.IsActive;
             this.IsNoticeRequired = source.IsNoticeRequired;
             this.LastCheckDateTime = source.LastCheckDateTime;
+            this.ModifiedAuditValuesAlreadyUpdated = source.ModifiedAuditValuesAlreadyUpdated;
             this.Name = source.Name;
+            this.Order = source.Order;
             this.SendOnWeekends = source.SendOnWeekends;
             this.Guid = source.Guid;
             this.ForeignId = source.ForeignId;

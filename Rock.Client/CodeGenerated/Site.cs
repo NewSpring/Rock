@@ -53,10 +53,24 @@ namespace Rock.Client
         public bool EnableMobileRedirect { get; set; }
 
         /// <summary />
+        public bool EnablePageViews
+        {
+            get { return _EnablePageViews; }
+            set { _EnablePageViews = value; }
+        }
+        private bool _EnablePageViews = true;
+
+        /// <summary />
         public string ErrorPage { get; set; }
 
         /// <summary />
         public string ExternalUrl { get; set; }
+
+        /// <summary />
+        public Guid? ForeignGuid { get; set; }
+
+        /// <summary />
+        public string ForeignKey { get; set; }
 
         /// <summary />
         public string GoogleAnalyticsCode { get; set; }
@@ -73,6 +87,11 @@ namespace Rock.Client
         /// <summary />
         public int? MobilePageId { get; set; }
 
+        /// <summary>
+        /// If the ModifiedByPersonAliasId and ModifiedDateTime properties are being set manually and should not be overwritten with current time/user when saved, set this value to true
+        /// </summary>
+        public bool ModifiedAuditValuesAlreadyUpdated { get; set; }
+
         /// <summary />
         public string Name { get; set; }
 
@@ -81,6 +100,9 @@ namespace Rock.Client
 
         /// <summary />
         public int? PageNotFoundPageRouteId { get; set; }
+
+        /// <summary />
+        public int? PageViewRetentionPeriodDays { get; set; }
 
         /// <summary />
         public bool RedirectTablets { get; set; }
@@ -98,7 +120,7 @@ namespace Rock.Client
         public Guid Guid { get; set; }
 
         /// <summary />
-        public string ForeignId { get; set; }
+        public int? ForeignId { get; set; }
 
         /// <summary>
         /// Copies the base properties from a source Site object
@@ -113,16 +135,21 @@ namespace Rock.Client
             this.DefaultPageRouteId = source.DefaultPageRouteId;
             this.Description = source.Description;
             this.EnableMobileRedirect = source.EnableMobileRedirect;
+            this.EnablePageViews = source.EnablePageViews;
             this.ErrorPage = source.ErrorPage;
             this.ExternalUrl = source.ExternalUrl;
+            this.ForeignGuid = source.ForeignGuid;
+            this.ForeignKey = source.ForeignKey;
             this.GoogleAnalyticsCode = source.GoogleAnalyticsCode;
             this.IsSystem = source.IsSystem;
             this.LoginPageId = source.LoginPageId;
             this.LoginPageRouteId = source.LoginPageRouteId;
             this.MobilePageId = source.MobilePageId;
+            this.ModifiedAuditValuesAlreadyUpdated = source.ModifiedAuditValuesAlreadyUpdated;
             this.Name = source.Name;
             this.PageNotFoundPageId = source.PageNotFoundPageId;
             this.PageNotFoundPageRouteId = source.PageNotFoundPageRouteId;
+            this.PageViewRetentionPeriodDays = source.PageViewRetentionPeriodDays;
             this.RedirectTablets = source.RedirectTablets;
             this.RegistrationPageId = source.RegistrationPageId;
             this.RegistrationPageRouteId = source.RegistrationPageRouteId;

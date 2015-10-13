@@ -35,13 +35,30 @@ namespace Rock.Client
         public int Id { get; set; }
 
         /// <summary />
+        public int? EntitySetPurposeValueId { get; set; }
+
+        /// <summary />
         public int? EntityTypeId { get; set; }
 
         /// <summary />
         public DateTime? ExpireDateTime { get; set; }
 
         /// <summary />
+        public Guid? ForeignGuid { get; set; }
+
+        /// <summary />
+        public string ForeignKey { get; set; }
+
+        /// <summary>
+        /// If the ModifiedByPersonAliasId and ModifiedDateTime properties are being set manually and should not be overwritten with current time/user when saved, set this value to true
+        /// </summary>
+        public bool ModifiedAuditValuesAlreadyUpdated { get; set; }
+
+        /// <summary />
         public string Name { get; set; }
+
+        /// <summary />
+        public string Note { get; set; }
 
         /// <summary />
         public int Order { get; set; }
@@ -53,7 +70,7 @@ namespace Rock.Client
         public Guid Guid { get; set; }
 
         /// <summary />
-        public string ForeignId { get; set; }
+        public int? ForeignId { get; set; }
 
         /// <summary>
         /// Copies the base properties from a source EntitySet object
@@ -62,9 +79,14 @@ namespace Rock.Client
         public void CopyPropertiesFrom( EntitySet source )
         {
             this.Id = source.Id;
+            this.EntitySetPurposeValueId = source.EntitySetPurposeValueId;
             this.EntityTypeId = source.EntityTypeId;
             this.ExpireDateTime = source.ExpireDateTime;
+            this.ForeignGuid = source.ForeignGuid;
+            this.ForeignKey = source.ForeignKey;
+            this.ModifiedAuditValuesAlreadyUpdated = source.ModifiedAuditValuesAlreadyUpdated;
             this.Name = source.Name;
+            this.Note = source.Note;
             this.Order = source.Order;
             this.ParentEntitySetId = source.ParentEntitySetId;
             this.Guid = source.Guid;
@@ -80,6 +102,9 @@ namespace Rock.Client
     {
         /// <summary />
         public ICollection<EntitySet> ChildEntitySets { get; set; }
+
+        /// <summary />
+        public DefinedValue EntitySetPurposeValue { get; set; }
 
         /// <summary />
         public EntityType EntityType { get; set; }

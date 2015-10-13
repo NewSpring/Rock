@@ -42,6 +42,7 @@ namespace RockWeb.Blocks.Finance
     [LinkedPage( "Detail Page", order:0 )]
     [TextField( "Title", "Title to display above the grid. Leave blank to hide.", false, order:1 )]
     [BooleanField( "Show Only Active Accounts on Filter", "If account filter is displayed, only list active accounts", false, "", 2, "ActiveAccountsOnlyFilter")]
+    [DefinedValueField( Rock.SystemGuid.DefinedType.FINANCIAL_TRANSACTION_TYPE, "Transaction Types", "Optional list of transation types to limit the list to (if none are selected all types will be included).", false, true, "", "", 3 )]
     public partial class TransactionList : Rock.Web.UI.RockBlock, ISecondaryBlock, IPostBackEventHandler
     {
         #region Fields
@@ -172,6 +173,7 @@ namespace RockWeb.Blocks.Finance
                     _registration = contextEntity as Registration;
                     gfTransactions.Visible = false;
                 }
+
             }
 
             if ( !Page.IsPostBack )
@@ -186,7 +188,7 @@ namespace RockWeb.Blocks.Finance
     $('#{0}').change(function( e ){{
         var count = $(""#{1} input[id$='_cbSelect_0']:checked"").length;
         if (count == 0) {{
-            eval({2});
+            {2};
         }}
         else
         {{
@@ -194,7 +196,7 @@ namespace RockWeb.Blocks.Finance
             if ($ddl.val() != '') {{
                 Rock.dialogs.confirm('Are you sure you want to move the selected transactions to a new batch (the control amounts on each batch will be updated to reflect the moved transaction\'s amounts)?', function (result) {{
                     if (result) {{
-                        eval({2});
+                        {2};
                     }}
                     $ddl.val('');
                 }});
@@ -284,15 +286,16 @@ namespace RockWeb.Blocks.Finance
 
                 case "Account":
 
-                    int accountId = 0;
-                    if ( int.TryParse( e.Value, out accountId ) )
+                    var accountIds = e.Value.SplitDelimitedValues().AsIntegerList().Where(a => a > 0 ).ToList();
+                    if ( accountIds.Any())
                     {
                         var service = new FinancialAccountService( new RockContext() );
-                        var account = service.Get( accountId );
-                        if ( account != null )
-                        {
-                            e.Value = account.Name;
-                        }
+                        var accountNames = service.GetByIds( accountIds ).OrderBy( a => a.Order ).OrderBy( a => a.Name ).Select( a => a.Name ).ToList().AsDelimited( ", ", " or " );
+                        e.Value = accountNames;
+                    }
+                    else
+                    {
+                        e.Value = string.Empty;
                     }
 
                     break;
@@ -326,7 +329,7 @@ namespace RockWeb.Blocks.Finance
             gfTransactions.SaveUserPreference( "Date Range", drpDates.DelimitedValues );
             gfTransactions.SaveUserPreference( "Amount Range", nreAmount.DelimitedValues );
             gfTransactions.SaveUserPreference( "Transaction Code", tbTransactionCode.Text );
-            gfTransactions.SaveUserPreference( "Account", ddlAccount.SelectedValue != All.Id.ToString() ? ddlAccount.SelectedValue : string.Empty );
+            gfTransactions.SaveUserPreference( "Account", apAccount.SelectedValue != All.Id.ToString() ? apAccount.SelectedValue : string.Empty );
             gfTransactions.SaveUserPreference( "Transaction Type", ddlTransactionType.SelectedValue != All.Id.ToString() ? ddlTransactionType.SelectedValue : string.Empty );
             gfTransactions.SaveUserPreference( "Currency Type", ddlCurrencyType.SelectedValue != All.Id.ToString() ? ddlCurrencyType.SelectedValue : string.Empty );
             gfTransactions.SaveUserPreference( "Credit Card Type", ddlCreditCardType.SelectedValue != All.Id.ToString() ? ddlCreditCardType.SelectedValue : string.Empty );
@@ -545,7 +548,7 @@ namespace RockWeb.Blocks.Finance
                             }
 
                             var oldBatchChanges = new List<string>();
-                            History.EvaluateChange( oldBatchChanges, "Control Amount", oldBatch.ControlAmount.ToString( "C2" ), oldBatchControlAmount.ToString( "C2" ) );
+                            History.EvaluateChange( oldBatchChanges, "Control Amount", oldBatch.ControlAmount.FormatAsCurrency(), oldBatchControlAmount.FormatAsCurrency() );
                             oldBatch.ControlAmount = oldBatchControlAmount;
 
                             HistoryService.SaveChanges(
@@ -558,7 +561,7 @@ namespace RockWeb.Blocks.Finance
                             );
 
                             var newBatchChanges = new List<string>();
-                            History.EvaluateChange( newBatchChanges, "Control Amount", newBatch.ControlAmount.ToString( "C2" ), newBatchControlAmount.ToString( "C2" ) );
+                            History.EvaluateChange( newBatchChanges, "Control Amount", newBatch.ControlAmount.FormatAsCurrency(), newBatchControlAmount.FormatAsCurrency() );
                             newBatch.ControlAmount = newBatchControlAmount;
 
                             HistoryService.SaveChanges(
@@ -628,20 +631,20 @@ namespace RockWeb.Blocks.Finance
             nreAmount.DelimitedValues = gfTransactions.GetUserPreference( "Amount Range" );
             tbTransactionCode.Text = gfTransactions.GetUserPreference( "Transaction Code" );
 
-            var accountService = new FinancialAccountService( new RockContext() );
-            var accounts = accountService.Queryable();
-            if ( GetAttributeValue( "ActiveAccountsOnlyFilter" ).AsBoolean() )
-            {
-                accounts = accounts.Where( a => a.IsActive );
-            }
+            apAccount.DisplayActiveOnly = GetAttributeValue( "ActiveAccountsOnlyFilter" ).AsBoolean();
 
-            ddlAccount.Items.Add( new ListItem( string.Empty, string.Empty ) );
-            foreach ( FinancialAccount account in accounts.OrderBy( a => a.Order ) )
+            var accountIds = ( gfTransactions.GetUserPreference( "Account" ) ?? "" ).SplitDelimitedValues().AsIntegerList().Where( a => a > 0 ).ToList();
+            if ( accountIds.Any() )
             {
-                ListItem li = new ListItem( account.Name, account.Id.ToString() );
-                li.Selected = account.Id.ToString() == gfTransactions.GetUserPreference( "Account" );
-                ddlAccount.Items.Add( li );
+                var service = new FinancialAccountService( new RockContext() );
+                var accounts = service.GetByIds( accountIds ).OrderBy( a => a.Order ).OrderBy( a => a.Name ).ToList();
+                apAccount.SetValues(accounts);
             }
+            else
+            {
+                apAccount.SetValue( 0 );
+            }
+            
 
             BindDefinedTypeDropdown( ddlTransactionType, new Guid( Rock.SystemGuid.DefinedType.FINANCIAL_TRANSACTION_TYPE ), "Transaction Type" );
             BindDefinedTypeDropdown( ddlCurrencyType, new Guid( Rock.SystemGuid.DefinedType.FINANCIAL_CURRENCY_TYPE ), "Currency Type" );
@@ -724,6 +727,13 @@ namespace RockWeb.Blocks.Finance
             var rockContext = new RockContext();
             var qry = new FinancialTransactionService( rockContext ).Queryable();
 
+            // Transaction Types
+            var txnTypes = GetAttributeValue( "TransactionTypes" ).SplitDelimitedValues().AsGuidList();
+            if ( txnTypes.Any() )
+            {
+                qry = qry.Where( t => txnTypes.Contains( t.TransactionTypeValue.Guid ) );
+            }
+
             // Set up the selection filter
             if ( _batch != null )
             {
@@ -803,10 +813,12 @@ namespace RockWeb.Blocks.Finance
                 }
 
                 // Account Id
-                int accountId = int.MinValue;
-                if ( int.TryParse( gfTransactions.GetUserPreference( "Account" ), out accountId ) )
+                var accountIds = (gfTransactions.GetUserPreference( "Account" ) ?? "").SplitDelimitedValues().AsIntegerList().Where( a => a > 0 ).ToList();
                 {
-                    qry = qry.Where( t => t.TransactionDetails.Any( d => d.AccountId == accountId ) );
+                    if ( accountIds.Any() )
+                    {
+                        qry = qry.Where( t => t.TransactionDetails.Any( d => accountIds.Contains( d.AccountId ) || (d.Account.ParentAccountId.HasValue && accountIds.Contains(d.Account.ParentAccountId.Value) ) ) );
+                    }
                 }
 
                 // Transaction Type
@@ -873,6 +885,34 @@ namespace RockWeb.Blocks.Finance
 
             gTransactions.SetLinqDataSource( qry.AsNoTracking() );
             gTransactions.DataBind();
+
+            if ( _batch == null &&
+                _scheduledTxn == null &&
+                _registration == null &&
+                _person == null )
+            {
+                pnlSummary.Visible = true;
+
+                // No context - show account summary
+                var qryTransactionDetails = qry.SelectMany( a => a.TransactionDetails );
+                var accountSummaryQry = qryTransactionDetails.GroupBy( a => a.Account ).Select( a => new
+                {
+                    a.Key.Name,
+                    a.Key.Order,
+                    TotalAmount = (decimal?)a.Sum( d => d.Amount )
+                } ).OrderBy( a => a.Order );
+
+                var summaryList = accountSummaryQry.ToList();
+                var grandTotalAmount = ( summaryList.Count > 0 ) ? summaryList.Sum( a => a.TotalAmount ?? 0 ) : 0;
+                string currencyFormat = GlobalAttributesCache.Value( "CurrencySymbol" ) + "{0:n}";
+                lGrandTotal.Text = string.Format( currencyFormat, grandTotalAmount );
+                rptAccountSummary.DataSource = summaryList.Select( a => new { a.Name, TotalAmount = string.Format( currencyFormat, a.TotalAmount ) } ).ToList();
+                rptAccountSummary.DataBind();
+            }
+            else
+            {
+                pnlSummary.Visible = false;
+            }
         }
 
         /// <summary>

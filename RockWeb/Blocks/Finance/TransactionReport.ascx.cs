@@ -176,12 +176,14 @@ namespace RockWeb.Blocks.Finance
                                             .Where( i => i.Selected == true )
                                             .Select( i => int.Parse( i.Value ) ).ToList();
 
+            string currentPersonGivingId = CurrentPerson.GivingId;
+
             var qry = transService.Queryable( "TransactionDetails.Account,FinancialPaymentDetail" )
                         .Where( t => 
                             t.TransactionDetails.Any( d => selectedAccountIds.Contains( d.AccountId ) ) && 
                             t.AuthorizedPersonAlias != null &&
                             t.AuthorizedPersonAlias.Person != null &&
-                            t.AuthorizedPersonAlias.Person.GivingGroupId == CurrentPerson.GivingGroupId );
+                            t.AuthorizedPersonAlias.Person.GivingId == currentPersonGivingId );
 
             if (drpFilterDates.LowerValue.HasValue) {
                 qry = qry.Where(t => t.TransactionDateTime.Value >= drpFilterDates.LowerValue.Value);
@@ -219,7 +221,7 @@ namespace RockWeb.Blocks.Finance
                 pnlSummary.Visible = true;
                 foreach ( var key in accountTotals.Keys )
                 {
-                    lAccountSummary.Text += String.Format( "<li>{0}: ${1}</li>", key, accountTotals[key] );
+                    lAccountSummary.Text += String.Format( "<li>{0}: {2}{1}</li>", key, accountTotals[key], GlobalAttributesCache.Value( "CurrencySymbol" ) );
                 }
             }
             else
@@ -272,7 +274,7 @@ namespace RockWeb.Blocks.Finance
             var sb = new StringBuilder();
             foreach ( var transactionDetail in txn.TransactionDetails )
             {
-                sb.AppendFormat( "{0} (${1})<br>", transactionDetail.Account, transactionDetail.Amount );
+                sb.AppendFormat( "{0} ({2}{1})<br>", transactionDetail.Account, transactionDetail.Amount, GlobalAttributesCache.Value( "CurrencySymbol" ) );
             }
             return sb.ToString();
         }

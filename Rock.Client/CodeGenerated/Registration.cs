@@ -50,10 +50,21 @@ namespace Rock.Client
         public string FirstName { get; set; }
 
         /// <summary />
+        public Guid? ForeignGuid { get; set; }
+
+        /// <summary />
+        public string ForeignKey { get; set; }
+
+        /// <summary />
         public int? GroupId { get; set; }
 
         /// <summary />
         public string LastName { get; set; }
+
+        /// <summary>
+        /// If the ModifiedByPersonAliasId and ModifiedDateTime properties are being set manually and should not be overwritten with current time/user when saved, set this value to true
+        /// </summary>
+        public bool ModifiedAuditValuesAlreadyUpdated { get; set; }
 
         /// <summary />
         public int? PersonAliasId { get; set; }
@@ -65,7 +76,7 @@ namespace Rock.Client
         public Guid Guid { get; set; }
 
         /// <summary />
-        public string ForeignId { get; set; }
+        public int? ForeignId { get; set; }
 
         /// <summary>
         /// Copies the base properties from a source Registration object
@@ -79,8 +90,11 @@ namespace Rock.Client
             this.DiscountCode = source.DiscountCode;
             this.DiscountPercentage = source.DiscountPercentage;
             this.FirstName = source.FirstName;
+            this.ForeignGuid = source.ForeignGuid;
+            this.ForeignKey = source.ForeignKey;
             this.GroupId = source.GroupId;
             this.LastName = source.LastName;
+            this.ModifiedAuditValuesAlreadyUpdated = source.ModifiedAuditValuesAlreadyUpdated;
             this.PersonAliasId = source.PersonAliasId;
             this.RegistrationInstanceId = source.RegistrationInstanceId;
             this.Guid = source.Guid;

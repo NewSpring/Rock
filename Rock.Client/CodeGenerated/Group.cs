@@ -50,6 +50,12 @@ namespace Rock.Client
         public int? ExitSystemEmailId { get; set; }
 
         /// <summary />
+        public Guid? ForeignGuid { get; set; }
+
+        /// <summary />
+        public string ForeignKey { get; set; }
+
+        /// <summary />
         public int GroupTypeId { get; set; }
 
         /// <summary />
@@ -63,6 +69,11 @@ namespace Rock.Client
 
         /// <summary />
         public bool IsSystem { get; set; }
+
+        /// <summary>
+        /// If the ModifiedByPersonAliasId and ModifiedDateTime properties are being set manually and should not be overwritten with current time/user when saved, set this value to true
+        /// </summary>
+        public bool ModifiedAuditValuesAlreadyUpdated { get; set; }
 
         /// <summary />
         public bool? MustMeetRequirementsToAddMember { get; set; }
@@ -89,7 +100,7 @@ namespace Rock.Client
         public Guid Guid { get; set; }
 
         /// <summary />
-        public string ForeignId { get; set; }
+        public int? ForeignId { get; set; }
 
         /// <summary>
         /// Copies the base properties from a source Group object
@@ -103,11 +114,14 @@ namespace Rock.Client
             this.CampusId = source.CampusId;
             this.Description = source.Description;
             this.ExitSystemEmailId = source.ExitSystemEmailId;
+            this.ForeignGuid = source.ForeignGuid;
+            this.ForeignKey = source.ForeignKey;
             this.GroupTypeId = source.GroupTypeId;
             this.IsActive = source.IsActive;
             this.IsPublic = source.IsPublic;
             this.IsSecurityRole = source.IsSecurityRole;
             this.IsSystem = source.IsSystem;
+            this.ModifiedAuditValuesAlreadyUpdated = source.ModifiedAuditValuesAlreadyUpdated;
             this.MustMeetRequirementsToAddMember = source.MustMeetRequirementsToAddMember;
             this.Name = source.Name;
             this.Order = source.Order;

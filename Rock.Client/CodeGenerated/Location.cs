@@ -44,6 +44,12 @@ namespace Rock.Client
         public string Country { get; set; }
 
         /// <summary />
+        public Guid? ForeignGuid { get; set; }
+
+        /// <summary />
+        public string ForeignKey { get; set; }
+
+        /// <summary />
         public DateTime? GeocodeAttemptedDateTime { get; set; }
 
         /// <summary />
@@ -72,6 +78,11 @@ namespace Rock.Client
 
         /// <summary />
         public int? LocationTypeValueId { get; set; }
+
+        /// <summary>
+        /// If the ModifiedByPersonAliasId and ModifiedDateTime properties are being set manually and should not be overwritten with current time/user when saved, set this value to true
+        /// </summary>
+        public bool ModifiedAuditValuesAlreadyUpdated { get; set; }
 
         /// <summary />
         public string Name { get; set; }
@@ -110,7 +121,7 @@ namespace Rock.Client
         public Guid Guid { get; set; }
 
         /// <summary />
-        public string ForeignId { get; set; }
+        public int? ForeignId { get; set; }
 
         /// <summary>
         /// Copies the base properties from a source Location object
@@ -122,6 +133,8 @@ namespace Rock.Client
             this.AssessorParcelId = source.AssessorParcelId;
             this.City = source.City;
             this.Country = source.Country;
+            this.ForeignGuid = source.ForeignGuid;
+            this.ForeignKey = source.ForeignKey;
             this.GeocodeAttemptedDateTime = source.GeocodeAttemptedDateTime;
             this.GeocodeAttemptedResult = source.GeocodeAttemptedResult;
             this.GeocodeAttemptedServiceType = source.GeocodeAttemptedServiceType;
@@ -132,6 +145,7 @@ namespace Rock.Client
             this.IsActive = source.IsActive;
             this.IsGeoPointLocked = source.IsGeoPointLocked;
             this.LocationTypeValueId = source.LocationTypeValueId;
+            this.ModifiedAuditValuesAlreadyUpdated = source.ModifiedAuditValuesAlreadyUpdated;
             this.Name = source.Name;
             this.ParentLocationId = source.ParentLocationId;
             this.PostalCode = source.PostalCode;

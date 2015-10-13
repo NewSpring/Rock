@@ -58,7 +58,7 @@ namespace RockWeb.Blocks.Finance
     [IntegerField( "Minimum Phone Number Length", "Minimum length for phone number searches (defaults to 4).", false, 4,"", 6 )]
     [IntegerField( "Maximum Phone Number Length", "Maximum length for phone number searches (defaults to 10).", false, 10, "", 7 )]
     [TextField( "Search Regex", "Regular Expression to run the search input through before searching. Useful for stripping off characters.", false, "", "", 8 )]
-    [CodeEditorField( "Receipt Lava", "Lava to display for the receipt panel.", CodeEditorMode.Liquid, CodeEditorTheme.Rock, 300, true, "{% include '~~/Assets/Lava/KioskGivingReceipt.lava' %}", "", 9 )]
+    [CodeEditorField( "Receipt Lava", "Lava to display for the receipt panel.", CodeEditorMode.Lava, CodeEditorTheme.Rock, 300, true, "{% include '~~/Assets/Lava/KioskGivingReceipt.lava' %}", "", 9 )]
     [BooleanField( "Enable Debug", "Shows the fields available to merge in lava.", false, "", 10 )]
     [SystemEmailField( "Receipt Email", "The system email to use to send the receipt.", false, "", "", 11 )]
     #endregion
@@ -469,7 +469,7 @@ namespace RockWeb.Blocks.Finance
                                 var account = new FinancialAccountService( rockContext ).Get( accountAmount.Key );
                                 if ( account != null )
                                 {
-                                    History.EvaluateChange( txnChanges, account.Name, 0.0M.ToString( "C2" ), transactionDetail.Amount.ToString( "C2" ) );
+                                    History.EvaluateChange( txnChanges, account.Name, 0.0M.FormatAsCurrency(), transactionDetail.Amount.FormatAsCurrency() );
                                 }
                             }
 
@@ -495,7 +495,7 @@ namespace RockWeb.Blocks.Finance
                             }
 
                             decimal newControlAmount = batch.ControlAmount + transaction.TotalAmount;
-                            History.EvaluateChange( batchChanges, "Control Amount", batch.ControlAmount.ToString( "C2" ), newControlAmount.ToString( "C2" ) );
+                            History.EvaluateChange( batchChanges, "Control Amount", batch.ControlAmount.FormatAsCurrency(), newControlAmount.FormatAsCurrency() );
                             batch.ControlAmount = newControlAmount;
 
                             transaction.BatchId = batch.Id;

@@ -12,7 +12,7 @@
 @import "../../../Styles/_rock-variables.less";
 @import "_variables.less";
 @import "_variable-overrides.less";
-@import "_print.less";
+
 
 /*#region
 // Fonts                       */
@@ -183,6 +183,11 @@ h4, .h4 {
   font-weight: 500;
 }
 
+.table-hover > tbody > tr:hover {  
+    td {
+        background-color: @grid-hover-bg;
+    }
+}
 
 // panel tweaks
 .panel {
@@ -197,7 +202,6 @@ h4, .h4 {
       font-size: 18px;
     }
   }
-
 
   &.panel-primary {
     .panel-heading {
@@ -279,6 +283,7 @@ h4, .h4 {
 
     input,
     a.dropdown-toggle {
+      height: @navbar-height - 5px; // for IE11
       line-height: @navbar-height - 12px;
     }
 
@@ -575,7 +580,7 @@ body#splash {
   color: @header-hambuger-color;
   border: 1px solid @header-hamburger-border;
   padding: 4px 12px;
-  border-radius: 4px;
+  border-radius: @border-radius-base;
   cursor: pointer;
   display: inline-block;
 }
@@ -818,3 +823,6 @@ body.navbar-side-close {
   }
 }
 /*#endregion */
+
+
+@import "_print.less";

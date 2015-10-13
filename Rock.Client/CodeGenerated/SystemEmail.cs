@@ -47,6 +47,12 @@ namespace Rock.Client
         public string Cc { get; set; }
 
         /// <summary />
+        public Guid? ForeignGuid { get; set; }
+
+        /// <summary />
+        public string ForeignKey { get; set; }
+
+        /// <summary />
         public string From { get; set; }
 
         /// <summary />
@@ -54,6 +60,11 @@ namespace Rock.Client
 
         /// <summary />
         public bool IsSystem { get; set; }
+
+        /// <summary>
+        /// If the ModifiedByPersonAliasId and ModifiedDateTime properties are being set manually and should not be overwritten with current time/user when saved, set this value to true
+        /// </summary>
+        public bool ModifiedAuditValuesAlreadyUpdated { get; set; }
 
         /// <summary />
         public string Subject { get; set; }
@@ -68,7 +79,7 @@ namespace Rock.Client
         public Guid Guid { get; set; }
 
         /// <summary />
-        public string ForeignId { get; set; }
+        public int? ForeignId { get; set; }
 
         /// <summary>
         /// Copies the base properties from a source SystemEmail object
@@ -81,9 +92,12 @@ namespace Rock.Client
             this.Body = source.Body;
             this.CategoryId = source.CategoryId;
             this.Cc = source.Cc;
+            this.ForeignGuid = source.ForeignGuid;
+            this.ForeignKey = source.ForeignKey;
             this.From = source.From;
             this.FromName = source.FromName;
             this.IsSystem = source.IsSystem;
+            this.ModifiedAuditValuesAlreadyUpdated = source.ModifiedAuditValuesAlreadyUpdated;
             this.Subject = source.Subject;
             this.Title = source.Title;
             this.To = source.To;

@@ -540,9 +540,11 @@ achieve our mission.  We are so grateful for your commitment.
                         var service = new FinancialScheduledTransactionService( rockContext );
                         var scheduledTransaction = service
                             .Queryable( "AuthorizedPersonAlias.Person,ScheduledTransactionDetails,FinancialGateway,FinancialPaymentDetail.CurrencyTypeValue,FinancialPaymentDetail.CreditCardTypeValue" )
-                            .Where( t =>
-                                t.Id == txnId &&
-                                ( t.AuthorizedPersonAlias.PersonId == targetPerson.Id || t.AuthorizedPersonAlias.Person.GivingGroupId == targetPerson.GivingGroupId ) )
+                            .Where( t => 
+                                t.Id == txnId && 
+                                t.AuthorizedPersonAlias != null &&
+                                t.AuthorizedPersonAlias.Person != null &&
+                                t.AuthorizedPersonAlias.Person.GivingId == targetPerson.GivingId )
                             .FirstOrDefault();
 
                         if ( scheduledTransaction != null )
@@ -588,12 +590,12 @@ achieve our mission.  We are so grateful for your commitment.
             SelectedAccounts = new List<AccountItem>();
             AvailableAccounts = new List<AccountItem>();
 
-            // Enumerate through all active accounts that have a public name
+            // Enumerate through all active accounts that are public
             foreach ( var account in new FinancialAccountService( new RockContext() ).Queryable()
                 .Where( f =>
                     f.IsActive &&
-                    f.PublicName != null &&
-                    f.PublicName.Trim() != string.Empty &&
+                    f.IsPublic.HasValue &&
+                    f.IsPublic.Value &&
                     ( f.StartDate == null || f.StartDate <= RockDateTime.Today ) &&
                     ( f.EndDate == null || f.EndDate >= RockDateTime.Today ) )
                 .OrderBy( f => f.Order ) )
@@ -1080,7 +1082,8 @@ achieve our mission.  We are so grateful for your commitment.
                         transactionDetailService.Delete( deletedAccount );
                     }
 
-                    foreach ( var account in SelectedAccounts )
+                    foreach ( var account in SelectedAccounts
+                        .Where( a => a.Amount > 0 ) )
                     {
                         var detail = scheduledTransaction.ScheduledTransactionDetails
                             .Where( d => d.AccountId == account.Id ).FirstOrDefault();
@@ -1093,7 +1096,7 @@ achieve our mission.  We are so grateful for your commitment.
 
                         detail.Amount = account.Amount;
 
-                        changeSummary.AppendFormat( "{0}: {1:C2}", account.Name, account.Amount );
+                        changeSummary.AppendFormat( "{0}: {1}", account.Name, account.Amount.FormatAsCurrency() );
                         changeSummary.AppendLine();
                     }
 
@@ -1319,6 +1322,16 @@ achieve our mission.  We are so grateful for your commitment.
         }
 
         /// <summary>
+        /// Formats the value as currency (called from markup)
+        /// </summary>
+        /// <param name="value">The value.</param>
+        /// <returns></returns>
+        public string FormatValueAsCurrency( decimal value )
+        {
+            return value.FormatAsCurrency();
+        }
+
+        /// <summary>
         /// Registers the startup script.
         /// </summary>
         private void RegisterScript()
@@ -1350,7 +1363,7 @@ achieve our mission.  We are so grateful for your commitment.
                     $(this).parents('div.input-group').removeClass('has-error');
                 }}
             }});
-            $('.total-amount').html('$ ' + totalAmt.toFixed(2));
+            $('.total-amount').html('{4}' + totalAmt.toFixed(2));
             return false;
         }});
 
@@ -1421,7 +1434,14 @@ achieve our mission.  We are so grateful for your commitment.
     }});
 
 ";
-            string script = string.Format( scriptFormat, divCCPaymentInfo.ClientID, divACHPaymentInfo.ClientID, hfPaymentTab.ClientID, oneTimeFrequencyId );
+            string script = string.Format( 
+                scriptFormat, 
+                divCCPaymentInfo.ClientID, // {0}
+                divACHPaymentInfo.ClientID, // {1} 
+                hfPaymentTab.ClientID, // {2} 
+                oneTimeFrequencyId, // {3} 
+                GlobalAttributesCache.Value( "CurrencySymbol") // {4}
+                );
             ScriptManager.RegisterStartupScript( upPayment, this.GetType(), "giving-profile", script, true );
         }
 

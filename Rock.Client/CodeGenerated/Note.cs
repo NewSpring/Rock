@@ -41,10 +41,21 @@ namespace Rock.Client
         public int? EntityId { get; set; }
 
         /// <summary />
+        public Guid? ForeignGuid { get; set; }
+
+        /// <summary />
+        public string ForeignKey { get; set; }
+
+        /// <summary />
         public bool? IsAlert { get; set; }
 
         /// <summary />
         public bool IsSystem { get; set; }
+
+        /// <summary>
+        /// If the ModifiedByPersonAliasId and ModifiedDateTime properties are being set manually and should not be overwritten with current time/user when saved, set this value to true
+        /// </summary>
+        public bool ModifiedAuditValuesAlreadyUpdated { get; set; }
 
         /// <summary />
         public int NoteTypeId { get; set; }
@@ -56,7 +67,7 @@ namespace Rock.Client
         public Guid Guid { get; set; }
 
         /// <summary />
-        public string ForeignId { get; set; }
+        public int? ForeignId { get; set; }
 
         /// <summary>
         /// Copies the base properties from a source Note object
@@ -67,8 +78,11 @@ namespace Rock.Client
             this.Id = source.Id;
             this.Caption = source.Caption;
             this.EntityId = source.EntityId;
+            this.ForeignGuid = source.ForeignGuid;
+            this.ForeignKey = source.ForeignKey;
             this.IsAlert = source.IsAlert;
             this.IsSystem = source.IsSystem;
+            this.ModifiedAuditValuesAlreadyUpdated = source.ModifiedAuditValuesAlreadyUpdated;
             this.NoteTypeId = source.NoteTypeId;
             this.Text = source.Text;
             this.Guid = source.Guid;

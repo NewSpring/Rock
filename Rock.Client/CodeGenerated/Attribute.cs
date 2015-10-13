@@ -56,6 +56,12 @@ namespace Rock.Client
         public int FieldTypeId { get; set; }
 
         /// <summary />
+        public Guid? ForeignGuid { get; set; }
+
+        /// <summary />
+        public string ForeignKey { get; set; }
+
+        /// <summary />
         public string IconCssClass { get; set; }
 
         /// <summary />
@@ -73,6 +79,11 @@ namespace Rock.Client
         /// <summary />
         public string Key { get; set; }
 
+        /// <summary>
+        /// If the ModifiedByPersonAliasId and ModifiedDateTime properties are being set manually and should not be overwritten with current time/user when saved, set this value to true
+        /// </summary>
+        public bool ModifiedAuditValuesAlreadyUpdated { get; set; }
+
         /// <summary />
         public string Name { get; set; }
 
@@ -83,7 +94,7 @@ namespace Rock.Client
         public Guid Guid { get; set; }
 
         /// <summary />
-        public string ForeignId { get; set; }
+        public int? ForeignId { get; set; }
 
         /// <summary>
         /// Copies the base properties from a source Attribute object
@@ -99,12 +110,15 @@ namespace Rock.Client
             this.EntityTypeQualifierColumn = source.EntityTypeQualifierColumn;
             this.EntityTypeQualifierValue = source.EntityTypeQualifierValue;
             this.FieldTypeId = source.FieldTypeId;
+            this.ForeignGuid = source.ForeignGuid;
+            this.ForeignKey = source.ForeignKey;
             this.IconCssClass = source.IconCssClass;
             this.IsGridColumn = source.IsGridColumn;
             this.IsMultiValue = source.IsMultiValue;
             this.IsRequired = source.IsRequired;
             this.IsSystem = source.IsSystem;
             this.Key = source.Key;
+            this.ModifiedAuditValuesAlreadyUpdated = source.ModifiedAuditValuesAlreadyUpdated;
             this.Name = source.Name;
             this.Order = source.Order;
             this.Guid = source.Guid;

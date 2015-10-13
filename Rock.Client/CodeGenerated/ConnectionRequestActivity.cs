@@ -47,13 +47,24 @@ namespace Rock.Client
         public int? ConnectorPersonAliasId { get; set; }
 
         /// <summary />
+        public Guid? ForeignGuid { get; set; }
+
+        /// <summary />
+        public string ForeignKey { get; set; }
+
+        /// <summary>
+        /// If the ModifiedByPersonAliasId and ModifiedDateTime properties are being set manually and should not be overwritten with current time/user when saved, set this value to true
+        /// </summary>
+        public bool ModifiedAuditValuesAlreadyUpdated { get; set; }
+
+        /// <summary />
         public string Note { get; set; }
 
         /// <summary />
         public Guid Guid { get; set; }
 
         /// <summary />
-        public string ForeignId { get; set; }
+        public int? ForeignId { get; set; }
 
         /// <summary>
         /// Copies the base properties from a source ConnectionRequestActivity object
@@ -66,6 +77,9 @@ namespace Rock.Client
             this.ConnectionOpportunityId = source.ConnectionOpportunityId;
             this.ConnectionRequestId = source.ConnectionRequestId;
             this.ConnectorPersonAliasId = source.ConnectorPersonAliasId;
+            this.ForeignGuid = source.ForeignGuid;
+            this.ForeignKey = source.ForeignKey;
+            this.ModifiedAuditValuesAlreadyUpdated = source.ModifiedAuditValuesAlreadyUpdated;
             this.Note = source.Note;
             this.Guid = source.Guid;
             this.ForeignId = source.ForeignId;

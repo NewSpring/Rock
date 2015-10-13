@@ -303,7 +303,12 @@
 				        $li.attr('data-' + includeAttrs[i], node[includeAttrs[i]]);
 				    }
 
-				    $li.append('<span class="rocktree-name"> ' + node.name + '</span>');
+                    // ensure we only get Text for the tooltip
+				    var tmp = document.createElement("DIV");
+				    tmp.innerHTML = node.name;
+				    var nodeText = tmp.textContent || tmp.innerText || "";
+
+				    $li.append('<span class="rocktree-name" title="' + nodeText.trim() + '"> ' + node.name + '</span>');
 				    
 				    for (var i = 0; i < self.selectedNodes.length; i++) {
 				        if (self.selectedNodes[i].id == node.id) {
@@ -336,9 +341,10 @@
 				        
 				        $li.append($childUl);
 
-				        $.each(node.children, function (index, childNode) {
-				            renderNode($childUl, childNode);
-				        });
+				        var l = node.children.length;
+				        for (var i = 0; i < l; i++) {
+				            renderNode($childUl, node.children[i]);
+				        }
 				    }
 				};
 

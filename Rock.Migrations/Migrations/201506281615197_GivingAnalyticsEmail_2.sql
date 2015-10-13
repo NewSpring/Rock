@@ -36,20 +36,22 @@ BEGIN
 	END
 
 	SET @Sql = '
-	;WITH CTE
+	;WITH CTE0
 	AS
 	(
 		SELECT 
 			[p].[GivingLeaderId],
 			[ftd].[AccountId],
-			MIN( [ft].[TransactionDateTime] ) AS [FirstGift],
-			COUNT( DISTINCT [ft].[Id] ) AS [NumberGifts],
-			SUM( [ftd].[Amount] ) AS [Amount]
-		FROM [FinancialTransactionDetail] [ftd]
-		INNER JOIN [FinancialTransaction] [ft] ON [ft].[Id] = [ftd].[TransactionId]
-		INNER JOIN [PersonAlias] [pa] ON [pa].[Id] = [ft].[AuthorizedPersonAliasId]
-		INNER JOIN [Person] [p] ON [p].[Id] = [pa].[PersonId]
-		WHERE [p].[Id] IS NOT NULL'
+			[ft].[TransactionDateTime],
+			[ft].[Id],
+			[ftd].[Amount]
+		FROM [FinancialTransactionDetail] [ftd] WITH (NOLOCK)
+		INNER JOIN [FinancialTransaction] [ft] WITH (NOLOCK) ON [ft].[Id] = [ftd].[TransactionId]
+		INNER JOIN [DefinedValue] [dv] WITH (NOLOCK) ON [dv].[Id] = [ft].[TransactionTypeValueId]
+		INNER JOIN [PersonAlias] [pa] WITH (NOLOCK) ON [pa].[Id] = [ft].[AuthorizedPersonAliasId]
+		INNER JOIN [Person] [p] WITH (NOLOCK) ON [p].[Id] = [pa].[PersonId]
+		LEFT OUTER JOIN [FinancialPaymentDetail] [fpd] WITH (NOLOCK) ON [fpd].[Id] = [ft].[FinancialPaymentDetailId]
+		WHERE [dv].[Guid] = ''2D607262-52D6-4724-910D-5C6E8FB89ACC'''
 
 	IF @StartDate IS NOT NULL
 	BEGIN
@@ -72,7 +74,7 @@ BEGIN
 	IF @CurrencyTypeIds IS NOT NULL
 	BEGIN
 		SET @Sql = @Sql + '
-		AND ft.[CurrencyTypeValueId] in (select * from ufnUtility_CsvToTable( ''' + @CurrencyTypeIds + ''' ) )'
+		AND fpd.[CurrencyTypeValueId] in (select * from ufnUtility_CsvToTable( ''' + @CurrencyTypeIds + ''' ) )'
 	END
 
 	IF @SourceTypeIds IS NOT NULL
@@ -82,7 +84,19 @@ BEGIN
 	END
 
 		SET @Sql = @Sql + '
-		GROUP BY [p].[GivingLeaderId],[ftd].[AccountId]
+	),
+
+	CTE
+	AS
+	(
+		SELECT 
+			[GivingLeaderId],
+			[AccountId],
+			MIN( [TransactionDateTime] ) AS [FirstGift],
+			COUNT( DISTINCT [Id] ) AS [NumberGifts],
+			SUM( [Amount] ) AS [Amount]
+		FROM CTE0
+		GROUP BY [GivingLeaderId],[AccountId]
 	),
 
 	CTE1
@@ -119,10 +133,10 @@ BEGIN
 		SELECT *
 		FROM (
 			SELECT [GivingLeaderId],
-			MIN( [FirstGift] ) AS [FirstGift],
-			SUM( [NumberGifts] ) AS [NumberGifts],
+			MIN( [TransactionDateTime] ) AS [FirstGift],
+			COUNT( DISTINCT [Id] ) AS [NumberGifts],
 			SUM( [Amount] ) AS [TotalAmount]
-			FROM CTE
+			FROM CTE0
 			GROUP BY [GivingLeaderId]
 		) [s]
 		WHERE [GivingLeaderId] IS NOT NULL'
@@ -165,7 +179,6 @@ BEGIN
 	SET @Sql = @Sql + '
 	)
 '
-
 	IF @ViewBy = 'G'
 	BEGIN
 
@@ -175,7 +188,7 @@ BEGIN
 		[p].[Guid],
 		[p].[NickName],
 		[p].[LastName],
-		[p].[NickName] + '' '' + [p].[LastName] AS [PersonName],
+		LTRIM(ISNULL([p].[LastName],'''') + ISNULL('', '' + [p].[NickName],'''')) AS [PersonName],
         [p].[Email],
 		[p].[GivingId],
 		CTE4.*
@@ -196,7 +209,7 @@ BEGIN
 		[p].[Guid],
 		[p].[NickName],
 		[p].[LastName],
-		[p].[NickName] + '' '' + [p].[LastName] AS [PersonName],
+		LTRIM(ISNULL([p].[LastName],'''') + ISNULL('', '' + [p].[NickName],'''')) AS [PersonName],
         [p].[Email],
 		[p].[GivingId],'
 
@@ -211,10 +224,10 @@ BEGIN
 		SUM( CTE4.[NumberGifts] ) AS [NumberGifts],
 		SUM( CTE4.[TotalAmount] ) AS [TotalAmount]
 	FROM CTE4
-	INNER JOIN [GroupMember] [m]
+	INNER JOIN [GroupMember] [m] WITH (NOLOCK)
 		ON [m].[PersonId] = CTE4.[GivingLeaderId] 
 		AND ( [m].[GroupRoleId] IN ( ' + CAST( @AdultRoleId as varchar )  + ',' + CAST( @ChildRoleId as varchar ) + ' ) )
-	INNER JOIN [GroupMember] [m2]
+	INNER JOIN [GroupMember] [m2] WITH (NOLOCK)
 		ON [m2].[GroupId] = [m].[GroupId]'
 
 		IF @ViewBy = 'A'
@@ -230,13 +243,13 @@ BEGIN
 		END
 
 		SET @Sql = @Sql + '
-	INNER JOIN [Person] [p] ON [p].[Id] = [m2].[PersonId]
+	INNER JOIN [Person] [p] WITH (NOLOCK) ON [p].[Id] = [m2].[PersonId]
 	GROUP BY 
 		[p].[Id],
 		[p].[Guid],
 		[p].[NickName],
 		[p].[LastName],
-        [p].[Email],
+		[p].[Email],
 		[p].[GivingId]
 '		
 
@@ -246,14 +259,14 @@ BEGIN
 	SELECT 
 		[p2].[Id] AS [PersonId],
 		MIN([ft].[TransactionDateTime]) AS [FirstEverGift]
-	FROM [FinancialTransactionDetail] [ftd]
-	INNER JOIN [FinancialAccount] [fa] 
+	FROM [FinancialTransactionDetail] [ftd] WITH (NOLOCK)
+	INNER JOIN [FinancialAccount] [fa] WITH (NOLOCK)
 		ON [fa].[id] = [ftd].[AccountId]
 		AND [fa].[IsTaxDeductible] = 1
-	INNER JOIN [FinancialTransaction] [ft] ON [ft].[Id] = [ftd].[TransactionId]
-	INNER JOIN [PersonAlias] [pa] ON [pa].[Id] = [ft].[AuthorizedPersonAliasId]
-	INNER JOIN [Person] [p] ON [p].[Id] = [pa].[PersonId]
-	INNER JOIN [Person] [p2] ON [p2].[GivingId] = p.[GivingId]
+	INNER JOIN [FinancialTransaction] [ft] WITH (NOLOCK) ON [ft].[Id] = [ftd].[TransactionId]
+	INNER JOIN [PersonAlias] [pa] WITH (NOLOCK) ON [pa].[Id] = [ft].[AuthorizedPersonAliasId]
+	INNER JOIN [Person] [p] WITH (NOLOCK) ON [p].[Id] = [pa].[PersonId]
+	INNER JOIN [Person] [p2] WITH (NOLOCK) ON [p2].[GivingId] = p.[GivingId]
 	WHERE [ftd].[Amount] <> 0
 	GROUP BY [p2].[Id]
 '

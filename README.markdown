@@ -1,6 +1,9 @@
-[Rock RMS](http://rockrms.com/) 
-===============================================================================
-Rock RMS is an open source Relationship Management System (RMS) and Application 
+![Rock RMS](https://raw.githubusercontent.com/SparkDevNetwork/Rock/develop/Images/github-banner.png)
+
+[![Build status](https://ci.appveyor.com/api/projects/status/om3ddkynyoobdnpf?svg=true)](https://ci.appveyor.com/project/NewSpring/rock)
+
+
+Rock RMS is an open source Relationship Management System (RMS) and Application
 Framework. While Rock specializes in serving the unique needs of churches it's
 useful in a wide range of service industries.  Rock is an ASP.NET 4.5 C# web application
 that uses Entity Framework 6.0, jQuery, Bootstrap 3, and many other open source libraries.
@@ -20,6 +23,6 @@ Jump over to our [Rock website](http://www.rockrms.com/) to find out more. Keep 
 ## License
 Rock released under the [Apache 2.0 license](http://www.apache.org/licenses/LICENSE-2.0.html).
 
-## Built By
+## Crafted By
 
-A distributed team of developers called the [Spark Development Network](http://www.sparkdevelopmentnetwork.com/).
+A community of developers led by the [Spark Development Network](http://www.sparkdevnetwork.com/).

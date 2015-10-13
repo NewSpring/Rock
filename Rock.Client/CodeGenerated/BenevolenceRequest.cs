@@ -50,6 +50,12 @@ namespace Rock.Client
         public string FirstName { get; set; }
 
         /// <summary />
+        public Guid? ForeignGuid { get; set; }
+
+        /// <summary />
+        public string ForeignKey { get; set; }
+
+        /// <summary />
         public string GovernmentId { get; set; }
 
         /// <summary />
@@ -60,6 +66,11 @@ namespace Rock.Client
 
         /// <summary />
         public int? LocationId { get; set; }
+
+        /// <summary>
+        /// If the ModifiedByPersonAliasId and ModifiedDateTime properties are being set manually and should not be overwritten with current time/user when saved, set this value to true
+        /// </summary>
+        public bool ModifiedAuditValuesAlreadyUpdated { get; set; }
 
         /// <summary />
         public DateTime RequestDateTime { get; set; }
@@ -83,7 +94,7 @@ namespace Rock.Client
         public Guid Guid { get; set; }
 
         /// <summary />
-        public string ForeignId { get; set; }
+        public int? ForeignId { get; set; }
 
         /// <summary>
         /// Copies the base properties from a source BenevolenceRequest object
@@ -97,10 +108,13 @@ namespace Rock.Client
             this.ConnectionStatusValueId = source.ConnectionStatusValueId;
             this.Email = source.Email;
             this.FirstName = source.FirstName;
+            this.ForeignGuid = source.ForeignGuid;
+            this.ForeignKey = source.ForeignKey;
             this.GovernmentId = source.GovernmentId;
             this.HomePhoneNumber = source.HomePhoneNumber;
             this.LastName = source.LastName;
             this.LocationId = source.LocationId;
+            this.ModifiedAuditValuesAlreadyUpdated = source.ModifiedAuditValuesAlreadyUpdated;
             this.RequestDateTime = source.RequestDateTime;
             this.RequestedByPersonAliasId = source.RequestedByPersonAliasId;
             this.RequestStatusValueId = source.RequestStatusValueId;

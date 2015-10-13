@@ -52,7 +52,7 @@ namespace RockWeb.Blocks.Event
         public bool _canEdit = false;
         public bool _canApprove = false;
 
-        public List<EventItemAudience> AudiencesState { get; set; }
+        public List<int> AudiencesState { get; set; }
         public List<EventCalendarItem> ItemsState { get; set; }
 
         #endregion Properties
@@ -66,18 +66,9 @@ namespace RockWeb.Blocks.Event
         protected override void LoadViewState( object savedState )
         {
             base.LoadViewState( savedState );
+            AudiencesState = ViewState["AudiencesState"] as List<int> ?? new List<int>();
 
-            string json = ViewState["AudiencesState"] as string;
-            if ( string.IsNullOrWhiteSpace( json ) )
-            {
-                AudiencesState = new List<EventItemAudience>();
-            }
-            else
-            {
-                AudiencesState = JsonConvert.DeserializeObject<List<EventItemAudience>>( json );
-            }
-
-            json = ViewState["ItemsState"] as string;
+            string json = ViewState["ItemsState"] as string;
             if ( string.IsNullOrWhiteSpace( json ) )
             {
                 ItemsState = new List<EventCalendarItem>();
@@ -113,7 +104,7 @@ namespace RockWeb.Blocks.Event
             _canApprove = UserCanAdministrate;
 
             // Load the other calendars user is authorized to view 
-            cblAdditionalCalendars.Items.Clear();
+            cblCalendars.Items.Clear();
             using ( var rockContext = new RockContext() )
             {
                 foreach ( var calendar in new EventCalendarService( rockContext )
@@ -129,17 +120,14 @@ namespace RockWeb.Blocks.Event
                             calendar.IsAuthorized( Authorization.APPROVE, CurrentPerson ) ||
                             calendar.IsAuthorized( Authorization.ADMINISTRATE, CurrentPerson );
                     }
-                    else
+
+                    if ( UserCanEdit || calendar.IsAuthorized( Authorization.EDIT, CurrentPerson ) )
                     {
-                        if ( calendar.IsAuthorized( Authorization.EDIT, CurrentPerson ) )
-                        {
-                            cblAdditionalCalendars.Items.Add( new ListItem( calendar.Name, calendar.Id.ToString() ) );
-                        }
+                        cblCalendars.Items.Add( new ListItem( calendar.Name, calendar.Id.ToString() ) );
                     }
                 }
             }
-            cblAdditionalCalendars.SelectedIndexChanged += cblAdditionalCalendars_SelectedIndexChanged;
-            cblAdditionalCalendars.Visible = cblAdditionalCalendars.Items.Count > 0;
+            cblCalendars.SelectedIndexChanged += cblCalendars_SelectedIndexChanged;
 
             RockPage.AddCSSLink( ResolveRockUrl( "~/Styles/fluidbox.css" ) );
             RockPage.AddScriptLink( ResolveRockUrl( "~/Scripts/imagesloaded.min.js" ) );
@@ -154,6 +142,8 @@ namespace RockWeb.Blocks.Event
         protected override void OnLoad( EventArgs e )
         {
             base.OnLoad( e );
+
+            nbValidation.Visible = false;
 
             if ( !Page.IsPostBack )
             {
@@ -184,7 +174,7 @@ namespace RockWeb.Blocks.Event
                 ContractResolver = new Rock.Utility.IgnoreUrlEncodedKeyContractResolver()
             };
 
-            ViewState["AudiencesState"] = JsonConvert.SerializeObject( AudiencesState, Formatting.None, jsonSetting );
+            ViewState["AudiencesState"] = AudiencesState;
             ViewState["ItemsState"] = JsonConvert.SerializeObject( ItemsState, Formatting.None, jsonSetting );
 
             return base.SaveViewState();
@@ -304,6 +294,8 @@ namespace RockWeb.Blocks.Event
 
             using ( var rockContext = new RockContext() )
             {
+                var validationMessages = new List<string>();
+
                 var eventItemService = new EventItemService( rockContext );
                 var eventCalendarItemService = new EventCalendarItemService( rockContext );
                 var eventItemAudienceService = new EventItemAudienceService( rockContext );
@@ -350,33 +342,36 @@ namespace RockWeb.Blocks.Event
                 }
 
                 // Remove any audiences that were removed in the UI
-                var uiAudiences = AudiencesState.Select( r => r.Guid ).ToList();
-                foreach ( var eventItemAudience in eventItem.EventItemAudiences.Where( r => !uiAudiences.Contains( r.Guid ) ).ToList() )
+                foreach ( var eventItemAudience in eventItem.EventItemAudiences.Where( r => !AudiencesState.Contains( r.DefinedValueId ) ).ToList() )
                 {
                     eventItem.EventItemAudiences.Remove( eventItemAudience );
                     eventItemAudienceService.Delete( eventItemAudience );
                 }
 
                 // Add or Update audiences from the UI
-                foreach ( var eventItemAudienceState in AudiencesState )
+                foreach ( int audienceId in AudiencesState )
                 {
-                    EventItemAudience eventItemAudience = eventItem.EventItemAudiences.Where( a => a.Guid == eventItemAudienceState.Guid ).FirstOrDefault();
+                    EventItemAudience eventItemAudience = eventItem.EventItemAudiences.Where( a => a.DefinedValueId == audienceId ).FirstOrDefault();
                     if ( eventItemAudience == null )
                     {
                         eventItemAudience = new EventItemAudience();
+                        eventItemAudience.DefinedValueId = audienceId;
                         eventItem.EventItemAudiences.Add( eventItemAudience );
                     }
-                    eventItemAudience.CopyPropertiesFrom( eventItemAudienceState );
                 }
 
                 // remove any calendar items that removed in the UI
-                var calendarIds = new List<int> { _calendarId };
-                calendarIds.AddRange( cblAdditionalCalendars.SelectedValuesAsInt );
+                var calendarIds = new List<int>();
+                calendarIds.AddRange( cblCalendars.SelectedValuesAsInt );
                 var uiCalendarGuids = ItemsState.Where( i => calendarIds.Contains( i.EventCalendarId ) ).Select( a => a.Guid );
                 foreach ( var eventCalendarItem in eventItem.EventCalendarItems.Where( a => !uiCalendarGuids.Contains( a.Guid ) ).ToList() )
                 {
-                    eventItem.EventCalendarItems.Remove( eventCalendarItem );
-                    eventCalendarItemService.Delete( eventCalendarItem );
+                    // Make sure user is authorized to remove calendar (they may not have seen every calendar due to security)
+                    if ( UserCanEdit || eventCalendarItem.EventCalendar.IsAuthorized( Authorization.EDIT, CurrentPerson ) )
+                    {
+                        eventItem.EventCalendarItems.Remove( eventCalendarItem );
+                        eventCalendarItemService.Delete( eventCalendarItem );
+                    }
                 }
 
                 // Add or Update calendar items from the UI
@@ -391,6 +386,11 @@ namespace RockWeb.Blocks.Event
                     eventCalendarItem.CopyPropertiesFrom( calendar );
                 }
 
+                if ( !eventItem.EventCalendarItems.Any() )
+                {
+                    validationMessages.Add( "At least one calendar is required." );
+                }
+
                 if ( !Page.IsValid )
                 {
                     return;
@@ -399,6 +399,13 @@ namespace RockWeb.Blocks.Event
                 if ( !eventItem.IsValid )
                 {
                     // Controls will render the error messages
+                    return;
+                }
+
+                if ( validationMessages.Any() )
+                {
+                    nbValidation.Text = "Please Correct the Following<ul><li>" + validationMessages.AsDelimited( "</li><li>" ) + "</li></ul>";
+                    nbValidation.Visible = true;
                     return;
                 }
 
@@ -501,9 +508,8 @@ namespace RockWeb.Blocks.Event
             var definedType = DefinedTypeCache.Read( Rock.SystemGuid.DefinedType.MARKETING_CAMPAIGN_AUDIENCE_TYPE.AsGuid() );
             if ( definedType != null )
             {
-                var selectedIds = AudiencesState.Select( a => a.DefinedValueId ).ToList();
                 ddlAudience.DataSource = definedType.DefinedValues
-                    .Where( v => !selectedIds.Contains( v.Id ) )
+                    .Where( v => !AudiencesState.Contains( v.Id ) )
                     .ToList();
                 ddlAudience.DataBind();
             }
@@ -519,10 +525,10 @@ namespace RockWeb.Blocks.Event
         protected void gAudiences_Delete( object sender, RowEventArgs e )
         {
             Guid guid = (Guid)e.RowKeyValue;
-            var audience = AudiencesState.FirstOrDefault( a => a.DefinedValue.Guid.Equals( guid ) );
+            var audience = DefinedValueCache.Read( guid );
             if ( audience != null )
             {
-                AudiencesState.Remove( audience );
+                AudiencesState.Remove( audience.Id );
             }
             BindAudienceGrid();
         }
@@ -537,8 +543,7 @@ namespace RockWeb.Blocks.Event
             int? definedValueId = ddlAudience.SelectedValueAsInt();
             if ( definedValueId.HasValue )
             {
-                EventItemAudience eventItemAudience = new EventItemAudience { DefinedValueId = definedValueId.Value };
-                AudiencesState.Add( eventItemAudience );
+                AudiencesState.Add( definedValueId.Value );
             }
 
             BindAudienceGrid();
@@ -559,11 +564,11 @@ namespace RockWeb.Blocks.Event
         #endregion
 
         /// <summary>
-        /// Handles the SelectedIndexChanged event of the cblAdditionalCalendars control.
+        /// Handles the SelectedIndexChanged event of the cblCalendars control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
         /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
-        protected void cblAdditionalCalendars_SelectedIndexChanged( object sender, EventArgs e )
+        protected void cblCalendars_SelectedIndexChanged( object sender, EventArgs e )
         {
             ShowItemAttributes();
         }
@@ -685,10 +690,10 @@ namespace RockWeb.Blocks.Event
 
             if ( eventItem.EventCalendarItems != null )
             {
-                cblAdditionalCalendars.SetValues( eventItem.EventCalendarItems.Select( c => c.EventCalendarId ).ToList() );
+                cblCalendars.SetValues( eventItem.EventCalendarItems.Select( c => c.EventCalendarId ).ToList() );
             }
 
-            AudiencesState = eventItem.EventItemAudiences.ToList();
+            AudiencesState = eventItem.EventItemAudiences.Select( a => a.DefinedValueId ).ToList();
             ItemsState = eventItem.EventCalendarItems.ToList();
 
             ShowItemAttributes();
@@ -814,7 +819,7 @@ namespace RockWeb.Blocks.Event
         private void ShowItemAttributes()
         {
             var eventCalendarList = new List<int> { _calendarId };
-            eventCalendarList.AddRange( cblAdditionalCalendars.SelectedValuesAsInt );
+            eventCalendarList.AddRange( cblCalendars.SelectedValuesAsInt );
 
             wpAttributes.Visible = false;
             phAttributes.Controls.Clear();
@@ -823,7 +828,7 @@ namespace RockWeb.Blocks.Event
             {
                 var eventCalendarService = new EventCalendarService( rockContext );
 
-                foreach ( int eventCalendarId in eventCalendarList )
+                foreach ( int eventCalendarId in eventCalendarList.Distinct() )
                 {
                     EventCalendarItem eventCalendarItem = ItemsState.FirstOrDefault( i => i.EventCalendarId == eventCalendarId );
                     if ( eventCalendarItem == null )
@@ -852,7 +857,7 @@ namespace RockWeb.Blocks.Event
         private void BindAudienceGrid()
         {
             var values = new List<DefinedValueCache>();
-            AudiencesState.ForEach( a => values.Add( DefinedValueCache.Read( a.DefinedValueId ) ) );
+            AudiencesState.ForEach( a => values.Add( DefinedValueCache.Read( a ) ) );
 
             gAudiences.DataSource = values
                 .OrderBy( v => v.Order )

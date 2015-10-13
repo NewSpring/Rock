@@ -119,7 +119,7 @@ namespace RockWeb
                             // default Initializer is CreateDatabaseIfNotExists, so set it to NULL so that nothing happens if there isn't a database yet
                             Database.SetInitializer<Rock.Data.RockContext>( null );
                             new AttributeService( rockContext ).Get( 0 );
-                            System.Diagnostics.Debug.WriteLine( string.Format( "ConnectToDatabase - {0} ms", stopwatch.Elapsed.TotalMilliseconds ) );
+                            System.Diagnostics.Debug.WriteLine( string.Format( "ConnectToDatabase {2}/{1} - {0} ms", stopwatch.Elapsed.TotalMilliseconds, rockContext.Database.Connection.Database, rockContext.Database.Connection.DataSource ) );
                         }
                         catch
                         {
@@ -310,6 +310,7 @@ namespace RockWeb
             }
 
             Context.Items.Add( "Request_Start_Time", RockDateTime.Now );
+            Context.Items.Add( "Cache_Hits", new Dictionary<string, bool>() );
         }
 
         /// <summary>
@@ -614,6 +615,10 @@ namespace RockWeb
 
             PageRouteService pageRouteService = new PageRouteService( rockContext );
 
+            //Add ingore rule for asp.net ScriptManager files. 
+            routes.Ignore("{resource}.axd/{*pathInfo}");
+
+
             // find each page that has defined a custom routes.
             foreach ( PageRoute pageRoute in pageRouteService.Queryable() )
             {
@@ -707,12 +712,14 @@ namespace RockWeb
             int? pageId = ( Context.Items["Rock:PageId"] ?? "" ).ToString().AsIntegerOrNull(); ;
             int? siteId = ( Context.Items["Rock:SiteId"] ?? "" ).ToString().AsIntegerOrNull();;
             PersonAlias personAlias = null;
+            Person person = null;
 
             try
             {
                 var user = UserLoginService.GetCurrentUser();
                 if ( user != null && user.Person != null )
                 {
+                    person = user.Person;
                     personAlias = user.Person.PrimaryAlias;
                 }
             }
@@ -738,7 +745,9 @@ namespace RockWeb
 
                 // setup merge codes for email
                 var mergeObjects = GlobalAttributesCache.GetMergeFields( null );
-                mergeObjects.Add( "ExceptionDetails", "An error occurred on the " + siteName + " site on page: <br>" + Context.Request.Url.OriginalString + "<p>" + FormatException( ex, "" ) );
+                mergeObjects.Add( "ExceptionDetails", string.Format( "An error occurred{0} on the {1} site on page: <br>{2}<p>{3}</p>",
+                    person != null ? " for " + person.FullName : "", siteName, Context.Request.Url.OriginalString, FormatException( ex, "" ) ) );
+                mergeObjects.Add( "Person", person );
 
                 // get email addresses to send to
                 var globalAttributesCache = GlobalAttributesCache.Read();
@@ -838,6 +847,13 @@ namespace RockWeb
                     //ErrorUtilities.VerifySupported(request.Url.Scheme == Uri.UriSchemeHttps || request.Url.Scheme == Uri.UriSchemeHttp, "Only HTTP and HTTPS are supported protocols.");
                     string scheme = serverVariables["HTTP_X_FORWARDED_PROTO"] ?? request.Url.Scheme;
                     Uri hostAndPort = new Uri( scheme + Uri.SchemeDelimiter + serverVariables["HTTP_HOST"] );
+
+                    // If host is local (occurs with Azure hosting), ignore this request
+                    if ( hostAndPort.Host == "127.0.0.1" || hostAndPort.Host.ToLower() == "localhost" )
+                    {
+                        return null;
+                    }
+
                     UriBuilder publicRequestUri = new UriBuilder( request.Url );
                     publicRequestUri.Scheme = scheme;
                     publicRequestUri.Host = hostAndPort.Host;

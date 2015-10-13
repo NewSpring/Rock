@@ -50,6 +50,12 @@ namespace Rock.Client
         public int? FinancialPaymentDetailId { get; set; }
 
         /// <summary />
+        public Guid? ForeignGuid { get; set; }
+
+        /// <summary />
+        public string ForeignKey { get; set; }
+
+        /// <summary />
         public string GatewayScheduleId { get; set; }
 
         /// <summary />
@@ -60,6 +66,11 @@ namespace Rock.Client
 
         /// <summary />
         public DateTime? LastStatusUpdateDateTime { get; set; }
+
+        /// <summary>
+        /// If the ModifiedByPersonAliasId and ModifiedDateTime properties are being set manually and should not be overwritten with current time/user when saved, set this value to true
+        /// </summary>
+        public bool ModifiedAuditValuesAlreadyUpdated { get; set; }
 
         /// <summary />
         public DateTime? NextPaymentDate { get; set; }
@@ -80,7 +91,7 @@ namespace Rock.Client
         public Guid Guid { get; set; }
 
         /// <summary />
-        public string ForeignId { get; set; }
+        public int? ForeignId { get; set; }
 
         /// <summary>
         /// Copies the base properties from a source FinancialScheduledTransaction object
@@ -94,10 +105,13 @@ namespace Rock.Client
             this.EndDate = source.EndDate;
             this.FinancialGatewayId = source.FinancialGatewayId;
             this.FinancialPaymentDetailId = source.FinancialPaymentDetailId;
+            this.ForeignGuid = source.ForeignGuid;
+            this.ForeignKey = source.ForeignKey;
             this.GatewayScheduleId = source.GatewayScheduleId;
             this.IsActive = source.IsActive;
             this.LastRemindedDate = source.LastRemindedDate;
             this.LastStatusUpdateDateTime = source.LastStatusUpdateDateTime;
+            this.ModifiedAuditValuesAlreadyUpdated = source.ModifiedAuditValuesAlreadyUpdated;
             this.NextPaymentDate = source.NextPaymentDate;
             this.NumberOfPayments = source.NumberOfPayments;
             this.StartDate = source.StartDate;

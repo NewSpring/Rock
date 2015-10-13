@@ -68,6 +68,12 @@ namespace Rock.Client
         public int? FinancialGatewayId { get; set; }
 
         /// <summary />
+        public Guid? ForeignGuid { get; set; }
+
+        /// <summary />
+        public string ForeignKey { get; set; }
+
+        /// <summary />
         public int? GroupMemberRoleId { get; set; }
 
         /// <summary />
@@ -87,6 +93,11 @@ namespace Rock.Client
 
         /// <summary />
         public decimal? MinimumInitialPayment { get; set; }
+
+        /// <summary>
+        /// If the ModifiedByPersonAliasId and ModifiedDateTime properties are being set manually and should not be overwritten with current time/user when saved, set this value to true
+        /// </summary>
+        public bool ModifiedAuditValuesAlreadyUpdated { get; set; }
 
         /// <summary />
         public string Name { get; set; }
@@ -128,7 +139,7 @@ namespace Rock.Client
         public Guid Guid { get; set; }
 
         /// <summary />
-        public string ForeignId { get; set; }
+        public int? ForeignId { get; set; }
 
         /// <summary>
         /// Copies the base properties from a source RegistrationTemplate object
@@ -148,6 +159,8 @@ namespace Rock.Client
             this.DiscountCodeTerm = source.DiscountCodeTerm;
             this.FeeTerm = source.FeeTerm;
             this.FinancialGatewayId = source.FinancialGatewayId;
+            this.ForeignGuid = source.ForeignGuid;
+            this.ForeignKey = source.ForeignKey;
             this.GroupMemberRoleId = source.GroupMemberRoleId;
             this.GroupMemberStatus = source.GroupMemberStatus;
             this.GroupTypeId = source.GroupTypeId;
@@ -155,6 +168,7 @@ namespace Rock.Client
             this.LoginRequired = source.LoginRequired;
             this.MaxRegistrants = source.MaxRegistrants;
             this.MinimumInitialPayment = source.MinimumInitialPayment;
+            this.ModifiedAuditValuesAlreadyUpdated = source.ModifiedAuditValuesAlreadyUpdated;
             this.Name = source.Name;
             this.Notify = source.Notify;
             this.RegistrantsSameFamily = source.RegistrantsSameFamily;

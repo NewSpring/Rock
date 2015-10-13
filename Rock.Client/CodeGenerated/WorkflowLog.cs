@@ -35,10 +35,21 @@ namespace Rock.Client
         public int Id { get; set; }
 
         /// <summary />
+        public Guid? ForeignGuid { get; set; }
+
+        /// <summary />
+        public string ForeignKey { get; set; }
+
+        /// <summary />
         public DateTime LogDateTime { get; set; }
 
         /// <summary />
         public string LogText { get; set; }
+
+        /// <summary>
+        /// If the ModifiedByPersonAliasId and ModifiedDateTime properties are being set manually and should not be overwritten with current time/user when saved, set this value to true
+        /// </summary>
+        public bool ModifiedAuditValuesAlreadyUpdated { get; set; }
 
         /// <summary />
         public int WorkflowId { get; set; }
@@ -47,7 +58,7 @@ namespace Rock.Client
         public Guid Guid { get; set; }
 
         /// <summary />
-        public string ForeignId { get; set; }
+        public int? ForeignId { get; set; }
 
         /// <summary>
         /// Copies the base properties from a source WorkflowLog object
@@ -56,8 +67,11 @@ namespace Rock.Client
         public void CopyPropertiesFrom( WorkflowLog source )
         {
             this.Id = source.Id;
+            this.ForeignGuid = source.ForeignGuid;
+            this.ForeignKey = source.ForeignKey;
             this.LogDateTime = source.LogDateTime;
             this.LogText = source.LogText;
+            this.ModifiedAuditValuesAlreadyUpdated = source.ModifiedAuditValuesAlreadyUpdated;
             this.WorkflowId = source.WorkflowId;
             this.Guid = source.Guid;
             this.ForeignId = source.ForeignId;

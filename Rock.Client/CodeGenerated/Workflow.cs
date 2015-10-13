@@ -44,6 +44,12 @@ namespace Rock.Client
         public string Description { get; set; }
 
         /// <summary />
+        public Guid? ForeignGuid { get; set; }
+
+        /// <summary />
+        public string ForeignKey { get; set; }
+
+        /// <summary />
         public int? InitiatorPersonAliasId { get; set; }
 
         /// <summary />
@@ -51,6 +57,11 @@ namespace Rock.Client
 
         /// <summary />
         public DateTime? LastProcessedDateTime { get; set; }
+
+        /// <summary>
+        /// If the ModifiedByPersonAliasId and ModifiedDateTime properties are being set manually and should not be overwritten with current time/user when saved, set this value to true
+        /// </summary>
+        public bool ModifiedAuditValuesAlreadyUpdated { get; set; }
 
         /// <summary />
         public string Name { get; set; }
@@ -65,7 +76,7 @@ namespace Rock.Client
         public Guid Guid { get; set; }
 
         /// <summary />
-        public string ForeignId { get; set; }
+        public int? ForeignId { get; set; }
 
         /// <summary>
         /// Copies the base properties from a source Workflow object
@@ -77,9 +88,12 @@ namespace Rock.Client
             this.ActivatedDateTime = source.ActivatedDateTime;
             this.CompletedDateTime = source.CompletedDateTime;
             this.Description = source.Description;
+            this.ForeignGuid = source.ForeignGuid;
+            this.ForeignKey = source.ForeignKey;
             this.InitiatorPersonAliasId = source.InitiatorPersonAliasId;
             this.IsProcessing = source.IsProcessing;
             this.LastProcessedDateTime = source.LastProcessedDateTime;
+            this.ModifiedAuditValuesAlreadyUpdated = source.ModifiedAuditValuesAlreadyUpdated;
             this.Name = source.Name;
             this.Status = source.Status;
             this.WorkflowTypeId = source.WorkflowTypeId;

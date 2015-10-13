@@ -41,6 +41,17 @@ namespace Rock.Client
         public int CommunicationId { get; set; }
 
         /// <summary />
+        public Guid? ForeignGuid { get; set; }
+
+        /// <summary />
+        public string ForeignKey { get; set; }
+
+        /// <summary>
+        /// If the ModifiedByPersonAliasId and ModifiedDateTime properties are being set manually and should not be overwritten with current time/user when saved, set this value to true
+        /// </summary>
+        public bool ModifiedAuditValuesAlreadyUpdated { get; set; }
+
+        /// <summary />
         public string OpenedClient { get; set; }
 
         /// <summary />
@@ -68,7 +79,7 @@ namespace Rock.Client
         public Guid Guid { get; set; }
 
         /// <summary />
-        public string ForeignId { get; set; }
+        public int? ForeignId { get; set; }
 
         /// <summary>
         /// Copies the base properties from a source CommunicationRecipient object
@@ -79,6 +90,9 @@ namespace Rock.Client
             this.Id = source.Id;
             this.AdditionalMergeValuesJson = source.AdditionalMergeValuesJson;
             this.CommunicationId = source.CommunicationId;
+            this.ForeignGuid = source.ForeignGuid;
+            this.ForeignKey = source.ForeignKey;
+            this.ModifiedAuditValuesAlreadyUpdated = source.ModifiedAuditValuesAlreadyUpdated;
             this.OpenedClient = source.OpenedClient;
             this.OpenedDateTime = source.OpenedDateTime;
             this.PersonAliasId = source.PersonAliasId;

@@ -41,7 +41,18 @@ namespace Rock.Client
         public int EntityTypeId { get; set; }
 
         /// <summary />
+        public Guid? ForeignGuid { get; set; }
+
+        /// <summary />
+        public string ForeignKey { get; set; }
+
+        /// <summary />
         public DateTime? LastPromotedDateTime { get; set; }
+
+        /// <summary>
+        /// If the ModifiedByPersonAliasId and ModifiedDateTime properties are being set manually and should not be overwritten with current time/user when saved, set this value to true
+        /// </summary>
+        public bool ModifiedAuditValuesAlreadyUpdated { get; set; }
 
         /// <summary />
         public int PersonAliasId { get; set; }
@@ -59,7 +70,7 @@ namespace Rock.Client
         public Guid Guid { get; set; }
 
         /// <summary />
-        public string ForeignId { get; set; }
+        public int? ForeignId { get; set; }
 
         /// <summary>
         /// Copies the base properties from a source FollowingSuggested object
@@ -70,7 +81,10 @@ namespace Rock.Client
             this.Id = source.Id;
             this.EntityId = source.EntityId;
             this.EntityTypeId = source.EntityTypeId;
+            this.ForeignGuid = source.ForeignGuid;
+            this.ForeignKey = source.ForeignKey;
             this.LastPromotedDateTime = source.LastPromotedDateTime;
+            this.ModifiedAuditValuesAlreadyUpdated = source.ModifiedAuditValuesAlreadyUpdated;
             this.PersonAliasId = source.PersonAliasId;
             this.Status = source.Status;
             this.StatusChangedDateTime = source.StatusChangedDateTime;

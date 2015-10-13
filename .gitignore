@@ -26,4 +26,16 @@ RockWeb/Cache/*
 RockWeb/App_Data/PackageStaging
 /scaffolding.config
 /Build/*
+node_modules
+.remote/*
+RockWeb/Plugins/*
+!RockWeb/Plugins/readme.txt
+RockWeb/Themes/Fuse
+RockWeb/Themes/KidSpring
+RockWeb/Themes/KioskStark
+RockWeb/Themes/NewSpring
+RockWeb/Themes/Workflows
+RockWeb/Themes/cc.*
+RockWeb/Themes/Readme.md
+cc.*
 *.sln.GhostDoc.xml

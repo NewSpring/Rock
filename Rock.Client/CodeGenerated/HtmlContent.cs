@@ -53,7 +53,18 @@ namespace Rock.Client
         public DateTime? ExpireDateTime { get; set; }
 
         /// <summary />
+        public Guid? ForeignGuid { get; set; }
+
+        /// <summary />
+        public string ForeignKey { get; set; }
+
+        /// <summary />
         public bool IsApproved { get; set; }
+
+        /// <summary>
+        /// If the ModifiedByPersonAliasId and ModifiedDateTime properties are being set manually and should not be overwritten with current time/user when saved, set this value to true
+        /// </summary>
+        public bool ModifiedAuditValuesAlreadyUpdated { get; set; }
 
         /// <summary />
         public DateTime? StartDateTime { get; set; }
@@ -65,7 +76,7 @@ namespace Rock.Client
         public Guid Guid { get; set; }
 
         /// <summary />
-        public string ForeignId { get; set; }
+        public int? ForeignId { get; set; }
 
         /// <summary>
         /// Copies the base properties from a source HtmlContent object
@@ -80,7 +91,10 @@ namespace Rock.Client
             this.Content = source.Content;
             this.EntityValue = source.EntityValue;
             this.ExpireDateTime = source.ExpireDateTime;
+            this.ForeignGuid = source.ForeignGuid;
+            this.ForeignKey = source.ForeignKey;
             this.IsApproved = source.IsApproved;
+            this.ModifiedAuditValuesAlreadyUpdated = source.ModifiedAuditValuesAlreadyUpdated;
             this.StartDateTime = source.StartDateTime;
             this.Version = source.Version;
             this.Guid = source.Guid;

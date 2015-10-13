@@ -50,10 +50,21 @@ namespace Rock.Client
         public bool EnableRss { get; set; }
 
         /// <summary />
+        public Guid? ForeignGuid { get; set; }
+
+        /// <summary />
+        public string ForeignKey { get; set; }
+
+        /// <summary />
         public string IconCssClass { get; set; }
 
         /// <summary />
         public string ItemUrl { get; set; }
+
+        /// <summary>
+        /// If the ModifiedByPersonAliasId and ModifiedDateTime properties are being set manually and should not be overwritten with current time/user when saved, set this value to true
+        /// </summary>
+        public bool ModifiedAuditValuesAlreadyUpdated { get; set; }
 
         /// <summary />
         public string Name { get; set; }
@@ -71,7 +82,7 @@ namespace Rock.Client
         public Guid Guid { get; set; }
 
         /// <summary />
-        public string ForeignId { get; set; }
+        public int? ForeignId { get; set; }
 
         /// <summary>
         /// Copies the base properties from a source ContentChannel object
@@ -85,8 +96,11 @@ namespace Rock.Client
             this.ContentControlType = source.ContentControlType;
             this.Description = source.Description;
             this.EnableRss = source.EnableRss;
+            this.ForeignGuid = source.ForeignGuid;
+            this.ForeignKey = source.ForeignKey;
             this.IconCssClass = source.IconCssClass;
             this.ItemUrl = source.ItemUrl;
+            this.ModifiedAuditValuesAlreadyUpdated = source.ModifiedAuditValuesAlreadyUpdated;
             this.Name = source.Name;
             this.RequiresApproval = source.RequiresApproval;
             this.RootImageDirectory = source.RootImageDirectory;

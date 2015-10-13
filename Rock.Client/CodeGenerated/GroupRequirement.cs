@@ -35,6 +35,12 @@ namespace Rock.Client
         public int Id { get; set; }
 
         /// <summary />
+        public Guid? ForeignGuid { get; set; }
+
+        /// <summary />
+        public string ForeignKey { get; set; }
+
+        /// <summary />
         public int GroupId { get; set; }
 
         /// <summary />
@@ -43,11 +49,16 @@ namespace Rock.Client
         /// <summary />
         public int? GroupRoleId { get; set; }
 
+        /// <summary>
+        /// If the ModifiedByPersonAliasId and ModifiedDateTime properties are being set manually and should not be overwritten with current time/user when saved, set this value to true
+        /// </summary>
+        public bool ModifiedAuditValuesAlreadyUpdated { get; set; }
+
         /// <summary />
         public Guid Guid { get; set; }
 
         /// <summary />
-        public string ForeignId { get; set; }
+        public int? ForeignId { get; set; }
 
         /// <summary>
         /// Copies the base properties from a source GroupRequirement object
@@ -56,9 +67,12 @@ namespace Rock.Client
         public void CopyPropertiesFrom( GroupRequirement source )
         {
             this.Id = source.Id;
+            this.ForeignGuid = source.ForeignGuid;
+            this.ForeignKey = source.ForeignKey;
             this.GroupId = source.GroupId;
             this.GroupRequirementTypeId = source.GroupRequirementTypeId;
             this.GroupRoleId = source.GroupRoleId;
+            this.ModifiedAuditValuesAlreadyUpdated = source.ModifiedAuditValuesAlreadyUpdated;
             this.Guid = source.Guid;
             this.ForeignId = source.ForeignId;
 

@@ -44,6 +44,12 @@ namespace Rock.Client
         public string Description { get; set; }
 
         /// <summary />
+        public Guid? ForeignGuid { get; set; }
+
+        /// <summary />
+        public string ForeignKey { get; set; }
+
+        /// <summary />
         public int? GroupTypeId { get; set; }
 
         /// <summary />
@@ -58,6 +64,11 @@ namespace Rock.Client
         /// <summary />
         public int? MinCount { get; set; }
 
+        /// <summary>
+        /// If the ModifiedByPersonAliasId and ModifiedDateTime properties are being set manually and should not be overwritten with current time/user when saved, set this value to true
+        /// </summary>
+        public bool ModifiedAuditValuesAlreadyUpdated { get; set; }
+
         /// <summary />
         public string Name { get; set; }
 
@@ -71,7 +82,7 @@ namespace Rock.Client
         public Guid Guid { get; set; }
 
         /// <summary />
-        public string ForeignId { get; set; }
+        public int? ForeignId { get; set; }
 
         /// <summary>
         /// Copies the base properties from a source GroupTypeRole object
@@ -83,11 +94,14 @@ namespace Rock.Client
             this.CanEdit = source.CanEdit;
             this.CanView = source.CanView;
             this.Description = source.Description;
+            this.ForeignGuid = source.ForeignGuid;
+            this.ForeignKey = source.ForeignKey;
             this.GroupTypeId = source.GroupTypeId;
             this.IsLeader = source.IsLeader;
             this.IsSystem = source.IsSystem;
             this.MaxCount = source.MaxCount;
             this.MinCount = source.MinCount;
+            this.ModifiedAuditValuesAlreadyUpdated = source.ModifiedAuditValuesAlreadyUpdated;
             this.Name = source.Name;
             this.Order = source.Order;
             this.ReceiveRequirementsNotifications = source.ReceiveRequirementsNotifications;

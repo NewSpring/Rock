@@ -16,6 +16,7 @@
 //
 using System;
 using System.Collections.Generic;
+using System.Data.Entity;
 using System.ComponentModel;
 using System.Linq;
 using System.Web.UI;
@@ -590,7 +591,7 @@ namespace RockWeb.Blocks.Finance
                 financialTransaction.AuthorizedPersonAliasId = null;
                 foreach ( var detail in financialTransaction.TransactionDetails )
                 {
-                    History.EvaluateChange( changes, detail.Account != null ? detail.Account.Name : "Unknown", detail.Amount.ToString( "C2" ), string.Empty );
+                    History.EvaluateChange( changes, detail.Account != null ? detail.Account.Name : "Unknown", detail.Amount.FormatAsCurrency(), string.Empty );
                     financialTransactionDetailService.Delete( detail );
                 }
 
@@ -665,7 +666,7 @@ namespace RockWeb.Blocks.Finance
                 foreach ( var detail in financialTransaction.TransactionDetails.ToList() )
                 {
                     financialTransactionDetailService.Delete( detail );
-                    History.EvaluateChange( changes, detail.Account != null ? detail.Account.Name : "Unknown", detail.Amount.ToString( "C2" ), string.Empty );
+                    History.EvaluateChange( changes, detail.Account != null ? detail.Account.Name : "Unknown", detail.Amount.FormatAsCurrency(), string.Empty );
                 }
 
                 foreach ( var accountBox in rptAccounts.ControlsOfTypeRecursive<CurrencyBox>() )
@@ -680,7 +681,7 @@ namespace RockWeb.Blocks.Finance
                         financialTransactionDetail.Amount = amount.Value;
                         financialTransactionDetailService.Add( financialTransactionDetail );
 
-                        History.EvaluateChange( changes, accountBox.Label, 0.0M.ToString( "C2" ), amount.Value.ToString( "C2" ) );
+                        History.EvaluateChange( changes, accountBox.Label, 0.0M.FormatAsCurrency(), amount.Value.FormatAsCurrency() );
                     }
                 }
 
@@ -742,7 +743,7 @@ namespace RockWeb.Blocks.Finance
                 ddlIndividual.SetValue( string.Empty );
                 LoadPersonPreview( ppSelectNew.PersonId.Value );
                 _focusControl = rptAccounts.ControlsOfTypeRecursive<Rock.Web.UI.Controls.CurrencyBox>().FirstOrDefault();
-
+                
                 nbSaveError.Text = string.Empty;
                 nbSaveError.Visible = false;
             }
@@ -761,8 +762,13 @@ namespace RockWeb.Blocks.Finance
             if ( person != null )
             {
                 lPersonName.Text = person.FullName;
+                
                 var spouse = person.GetSpouse( rockContext );
-                lSpouseName.Text = spouse != null ? string.Format( "<strong>Spouse: </strong>{0}", spouse.FullName ) : string.Empty;
+                lSpouseName.Text = spouse != null ? string.Format( "<p><strong>Spouse: </strong>{0}</p>", spouse.FullName ) : string.Empty;
+
+                var campus = person.GetCampus();
+                lCampus.Text = campus != null ? string.Format( "<p><strong>Campus: </strong>{0}</p>", campus.Name ) : string.Empty;
+                
                 rptrAddresses.DataSource = person.GetFamilies().SelectMany( a => a.GroupLocations ).ToList();
                 rptrAddresses.DataBind();
             }

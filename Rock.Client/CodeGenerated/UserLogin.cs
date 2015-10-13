@@ -47,6 +47,12 @@ namespace Rock.Client
         public DateTime? FailedPasswordAttemptWindowStartDateTime { get; set; }
 
         /// <summary />
+        public Guid? ForeignGuid { get; set; }
+
+        /// <summary />
+        public string ForeignKey { get; set; }
+
+        /// <summary />
         public bool? IsConfirmed { get; set; }
 
         /// <summary />
@@ -70,6 +76,11 @@ namespace Rock.Client
         /// <summary />
         public DateTime? LastPasswordExpirationWarningDateTime { get; set; }
 
+        /// <summary>
+        /// If the ModifiedByPersonAliasId and ModifiedDateTime properties are being set manually and should not be overwritten with current time/user when saved, set this value to true
+        /// </summary>
+        public bool ModifiedAuditValuesAlreadyUpdated { get; set; }
+
         /// <summary />
         public string Password { get; set; }
 
@@ -83,7 +94,7 @@ namespace Rock.Client
         public Guid Guid { get; set; }
 
         /// <summary />
-        public string ForeignId { get; set; }
+        public int? ForeignId { get; set; }
 
         /// <summary>
         /// Copies the base properties from a source UserLogin object
@@ -96,6 +107,8 @@ namespace Rock.Client
             this.EntityTypeId = source.EntityTypeId;
             this.FailedPasswordAttemptCount = source.FailedPasswordAttemptCount;
             this.FailedPasswordAttemptWindowStartDateTime = source.FailedPasswordAttemptWindowStartDateTime;
+            this.ForeignGuid = source.ForeignGuid;
+            this.ForeignKey = source.ForeignKey;
             this.IsConfirmed = source.IsConfirmed;
             this.IsLockedOut = source.IsLockedOut;
             this.IsOnLine = source.IsOnLine;
@@ -104,6 +117,7 @@ namespace Rock.Client
             this.LastLoginDateTime = source.LastLoginDateTime;
             this.LastPasswordChangedDateTime = source.LastPasswordChangedDateTime;
             this.LastPasswordExpirationWarningDateTime = source.LastPasswordExpirationWarningDateTime;
+            this.ModifiedAuditValuesAlreadyUpdated = source.ModifiedAuditValuesAlreadyUpdated;
             this.Password = source.Password;
             this.PersonId = source.PersonId;
             this.UserName = source.UserName;

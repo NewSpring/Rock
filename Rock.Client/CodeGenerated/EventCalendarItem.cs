@@ -41,10 +41,21 @@ namespace Rock.Client
         public int EventItemId { get; set; }
 
         /// <summary />
+        public Guid? ForeignGuid { get; set; }
+
+        /// <summary />
+        public string ForeignKey { get; set; }
+
+        /// <summary>
+        /// If the ModifiedByPersonAliasId and ModifiedDateTime properties are being set manually and should not be overwritten with current time/user when saved, set this value to true
+        /// </summary>
+        public bool ModifiedAuditValuesAlreadyUpdated { get; set; }
+
+        /// <summary />
         public Guid Guid { get; set; }
 
         /// <summary />
-        public string ForeignId { get; set; }
+        public int? ForeignId { get; set; }
 
         /// <summary>
         /// Copies the base properties from a source EventCalendarItem object
@@ -55,6 +66,9 @@ namespace Rock.Client
             this.Id = source.Id;
             this.EventCalendarId = source.EventCalendarId;
             this.EventItemId = source.EventItemId;
+            this.ForeignGuid = source.ForeignGuid;
+            this.ForeignKey = source.ForeignKey;
+            this.ModifiedAuditValuesAlreadyUpdated = source.ModifiedAuditValuesAlreadyUpdated;
             this.Guid = source.Guid;
             this.ForeignId = source.ForeignId;
 
@@ -66,12 +80,6 @@ namespace Rock.Client
     /// </summary>
     public partial class EventCalendarItem : EventCalendarItemEntity
     {
-        /// <summary />
-        public EventCalendar EventCalendar { get; set; }
-
-        /// <summary />
-        public EventItem EventItem { get; set; }
-
         /// <summary />
         public DateTime? CreatedDateTime { get; set; }
 

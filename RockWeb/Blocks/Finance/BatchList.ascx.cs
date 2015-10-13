@@ -436,6 +436,16 @@ namespace RockWeb.Blocks.Finance
         }
 
         /// <summary>
+        /// Formats the value as currency (called from markup)
+        /// </summary>
+        /// <param name="value">The value.</param>
+        /// <returns></returns>
+        public string FormatValueAsCurrency( decimal value )
+        {
+            return value.FormatAsCurrency();
+        }
+
+        /// <summary>
         /// Binds the grid.
         /// </summary>
         private void BindGrid()
@@ -478,8 +488,9 @@ namespace RockWeb.Blocks.Finance
             var accountSummaryQry = qryTransactionDetails.GroupBy( a => a.Account ).Select( a => new
             {
                 a.Key.Name,
+                a.Key.Order,
                 TotalAmount = (decimal?)a.Sum( d => d.Amount )
-            } ).OrderBy( a => a.Name );
+            } ).OrderBy( a => a.Order );
 
             var summaryList = accountSummaryQry.ToList();
             var grandTotalAmount = ( summaryList.Count > 0 ) ? summaryList.Sum( a => a.TotalAmount ?? 0 ) : 0;
@@ -612,7 +623,7 @@ namespace RockWeb.Blocks.Finance
             public decimal Amount {get; set;}
             public override string ToString()
             {
-                return string.Format( "{0}: {1:C2}", AccountName, Amount );
+                return string.Format( "{0}: {1}", AccountName, Amount.FormatAsCurrency() );
             }
         }
 

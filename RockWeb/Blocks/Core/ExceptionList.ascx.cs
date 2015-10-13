@@ -113,6 +113,24 @@ namespace RockWeb.Blocks.Administraton
             lcExceptions.Options.legend.show = this.GetAttributeValue( "ShowLegend" ).AsBooleanOrNull();
             lcExceptions.Options.legend.position = this.GetAttributeValue( "LegendPosition" );
 
+            bcExceptions.Options.SetChartStyle( this.ChartStyle );
+            bcExceptions.Options.legend = bcExceptions.Options.legend ?? new Legend();
+            bcExceptions.Options.legend.show = this.GetAttributeValue( "ShowLegend" ).AsBooleanOrNull();
+            bcExceptions.Options.legend.position = this.GetAttributeValue( "LegendPosition" );
+            bcExceptions.Options.xaxis = new AxisOptions { mode = AxisMode.categories, tickLength = 0 };
+            bcExceptions.Options.series.bars.barWidth = 0.6;
+            bcExceptions.Options.series.bars.align = "center";
+
+            bcExceptions.TooltipFormatter = @"
+function(item) {
+    var itemDate = new Date(item.series.chartData[item.dataIndex].DateTimeStamp);
+    var dateText = itemDate.toLocaleDateString();
+    var seriesLabel = item.series.label || ( item.series.labels ? item.series.labels[item.dataIndex] : null );
+    var pointValue = item.series.chartData[item.dataIndex].YValue || item.series.chartData[item.dataIndex].YValueTotal || '-';
+    return dateText + '<br />' + seriesLabel + ': ' + pointValue;
+}
+";
+
             // get data for graphs
             ExceptionLogService exceptionLogService = new ExceptionLogService( new RockContext() );
             var exceptionListCount = exceptionLogService.Queryable()
@@ -122,15 +140,21 @@ namespace RockWeb.Blocks.Administraton
 
             if ( exceptionListCount == 1 )
             {
-                // if there is only one datapoint for the Chart, the yaxis labeling gets messed up, plus the graph wouldn't be useful anyways
+                // if there is only one x datapoint for the Chart, show it as a barchart 
                 lcExceptions.Visible = false;
+                bcExceptions.Visible = true;
+            }
+            else
+            {
+                lcExceptions.Visible = true;
+                bcExceptions.Visible = false;
             }
 
         }
 
         void page_PageNavigate( object sender, HistoryEventArgs e )
         {
-            string stateData = e.State["Exception"];
+            string stateData = e.State["ExceptionId"];
 
             int exceptionId = 0;
             int.TryParse( stateData, out exceptionId );
@@ -213,25 +237,8 @@ namespace RockWeb.Blocks.Administraton
 
             fExceptionList.SaveUserPreference( "Status Code", txtStatusCode.Text );
 
-            DateTime startDate;
-            if ( DateTime.TryParse( dpStartDate.Text, out startDate ) )
-            {
-                fExceptionList.SaveUserPreference( "Start Date", startDate.ToShortDateString() );
-            }
-            else
-            {
-                fExceptionList.SaveUserPreference( "Start Date", String.Empty );
-            }
-
-            DateTime endDate;
-            if ( DateTime.TryParse( dpEndDate.Text, out endDate ) )
-            {
-                fExceptionList.SaveUserPreference( "End Date", endDate.ToShortDateString() );
-            }
-            else
-            {
-                fExceptionList.SaveUserPreference( "End Date", String.Empty );
-            }
+            fExceptionList.SaveUserPreference( "Date Range", sdpDateRange.DelimitedValues );
+           
             BindExceptionListGrid();
         }
 
@@ -255,6 +262,7 @@ namespace RockWeb.Blocks.Administraton
                         }
                     }
                     break;
+
                 case "Page":
                     int pageId;
                     if ( int.TryParse( e.Value, out pageId ) )
@@ -266,6 +274,7 @@ namespace RockWeb.Blocks.Administraton
                         }
                     }
                     break;
+
                 case "User":
                     int userPersonId;
                     if ( int.TryParse( e.Value, out userPersonId ) )
@@ -278,6 +287,17 @@ namespace RockWeb.Blocks.Administraton
                         }
                     }
                     break;
+
+                // ignore old filter parameters
+                case "Start Date":
+                case "End Date":
+                    e.Value = null;
+                    break;
+
+                case "Date Range":
+                    e.Value = SlidingDateRangePicker.FormatDelimitedValues( e.Value );
+                    break;
+                        
             }
         }
 
@@ -298,6 +318,7 @@ namespace RockWeb.Blocks.Administraton
         /// <param name="e">The <see cref="RowEventArgs"/> instance containing the event data.</param>
         protected void gExceptionList_RowSelected( object sender, RowEventArgs e )
         {
+            this.AddHistory( "ExceptionId", e.RowKeyId.ToString() );
             SetExceptionPanelVisibility( e.RowKeyId );
         }
 
@@ -351,8 +372,8 @@ namespace RockWeb.Blocks.Administraton
         /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
         protected void btnReturnToList_Click( object sender, EventArgs e )
         {
-            this.AddHistory( "Exception", None.Id.ToString(), "Exception List" );
-            SetExceptionPanelVisibility( None.Id );
+            // just reload the page with no parameters to get back to the main summary list
+            this.NavigateToPage( new Rock.Web.PageReference( this.PageCache.Id ) );
         }
         
         #endregion
@@ -399,18 +420,7 @@ namespace RockWeb.Blocks.Administraton
                 txtStatusCode.Text = fExceptionList.GetUserPreference( "Status Code" );
             }
 
-            DateTime startDate;
-            if ( DateTime.TryParse( fExceptionList.GetUserPreference( "Start Date" ), out startDate ) )
-            {
-                dpStartDate.Text = startDate.ToShortDateString();
-            }
-
-            DateTime endDate;
-            if ( DateTime.TryParse( fExceptionList.GetUserPreference( "End Date" ), out endDate ) )
-            {
-                dpEndDate.Text = endDate.ToShortDateString();
-            }
-
+            sdpDateRange.DelimitedValues = fExceptionList.GetUserPreference( "Date Range" );
         }
 
         /// <summary>
@@ -542,18 +552,16 @@ namespace RockWeb.Blocks.Administraton
                 query = query.Where( e => e.StatusCode == statusCode );
             }
 
-            DateTime startDate;
-            if ( DateTime.TryParse( fExceptionList.GetUserPreference( "Start Date" ), out startDate ) )
+            var dateRange = SlidingDateRangePicker.CalculateDateRangeFromDelimitedValues( fExceptionList.GetUserPreference( "Date Range" ) );
+
+            if ( dateRange.Start.HasValue )
             {
-                startDate = startDate.Date;
-                query = query.Where( e => e.CreatedDateTime.HasValue && e.CreatedDateTime.Value >= startDate );
+                query = query.Where( e => e.CreatedDateTime.HasValue && e.CreatedDateTime.Value >= dateRange.Start.Value );
             }
 
-            DateTime endDate;
-            if ( DateTime.TryParse( fExceptionList.GetUserPreference( "End Date" ), out endDate ) )
+            if ( dateRange.End.HasValue )
             {
-                endDate = endDate.Date.AddDays( 1 );
-                query = query.Where( e => e.CreatedDateTime.HasValue && e.CreatedDateTime.Value < endDate );
+                query = query.Where( e => e.CreatedDateTime.HasValue && e.CreatedDateTime.Value < dateRange.End.Value );
             }
 
             //Only look for inner exceptions
@@ -576,7 +584,6 @@ namespace RockWeb.Blocks.Administraton
         /// </summary>
         private void LoadExceptionList()
         {
-            //this.AddHistory( "Exception", None.Id.ToString(), "Exception List" );
             BindExceptionListFilter();
             BindExceptionListGrid();
         }
@@ -596,7 +603,7 @@ namespace RockWeb.Blocks.Administraton
             {
                 if ( Page.IsPostBack && Page.IsAsync )
                 {
-                    this.AddHistory( "Exception", exceptionId.ToString(), string.Format( "Exception Occurrences {0}", exception.Description ) );
+                    this.AddHistory( "ExceptionId", exceptionId.ToString(), string.Format( "Exception Occurrences {0}", exception.Description ) );
                 }
                 hfBaseExceptionID.Value = exceptionId.ToString();
 

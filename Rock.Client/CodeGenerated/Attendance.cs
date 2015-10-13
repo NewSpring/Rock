@@ -53,10 +53,21 @@ namespace Rock.Client
         public DateTime? EndDateTime { get; set; }
 
         /// <summary />
+        public Guid? ForeignGuid { get; set; }
+
+        /// <summary />
+        public string ForeignKey { get; set; }
+
+        /// <summary />
         public int? GroupId { get; set; }
 
         /// <summary />
         public int? LocationId { get; set; }
+
+        /// <summary>
+        /// If the ModifiedByPersonAliasId and ModifiedDateTime properties are being set manually and should not be overwritten with current time/user when saved, set this value to true
+        /// </summary>
+        public bool ModifiedAuditValuesAlreadyUpdated { get; set; }
 
         /// <summary />
         public string Note { get; set; }
@@ -86,7 +97,7 @@ namespace Rock.Client
         public Guid Guid { get; set; }
 
         /// <summary />
-        public string ForeignId { get; set; }
+        public int? ForeignId { get; set; }
 
         /// <summary>
         /// Copies the base properties from a source Attendance object
@@ -101,8 +112,11 @@ namespace Rock.Client
             this.DidAttend = source.DidAttend;
             this.DidNotOccur = source.DidNotOccur;
             this.EndDateTime = source.EndDateTime;
+            this.ForeignGuid = source.ForeignGuid;
+            this.ForeignKey = source.ForeignKey;
             this.GroupId = source.GroupId;
             this.LocationId = source.LocationId;
+            this.ModifiedAuditValuesAlreadyUpdated = source.ModifiedAuditValuesAlreadyUpdated;
             this.Note = source.Note;
             this.PersonAliasId = source.PersonAliasId;
             this.Processed = source.Processed;
