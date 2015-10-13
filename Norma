@@ -7,7 +7,7 @@ tasks:
       cybersource: "NewSpring/rock-cybersource"
       "attended-checkin": "NewSpring/rock-attended-checkin"
       apollos: "NewSpring/rock-apollos#feature-auto-deploys"
-      bookshelf: "https://github.com/NewSpring/rock-bookshelf.git"
+      # bookshelf: "https://github.com/NewSpring/rock-bookshelf.git"
 
   # copy over all plugin blocks/styles/etc
   copy:
