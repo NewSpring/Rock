@@ -24,6 +24,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "cc.newspring.Apollos", "cc.
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "cc.newspring.Workflows", "cc.newspring.Workflows\cc.newspring.Workflows.csproj", "{48DBF7CC-422B-49B6-9CDF-EAB090B69F03}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "com.centralaz.Accountability", "com.centralaz.Accountability\com.centralaz.Accountability.csproj", "{1D63AC63-BCFA-4026-8715-74ACD19D3FBE}"
+EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "com.centralaz.SpiritualGifts", "com.centralaz.SpiritualGifts\com.centralaz.SpiritualGifts.csproj", "{6879E00D-7EBC-406B-A479-84EF816B10B4}"
 EndProject
 Project("{E24C65DC-7377-472B-9ABA-BC803B73C61A}") = "RockWeb", "http://vsdev:6229", "{3ADB92E5-342B-458D-B779-369FC8A66CF6}"
@@ -62,6 +64,16 @@ Global
 		Release|x86 = Release|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{1D63AC63-BCFA-4026-8715-74ACD19D3FBE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1D63AC63-BCFA-4026-8715-74ACD19D3FBE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1D63AC63-BCFA-4026-8715-74ACD19D3FBE}.Debug|Mixed Platforms.ActiveCfg = Debug|Any CPU
+		{1D63AC63-BCFA-4026-8715-74ACD19D3FBE}.Debug|Mixed Platforms.Build.0 = Debug|Any CPU
+		{1D63AC63-BCFA-4026-8715-74ACD19D3FBE}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{1D63AC63-BCFA-4026-8715-74ACD19D3FBE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1D63AC63-BCFA-4026-8715-74ACD19D3FBE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1D63AC63-BCFA-4026-8715-74ACD19D3FBE}.Release|Mixed Platforms.ActiveCfg = Release|Any CPU
+		{1D63AC63-BCFA-4026-8715-74ACD19D3FBE}.Release|Mixed Platforms.Build.0 = Release|Any CPU
+		{1D63AC63-BCFA-4026-8715-74ACD19D3FBE}.Release|x86.ActiveCfg = Release|Any CPU
 		{6879E00D-7EBC-406B-A479-84EF816B10B4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{6879E00D-7EBC-406B-A479-84EF816B10B4}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{6879E00D-7EBC-406B-A479-84EF816B10B4}.Debug|Mixed Platforms.ActiveCfg = Debug|Any CPU
