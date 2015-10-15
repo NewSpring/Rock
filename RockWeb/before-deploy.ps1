@@ -1,8 +1,8 @@
 # This script is run by AppVeyor's deploy agent before the deploy
 Import-Module WebAdministration
 
-$rootfolder = "c:\appveyor\projects\rock\applications\"
-$webroot = "$rootfolder\NewSpringRockKit"
+$rootfolder = "d:\"
+$webroot = "$rootfolder\wwwroot"
 
 Write-Output "Running pre-deploy script"
 Write-Output "--------------------------------------------------"
