@@ -1,9 +1,9 @@
 # This script is run by AppVeyor's deploy agent before the deploy
 Import-Module WebAdministration
 
-$rootfolder = Get-Item env:application_path
+$rootfolder = "$env:application_path"
 $webroot = "$rootfolder"
-$webroot += Get-Item env:application_name
+$webroot += "$env:application_name"
 
 Write-Output "Running pre-deploy script"
 Write-Output "--------------------------------------------------"
