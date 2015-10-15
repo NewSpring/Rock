@@ -1,9 +1,9 @@
 # This script is run by AppVeyor's deploy agent after the deploy
 Import-Module WebAdministration
 
+
 $rootfolder = "$env:application_path\..\"
 $webroot = "$env:application_path"
-
 
 Write-Output "Running post-deploy script"
 Write-Output "--------------------------------------------------"
