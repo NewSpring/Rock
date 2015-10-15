@@ -1,8 +1,9 @@
 # This script is run by AppVeyor's deploy agent after the deploy
 Import-Module WebAdministration
 
-$rootfolder = "d:\"
-$webroot = "$rootfolder\wwwroot"
+
+$rootfolder = "$env:application_path\..\"
+$webroot = "$env:application_path"
 
 Write-Output "Running post-deploy script"
 Write-Output "--------------------------------------------------"
@@ -23,6 +24,22 @@ If (Test-Path "$rootfolder\temp\Content"){
 	Write-Host "Moving Contents folder back from temp directory"
 	Move-Item "$rootfolder\temp\Content" "$webroot"
 }
+
+If (Test-Path "$rootfolder\temp\checks"){
+	Write-Host "Moving checks folder back from temp directory"
+	Move-Item "$rootfolder\temp\checks" "$webroot"
+}
+
+If (Test-Path "$rootfolder\temp\documents"){
+	Write-Host "Moving documents folder back from temp directory"
+	Move-Item "$rootfolder\temp\documents" "$webroot"
+}
+
+If (Test-Path "$rootfolder\temp\profiles"){
+	Write-Host "Moving profiles folder back from temp directory"
+	Move-Item "$rootfolder\temp\profiles" "$webroot"
+}
+
 
 # move connection string file back from temp
 If (Test-Path "$rootfolder\temp\web.connectionstrings.config"){
