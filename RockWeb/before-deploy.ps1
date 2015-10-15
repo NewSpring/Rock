@@ -29,6 +29,21 @@ If (Test-Path "$webroot\Content"){
 	Move-Item "$webroot\Content" "$rootfolder\temp\Content"
 }
 
+If (Test-Path "$webroot\checks"){
+	Write-Host "Moving checks folder to temp directory"
+	Move-Item "$webroot\checks" "$rootfolder\temp\Content"
+}
+
+If (Test-Path "$webroot\documents"){
+	Write-Host "Moving documents folder to temp directory"
+	Move-Item "$webroot\documents" "$rootfolder\temp\Content"
+}
+
+If (Test-Path "$webroot\profiles"){
+	Write-Host "Moving profiles folder to temp directory"
+	Move-Item "$webroot\profiles" "$rootfolder\temp\Content"
+}
+
 # move connection string file
 If (Test-Path "$webroot\web.connectionstrings.config"){
 	Write-Host "Moving web.connectionstrings.config to temp dir"
