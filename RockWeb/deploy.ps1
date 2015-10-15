@@ -1,8 +1,9 @@
 # This script is run by AppVeyor's deploy agent after the deploy
 Import-Module WebAdministration
 
-$rootfolder = "c:\appveyor\projects\rock\applications\"
-$webroot = "$rootfolder\NewSpringRockKit"
+$rootfolder = Get-Item env:application_path
+$webroot = "$rootfolder"
+$webroot += Get-Item env:application_name
 
 Write-Output "Running post-deploy script"
 Write-Output "--------------------------------------------------"
