@@ -13,14 +13,14 @@ tasks:
   # copy over all plugin blocks/styles/etc
   copy:
     endpoint: "NewSpring/norma-copy#feature-base-name"
-    src: ".remote/**/*(cc_newspring|com_centralaz|org_sparkdevnetwork)/**"
+    src: ".remote/**/*(cc_newspring|com_centralaz|org_sparkdevnetwork)/(*|**/*)"
     dest: "RockWeb/Plugins/"
     base: true
 
   # copy over raw projects to be compiled
   "copy-plugins-for-compile":
     "@extend": "copy"
-    src: ".remote/**/*(cc.newspring.*|com.centralaz.*)/**"
+    src: ".remote/**/*(cc.newspring.*|com.centralaz.*)/(*|**/*)"
     dest: "./"
     base: true
 

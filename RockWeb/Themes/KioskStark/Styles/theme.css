@@ -798,33 +798,27 @@ dl:not(.dl-horizontal) dd {
   margin-left: 0;
 }
 .form-control.input-width-xs,
-.input-group.input-width-xs,
-.form-control-group.input-width-xs input {
+.input-group.input-width-xs {
   width: 60px;
 }
 .form-control.input-width-sm,
-.input-group.input-width-sm,
-.form-control-group.input-width-sm input {
+.input-group.input-width-sm {
   width: 90px;
 }
 .form-control.input-width-md,
-.input-group.input-width-md,
-.form-control-group.input-width-md input {
+.input-group.input-width-md {
   width: 140px;
 }
 .form-control.input-width-lg,
-.input-group.input-width-lg,
-.form-control-group.input-width-lg input {
+.input-group.input-width-lg {
   width: 210px;
 }
 .form-control.input-width-xl,
-.input-group.input-width-xl,
-.form-control-group.input-width-xl input {
+.input-group.input-width-xl {
   width: 270px;
 }
 .form-control.input-width-xxl,
-.input-group.input-width-xxl,
-.form-control-group.input-width-xxl input {
+.input-group.input-width-xxl {
   width: 530px;
 }
 .form-control-group:before,
@@ -1471,7 +1465,7 @@ tr.row-highlight td {
   opacity: .2;
 }
 .panel-note article .details {
-  margin-left: 70px;
+  margin-left: 50px;
 }
 .panel-note article .details h5 {
   margin-top: 0;
@@ -5357,9 +5351,6 @@ th[align=center] {
 .list-group-item .content {
   display: block;
   float: left;
-}
-.panel-headerimage {
-  margin: -15px -15px 15px -15px;
 }
 .panel .panel-heading a.btn-link {
   color: #5697d0;

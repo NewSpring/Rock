@@ -31,7 +31,8 @@ node_modules
 RockWeb/Plugins/com_centralaz
 RockWeb/Plugins/cc_newspring/AttendedCheckin
 RockWeb/Plugins/cc_newspring/WorkflowAlert
-!RockWeb/Plugins/cc_newspring/Blocks
+RockWeb/Plugins/cc_newspring/Blocks
+!RockWeb/Plugins/cc_newspring/Shared
 
 
 RockWeb/Themes/Fuse
