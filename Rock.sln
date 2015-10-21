@@ -16,17 +16,17 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Rock.Version", "Rock.Versio
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Rock.Rest", "Rock.Rest\Rock.Rest.csproj", "{B89DFD33-CE93-44E1-8616-C31ACDFE89CB}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "cc.newspring.AttendedCheckIn", "cc.newspring.AttendedCheckIn\cc.newspring.AttendedCheckIn.csproj", "{BC36CAC2-1F25-4190-9297-157DDD2E4960}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "cc.newspring.AttendedCheckIn", "..\cc.newspring.AttendedCheckIn\cc.newspring.AttendedCheckIn.csproj", "{BC36CAC2-1F25-4190-9297-157DDD2E4960}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "cc.newspring.CyberSource", "cc.newspring.CyberSource\cc.newspring.CyberSource.csproj", "{83775A9E-0455-4801-B1EF-DC70D786D09B}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "cc.newspring.CyberSource", "..\cc.newspring.CyberSource\cc.newspring.CyberSource.csproj", "{83775A9E-0455-4801-B1EF-DC70D786D09B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "cc.newspring.Apollos", "cc.newspring.Apollos\cc.newspring.Apollos.csproj", "{9F3591C6-451C-4C38-A1D2-6E8B99C81DA3}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "cc.newspring.Apollos", "..\cc.newspring.Apollos\cc.newspring.Apollos.csproj", "{9F3591C6-451C-4C38-A1D2-6E8B99C81DA3}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "cc.newspring.Workflows", "cc.newspring.Workflows\cc.newspring.Workflows.csproj", "{48DBF7CC-422B-49B6-9CDF-EAB090B69F03}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "cc.newspring.Workflows", "..\cc.newspring.Workflows\cc.newspring.Workflows.csproj", "{48DBF7CC-422B-49B6-9CDF-EAB090B69F03}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "com.centralaz.SpiritualGifts", "com.centralaz.SpiritualGifts\com.centralaz.SpiritualGifts.csproj", "{6879E00D-7EBC-406B-A479-84EF816B10B4}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "com.centralaz.SpiritualGifts", "..\com.centralaz.SpiritualGifts\com.centralaz.SpiritualGifts.csproj", "{6879E00D-7EBC-406B-A479-84EF816B10B4}"
 EndProject
-Project("{E24C65DC-7377-472B-9ABA-BC803B73C61A}") = "RockWeb", "http://vsdev:6229", "{3ADB92E5-342B-458D-B779-369FC8A66CF6}"
+Project("{E24C65DC-7377-472B-9ABA-BC803B73C61A}") = "RockWeb", "http://rock.dev:6229", "{3ADB92E5-342B-458D-B779-369FC8A66CF6}"
 	ProjectSection(WebsiteProperties) = preProject
 		UseIISExpress = "true"
 		TargetFrameworkMoniker = ".NETFramework,Version%3Dv4.5.1"

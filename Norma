@@ -1,7 +1,7 @@
 name: "Rock"
 tasks:
   bower:
-    ".remote":
+    "../":
       themes: "NewSpring/rock-themes"
       workflows: "NewSpring/rock-workflows"
       cybersource: "NewSpring/rock-cybersource"
@@ -20,7 +20,7 @@ tasks:
   # copy over raw projects to be compiled
   "copy-plugins-for-compile":
     "@extend": "copy"
-    src: ".remote/**/*(cc.newspring.*|com.centralaz.*)/**/*"
+    src: ".remote/**/cc.newspring.Apollos/**/*"
     dest: "./"
     base: true
 
