@@ -59,13 +59,13 @@ After these have installed you need to link them into the Rock project.
 
 ```command
 cd .\Rock
-mklink /D cc.newspring.Cybersource ..\rock-cybersource\cc.newspring.CyberSource
-mklink /D cc.newspring.Apollos ..\rock-apollos\cc.newspring.Apollos
-mklink /D cc.newspring.AttendedCheckin ..\rock-attended-checkin\cc.newspring.AttendedCheckin
-mklink /D cc.newspring.Workflows ..\rock-workflows\cc.newspring.Workflows
+mklink /J cc.newspring.Cybersource ..\rock-cybersource\cc.newspring.CyberSource
+mklink /J cc.newspring.Apollos ..\rock-apollos\cc.newspring.Apollos
+mklink /J cc.newspring.AttendedCheckin ..\rock-attended-checkin\cc.newspring.AttendedCheckin
+mklink /J cc.newspring.Workflows ..\rock-workflows\cc.newspring.Workflows
 cd .\RockWeb\Plugins\cc_newspring
-mklink /D WorkFlowAlert ..\..\..\rock-workflows\cc_newspring
-mklink /D AttendedCheckin ..\..\..\rock-attended-checkin\cc_newspring
+mklink /J WorkFlowAlert ..\..\..\rock-workflows\cc_newspring
+mklink /J AttendedCheckin ..\..\..\rock-attended-checkin\cc_newspring
 cd ..\..\Bin
 mklink BCrypt.Net.dll ..\..\rock-apollos\bin\BCrypt.Net.dll
 cd ..\..\..\
@@ -78,10 +78,10 @@ Now we need to install the theme files and link them in as well (again in comman
 ```command
 git clone https://github.com/NewSpring/rock-themes.git
 cd .\Rock\RockWeb\Themes
-mklink /D Fuse ..\..\rock-themes\Fuse
-mklink /D KidSpring ..\..\rock-themes\KidSprint
-mklink /D NewSpring ..\..\rock-themes\Newspring
-mklink /D Workflows ..\..\rock-themes\Workflows
+mklink /J Fuse ..\..\rock-themes\Fuse
+mklink /J KidSpring ..\..\rock-themes\KidSprint
+mklink /J NewSpring ..\..\rock-themes\Newspring
+mklink /J Workflows ..\..\rock-themes\Workflows
 cd ..\..\
 ```
 
@@ -114,7 +114,7 @@ If you did the norma setup, we need to clone down the plugin you want to work on
 git clone https://github.com/NewSpring/rock-apollos
 RD /S .\Rock\.remote\apollos
 cd .\Rock\.remote
-mklink /D apollos ..\..\rock-apollos
+mklink /J apollos ..\..\rock-apollos
 ```
 
 Then while you are working on projects, run `norma` at the root of the Rock project and you can save files and Norma will put them where they need to be!
