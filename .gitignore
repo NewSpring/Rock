@@ -30,9 +30,12 @@ node_modules
 .remote/*
 RockWeb/Plugins/*
 !RockWeb/Plugins/readme.txt
+!RockWeb/Plugins/cc_newspring
+!RockWeb/Plugins/cc_newspring/Shared
+RockWeb/Plugins/cc_newspring/*
 RockWeb/Themes/Fuse
 RockWeb/Themes/KidSpring
-RockWeb/Themes/KioskStark
+RockWeb/Themes/KioskStark/*
 RockWeb/Themes/NewSpring
 RockWeb/Themes/Workflows
 RockWeb/Themes/cc.*
