@@ -13,27 +13,27 @@ tasks:
   # copy over all plugin blocks/styles/etc
   copy:
     endpoint: "NewSpring/norma-copy#feature-base-name"
-    src: ".remote/**/*(cc_newspring|com_centralaz|org_sparkdevnetwork)/**/*"
+    src: "../**/*(cc_newspring|com_centralaz|org_sparkdevnetwork)/**/*"
     dest: "RockWeb/Plugins/"
     base: true
 
   # copy over raw projects to be compiled
   "copy-plugins-for-compile":
     "@extend": "copy"
-    src: ".remote/**/cc.newspring.Apollos/**/*"
+    src: "../**/*(cc.newspring.*|com.centralaz.*)/**/*"
     dest: "./"
     base: true
 
   "copy-themes":
     "@extend": "copy"
-    src: ".remote/themes/**/*"
+    src: "../themes/**/*"
     dest: "RockWeb/Themes/"
     base: false
 
   # copy over any DLLs
   "copy-dlls":
     "@extend": "copy"
-    src: ".remote/**/*"
+    src: "../**/*"
     dest: "./RockWeb/Bin"
     files: true
     type: "sync"
