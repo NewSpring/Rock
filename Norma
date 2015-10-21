@@ -2,12 +2,12 @@ name: "Rock"
 tasks:
   bower:
     ".remote":
-      themes: "NewSpring/rock-themes"
-      workflows: "NewSpring/rock-workflows"
-      cybersource: "NewSpring/rock-cybersource"
-      "attended-checkin": "NewSpring/rock-attended-checkin"
-      apollos: "NewSpring/rock-apollos"
-      "spritual-gifts": "NewSpring/rock-spiritual-gifts"
+      themes: "NewSpring/rock-themes#beta"
+      workflows: "NewSpring/rock-workflows#beta"
+      cybersource: "NewSpring/rock-cybersource#beta"
+      "attended-checkin": "NewSpring/rock-attended-checkin#beta"
+      apollos: "NewSpring/rock-apollos#beta"
+      "spritual-gifts": "NewSpring/rock-spiritual-gifts#beta"
       # bookshelf: "https://github.com/NewSpring/rock-bookshelf.git"
 
   # copy over all plugin blocks/styles/etc
