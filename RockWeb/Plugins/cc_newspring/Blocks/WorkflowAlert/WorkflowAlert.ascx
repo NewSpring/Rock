@@ -1,4 +1,4 @@
-<%@ Control Language="C#" AutoEventWireup="true" CodeFile="WorkflowAlert.ascx.cs" Inherits="RockWeb.Plugins.cc_newspring.Blocks.WorkflowAlert.WorkflowAlert" %>
+﻿<%@ Control Language="C#" AutoEventWireup="true" CodeFile="WorkflowAlert.ascx.cs" Inherits="RockWeb.Plugins.cc_newspring.Blocks.WorkflowAlert.WorkflowAlert" %>
 
 <asp:HiddenField ID="workflowAlertNumber" runat="server" />
 <asp:HiddenField ID="filterWorkflowTypes" runat="server" />

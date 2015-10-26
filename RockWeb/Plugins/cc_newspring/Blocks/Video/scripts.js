@@ -1,4 +1,4 @@
-var Ooyala = function () {
+﻿var Ooyala = function () {
     var loadStyles = function () {
         var relPath = '../plugins/cc_newspring/Blocks/Video/Styles/styles.css';
         var styleLink = $('<link>').attr('rel', 'stylesheet').attr('href', relPath);
