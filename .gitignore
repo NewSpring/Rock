@@ -36,7 +36,7 @@ RockWeb/Plugins/cc_newspring/WorkflowAlert
 
 RockWeb/Themes/Fuse
 RockWeb/Themes/KidSpring
-RockWeb/Themes/KioskStark/*
+RockWeb/Themes/KioskStark
 RockWeb/Themes/NewSpring
 RockWeb/Themes/Workflows
 RockWeb/Themes/cc.*
@@ -46,3 +46,5 @@ com.centralaz.*
 *.sln.GhostDoc.xml
 
 /packages/*
+/bin/
+*.dll
