@@ -33,7 +33,7 @@ The initial setup is takes a few steps and may take some time depending on your 
 
 After setting up git on your computer, clone down this project to the directory of your choice:
 
-```powershell
+```command
 git clone https://github.com/NewSpring/Rock.git
 ```
 
@@ -46,7 +46,7 @@ NewSpring relies on a few custom plugins as well to run our full project. There 
 **Bare bones**
 At the same folder level as the rock project, install all of the external plugins that are used by NewSpring's install.
 
-```powershell
+```command
 git clone https://github.com/NewSpring/rock-apollos && ^
 git clone https://github.com/NewSpring/rock-cybersource && ^
 git clone https://github.com/NewSpring/rock-attended-checkin && ^
@@ -58,16 +58,16 @@ After these have installed you need to link them into the Rock project.
 > Symlinking on windows requires admin access. Use Command Prompt in admin role (right click on command prompt and click run as admin). Make sure you are at the same directory you were at (where rock is copied)
 
 ```command
-cd .\Rock
-mklink /J cc.newspring.Cybersource ..\rock-cybersource\cc.newspring.CyberSource
-mklink /J cc.newspring.Apollos ..\rock-apollos\cc.newspring.Apollos
-mklink /J cc.newspring.AttendedCheckin ..\rock-attended-checkin\cc.newspring.AttendedCheckin
-mklink /J cc.newspring.Workflows ..\rock-workflows\cc.newspring.Workflows
-cd .\RockWeb\Plugins\cc_newspring
-mklink /J WorkFlowAlert ..\..\..\rock-workflows\cc_newspring
-mklink /J AttendedCheckin ..\..\..\rock-attended-checkin\cc_newspring
-cd ..\..\Bin
-mklink BCrypt.Net.dll ..\..\rock-apollos\bin\BCrypt.Net.dll
+cd .\Rock && ^
+mklink /J cc.newspring.Cybersource ..\rock-cybersource\cc.newspring.CyberSource && ^
+mklink /J cc.newspring.Apollos ..\rock-apollos\cc.newspring.Apollos && ^
+mklink /J cc.newspring.AttendedCheckin ..\rock-attended-checkin\cc.newspring.AttendedCheckin && ^
+mklink /J cc.newspring.Workflows ..\rock-workflows\cc.newspring.Workflows && ^
+cd .\RockWeb\Plugins\cc_newspring && ^
+mklink /J WorkFlowAlert ..\..\..\rock-workflows\cc_newspring && ^
+mklink /J AttendedCheckin ..\..\..\rock-attended-checkin\cc_newspring && ^
+cd ..\..\Bin && ^
+mklink BCrypt.Net.dll ..\..\rock-apollos\bin\BCrypt.Net.dll && ^
 cd ..\..\..\
 ```
 

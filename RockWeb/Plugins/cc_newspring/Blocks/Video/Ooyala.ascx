@@ -1,4 +1,4 @@
-<%@ Control Language="C#" AutoEventWireup="true" CodeFile="Ooyala.ascx.cs" Inherits="RockWeb.Plugins.cc_newspring.Blocks.Video.Ooyala" %>
+﻿<%@ Control Language="C#" AutoEventWireup="true" CodeFile="Ooyala.ascx.cs" Inherits="RockWeb.Plugins.cc_newspring.Blocks.Video.Ooyala" %>
 
 <div class="embed-responsive embed-responsive-16by9">
     <script src='//player.ooyala.com/v3/bb2b5b1739de4b4e829882d478883a3f'></script>

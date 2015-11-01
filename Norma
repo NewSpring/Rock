@@ -1,42 +1,44 @@
 name: "Rock"
 tasks:
   bower:
-    ".remote":
-      themes: "NewSpring/rock-themes#beta"
-      workflows: "NewSpring/rock-workflows#beta"
-      cybersource: "NewSpring/rock-cybersource#beta"
-      "attended-checkin": "NewSpring/rock-attended-checkin#beta"
-      apollos: "NewSpring/rock-apollos#beta"
-      "spritual-gifts": "NewSpring/rock-spiritual-gifts#beta"
-      # bookshelf: "https://github.com/NewSpring/rock-bookshelf.git"
+    "../":
+      "rock-themes": "NewSpring/rock-themes"
+      "rock-workflows": "NewSpring/rock-workflows"
+      "rock-cybersource": "NewSpring/rock-cybersource"
+      "rock-attended-checkin": "NewSpring/rock-attended-checkin"
+      "rock-apollos": "NewSpring/rock-apollos"
+      "rock-spiritual-gifts": "NewSpring/rock-spiritual-gifts"
+      # "rock-bookshelf": "https://github.com/NewSpring/rock-bookshelf.git"
 
   # copy over all plugin blocks/styles/etc
-  copy:
-    endpoint: "NewSpring/norma-copy#feature-base-name"
-    src: ".remote/**/{cc_newspring,com_centralaz,org_sparkdevnetwork}/**/*"
-    dest: "RockWeb/Plugins/"
-    base: true
+  # copy:
+  #   endpoint: "NewSpring/norma-copy#feature-base-name"
+  #   src: "../**/*(cc_newspring|com_centralaz|org_sparkdevnetwork)/**/*"
+  #   dest: "RockWeb/Plugins/"
+  #   base: true
+  #   ext: ["ascx","cs","config","csproj"]
 
   # copy over raw projects to be compiled
-  "copy-plugins-for-compile":
-    "@extend": "copy"
-    src: ".remote/**/{cc.newspring.*,com.centralaz.*}/**/*"
-    dest: "./"
-    base: true
+  # "copy-plugins-for-compile":
+  #   "@extend": "copy"
+  #   src: "../**/*(cc.newspring.*|com.centralaz.*)/**/*"
+  #   dest: "./"
+  #   base: true
+  #   ext: ["ascx","cs","config","csproj"]
 
-  "copy-themes":
-    "@extend": "copy"
-    src: ".remote/themes/**/*"
-    dest: "RockWeb/Themes/"
-    base: false
+  # "copy-themes":
+  #   "@extend": "copy"
+  #   src: "../themes/**/*"
+  #   dest: "RockWeb/Themes/"
+  #   base: false
 
   # copy over any DLLs
-  "copy-dlls":
-    "@extend": "copy"
-    src: ".remote/**/*"
-    dest: "./RockWeb/Bin"
-    files: true
-    type: "sync"
-    ext: [
-      "dll"
-    ]
+  # "copy-dlls":
+  #   "@extend": "copy"
+  #   src: "../**/*"
+  #   dest: "./RockWeb/Bin"
+  #   files: true
+  #   type: "sync"
+  #   ext: [
+  #     "dll"
+  #   ]
