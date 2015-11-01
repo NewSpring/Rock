@@ -28,8 +28,12 @@ RockWeb/App_Data/PackageStaging
 /Build/*
 node_modules
 .remote/*
-RockWeb/Plugins/*
-!RockWeb/Plugins/readme.txt
+RockWeb/Plugins/com_centralaz
+RockWeb/Plugins/cc_newspring/AttendedCheckin
+RockWeb/Plugins/cc_newspring/WorkflowAlert
+!RockWeb/Plugins/cc_newspring/Blocks
+
+
 RockWeb/Themes/Fuse
 RockWeb/Themes/KidSpring
 RockWeb/Themes/KioskStark
@@ -41,4 +45,6 @@ cc.*
 com.centralaz.*
 *.sln.GhostDoc.xml
 
-Norma
+/packages/*
+/bin/
+*.dll
