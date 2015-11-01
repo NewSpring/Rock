@@ -7,7 +7,7 @@ tasks:
       "cc.newspring.Cybersource": "NewSpring/rock-cybersource"
       "cc.newspring.AttendedCheckIn": "NewSpring/rock-attended-checkin"
       "cc.newspring.Apollos": "NewSpring/rock-apollos"
-      "com.centralaz.SpiritualGifts": "NewSpring/rock-spiritual-gifts"
+      # "com.centralaz.SpiritualGifts": "NewSpring/rock-spiritual-gifts"
       # "rock-bookshelf": "https://github.com/NewSpring/rock-bookshelf.git"
 
   # copy over all plugin blocks/styles/etc
