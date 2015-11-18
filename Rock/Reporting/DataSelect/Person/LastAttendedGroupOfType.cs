@@ -17,7 +17,6 @@
 using System;
 using System.ComponentModel;
 using System.ComponentModel.Composition;
-using System.Data.Entity;
 using System.Data.Entity.SqlServer;
 using System.Linq;
 using System.Linq.Expressions;
@@ -33,10 +32,10 @@ namespace Rock.Reporting.DataSelect.Person
     /// <summary>
     /// 
     /// </summary>
-    [Description( "Show the group(s) of a specific group type where one or more of the person's family's map locations are withing the group's geofence." )]
+    [Description( "Show the date of the last attendance in a group of type." )]
     [Export( typeof( DataSelectComponent ) )]
-    [ExportMetadata( "ComponentName", "Select Geofencing group of specific group type" )]
-    public class InGroupGeofenceGroupTypeSelect : DataSelectComponent
+    [ExportMetadata( "ComponentName", "Select last attendance date of a person in a specific type of group." )]
+    public class LastAttendedGroupOfType : DataSelectComponent
     {
         #region Properties
 
@@ -76,7 +75,7 @@ namespace Rock.Reporting.DataSelect.Person
         {
             get
             {
-                return "Geofencing Group";
+                return "Last Attendance In Group Of Type";
             }
         }
 
@@ -88,7 +87,7 @@ namespace Rock.Reporting.DataSelect.Person
         /// </value>
         public override Type ColumnFieldType
         {
-            get { return typeof( string ); }
+            get { return typeof( DateTime? ); }
         }
 
         /// <summary>
@@ -101,7 +100,7 @@ namespace Rock.Reporting.DataSelect.Person
         {
             get
             {
-                return "Geofencing Group";
+                return "Last Attendance In Group Of Type";
             }
         }
 
@@ -119,7 +118,7 @@ namespace Rock.Reporting.DataSelect.Person
         /// </value>
         public override string GetTitle( Type entityType )
         {
-            return "Geofencing Group";
+            return "Last Attendance In Group Of Type";
         }
 
         /// <summary>
@@ -131,13 +130,22 @@ namespace Rock.Reporting.DataSelect.Person
         /// <returns></returns>
         public override Expression GetExpression( RockContext context, MemberExpression entityIdProperty, string selection )
         {
-            var groupType = GroupTypeCache.Read( selection.AsGuid() );
-            int groupTypeId = ( groupType != null ) ? groupType.Id : 0;
+            Guid groupTypeGuid = selection.AsGuid();
 
-            var qry = new PersonService( context ).Queryable()
-                .Select( p => RockUdfHelper.ufnGroup_GetGeofencingGroupNames( p.Id, groupTypeId ) );
+            if ( groupTypeGuid != Guid.Empty )
+            {
+                AttendanceService attendanceService = new AttendanceService( context );
+                var groupAttendanceQry = attendanceService.Queryable().Where( a => a.Group.GroupType.Guid == groupTypeGuid);
 
-            return SelectExpressionExtractor.Extract( qry, entityIdProperty, "p" );
+                var qry = new PersonService( context ).Queryable()
+                    .Select( p => groupAttendanceQry.Where( xx => xx.PersonAlias.PersonId == p.Id ).Max( xx => xx.StartDateTime ));
+
+                Expression selectExpression = SelectExpressionExtractor.Extract( qry, entityIdProperty, "p" );
+
+                return selectExpression;
+            }
+
+            return null;
         }
 
         /// <summary>
@@ -162,6 +170,7 @@ namespace Rock.Reporting.DataSelect.Person
             groupTypePicker.ID = parentControl.ID + "_0";
             groupTypePicker.Label = "Group Type";
             groupTypePicker.GroupTypes = new GroupTypeService( new RockContext() ).Queryable().OrderBy( a => a.Order ).ThenBy( a => a.Name ).ToList();
+            groupTypePicker.AutoPostBack = true;
             groupTypePicker.SelectedGroupTypeId = selectedGroupTypeId;
             parentControl.Controls.Add( groupTypePicker );
 
@@ -188,13 +197,16 @@ namespace Rock.Reporting.DataSelect.Person
         {            
             // Get the selected Group Type as a Guid.
             var groupTypeId = ( controls[0] as GroupTypePicker ).SelectedValueAsId().GetValueOrDefault(0);
+
+            string value1 = string.Empty;
+
             if (groupTypeId > 0)
             {
                 var groupType = GroupTypeCache.Read(groupTypeId);
-                return (groupType == null) ? string.Empty : groupType.Guid.ToString();
+                value1 = (groupType == null) ? string.Empty : groupType.Guid.ToString();
             }
 
-            return string.Empty;
+            return value1;
         }
 
         /// <summary>
@@ -204,7 +216,7 @@ namespace Rock.Reporting.DataSelect.Person
         /// <param name="selection">The selection.</param>
         public override void SetSelection( System.Web.UI.Control[] controls, string selection )
         {
-            var groupType = new GroupTypeService( new RockContext() ).Get( selection.AsGuid());
+            var groupType = new GroupTypeService( new RockContext() ).Get( selection.AsGuid() );
             ( controls[0] as GroupTypePicker ).SetValue( groupType != null ? groupType.Id : (int?)null );
         }
 
