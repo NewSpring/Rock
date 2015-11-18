@@ -1,0 +1,19 @@
+{
+  "name": "rock",
+  "version": "1.4.0",
+  "description": "RockRMS church managment system",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/NewSpring/Rock.git"
+  },
+  "author": "Spark Dev Team",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/NewSpring/Rock/issues"
+  },
+  "homepage": "https://github.com/NewSpring/Rock#readme"
+}
