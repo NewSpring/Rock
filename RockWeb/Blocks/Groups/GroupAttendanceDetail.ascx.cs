@@ -212,8 +212,7 @@ namespace RockWeb.Blocks.Groups
                         // If the occurrence is based on a schedule, set the did not meet flags
                         foreach ( var attendance in existingAttendees )
                         {
-                            attendance.DidAttend = null;
-                            attendance.DidNotOccur = true;
+                            attendanceService.Delete( attendance );
                         }
                     }
 
@@ -223,7 +222,7 @@ namespace RockWeb.Blocks.Groups
                             .Where( a => a.PersonAlias.PersonId == attendee.PersonId )
                             .FirstOrDefault();
 
-                        if ( attendance == null )
+                        if ( attendance == null && attendee.Attended && !cbDidNotMeet.Checked )
                         {
                             int? personAliasId = personAliasService.GetPrimaryAliasId( attendee.PersonId );
                             if ( personAliasId.HasValue )
@@ -242,10 +241,9 @@ namespace RockWeb.Blocks.Groups
 
                         if ( attendance != null )
                         {
-                            if ( cbDidNotMeet.Checked )
+                            if ( cbDidNotMeet.Checked || !attendee.Attended )
                             {
-                                attendance.DidAttend = null;
-                                attendance.DidNotOccur = true;
+                                attendanceService.Delete( attendance );
                             }
                             else
                             {
