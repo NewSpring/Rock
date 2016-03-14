@@ -723,17 +723,29 @@ namespace RockWeb.Blocks.Groups
                     .ToList();
 
                 // Bind the attendance roster
-                _attendees = new PersonService( _rockContext )
-                    .Queryable().AsNoTracking()
-                    .Where( p => attendedIds.Contains( p.Id ) || unattendedIds.Contains( p.Id ) )
-                    .Select( p => new GroupAttendanceAttendee()
+                var attendeesQuery = new PersonService( _rockContext ).Queryable().AsNoTracking()
+                    .Where( p => attendedIds.Contains( p.Id ) || unattendedIds.Contains( p.Id ) );
+
+                if( existingOccurrence && _occurrence.LocationId.HasValue )
+                {
+                    var campusId = new LocationService( _rockContext ).GetCampusIdForLocation( _occurrence.LocationId.Value );
+
+                    if ( campusId.HasValue )
                     {
-                        PersonId = p.Id,
-                        NickName = p.NickName,
-                        LastName = p.LastName,
-                        Attended = attendedIds.Contains( p.Id )
-                    } )
-                    .ToList();
+                        var familyGuid = new Guid( Rock.SystemGuid.GroupType.GROUPTYPE_FAMILY );
+                        var qryFamilyMembersForCampus = new GroupMemberService( _rockContext ).Queryable().Where( a => a.Group.GroupType.Guid == familyGuid && a.Group.CampusId == campusId );
+                        attendeesQuery = attendeesQuery.Where( a => qryFamilyMembersForCampus.Any( f => f.PersonId == a.Id ) );
+                    }
+                }
+
+                _attendees = attendeesQuery.Select( p => new GroupAttendanceAttendee()
+                {
+                    PersonId = p.Id,
+                    NickName = p.NickName,
+                    LastName = p.LastName,
+                    Attended = attendedIds.Contains( p.Id )
+                } ).ToList();
+
                 BindAttendees();
 
                 // Bind the pending members
