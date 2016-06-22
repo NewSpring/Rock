@@ -39,6 +39,9 @@ CKEDITOR.editorConfig = function( config ) {
     // enable browser spell check
 	config.disableNativeSpellChecker = false;
 
+    // Force paste as plain text
+	config.forcePasteAsPlainText = true;
+
     // allow i tags to be empty (for font awesome)
 	CKEDITOR.dtd.$removeEmpty['i'] = false
 };
