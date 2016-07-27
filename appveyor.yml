@@ -75,7 +75,7 @@ before_build:
   
   
 build:
-  project: Rock.sln
+  project: c:\projects\Rock\Rock.sln
   publish_wap: true               # package Web Application Projects (WAP) for Web Deploy
   parallel: true
   verbosity: minimal  
