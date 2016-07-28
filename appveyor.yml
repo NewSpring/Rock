@@ -27,7 +27,7 @@ skip_tags: true
 #---------------------------------#
 
 # Operating system (build VM template)
-image: Visual Studio 2015
+os: Visual Studio 2015
 
 
 # clone directory
