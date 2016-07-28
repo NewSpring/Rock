@@ -16,6 +16,7 @@ branches:
     - master
     - beta
     - alpha
+    - pre-alpha-release
     - gauntlet
 
 # Do not build on tags (GitHub only)
@@ -27,7 +28,7 @@ skip_tags: true
 #---------------------------------#
 
 # Operating system (build VM template)
-os: Visual Studio 2015
+# os: Visual Studio 2015
 
 
 # clone directory
@@ -71,7 +72,7 @@ before_build:
   - cmd: npm install --production
   - cmd: node ./node_modules/normajs/bin/norma.js build  # use cached version of norma
   - cmd: git clone -q --depth=1 https://github.com/NewSpring/rock-spiritual-gifts.git ../rock-spiritual-gifts
-  - cmd: copy "C:\Program Files (x86)\Reference Assemblies\Microsoft\Framework\.NETFramework\v4.5.2\Facades\*.dll" ..\
+  - cmd: copy "C:\Program Files (x86)\Reference Assemblies\Microsoft\Framework\.NETFramework\v4.5.2\Facades\*.dll" /Y ..\
   - cmd: nuget restore c:\projects\Rock\Rock.sln
   
   
@@ -79,9 +80,6 @@ build:
   project: Rock.sln
   publish_wap: true               # package Web Application Projects (WAP) for Web Deploy
   
-  
-after_build:
-  - cmd: dir c:\projects\rock\RockWeb\bin
   
 matrix:
   fast_finish: true    # set this flag to immediately finish build once one of the jobs fails
