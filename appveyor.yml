@@ -71,6 +71,7 @@ before_build:
   - cmd: npm install --production
   - cmd: node ./node_modules/normajs/bin/norma.js build  # use cached version of norma
   - cmd: git clone -q --depth=1 https://github.com/NewSpring/rock-spiritual-gifts.git ../rock-spiritual-gifts
+  - cmd: copy "C:\Program Files (x86)\Reference Assemblies\Microsoft\Framework\.NETFramework\v4.5.2\Facades\*.dll" ..\
   - cmd: nuget restore c:\projects\Rock\Rock.sln
   
   
