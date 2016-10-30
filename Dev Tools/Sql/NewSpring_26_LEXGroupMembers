@@ -3,6 +3,7 @@
 
 -- Sets GroupMemberStatus to be 0 (inactive) for all LEX campus
 -- groups that are inactive (G.IsActive == 0) 
+-- Added a foreign key of 'Deactivate LEX GroupMembers 10/30' to find later if necessary
 
 -- VARS
 -- G.campusId = 13 (Lexington)
