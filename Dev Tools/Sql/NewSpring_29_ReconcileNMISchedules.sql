@@ -3,6 +3,7 @@
 -- Adds a schedule that was found in NMI, but missing in
 Rock.
 
+0. ONLY RUN INSIDE AN ENVIRONMENT THAT LETS YOU USE `transaction`
 1. Find a person with missing schedule and get their ID (not alias)
 2. Look up the schedule in NMI
 3. Fill out the variables at the top of this script (Before `DONT CHANGE THESE`)
@@ -12,7 +13,6 @@ Rock.
   - If you need to undo something after committing, you can run the `RESET` block at the bottom
   - That will remove all entries created by this script with the same Foreign Key (the same day)
 7. Check rock for the transaction
-8. Profit
 ====================================================== */
 
 -- CHANGE PEOPLE
