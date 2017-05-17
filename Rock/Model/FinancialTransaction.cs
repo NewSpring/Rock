@@ -581,23 +581,23 @@ namespace Rock.Model
         /// Method that will be called on an entity immediately after the item is saved
         /// </summary>
         /// <param name="dbContext">The database context.</param>
-        public override void PostSaveChanges( DbContext dbContext )
-        {
-            if ( HistoryChanges.Any() )
-            {
-                HistoryService.SaveChanges( (RockContext)dbContext, typeof( FinancialTransaction ), Rock.SystemGuid.Category.HISTORY_FINANCIAL_TRANSACTION.AsGuid(), this.Id, HistoryChanges, true, this.ModifiedByPersonAliasId );
-            }
+        //public override void PostSaveChanges( DbContext dbContext )
+        //{
+        //    if ( HistoryChanges.Any() )
+        //    {
+        //        HistoryService.SaveChanges( (RockContext)dbContext, typeof( FinancialTransaction ), Rock.SystemGuid.Category.HISTORY_FINANCIAL_TRANSACTION.AsGuid(), this.Id, HistoryChanges, true, this.ModifiedByPersonAliasId );
+        //    }
 
-            foreach ( var keyVal in BatchHistoryChanges )
-            {
-                if ( keyVal.Value.Any() )
-                {
-                    HistoryService.SaveChanges( (RockContext)dbContext, typeof( FinancialBatch ), Rock.SystemGuid.Category.HISTORY_FINANCIAL_TRANSACTION.AsGuid(), keyVal.Key, keyVal.Value, string.Empty, typeof( FinancialTransaction ), this.Id, true, this.ModifiedByPersonAliasId );
-                }
-            }
+        //    foreach ( var keyVal in BatchHistoryChanges )
+        //    {
+        //        if ( keyVal.Value.Any() )
+        //        {
+        //            HistoryService.SaveChanges( (RockContext)dbContext, typeof( FinancialBatch ), Rock.SystemGuid.Category.HISTORY_FINANCIAL_TRANSACTION.AsGuid(), keyVal.Key, keyVal.Value, string.Empty, typeof( FinancialTransaction ), this.Id, true, this.ModifiedByPersonAliasId );
+        //        }
+        //    }
 
-            base.PostSaveChanges( dbContext );
-        }
+        //    base.PostSaveChanges( dbContext );
+        //}
 
         #endregion
     }
