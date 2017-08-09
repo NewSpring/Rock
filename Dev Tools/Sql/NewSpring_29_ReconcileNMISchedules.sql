@@ -13,6 +13,7 @@ Rock.
   - If you need to undo something after committing, you can run the `RESET` block at the bottom
   - That will remove all entries created by this script with the same Foreign Key (the same day)
 7. Check rock for the transaction
+8. If you're good, you're done!
 ====================================================== */
 
 -- CHANGE PEOPLE
