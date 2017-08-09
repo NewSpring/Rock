@@ -115,7 +115,6 @@ deploy:
 notifications:
   - provider: Slack
     auth_token:
-      # secure: 1OsoJ8x/9EYQWTaJQVCj53YgZJRiz/GSLl5VhE7ZA0wb/J5wISUoxzxhIUMSttheY0G/iQCBt1Tb/9lLaIulWw==
-      secure: xoxp-2173198319-4523914756-221657137507-0021129746ce0b582b5a258b5d595fc4
+      secure: 1OsoJ8x/9EYQWTaJQVCj53YgZJRiz/GSLl5VhE7ZA0wb/J5wISUoxzxhIUMSttheY0G/iQCBt1Tb/9lLaIulWw==
     channel: deployments
 
