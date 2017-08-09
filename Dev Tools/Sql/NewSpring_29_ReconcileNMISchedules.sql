@@ -1,5 +1,5 @@
-/* ====================================================== 
--- NewSpring Script #29: 
+/* ======================================================
+-- NewSpring Script #29:
 -- Adds a schedule that was found in NMI, but missing in
 Rock.
 
@@ -13,6 +13,7 @@ Rock.
   - If you need to undo something after committing, you can run the `RESET` block at the bottom
   - That will remove all entries created by this script with the same Foreign Key (the same day)
 7. Check rock for the transaction
+8. If you're good, you're done!
 ====================================================== */
 
 -- CHANGE PEOPLE
@@ -44,7 +45,7 @@ update @ScheduleDetails set AccountId = (select top 1 Id from FinancialAccount w
 declare @CurrencyTypeValueId int = (select Id from DefinedValue where DefinedTypeId = 10 and Value = @CurrencyTypeValueString)
 declare @CreditCardTypeValueId int = (select Id from DefinedValue where DefinedTypeId = 11 and Value = @CreditCardTypeString)
 declare @TransactionFrequencyValueId int = (select Id from DefinedValue where DefinedTypeId = 23 and Value = @TransactionFrequencyString)
-DECLARE @ForeignKey AS NVARCHAR(MAX) = 'NMIManualReconciliation' + ' ' + CONVERT(varchar(20), GETDATE(), 1);	
+DECLARE @ForeignKey AS NVARCHAR(MAX) = 'NMIManualReconciliation' + ' ' + CONVERT(varchar(20), GETDATE(), 1);
 
 begin transaction
 
@@ -134,10 +135,10 @@ select
 	pd.Id as PaymentDetailId,
 	pd.AccountNumberMasked,
 	pd.CurrencyTypeValueId
-from 
+from
 	FinancialScheduledTransaction as s
 	inner join FinancialScheduledTransactionDetail as sd on sd.ScheduledTransactionId = s.Id
-	inner join FinancialPaymentDetail as pd on s.FinancialPaymentDetailId = pd.Id 
+	inner join FinancialPaymentDetail as pd on s.FinancialPaymentDetailId = pd.Id
 where s.Guid = @ScheduleGuid
 
 declare @scheduleId int = (select Id from FinancialScheduledTransaction where Guid = @ScheduleGuid)
@@ -150,8 +151,8 @@ select concat('https://rock.newspring.cc/page/319?ScheduledTransactionId=',@sche
 --RESET
 /*
 begin transaction
-DECLARE @ForeignKey AS NVARCHAR(MAX) = 'NMIManualReconciliation' + ' ' + CONVERT(varchar(20), GETDATE(), 1);	
---select * from FinancialScheduledTransactionDetail where ForeignKey like '%NMIManual%' 
+DECLARE @ForeignKey AS NVARCHAR(MAX) = 'NMIManualReconciliation' + ' ' + CONVERT(varchar(20), GETDATE(), 1);
+--select * from FinancialScheduledTransactionDetail where ForeignKey like '%NMIManual%'
 delete from FinancialScheduledTransactionDetail where ForeignKey = @ForeignKey
 delete from FinancialScheduledTransaction where ForeignKey = @ForeignKey
 delete from FinancialPaymentDetail where ForeignKey = @ForeignKey
