@@ -22,8 +22,7 @@ using System.Linq;
 
 using Rock.Extension;
 using Rock.Model;
-using Rock.Web.Cache;
-using System.Threading.Tasks;
+using Rock.Cache;
 
 namespace Rock.Communication
 {
