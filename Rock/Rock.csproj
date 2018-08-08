@@ -1530,7 +1530,7 @@
     <Compile Include="Transactions\SaveCommunicationTransaction.cs" />
     <Compile Include="UniversalSearch\FormattedSearchResult.cs" />
     <Compile Include="UniversalSearch\IndexComponents\Elasticsearch.cs" />
-    <Compile Include="UniversalSearch\IndexComponents\Lucene.cs" />
+    <!--<Compile Include="UniversalSearch\IndexComponents\Lucene.cs" />-->
     <Compile Include="UniversalSearch\IndexContainer.cs" />
     <Compile Include="UniversalSearch\IndexComponent.cs" />
     <Compile Include="UniversalSearch\IndexModels\Attributes\RockIndexField.cs" />
