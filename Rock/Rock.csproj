@@ -106,7 +106,7 @@
     <Reference Include="ImageResizer, Version=4.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\packages\ImageResizer.4.0.5\lib\net45\ImageResizer.dll</HintPath>
     </Reference>
-    <Reference Include="Lucene.Net, Version=4.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+    <!-- <Reference Include="Lucene.Net, Version=4.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\packages\Lucene.Net.4.8.0-beta00003\lib\net45\Lucene.Net.dll</HintPath>
     </Reference>
     <Reference Include="Lucene.Net.Analysis.Common, Version=4.0.0.0, Culture=neutral, processorArchitecture=MSIL">
@@ -123,7 +123,7 @@
     </Reference>
     <Reference Include="Lucene.Net.Sandbox, Version=4.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\packages\Lucene.Net.Sandbox.4.8.0-beta00003\lib\net45\Lucene.Net.Sandbox.dll</HintPath>
-    </Reference>
+    </Reference> -->
     <Reference Include="Microsoft.AspNet.SignalR.Core, Version=2.2.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
       <HintPath>..\packages\Microsoft.AspNet.SignalR.Core.2.2.0\lib\net45\Microsoft.AspNet.SignalR.Core.dll</HintPath>
     </Reference>
@@ -1530,7 +1530,7 @@
     <Compile Include="Transactions\SaveCommunicationTransaction.cs" />
     <Compile Include="UniversalSearch\FormattedSearchResult.cs" />
     <Compile Include="UniversalSearch\IndexComponents\Elasticsearch.cs" />
-    <Compile Include="UniversalSearch\IndexComponents\Lucene.cs" />
+    <!-- <Compile Include="UniversalSearch\IndexComponents\Lucene.cs" /> -->
     <Compile Include="UniversalSearch\IndexContainer.cs" />
     <Compile Include="UniversalSearch\IndexComponent.cs" />
     <Compile Include="UniversalSearch\IndexModels\Attributes\RockIndexField.cs" />
