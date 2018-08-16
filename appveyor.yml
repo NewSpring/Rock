@@ -55,6 +55,8 @@ install:
 
     git clone -q --depth=1 git@github.com:NewSpring/rock-misc.git c:\projects\rock-misc
 
+    git clone -q --depth=1 git@github.com:NewSpring/rock-f1.git c:\projects\rock-f1
+
 
 # directories to preserve between builds
 cache:
