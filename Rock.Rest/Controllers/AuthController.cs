@@ -23,7 +23,7 @@ using Rock.Security;
 namespace Rock.Rest.Controllers
 {
     /// <summary>
-    /// 
+    ///
     /// </summary>
     public class AuthController : ApiController
     {
@@ -40,7 +40,7 @@ namespace Rock.Rest.Controllers
 
             var userLoginService = new UserLoginService( new Rock.Data.RockContext() );
             var userLogin = userLoginService.GetByUserName( loginParameters.Username );
-            if ( userLogin != null && userLogin.EntityType != null )
+            if ( userLogin != null && userLogin.EntityType != null)
             {
                 var component = AuthenticationContainer.GetComponent( userLogin.EntityType.Name );
                 if ( component != null && component.IsActive )
