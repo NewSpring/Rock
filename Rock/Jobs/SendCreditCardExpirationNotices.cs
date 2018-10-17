@@ -41,7 +41,7 @@ namespace Rock.Jobs
     [DisallowConcurrentExecution]
     public class SendCreditCardExpirationNotices : IJob
     {
-        /// <summary> 
+        /// <summary>
         /// Empty constructor for job initialization
         /// <para>
         /// Jobs require a public empty constructor so that the
@@ -92,7 +92,7 @@ namespace Rock.Jobs
                 && ( t.EndDate == null || t.EndDate > DateTime.Now ) )
                 .AsNoTracking();
 
-            // Get the current month and year 
+            // Get the current month and year
             DateTime now = DateTime.Now;
             int month = now.Month;
             int year = now.Year;
@@ -101,10 +101,22 @@ namespace Rock.Jobs
 
             foreach ( var transaction in qry )
             {
-                int? expirationMonthDecrypted = Encryption.DecryptString( transaction.FinancialPaymentDetail.ExpirationMonthEncrypted ).AsIntegerOrNull();
-                int? expirationYearDecrypted = Encryption.DecryptString( transaction.FinancialPaymentDetail.ExpirationYearEncrypted ).AsIntegerOrNull();
+                // This checks to see if the expiration is saved in plain text or if it is encrypted. Will return and integer for either case.
+                if ( transaction.FinancialPaymentDetail.ExpirationMonthEncrypted.Length = 2 )
+                {
+                  int? expirationMonthDecrypted = transaction.FinancialPaymentDetail.ExpirationMonthEncrypted.AsIntegerOrNull();
+                } else {
+                  int? expirationMonthDecrypted = Encryption.DecryptString( transaction.FinancialPaymentDetail.ExpirationMonthEncrypted ).AsIntegerOrNull();
+                }
+                if ( transaction.FinancialPaymentDetail.ExpirationYearEncrypted.Length = 2 )
+                {
+                  int? expirationYearDecrypted = transaction.FinancialPaymentDetail.ExpirationYearEncrypted.AsIntegerOrNull();
+                } else {
+                  int? expirationYearDecrypted = Encryption.DecryptString( transaction.FinancialPaymentDetail.ExpirationYearEncrypted ).AsIntegerOrNull();
+                }
+                
                 if ( expirationMonthDecrypted.HasValue && expirationMonthDecrypted.HasValue )
-                { 
+                {
                     string acctNum = string.Empty;
 
                     if ( !string.IsNullOrEmpty( transaction.FinancialPaymentDetail.AccountNumberMasked ) && transaction.FinancialPaymentDetail.AccountNumberMasked.Length >= 4 )
