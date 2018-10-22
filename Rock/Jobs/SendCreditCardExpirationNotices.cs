@@ -102,6 +102,7 @@ namespace Rock.Jobs
             foreach ( var transaction in qry )
             {
                 // This checks to see if the expiration is saved in plain text or if it is encrypted. Will return and integer for either case.
+                // NOTE: not necessary if all data is encrypted in the database, may want to revert later
                 if ( transaction.FinancialPaymentDetail.ExpirationMonthEncrypted.Length = 2 )
                 {
                   int? expirationMonthDecrypted = transaction.FinancialPaymentDetail.ExpirationMonthEncrypted.AsIntegerOrNull();
@@ -114,7 +115,7 @@ namespace Rock.Jobs
                 } else {
                   int? expirationYearDecrypted = Encryption.DecryptString( transaction.FinancialPaymentDetail.ExpirationYearEncrypted ).AsIntegerOrNull();
                 }
-                
+
                 if ( expirationMonthDecrypted.HasValue && expirationMonthDecrypted.HasValue )
                 {
                     string acctNum = string.Empty;
