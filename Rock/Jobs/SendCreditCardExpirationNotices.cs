@@ -101,7 +101,7 @@ namespace Rock.Jobs
 
             foreach ( var transaction in qry )
             {
-                // This checks to see if the expiration is saved in plain text or if it is encrypted. Will return and integer for either case.
+                // This checks to see if the expiration is saved in plain text or if it is encrypted. Will return an integer for either case.
                 // NOTE: not necessary if all data is encrypted in the database, may want to revert later
                 int? expirationMonthDecrypted = null;
                 int? expirationYearDecrypted = null;
@@ -119,6 +119,7 @@ namespace Rock.Jobs
                   expirationYearDecrypted = Encryption.DecryptString( transaction.FinancialPaymentDetail.ExpirationYearEncrypted ).AsIntegerOrNull();
                 }
 
+
                 if ( expirationMonthDecrypted.HasValue && expirationMonthDecrypted.HasValue )
                 {
                     string acctNum = string.Empty;
@@ -128,21 +129,22 @@ namespace Rock.Jobs
                         acctNum = transaction.FinancialPaymentDetail.AccountNumberMasked.Substring( transaction.FinancialPaymentDetail.AccountNumberMasked.Length - 4 );
                     }
 
-                    int warningYear = expirationYearDecrypted.Value;
-                    int warningMonth = expirationMonthDecrypted.Value - 1;
-                    if ( warningMonth == 0 )
+                    int expYear = expirationYearDecrypted.Value;
+                    int expMonth = expirationMonthDecrypted.Value - 1;
+                    if ( expMonth == 0 )
                     {
-                        warningYear -= 1;
-                        warningMonth = 12;
+                        expYear -= 1;
+                        expMonth = 12;
                     }
 
-                    string warningDate = warningMonth.ToString() + warningYear.ToString();
-                    string currentMonthString = month.ToString() + year.ToString();
+                    // this is going to take the years and strip them down to always being two digit years
+                    string expDate = expMonth.ToString() + expYear.ToString().Substring( expYear.ToString().Length - 2, 2);
+                    string currentDate = month.ToString() + year.ToString().Substring( year.ToString().Length - 2, 2 );
 
-                    if ( warningDate == currentMonthString )
+                    if ( expDate == currentDate )
                     {
                         // as per ISO7813 https://en.wikipedia.org/wiki/ISO/IEC_7813
-                        var expirationDate = string.Format( "{0:D2}/{1:D2}", expirationMonthDecrypted, expirationYearDecrypted );
+                        var expDateFormatted = string.Format( "{0:D2}/{1:D2}", expirationMonthDecrypted, expirationYearDecrypted );
 
                         var recipients = new List<RecipientData>();
                         var mergeFields = Rock.Lava.LavaHelper.GetCommonMergeFields( null );
@@ -155,13 +157,14 @@ namespace Rock.Jobs
 
                         mergeFields.Add( "Person", person );
                         mergeFields.Add( "Card", acctNum );
-                        mergeFields.Add( "Expiring", expirationDate );
+                        mergeFields.Add( "Expiring", expDateFormatted );
                         recipients.Add( new RecipientData( person.Email, mergeFields ) );
 
                         var emailMessage = new RockEmailMessage( systemEmail.Guid );
                         emailMessage.SetRecipients( recipients );
 
                         var emailErrors = new List<string>();
+                        
                         emailMessage.Send(out emailErrors);
                         errors.AddRange( emailErrors );
 
@@ -171,9 +174,10 @@ namespace Rock.Jobs
                             Dictionary<string, string> attributes = new Dictionary<string, string>();
                             attributes.Add( "Person", transaction.AuthorizedPersonAlias.Guid.ToString() );
                             attributes.Add( "Card", acctNum );
-                            attributes.Add( "Expiring", expirationDate );
+                            attributes.Add( "Expiring", expDateFormatted );
                             StartWorkflow( workflowService, workflowType, attributes, string.Format( "{0} (scheduled transaction Id: {1})", person.FullName, transaction.Id ) );
                         }
+                        
 
                         counter++;
                     }
