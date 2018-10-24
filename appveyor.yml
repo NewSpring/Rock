@@ -45,11 +45,11 @@ install:
 
     Set-Content c:\users\appveyor\.ssh\id_rsa $fileContent
 
-    git clone -q --depth=1 git@github.com:NewSpring/rock-bookshelf.git c:\projects\Rock\.remote\rock-bookshelf
+    # git clone -q --depth=1 git@github.com:NewSpring/rock-bookshelf.git c:\projects\Rock\.remote\rock-bookshelf
 
-    git clone -q --depth=1 git@github.com:NewSpring/rock-power-bi.git c:\projects\Rock\.remote\rock-power-bi
+    # git clone -q --depth=1 git@github.com:NewSpring/rock-power-bi.git c:\projects\Rock\.remote\rock-power-bi
 
-    git clone -q --depth=1 git@github.com:NewSpring/rock-paid-plugins.git c:\projects\Rock\.remote\rock-paid-plugins
+    # git clone -q --depth=1 git@github.com:NewSpring/rock-paid-plugins.git c:\projects\Rock\.remote\rock-paid-plugins
 
     git clone -q --depth=1 git@github.com:NewSpring/rock-spiritual-gifts.git c:\projects\rock-spiritual-gifts
 
