@@ -1,0 +1,29 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "7TM8C6252Z.com.subsplashstudio31.NewSpring-Church",
+        "paths": [
+          "/articles",
+          "/articles/*",
+          "/devotionals",
+          "/devotionals/*",
+          "/studies",
+          "/studies/*",
+          "/studies/*/*",
+          "/stories",
+          "/stories/*",
+          "/sermons",
+          "/sermons/*",
+          "/sermons/*/*",
+          "/music/*",
+          "/locations",
+          "/watchandread",
+          "/news",
+          "/news/*"
+        ]
+      }
+    ]
+  },
+}
