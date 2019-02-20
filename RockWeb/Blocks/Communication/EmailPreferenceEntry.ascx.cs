@@ -97,13 +97,11 @@ We have unsubscribed you from the following lists:
                 mergeFields.Add( "Communication", _communication );
             }
 
-            LoadDropdowns( mergeFields );
-
             var key = PageParameter( "Person" );
             if ( !string.IsNullOrWhiteSpace( key ) )
             {
                 var service = new PersonService( rockContext );
-                _person = service.GetByUrlEncodedKey( key );
+                _person = service.GetByPersonActionIdentifier( key, "Unsubscribe" );
             }
 
             if ( _person == null && CurrentPerson != null )
@@ -123,6 +121,8 @@ We have unsubscribed you from the following lists:
                 nbEmailPreferenceSuccessMessage.Visible = true;
                 btnSubmit.Visible = false;
             }
+
+            LoadDropdowns( mergeFields );
         }
 
         /// <summary>
@@ -425,7 +425,7 @@ We have unsubscribed you from the following lists:
         /// <param name="mergeObjects">The merge objects.</param>
         private void LoadDropdowns( Dictionary<string, object> mergeObjects )
         {
-            var availableOptions = GetAttributeValue( "AvailableOptions" ).SplitDelimitedValues(false);
+            var availableOptions = GetAttributeValue( "AvailableOptions" ).SplitDelimitedValues( false );
 
             rbUnsubscribe.Visible = availableOptions.Contains( UNSUBSCRIBE );
             rbUnsubscribe.Text = GetAttributeValue( "UnsubscribefromListsText" ).ResolveMergeFields( mergeObjects );
@@ -441,7 +441,7 @@ We have unsubscribed you from the following lists:
 
                 // Get a list of all the Active CommunicationLists that the person is an active member of
                 var communicationListQry = groupService.Queryable()
-                    .Where( a => a.GroupTypeId == communicationListGroupTypeId && a.IsActive && a.Members.Any( m => m.PersonId == this.CurrentPersonId && m.GroupMemberStatus == GroupMemberStatus.Active ) );
+                    .Where( a => a.GroupTypeId == communicationListGroupTypeId && a.IsActive && a.Members.Any( m => m.PersonId == _person.Id && m.GroupMemberStatus == GroupMemberStatus.Active ) );
 
                 var categoryGuids = this.GetAttributeValue( "CommunicationListCategories" ).SplitDelimitedValues().AsGuidList();
 
