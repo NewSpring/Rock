@@ -154,20 +154,24 @@ namespace Rock.Rest.Controllers
         /// <returns></returns>
         [Authenticate, Secured]
         [HttpGet]
-        [System.Web.Http.Route( "api/PrayerRequests/GetByPersonsGroupAndGroupTypes/{personId}" )]
-        public IQueryable<PrayerRequest> GetByPersonsGroupAndGroupTypes( string groupTypeIds, int personId )
+        [System.Web.Http.Route( "api/PrayerRequests/GetForGroupMembersOfPersonInGroupTypes/{personId}" )]
+        public IQueryable<PrayerRequest> GetForGroupMembersOfPersonInGroupTypes( string groupTypeIds, int personId )
         {
             RockContext rockContext = new RockContext();
             System.DateTime now = RockDateTime.Now;
 
             // Turn the comma separated list of groupTypeIds into a list of strings.
-            List<string> groupTypeIdsList = ( groupTypeIds ?? "" ).Split( ',' ).ToList();
+            List<int> groupTypeIdsList = ( groupTypeIds ?? "" ).Split( ',' ).AsIntegerList();
 
             GroupMemberService groupMemberService = new GroupMemberService( rockContext );
 
             IQueryable<int> groupMemberPersonAliasList = groupMemberService.GetByPersonId( personId )   // Get the groups that a person is a part of
-                .Where( gm => groupTypeIdsList.Contains( gm.Group.GroupTypeId.ToString() ) )    // Filter those groups by a set of passed in group types
+                .Where( gm =>
+                    groupTypeIdsList.Contains( gm.Group.GroupTypeId ) &&    // Filter those groups by a set of passed in group types. 
+                    gm.Group.IsActive == true && gm.Group.IsArchived == false   // Also make sure the groups are active and not archived.
+                 )
                 .SelectMany( gm => gm.Group.Members )   // Get the members of those groups
+                .Where( gm => gm.GroupMemberStatus == GroupMemberStatus.Active && gm.IsArchived == false ) // Make sure that the group members are active and haven't been archived
                 .Where( m => m.PersonId != personId )   // Filter out the passed in person
                 .Select( m => m.Person.Aliases.FirstOrDefault().Id );   // Return the person alias ids
 
