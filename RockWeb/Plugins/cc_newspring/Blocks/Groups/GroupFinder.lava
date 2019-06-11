@@ -1,0 +1,108 @@
+{% comment %} {% include '~~/Assets/Lava/GroupFinder.lava' %} {% endcomment %}
+{% assign apiKey = 'Global' | Attribute:'GoogleApiKey' %}
+{% javascript id:'googlemapsapi' url:'{{ "https://maps.googleapis.com/maps/api/js?key=" | Append:apiKey }}' %}{% endjavascript %}
+{{ 'https://cdnjs.cloudflare.com/ajax/libs/URI.js/1.19.1/URI.min.js' | AddScriptLink }}
+
+{%- assign currentUrl = 'Global' | Page:'Url' -%}
+{%- assign groupViewUrl = "/groups/" -%}
+{%- assign daysofweek = "Sunday,Monday,Tuesday,Wednesday,Thursday,Friday,Saturday" -%}
+{%- assign daysofweek = daysofweek | Split:',' -%}
+{%- capture noResults -%}<div class="no-results">Unfortunately, we didn't find any groups matching your search. Gather some friends, and start your own group!</div>
+{%- endcapture -%}
+
+<style>
+
+
+  .list-group .checkbox {
+    margin-top:5px;
+  }
+
+  .btn-filter {
+    position: relative;
+    margin-bottom: 4px;
+  }
+
+  .btn-filter.active:after {
+    position: absolute;
+    top: 50%;
+    right: 10px;
+    margin-top: -13px;
+    content:'\f00d';
+    font-family:"Font Awesome 5 Pro";
+    font-weight: 900;
+  }
+
+  .btn-filter.active,
+  .btn-filter.active:hover {
+    background-color: #6bac43;
+    color: #fff;
+    box-shadow: none;
+    padding-right: 30px;
+  }
+
+  footer {
+    display: none;
+  }
+</style>
+
+<div class="row js-filters hidden">
+  <div class="col-md-4">
+    <section class="bg-white soft push-bottom xs-push-half-bottom rounded shadowed">
+      <div class="js-filter-campuses">
+
+        <h2 class="h3 push-half-bottom">Campus</h2>
+        {% assign campusesSorted = Campuses | Sort:'Name' %}
+        {%- for campus in campusesSorted -%}
+          {% assign IsPublic = campus | Attribute:'Public' %}
+          {%- if campus.IsActive && IsPublic == 'Yes' -%}
+            <a href="#" data-key="campuses" data-value="{{ campus.Id }}" class="btn btn-default btn-filter btn-sm js-filter js-{{ campus.Id }}">{{ campus.Name }}</a>
+          {%- endif -%}
+        {%- endfor -%}
+
+      </div>
+    </section>
+  </div><div class="col-md-4">
+    <section class="bg-white soft push-bottom xs-push-half-bottom rounded shadowed">
+      <div class="js-filter-days">
+
+        <h2 class="h3 push-half-bottom">Day of the Week</h2>
+        {%- for day in daysofweek -%}
+          <a href="#" data-key="schedules" data-value="{{ day | Downcase}}" class="btn btn-default btn-filter btn-sm js-filter js-{{ day | Downcase}}">{{ day }}</a>
+        {%- endfor -%}
+
+      </div>
+    </section>
+  </div><div class="col-md-4">
+    <section class="bg-white soft push-bottom xs-push-half-bottom rounded shadowed">
+      <div class="js-filter-tags">
+
+        <h2 class="h3 push-half-bottom">Topic Tags</h2>
+        {% assign tags = 52 | FromCache:'DefinedType' %}
+        {%- for tag in tags.DefinedValues -%}
+          <a href="#" data-key="tags" data-value="{{ tag.Value | Downcase }}" class="btn btn-default btn-filter btn-sm js-filter js-{{ tag.Value | Downcase }}">{{ tag.Value }}</a>
+        {%- endfor -%}
+        {% assign tags = 69 | FromCache:'DefinedType' %}
+        {%- for tag in tags.DefinedValues -%}
+          <a href="#" data-key="tags" data-value="{{ tag.Value | Downcase }}" class="btn btn-default btn-filter btn-sm js-filter js-{{ tag.Value | Downcase }}">{{ tag.Value }}</a>
+        {%- endfor -%}
+        {% assign tags = 70 | FromCache:'DefinedType' %}
+        {%- for tag in tags.DefinedValues -%}
+          <a href="#" data-key="tags" data-value="{{ tag.Value | Downcase }}" class="btn btn-default btn-filter btn-sm js-filter js-{{ tag.Value | Downcase }}">{{ tag.Value }}</a>
+        {%- endfor -%}
+
+      </div>
+    </section>
+  </div>
+</div>
+
+<div id="group-finder-wrapper" class="position-fixed top-zero right-zero bottom-zero left-zero" style="margin: 0px;">
+  <div class="position-absolute top-zero left-zero bottom-zero soft-half" style="width: 35%; overflow-y: auto;">
+    <div id="groups"></div>
+  </div>
+  <div id="map-canvas" class="position-absolute top-zero right-zero bottom-zero" style="width:65%;"></div>
+</div>
+
+
+
+
+{{ '/Plugins/cc_newspring/Blocks/Groups/GroupFinder.js' | AddScriptLink }}
