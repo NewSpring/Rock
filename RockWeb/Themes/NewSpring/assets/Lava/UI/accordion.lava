@@ -4,9 +4,9 @@
 
     {%- for item in items -%}
 
-        <div class="panel panel-primary">
-            <a id="heading-{{ wrapperId }}-{{ forloop.index }}" role="button" data-toggle="collapse" data-parent="#accordion-{{ wrapperId }}" href="#{{ wrapperId }}-{{ forloop.index }}" aria-expanded="true" aria-controls="{{ wrapperId }}-{{ forloop.index }}" class="panel-heading display-block sans-serif strong text-decoration-none text-white">
-                {{ item.title }}
+        <div class="panel {% if item.paneltype and item.paneltype != empty %}{{ item.paneltype }}{% else %}panel-primary{% endif %} overflow-hidden rounded">
+            <a id="heading-{{ wrapperId }}-{{ forloop.index }}" role="button" data-toggle="collapse" data-parent="#accordion-{{ wrapperId }}" href="#{{ wrapperId }}-{{ forloop.index }}" aria-expanded="true" aria-controls="{{ wrapperId }}-{{ forloop.index }}" class="panel-heading display-block sans-serif strong text-decoration-none text-white collapsed">
+                {{ item.title }} <span class="pull-right"><i class="panel-heading-icon fas fa-chevron-down" style="margin-top: 3px;"></i></span>
             </a>
             <div id="{{ wrapperId }}-{{ forloop.index }}" class="panel-collapse collapse" role="tabpanel" aria-labelledby="heading-{{ wrapperId }}-{{ forloop.index }}">
                 <div class="panel-body text-gray-darker hard-bottom xs-soft xs-hard-bottom">
@@ -17,3 +17,16 @@
     {%- endfor -%}
 
 </div>
+
+<style>
+
+.panel-heading .panel-heading-icon {
+    transform: rotate(540deg);
+    transition: transform .3s;
+}
+
+.panel-heading.collapsed .panel-heading-icon {
+    transform: rotate(0deg);
+}
+
+</style>

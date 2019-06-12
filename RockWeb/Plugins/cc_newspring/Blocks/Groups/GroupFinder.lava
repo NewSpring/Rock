@@ -1,5 +1,6 @@
 {% comment %} {% include '~~/Assets/Lava/GroupFinder.lava' %} {% endcomment %}
 {% assign apiKey = 'Global' | Attribute:'GoogleApiKey' %}
+{% javascript id:'googlemapsmarkerclusterer' url:'https://developers.google.com/maps/documentation/javascript/examples/markerclusterer/markerclusterer.js' %}{% endjavascript %}
 {% javascript id:'googlemapsapi' url:'{{ "https://maps.googleapis.com/maps/api/js?key=" | Append:apiKey }}' %}{% endjavascript %}
 {{ 'https://cdnjs.cloudflare.com/ajax/libs/URI.js/1.19.1/URI.min.js' | AddScriptLink }}
 
@@ -11,8 +12,6 @@
 {%- endcapture -%}
 
 <style>
-
-
   .list-group .checkbox {
     margin-top:5px;
   }
@@ -33,7 +32,8 @@
   }
 
   .btn-filter.active,
-  .btn-filter.active:hover {
+  .btn-filter.active:hover,
+  .btn-filter.btn-default.active:focus {
     background-color: #6bac43;
     color: #fff;
     box-shadow: none;
@@ -43,63 +43,171 @@
   footer {
     display: none;
   }
+
+  @-webkit-keyframes rotating /* Safari and Chrome */ {
+  from {
+    -webkit-transform: rotate(0deg);
+    -o-transform: rotate(0deg);
+    transform: rotate(0deg);
+  }
+  to {
+    -webkit-transform: rotate(360deg);
+    -o-transform: rotate(360deg);
+    transform: rotate(360deg);
+  }
+}
+@keyframes rotating {
+  from {
+    -ms-transform: rotate(0deg);
+    -moz-transform: rotate(0deg);
+    -webkit-transform: rotate(0deg);
+    -o-transform: rotate(0deg);
+    transform: rotate(0deg);
+  }
+  to {
+    -ms-transform: rotate(360deg);
+    -moz-transform: rotate(360deg);
+    -webkit-transform: rotate(360deg);
+    -o-transform: rotate(360deg);
+    transform: rotate(360deg);
+  }
+}
+.rotating {
+  -webkit-animation: rotating .5s linear infinite;
+  -moz-animation: rotating .5s linear infinite;
+  -ms-animation: rotating .5s linear infinite;
+  -o-animation: rotating .5s linear infinite;
+  animation: rotating .5s linear infinite;
+}
 </style>
 
-<div class="row js-filters hidden">
-  <div class="col-md-4">
-    <section class="bg-white soft push-bottom xs-push-half-bottom rounded shadowed">
-      <div class="js-filter-campuses">
 
-        <h2 class="h3 push-half-bottom">Campus</h2>
+{%- assign wrapperId = uniqueid -%}
+
+
+
+<div id="group-finder-wrapper" style="margin: -30px;">
+  <div class="js-filters soft xs-soft-half" style="width: 50%; overflow-y: auto;">
+    <h2 class="push-half-bottom">Find Your Group</h2>
+    <div class="form-group push-half-bottom">
+      <input type="text" class="form-control" id="exampleInputEmail1" placeholder="Enter Your Zip Code">
+    </div>
+
+    {[ accordion ]}
+      [[ item title:'Filters' ]]
+      <div id="dynamic-content">
+        <div class="js-filter-campuses">
+          {% assign campusesSorted = Campuses | Sort:'Name' %}
+          <h3 class="h5 push-half-bottom">Campus</h3>
+          <p>
+            {%- for campus in campusesSorted -%}
+              {% assign IsPublic = campus | Attribute:'Public' %}
+              {%- if campus.IsActive && IsPublic == 'Yes' -%}
+                <a href="#" data-key="campuses" data-value="{{ campus.Id }}" class="btn btn-default btn-filter btn-sm js-filter js-{{ campus.Id }}">{{ campus.Name }}</a>
+              {%- endif -%}
+            {%- endfor -%}
+          </p>
+          </div>
+
+          <div class="js-filter-days">
+          <h3 class="h5 push-half-bottom">Day of the Week</h3>
+          <p>
+            {%- for day in daysofweek -%}
+              <a href="#" data-key="schedules" data-value="{{ day | Downcase}}" class="btn btn-default btn-filter btn-sm js-filter js-{{ day | Downcase}}">{{ day }}</a>
+            {%- endfor -%}
+          </p>
+          </div>
+
+          <div class="js-filter-tags">
+          <h3 class="h5 push-half-bottom">Demographic/Focus</h3>
+            <p>
+            <a href="#" data-key="kidfriendly" data-value="true" class="btn btn-default btn-filter btn-sm js-filter js-kid-friendly">Kid Friendly</a>
+            {% assign tags = 52 | FromCache:'DefinedType' %}
+            {%- for tag in tags.DefinedValues -%}
+              <a href="#" data-key="tags" data-value="{{ tag.Value | Downcase }}" class="btn btn-default btn-filter btn-sm js-filter js-{{ tag.Value | Downcase }}">{{ tag.Value }}</a>
+            {%- endfor -%}
+            {% assign tags = 69 | FromCache:'DefinedType' %}
+            {%- for tag in tags.DefinedValues -%}
+              <a href="#" data-key="tags" data-value="{{ tag.Value | Downcase }}" class="btn btn-default btn-filter btn-sm js-filter js-{{ tag.Value | Downcase }}">{{ tag.Value }}</a>
+            {%- endfor -%}
+            {% assign tags = 70 | FromCache:'DefinedType' %}
+            {%- for tag in tags.DefinedValues -%}
+              <a href="#" data-key="tags" data-value="{{ tag.Value | Downcase }}" class="btn btn-default btn-filter btn-sm js-filter js-{{ tag.Value | Downcase }}">{{ tag.Value }}</a>
+            {%- endfor -%}
+            </p>
+          </div>
+        </div>
+      [[ enditem ]]
+    {[ endaccordion ]}
+
+    <section class="bg-white soft xs-soft-half hard-bottom clearfix flush rounded shadowed">
+      <div id="groups">
+        <p class="text-center"><i class="fas fa-lg text-primary fa-spinner-third rotating"></i></p>
+      </div>
+    </section>
+
+  </div>
+
+  <div class="soft-half hidden" style="width: 50%; overflow-y: auto;">
+  {[ accordion ]}
+    [[ item title:'Filters' ]]
+
+      {[ accordion ]}
+        [[ item title:'Campus' ]]
         {% assign campusesSorted = Campuses | Sort:'Name' %}
         {%- for campus in campusesSorted -%}
           {% assign IsPublic = campus | Attribute:'Public' %}
           {%- if campus.IsActive && IsPublic == 'Yes' -%}
-            <a href="#" data-key="campuses" data-value="{{ campus.Id }}" class="btn btn-default btn-filter btn-sm js-filter js-{{ campus.Id }}">{{ campus.Name }}</a>
+          <div class="checkbox">
+            <input type="checkbox" id="{{ campus.Id }}">
+            <label for="{{ campus.Id }}">{{ campus.Name }}</label>
+          </div>
           {%- endif -%}
         {%- endfor -%}
+        <br>
+        [[ enditem ]]
 
-      </div>
-    </section>
-  </div><div class="col-md-4">
-    <section class="bg-white soft push-bottom xs-push-half-bottom rounded shadowed">
-      <div class="js-filter-days">
-
-        <h2 class="h3 push-half-bottom">Day of the Week</h2>
+        [[ item title:'Day of the Week' ]]
         {%- for day in daysofweek -%}
-          <a href="#" data-key="schedules" data-value="{{ day | Downcase}}" class="btn btn-default btn-filter btn-sm js-filter js-{{ day | Downcase}}">{{ day }}</a>
+        <div class="checkbox">
+          <input type="checkbox" id="{{ day | Downcase }}">
+          <label for="{{ day | Downcase }}">{{ day }}</label>
+        </div>
         {%- endfor -%}
+        <br>
+        [[ enditem ]]
 
-      </div>
-    </section>
-  </div><div class="col-md-4">
-    <section class="bg-white soft push-bottom xs-push-half-bottom rounded shadowed">
-      <div class="js-filter-tags">
-
-        <h2 class="h3 push-half-bottom">Topic Tags</h2>
+        [[ item title:'Group Type' ]]
         {% assign tags = 52 | FromCache:'DefinedType' %}
         {%- for tag in tags.DefinedValues -%}
-          <a href="#" data-key="tags" data-value="{{ tag.Value | Downcase }}" class="btn btn-default btn-filter btn-sm js-filter js-{{ tag.Value | Downcase }}">{{ tag.Value }}</a>
+          <div class="checkbox">
+            <input type="checkbox" id="{{ tag.Id }}">
+            <label for="{{ tag.Id }}">{{ tag.Value }}</label>
+          </div>
         {%- endfor -%}
         {% assign tags = 69 | FromCache:'DefinedType' %}
         {%- for tag in tags.DefinedValues -%}
-          <a href="#" data-key="tags" data-value="{{ tag.Value | Downcase }}" class="btn btn-default btn-filter btn-sm js-filter js-{{ tag.Value | Downcase }}">{{ tag.Value }}</a>
+          <div class="checkbox">
+            <input type="checkbox" id="{{ tag.Id }}">
+            <label for="{{ tag.Id }}">{{ tag.Value }}</label>
+          </div>      
         {%- endfor -%}
         {% assign tags = 70 | FromCache:'DefinedType' %}
         {%- for tag in tags.DefinedValues -%}
-          <a href="#" data-key="tags" data-value="{{ tag.Value | Downcase }}" class="btn btn-default btn-filter btn-sm js-filter js-{{ tag.Value | Downcase }}">{{ tag.Value }}</a>
+          <div class="checkbox">
+            <input type="checkbox" id="{{ tag.Id }}">
+            <label for="{{ tag.Id }}">{{ tag.Value }}</label>
+          </div>      
         {%- endfor -%}
+        <br>
+        [[ enditem ]]
+      {[ endaccordion ]}
+    [[ enditem ]]
+  {[ endaccordion ]}            
+    
 
-      </div>
-    </section>
   </div>
-</div>
-
-<div id="group-finder-wrapper" class="position-fixed top-zero right-zero bottom-zero left-zero" style="margin: 0px;">
-  <div class="position-absolute top-zero left-zero bottom-zero soft-half" style="width: 35%; overflow-y: auto;">
-    <div id="groups"></div>
-  </div>
-  <div id="map-canvas" class="position-absolute top-zero right-zero bottom-zero" style="width:65%;"></div>
+  <div id="map-canvas" class="position-fixed top-zero right-zero bottom-zero" style="width:50%;"></div>
 </div>
 
 

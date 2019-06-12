@@ -1,7 +1,7 @@
 $(document).ready(function(){
   var wrapperOffset = $('#navigation').height() + $('#navigation-secondary').height();
-  console.log(wrapperOffset);
   $('#group-finder-wrapper').css('top', wrapperOffset + 'px');
+  $('#map-canvas').css('top', wrapperOffset + 'px');
 
   var defaultLatLng = new google.maps.LatLng(34.0374891,-81.0076046); // Default
   
@@ -10,6 +10,7 @@ $(document).ready(function(){
   function drawMap(latlng) {
       var myOptions = {
           zoom: 8,
+          scrollwheel: false,
           center: latlng,
           styles: [
     {
@@ -147,38 +148,53 @@ function findGroups() {
   var currentUrl = window.location.href;
   var uri = URI(window.location.href);
   var query = uri.query();
-  
+  console.log(query);
   $.ajax({
       url: '/api/GroupFinder?' + query,
       dataType: 'json',
       success: function(response) {
         $('#groups').html(" ");
+        
+        console.log(response);
 
         if( ! $.isEmptyObject(response) ){
+
+            var markers = response.map(function(item, i) {
+                if (item.GroupLocation !== null) {
+                    var marker = new google.maps.Marker({
+                        position: new google.maps.LatLng(item.GroupLocation.Latitude, item.GroupLocation.Longitude),
+                        icon: 'https://s3.amazonaws.com/ns.assets/newspring/mapmarker.png'
+                    });
+
+                    google.maps.event.addListener(marker, 'click', function() {
+                        window.location.href = "{{groupViewUrl}}" + item.Id;
+                    });
+
+                    bounds.extend(marker.position);
+
+                    return marker;
+                }
+            });
+
+            console.log(markers);
+
+            // Add a marker clusterer to manage the markers.
+            var markerCluster = new MarkerClusterer(map, markers,
+                {imagePath: 'https://developers.google.com/maps/documentation/javascript/examples/markerclusterer/m'});
+            }
+
             $.each(response, function(i, item) {
-                console.log(item.Id)
 
                 var groupCard = `
                 {[ card title:'${ item.Id }' titlesize:'h3' ]}
                 `
 
-                console.log(groupCard);
-
                 $('#groups').append(groupCard);
 
-                if (item.GroupLocation !== null) {
-                var marker = new google.maps.Marker({
-                    position: new google.maps.LatLng(item.GroupLocation.Latitude, item.GroupLocation.Longitude),
-                    map: map,
-                });
-                google.maps.event.addListener(marker, 'click', function() {
-                    window.location.href = "{{groupViewUrl}}" + item.Id;
-                });
-                //extend the bounds to include each marker's position
-                bounds.extend(marker.position);
-                }
+               
 
             });
+            $('#groups').prepend('<p><span class="label label-default sans-serif letter-spacing-condensed circular">' + response.length + ' groups found</span></p>');            
 
             map.setOptions({ maxZoom: 15 });
             map.fitBounds(bounds);
@@ -186,89 +202,6 @@ function findGroups() {
         } else {
             $('#groups').html('No Results');
         }
-        
-        // if( ! $.isEmptyObject(response) ){
-        //   $.each(response, function(i, item) {
-        //       var $tags = "";
-        //       $.each(item.Tags, function(t, tag) {
-        //         var active = "";
-        //         var link = "";
-        //         if (URI(window.location.href).hasQuery("Tags", $.trim(tag), true)) {
-        //           active = "active";
-        //           link = URI(window.location.href).removeSearch("Tags", $.trim(tag));
-        //         } else {
-        //           link = URI(window.location.href).addSearch("Tags", $.trim(tag));
-        //         }
-        //         $tags += '<a href="' + link + '" class="stronger text-decoration-none letter-spacing-condensed no-breaks ' + active + '"><i class="fas fa-sm fa-tag"></i> ' + tag + '</a>';
-        //       });
-        //       if (item.Topic !== null) {
-        //         var active = "";
-        //         var link = "";
-        //         if (URI(window.location.href).hasQuery("topic", $.trim(item.Topic), true)) {
-        //           active = "active";
-        //           link = URI(window.location.href).removeSearch("topic", $.trim(item.Topic));
-        //         } else {
-        //           link = URI(window.location.href).addSearch("topic", $.trim(item.Topic));
-        //         }
-        //         $tags += '<a href="' + link + '" class="stronger text-decoration-none letter-spacing-condensed no-breaks ' + active + '"><i class="fas fa-sm fa-tag"></i> ' + item.Topic + '</a>';
-        //       }
-        //       if (item.KidFriendly == true) {
-        //         var active = "";
-        //         var link = "";
-        //         if (URI(window.location.href).hasQuery("kidFriendly", "true", true)) {
-        //           active = "active";
-        //           link = URI(window.location.href).removeSearch("kidFriendly", "true");
-        //         } else {
-        //           link = URI(window.location.href).addSearch("kidFriendly", "true");
-        //         }
-        //         $tags += '<a href="' + link + '" class="stronger text-decoration-none letter-spacing-condensed no-breaks ' + active + '"><i class="fas fa-sm fa-tag"></i> Kid Friendly</a>';
-        //       }
-        //       if (item.Campus !== null) {
-        //         var active = "";
-        //         var link = "";
-        //         if (URI(window.location.href).hasQuery("campuses", $.trim(item.CampusId), true)) {
-        //           active = "active";
-        //           link = URI(window.location.href).removeSearch("campuses", $.trim(item.CampusId));
-        //         } else {
-        //           link = URI(window.location.href).addSearch("campuses", $.trim(item.CampusId));
-        //         }
-        //         $tags += '<a href="' + link + '" class="stronger text-decoration-none letter-spacing-condensed no-breaks ' + active + '"><i class="fas fa-sm fa-tag"></i> ' + item.Campus + '</a>';
-        //       }
-        //       var photo = item.Photo.replace("<img src='","").replace("' class='img-responsive' />","");
-        //       var $tr = $('<div class="panel panel-default">').attr("data-group-id", item.Id).append(
-        //         $('<a class="panel-image">').attr("href", "{{groupViewUrl}}"+item.Id).append(
-        //             $('<div class="position-relative ratio-landscape background-cover background-center">').css('background-image', 'url(' + photo + ')')
-        //         )
-        //       ).append(
-        //         $('<div class="panel-body">').append(
-        //           '<h2 class="h4 push-half-bottom"><a href=""{{groupViewUrl}}"+item.Id">' + item.Name + '</a></h2>',
-        //           '<div class="schedule">' + (item.Schedule || "") + '</div>',
-        //           '<div class="distance">' + (item.Distance || "") + '</div>',
-        //           '<p class="description">' + (item.Description || "") + '</p>',
-        //           '<p class="tag-list sans-serif push-half-bottom"><small>' + $tags + '</small></p>'
-        //         )
-        //       ).appendTo('#groups');
-              
-        //       if (item.GroupLocation !== null) {
-        //         var marker = new google.maps.Marker({
-        //             position: new google.maps.LatLng(item.GroupLocation.Latitude, item.GroupLocation.Longitude),
-        //             map: map,
-        //         });
-        //         google.maps.event.addListener(marker, 'click', function() {
-        //             window.location.href = "{{groupViewUrl}}" + item.Id;
-        //         });
-        //         //extend the bounds to include each marker's position
-        //         bounds.extend(marker.position);
-        //       }
-
-        //   });
-
-        //   map.setOptions({ maxZoom: 15 });
-        //   map.fitBounds(bounds);
-        //   map.setOptions({ maxZoom: null });
-        // } else {
-        //   $('#groups').html('No Results');
-        // }
       }
   });
 }
