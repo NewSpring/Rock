@@ -41,8 +41,10 @@ namespace cc.newspring.GroupFinder.Rest.Controllers
         /// a given zip code to the meeting location of a group.
         /// </summary>
         /// <param name="postalCode">The postal code.</param>
+        /// <param name="groupTypeId">The group type id</param>
         /// <param name="schedules">The comma seperated representation of the group schedules.</param>
         /// <param name="campuses">The comma seperated representation of the group campuses.</param>
+        /// <param name="tags">The list of tags</param>
         /// <param name="kidFriendly">The Childcare value.</param>
         /// <returns>
         /// Returns the list of all groups.
@@ -50,7 +52,7 @@ namespace cc.newspring.GroupFinder.Rest.Controllers
         [Authenticate, Secured]
         [HttpGet]
         [System.Web.Http.Route("api/GroupFinder")]
-        public IEnumerable<SmallGroup> GetGroups(int postalCode, string schedules = null, string campuses = null, string tags = null, bool? kidFriendly = null)
+        public IEnumerable<SmallGroup> GetGroups(int postalCode, int groupTypeId, string schedules = null, string campuses = null, string tags = null, bool? kidFriendly = null)
         {
             var groupList = new List<SmallGroup>();
 
@@ -62,8 +64,7 @@ namespace cc.newspring.GroupFinder.Rest.Controllers
                     throw new HttpResponseException(HttpStatusCode.BadRequest);
                 }
 
-                var groupTypeId = GroupTypeCache.Get(Rock.SystemGuid.GroupType.GROUPTYPE_SMALL_GROUP).Id;
-                var groups = new GroupService(rockContext).Queryable().Where(a => a.GroupTypeId == groupTypeId && a.IsActive == true);
+                var groups = new GroupService(rockContext).Queryable().Where(a => a.GroupTypeId == groupTypeId && a.IsActive == true && a.IsPublic == true && a.IsArchived == false);
 
                 if (schedules.IsNotNullOrWhiteSpace())
                 {
@@ -99,6 +100,8 @@ namespace cc.newspring.GroupFinder.Rest.Controllers
                         var smallGroup = new SmallGroup()
                         {
                             IsActive = group.IsActive,
+                            IsPublic = group.IsPublic,
+                            IsArchived = group.IsArchived,
                             Description = group.Description,
                             Guid = group.Guid,
                             Id = group.Id,
@@ -174,6 +177,22 @@ namespace cc.newspring.GroupFinder.Rest.Controllers
             /// The status of this group.
             /// </value>
             public bool IsActive { get; set; }
+
+            /// <summary>
+            /// Gets or sets IsPublic
+            /// </summary>
+            /// <value>
+            /// The public/private status of this group.
+            /// </value>
+            public bool IsPublic { get; set; }
+
+            /// <summary>
+            /// Gets or sets IsArchived
+            /// </summary>
+            /// <value>
+            /// The archived status of this group.
+            /// </value>
+            public bool IsArchived { get; set; }
 
             /// <summary>
             /// Gets or sets the group identifier.
