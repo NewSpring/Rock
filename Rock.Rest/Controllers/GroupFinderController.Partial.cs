@@ -51,7 +51,7 @@ namespace Rock.Rest.Controllers
         [EnableQuery]
         [Authenticate, Secured]
         [System.Web.Http.Route("api/GroupFinder")]
-        public IEnumerable<SmallGroup> GetGroups(int postalCode, int groupTypeId, string schedules = null, string campuses = null, string tags = null, bool? kidFriendly = null)
+        public IQueryable<SmallGroup> GetGroups(int postalCode, int groupTypeId, string schedules = null, string campuses = null, string tags = null, bool? kidFriendly = null)
         {
             var groupList = new List<SmallGroup>();
 
@@ -160,7 +160,7 @@ namespace Rock.Rest.Controllers
                     }
                 }
             }
-            return groupList.OrderBy(a => a.Distance.GetValueOrDefault(double.MaxValue));
+            return groupList.OrderBy(a => a.Distance.GetValueOrDefault(double.MaxValue)).AsQueryable();
         }
 
         /// <summary>
