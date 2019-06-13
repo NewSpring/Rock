@@ -51,8 +51,9 @@ namespace Rock.Rest.Controllers
         [EnableQuery]
         [Authenticate, Secured]
         [System.Web.Http.Route("api/GroupFinder")]
-        public IQueryable<SmallGroup> GetGroups(int postalCode, int groupTypeId, string schedules = null, string campuses = null, string tags = null, bool? kidFriendly = null)
+        public IQueryable<Response> GetGroups(int postalCode, int groupTypeId, string schedules = null, string campuses = null, string tags = null, bool? kidFriendly = null)
         {
+            var responseList = new List<Response>();
             var groupList = new List<SmallGroup>();
 
             using (var rockContext = new RockContext())
@@ -160,7 +161,18 @@ namespace Rock.Rest.Controllers
                     }
                 }
             }
-            return groupList.OrderBy(a => a.Distance.GetValueOrDefault(double.MaxValue)).AsQueryable();
+            var response = new Response();
+            response.GroupCount = groupList.Count();
+            response.GroupList = groupList;
+            responseList.Add(response);
+            return responseList.AsQueryable();
+            //return groupList.OrderBy(a => a.Distance.GetValueOrDefault(double.MaxValue)).AsQueryable();
+        }
+
+        public class Response
+        {
+            public int GroupCount { get; set; }
+            public List<SmallGroup> GroupList { get; set; }
         }
 
         /// <summary>
