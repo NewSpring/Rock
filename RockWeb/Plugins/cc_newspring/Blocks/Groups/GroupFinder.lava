@@ -140,77 +140,221 @@
       [[ enditem ]]
     {[ endaccordion ]}
 
-    <section class="bg-white soft xs-soft-half hard-bottom clearfix flush rounded shadowed">
-      <div id="groups">
-        <p class="text-center"><i class="fas fa-lg text-primary fa-spinner-third rotating"></i></p>
-      </div>
-    </section>
+    <div id="groups">
+      <p class="text-center"><i class="fas fa-lg text-primary fa-spinner-third rotating"></i></p>
+    </div>
 
   </div>
 
-  <div class="soft-half hidden" style="width: 50%; overflow-y: auto;">
-  {[ accordion ]}
-    [[ item title:'Filters' ]]
-
-      {[ accordion ]}
-        [[ item title:'Campus' ]]
-        {% assign campusesSorted = Campuses | Sort:'Name' %}
-        {%- for campus in campusesSorted -%}
-          {% assign IsPublic = campus | Attribute:'Public' %}
-          {%- if campus.IsActive && IsPublic == 'Yes' -%}
-          <div class="checkbox">
-            <input type="checkbox" id="{{ campus.Id }}">
-            <label for="{{ campus.Id }}">{{ campus.Name }}</label>
-          </div>
-          {%- endif -%}
-        {%- endfor -%}
-        <br>
-        [[ enditem ]]
-
-        [[ item title:'Day of the Week' ]]
-        {%- for day in daysofweek -%}
-        <div class="checkbox">
-          <input type="checkbox" id="{{ day | Downcase }}">
-          <label for="{{ day | Downcase }}">{{ day }}</label>
-        </div>
-        {%- endfor -%}
-        <br>
-        [[ enditem ]]
-
-        [[ item title:'Group Type' ]]
-        {% assign tags = 52 | FromCache:'DefinedType' %}
-        {%- for tag in tags.DefinedValues -%}
-          <div class="checkbox">
-            <input type="checkbox" id="{{ tag.Id }}">
-            <label for="{{ tag.Id }}">{{ tag.Value }}</label>
-          </div>
-        {%- endfor -%}
-        {% assign tags = 69 | FromCache:'DefinedType' %}
-        {%- for tag in tags.DefinedValues -%}
-          <div class="checkbox">
-            <input type="checkbox" id="{{ tag.Id }}">
-            <label for="{{ tag.Id }}">{{ tag.Value }}</label>
-          </div>      
-        {%- endfor -%}
-        {% assign tags = 70 | FromCache:'DefinedType' %}
-        {%- for tag in tags.DefinedValues -%}
-          <div class="checkbox">
-            <input type="checkbox" id="{{ tag.Id }}">
-            <label for="{{ tag.Id }}">{{ tag.Value }}</label>
-          </div>      
-        {%- endfor -%}
-        <br>
-        [[ enditem ]]
-      {[ endaccordion ]}
-    [[ enditem ]]
-  {[ endaccordion ]}            
-    
-
-  </div>
   <div id="map-canvas" class="position-fixed top-zero right-zero bottom-zero" style="width:50%;"></div>
 </div>
 
 
 
+<script>
+$(document).ready(function(){
+  var wrapperOffset = $('#navigation').height() + $('#navigation-secondary').height();
+  $('#group-finder-wrapper').css('top', wrapperOffset + 'px');
+  $('#map-canvas').css('top', wrapperOffset + 'px');
 
-{{ '/Plugins/cc_newspring/Blocks/Groups/GroupFinder.js' | AddScriptLink }}
+  var defaultLatLng = new google.maps.LatLng(34.0374891,-81.0076046); // Default
+  
+  drawMap(defaultLatLng); // No geolocation support, show default map
+
+  function drawMap(latlng) {
+      var myOptions = {
+          center: latlng,
+          zoom: 8,
+          scrollwheel: false,
+          streetViewControl: false,
+          styles: [
+    {
+        "featureType": "landscape.man_made",
+        "elementType": "all",
+        "stylers": [
+            {
+                "color": "#faf5ed"
+            },
+            {
+                "lightness": "0"
+            },
+            {
+                "gamma": "1"
+            }
+        ]
+    },
+    {
+        "featureType": "poi.park",
+        "elementType": "geometry.fill",
+        "stylers": [
+            {
+                "color": "#bae5a6"
+            }
+        ]
+    },
+    {
+        "featureType": "road",
+        "elementType": "all",
+        "stylers": [
+            {
+                "weight": "1.00"
+            },
+            {
+                "gamma": "1.8"
+            },
+            {
+                "saturation": "0"
+            }
+        ]
+    },
+    {
+        "featureType": "road",
+        "elementType": "geometry.fill",
+        "stylers": [
+            {
+                "hue": "#ffb200"
+            }
+        ]
+    },
+    {
+        "featureType": "road.arterial",
+        "elementType": "geometry.fill",
+        "stylers": [
+            {
+                "lightness": "0"
+            },
+            {
+                "gamma": "1"
+            }
+        ]
+    },
+    {
+        "featureType": "transit.station.airport",
+        "elementType": "all",
+        "stylers": [
+            {
+                "hue": "#b000ff"
+            },
+            {
+                "saturation": "23"
+            },
+            {
+                "lightness": "-4"
+            },
+            {
+                "gamma": "0.80"
+            }
+        ]
+    },
+    {
+        "featureType": "water",
+        "elementType": "all",
+        "stylers": [
+            {
+                "color": "#a0daf2"
+            }
+        ]
+    }
+],
+          mapTypeId: google.maps.MapTypeId.ROADMAP,
+          fullscreenControl: false,
+          mapTypeControlOptions: {
+            mapTypeIds: []
+          }
+      };
+      map = new google.maps.Map(document.getElementById("map-canvas"), myOptions);
+      // place the infowindow.  Invisible, without content.
+      var infowindow = new google.maps.InfoWindow({
+          content: '',
+      });
+
+      bounds = new google.maps.LatLngBounds();
+  }
+
+  $('#dynamic-content').on('click','a',function(e){
+      e.preventDefault();
+      var targetUrl = $(this).attr('href'),
+          targetTitle = $(this).attr('title');
+
+      window.history.pushState({url: "" + targetUrl + ""}, targetTitle, targetUrl);
+      findGroups();
+      updateFilters();
+  });
+
+  findGroups();
+  updateFilters();
+
+});
+
+function updateFilters() {
+  var currentUrl = window.location.href;
+  var uri = URI(window.location.href);
+  var query = uri.search(true);
+
+  $('.js-filters .js-filter').each(function(i, obj) {
+    filter = $(obj);
+    if (URI(window.location.href).hasQuery(filter.data("key"), filter.data("value"), true)) {
+      link = URI(window.location.href).removeSearch(filter.data("key"), filter.data("value"));
+      filter.addClass("active").attr('href',link);
+    } else {
+      link = URI(window.location.href).addSearch(filter.data("key"), filter.data("value"));
+      filter.removeClass("active").attr('href',link);
+    }
+  });
+}
+
+
+function findGroups() {
+  console.log('finding groups...');
+  var currentUrl = window.location.href;
+  var uri = URI(window.location.href);
+  var query = uri.query();
+
+  $.ajax({
+      url: '/api/GroupFinder?' + query,
+      dataType: 'json',
+      success: function(response) {
+        
+        console.log('found ' + response.length + ' groups')
+        $('#groups').html(" ");
+
+        if(!$.isEmptyObject(response)){
+          var markers = response.map(function(item, i) {
+            if (item.GroupLocation !== null) {
+              var marker = new google.maps.Marker({
+                position: new google.maps.LatLng(item.GroupLocation.Latitude, item.GroupLocation.Longitude),
+                icon: 'https://s3.amazonaws.com/ns.assets/newspring/mapmarkers/marker.png'
+              });
+
+              google.maps.event.addListener(marker, 'click', function() {
+                window.location.href = "/groups/" + item.Id;
+              });
+
+              bounds.extend(marker.position);
+
+            }
+
+            var groupCard = `
+            {[ card title:'${ item.IsActive } ${ item.Id } ${ item.Name }' titlesize:'h3' content:'<p class="push-half-bottom"><span class="label label-info sans-serif letter-spacing-condensed circular">${ item.Distance } miles</span></p><p class="push-half-bottom">${ item.Description }</p>' linkurl:'/groups/${ item.Id }' linktext:'Group Details' ]}
+            `
+            $('#groups').append(groupCard);
+
+            return marker;
+          });
+
+          // Add a marker clusterer to manage the markers.
+          var markerCluster = new MarkerClusterer(map, markers, {imagePath: 'https://s3.amazonaws.com/ns.assets/newspring/mapmarkers/m'});
+          markerCluster.getStyles().map(function(obj){ return Object.assign(obj, {textColor: 'white',textSize:'13'}) });
+
+          $('#groups').prepend('<h3 class="h5 push-half-bottom">' + response.length + ' groups found</h3>');            
+
+          map.setOptions({ maxZoom: 15 });
+          map.fitBounds(bounds);
+          map.setOptions({ maxZoom: null });
+        } else {
+          $('#groups').html('No Results');
+        }
+      }
+  });
+}
+</script>
