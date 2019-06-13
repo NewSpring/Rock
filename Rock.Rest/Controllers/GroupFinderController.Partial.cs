@@ -19,17 +19,15 @@ using System.Collections.Generic;
 using System.Data.Entity.Spatial;
 using System.Linq;
 using System.Net;
-using System.Text;
-using System.Threading.Tasks;
 using System.Web.Http;
+using System.Web.Http.OData;
 using Rock;
 using Rock.Data;
 using Rock.Model;
-using Rock.Rest;
 using Rock.Rest.Filters;
 using Rock.Web.Cache;
 
-namespace cc.newspring.GroupFinder.Rest.Controllers
+namespace Rock.Rest.Controllers
 {
     /// <summary>
     /// Group Finder API
@@ -49,8 +47,9 @@ namespace cc.newspring.GroupFinder.Rest.Controllers
         /// <returns>
         /// Returns the list of all groups.
         /// </returns>
-        [Authenticate, Secured]
         [HttpGet]
+        [EnableQuery]
+        [Authenticate, Secured]
         [System.Web.Http.Route("api/GroupFinder")]
         public IEnumerable<SmallGroup> GetGroups(int postalCode, int groupTypeId, string schedules = null, string campuses = null, string tags = null, bool? kidFriendly = null)
         {
@@ -274,14 +273,44 @@ namespace cc.newspring.GroupFinder.Rest.Controllers
             /// </value>
             public int? CampusId { get; set; }
 
+            /// <summary>
+            /// Gets or sets the age range.
+            /// </summary>
+            /// <value>
+            /// The age range.
+            /// </value>
             public int[] AgeRange { get; set; }
 
+            /// <summary>
+            /// Gets or sets the photo.
+            /// </summary>
+            /// <value>
+            /// The photo.
+            /// </value>
             public string Photo { get; set; }
 
+            /// <summary>
+            /// Gets or sets the schedule.
+            /// </summary>
+            /// <value>
+            /// The schedule.
+            /// </value>
             public string Schedule { get; set; }
 
+            /// <summary>
+            /// Gets or sets the tags.
+            /// </summary>
+            /// <value>
+            /// The tags.
+            /// </value>
             public string[] Tags { get; set; }
 
+            /// <summary>
+            /// Gets or sets the type.
+            /// </summary>
+            /// <value>
+            /// The type.
+            /// </value>
             public string Type { get; set; }
         }
 
