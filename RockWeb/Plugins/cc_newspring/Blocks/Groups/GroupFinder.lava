@@ -12,6 +12,15 @@
 {%- endcapture -%}
 
 <style>
+
+  #map-canvas {
+    position: fixed! important;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 50%;
+  }
+
   .list-group .checkbox {
     margin-top:5px;
   }
@@ -43,6 +52,17 @@
   footer {
     display: none;
   }
+
+  @media screen and (max-width: 667px) {
+    #map-canvas {
+      position: relative !important;
+      width: 100%;
+      top: 0 !important;
+    }
+  }
+
+
+
 
   @-webkit-keyframes rotating /* Safari and Chrome */ {
   from {
@@ -87,7 +107,10 @@
 
 
 <div id="group-finder-wrapper" style="margin: -30px;">
-  <div class="js-filters soft xs-soft-half" style="width: 50%; overflow-y: auto;">
+  
+  <div id="map-canvas"></div>
+
+  <div class="js-filters width-half xs-width-full soft xs-soft-sides xs-hard-ends" style="overflow-y: auto;">
     <h2 class="push-half-bottom">Find Your Group</h2>
     <div class="form-group push-half-bottom">
       <input type="text" class="form-control" id="exampleInputEmail1" placeholder="Enter Your Zip Code">
@@ -122,18 +145,22 @@
           <h3 class="h5 push-half-bottom">Demographic/Focus</h3>
             <p>
             <a href="#" data-key="kidfriendly" data-value="true" class="btn btn-default btn-filter btn-sm js-filter js-kid-friendly">Kid Friendly</a>
+            
             {% assign tags = 52 | FromCache:'DefinedType' %}
             {%- for tag in tags.DefinedValues -%}
               <a href="#" data-key="tags" data-value="{{ tag.Value | Downcase }}" class="btn btn-default btn-filter btn-sm js-filter js-{{ tag.Value | Downcase }}">{{ tag.Value }}</a>
             {%- endfor -%}
+            <br>
             {% assign tags = 69 | FromCache:'DefinedType' %}
             {%- for tag in tags.DefinedValues -%}
               <a href="#" data-key="tags" data-value="{{ tag.Value | Downcase }}" class="btn btn-default btn-filter btn-sm js-filter js-{{ tag.Value | Downcase }}">{{ tag.Value }}</a>
             {%- endfor -%}
+            <br>
             {% assign tags = 70 | FromCache:'DefinedType' %}
             {%- for tag in tags.DefinedValues -%}
               <a href="#" data-key="tags" data-value="{{ tag.Value | Downcase }}" class="btn btn-default btn-filter btn-sm js-filter js-{{ tag.Value | Downcase }}">{{ tag.Value }}</a>
             {%- endfor -%}
+
             </p>
           </div>
         </div>
@@ -145,17 +172,37 @@
     </div>
 
   </div>
-
-  <div id="map-canvas" class="position-fixed top-zero right-zero bottom-zero" style="width:50%;"></div>
 </div>
 
 
 
 <script>
 $(document).ready(function(){
-  var wrapperOffset = $('#navigation').height() + $('#navigation-secondary').height();
-  $('#group-finder-wrapper').css('top', wrapperOffset + 'px');
-  $('#map-canvas').css('top', wrapperOffset + 'px');
+
+  var mapContainer = $('#map-canvas');
+
+  // mapContainer.addEventListener('touchstart' function(){
+    
+  // });
+
+  function groupFinderLayout(){
+    var windowWidth = window.innerWidth;
+    var windowHeight = window.innerHeight;
+    console.log(windowHeight)
+
+    if(windowWidth > 667) {
+      // Desktop
+      var wrapperOffset = $('#navigation').height() + $('#navigation-secondary').height();
+    } else {
+      // Mobile
+      var wrapperOffset = 0;
+      document.getElementById("map-canvas").style.height = "500px";
+    }
+  };
+
+  groupFinderLayout();
+
+  window.addEventListener('resize', groupFinderLayout);
 
   var defaultLatLng = new google.maps.LatLng(34.0374891,-81.0076046); // Default
   
@@ -168,99 +215,99 @@ $(document).ready(function(){
           scrollwheel: false,
           streetViewControl: false,
           styles: [
-    {
-        "featureType": "landscape.man_made",
-        "elementType": "all",
-        "stylers": [
             {
-                "color": "#faf5ed"
+                "featureType": "landscape.man_made",
+                "elementType": "all",
+                "stylers": [
+                    {
+                        "color": "#faf5ed"
+                    },
+                    {
+                        "lightness": "0"
+                    },
+                    {
+                        "gamma": "1"
+                    }
+                ]
             },
             {
-                "lightness": "0"
+                "featureType": "poi.park",
+                "elementType": "geometry.fill",
+                "stylers": [
+                    {
+                        "color": "#bae5a6"
+                    }
+                ]
             },
             {
-                "gamma": "1"
+                "featureType": "road",
+                "elementType": "all",
+                "stylers": [
+                    {
+                        "weight": "1.00"
+                    },
+                    {
+                        "gamma": "1.8"
+                    },
+                    {
+                        "saturation": "0"
+                    }
+                ]
+            },
+            {
+                "featureType": "road",
+                "elementType": "geometry.fill",
+                "stylers": [
+                    {
+                        "hue": "#ffb200"
+                    }
+                ]
+            },
+            {
+                "featureType": "road.arterial",
+                "elementType": "geometry.fill",
+                "stylers": [
+                    {
+                        "lightness": "0"
+                    },
+                    {
+                        "gamma": "1"
+                    }
+                ]
+            },
+            {
+                "featureType": "transit.station.airport",
+                "elementType": "all",
+                "stylers": [
+                    {
+                        "hue": "#b000ff"
+                    },
+                    {
+                        "saturation": "23"
+                    },
+                    {
+                        "lightness": "-4"
+                    },
+                    {
+                        "gamma": "0.80"
+                    }
+                ]
+            },
+            {
+                "featureType": "water",
+                "elementType": "all",
+                "stylers": [
+                    {
+                        "color": "#a0daf2"
+                    }
+                ]
             }
-        ]
-    },
-    {
-        "featureType": "poi.park",
-        "elementType": "geometry.fill",
-        "stylers": [
-            {
-                "color": "#bae5a6"
-            }
-        ]
-    },
-    {
-        "featureType": "road",
-        "elementType": "all",
-        "stylers": [
-            {
-                "weight": "1.00"
-            },
-            {
-                "gamma": "1.8"
-            },
-            {
-                "saturation": "0"
-            }
-        ]
-    },
-    {
-        "featureType": "road",
-        "elementType": "geometry.fill",
-        "stylers": [
-            {
-                "hue": "#ffb200"
-            }
-        ]
-    },
-    {
-        "featureType": "road.arterial",
-        "elementType": "geometry.fill",
-        "stylers": [
-            {
-                "lightness": "0"
-            },
-            {
-                "gamma": "1"
-            }
-        ]
-    },
-    {
-        "featureType": "transit.station.airport",
-        "elementType": "all",
-        "stylers": [
-            {
-                "hue": "#b000ff"
-            },
-            {
-                "saturation": "23"
-            },
-            {
-                "lightness": "-4"
-            },
-            {
-                "gamma": "0.80"
-            }
-        ]
-    },
-    {
-        "featureType": "water",
-        "elementType": "all",
-        "stylers": [
-            {
-                "color": "#a0daf2"
-            }
-        ]
-    }
-],
-          mapTypeId: google.maps.MapTypeId.ROADMAP,
-          fullscreenControl: false,
-          mapTypeControlOptions: {
-            mapTypeIds: []
-          }
+        ],
+        mapTypeId: google.maps.MapTypeId.ROADMAP,
+        fullscreenControl: false,
+        mapTypeControlOptions: {
+          mapTypeIds: []
+        }
       };
       map = new google.maps.Map(document.getElementById("map-canvas"), myOptions);
       // place the infowindow.  Invisible, without content.
@@ -275,7 +322,6 @@ $(document).ready(function(){
       e.preventDefault();
       var targetUrl = $(this).attr('href'),
           targetTitle = $(this).attr('title');
-
       window.history.pushState({url: "" + targetUrl + ""}, targetTitle, targetUrl);
       findGroups();
       updateFilters();
@@ -286,29 +332,78 @@ $(document).ready(function(){
 
 });
 
+var removeValue = function(list, value, separator) {
+  separator = separator || ",";
+  var values = list.split(separator);
+  for(var i = 0 ; i < values.length ; i++) {
+    if(values[i] == value) {
+      values.splice(i, 1);
+      return values.join(separator);
+    }
+  }
+  return list;
+}
+
 function updateFilters() {
   var currentUrl = window.location.href;
   var uri = URI(window.location.href);
   var query = uri.search(true);
 
   $('.js-filters .js-filter').each(function(i, obj) {
-    filter = $(obj);
-    if (URI(window.location.href).hasQuery(filter.data("key"), filter.data("value"), true)) {
-      link = URI(window.location.href).removeSearch(filter.data("key"), filter.data("value"));
-      filter.addClass("active").attr('href',link);
+    var filter = $(obj);
+    var key = filter.data("key");
+    var value = filter.data("value");
+    if (uri.hasQuery(key, true)) {
+      if(URI().query(true)[key].includes(value)) {
+            var array = removeValue(URI().query(true)[key], filter.data("value"));
+          if(bye.length == 0) {
+             var link = URI(window.location.href).removeSearch(key);
+          } else {
+             var link = URI(window.location.href).setSearch(key, array);
+          }
+          filter.removeClass("active").attr('href',link);
+      } else {
+        var array = URI().query(true)[key] + ',' + value;
+        link = URI(window.location.href).setSearch(key, array);
+        filter.addClass("active").attr('href',link);
+      }
     } else {
-      link = URI(window.location.href).addSearch(filter.data("key"), filter.data("value"));
-      filter.removeClass("active").attr('href',link);
+      link = URI(window.location.href).addSearch(key, value);
+      filter.addClass("active").attr('href',link);
     }
   });
 }
-
 
 function findGroups() {
   console.log('finding groups...');
   var currentUrl = window.location.href;
   var uri = URI(window.location.href);
+  var urlParams = new URLSearchParams(currentUrl);
+
+  var campusesArray = urlParams.getAll('campuses').toString();
+  var schedulesArray = urlParams.getAll('schedules').toString();
+  var tagsArray = urlParams.getAll('tags').toString();
+
+  if(campusesArray){
+    urlParams.delete('campuses')
+    urlParams.append('campuses',campusesArray);
+  }
+  if(schedulesArray){
+    urlParams.delete('schedules')
+    urlParams.append('schedules',schedulesArray);
+  }
+  if(tagsArray){
+    urlParams.delete('tags');
+    urlParams.append('tags',tagsArray);
+  }
+
+  
+
+  console.log(urlParams.toString());
+
   var query = uri.query();
+  
+
 
   $.ajax({
       url: '/api/GroupFinder?' + query,
@@ -318,11 +413,11 @@ function findGroups() {
         console.log('found ' + response.length + ' groups')
         $('#groups').html(" ");
 
+        if(window.markerCluster){
+          window.markerCluster.clearMarkers();
+        }
+
         if(!$.isEmptyObject(response)){
-          if(window.markerCluster){
-            window.markerCluster.clearMarkers();
-          }
-          
           var markers = response.map(function(item, i) {
             if (item.GroupLocation !== null) {
               var marker = new google.maps.Marker({
