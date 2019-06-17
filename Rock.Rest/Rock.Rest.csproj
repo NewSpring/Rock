@@ -101,7 +101,7 @@
     <Compile Include="ApiController.cs" />
     <Compile Include="ApiControllerBase.cs" />
     <Compile Include="Controllers\AssetStorageProvidersController.Partial.cs" />
-    <Compile Include="Controllers\GroupFinderController.Partial.cs" />
+    <Compile Include="Controllers\GroupFinderController.cs" />
     <Compile Include="Controllers\CodeGenerated\AnalyticsDimCampusController.cs" />
     <Compile Include="Controllers\CodeGenerated\AnalyticsSourceCampusController.cs" />
     <Compile Include="Controllers\CodeGenerated\AssetStorageProvidersController.cs" />

@@ -319,6 +319,10 @@ function findGroups() {
         $('#groups').html(" ");
 
         if(!$.isEmptyObject(response)){
+          if(window.markerCluster){
+            window.markerCluster.clearMarkers();
+          }
+          
           var markers = response.map(function(item, i) {
             if (item.GroupLocation !== null) {
               var marker = new google.maps.Marker({
@@ -334,9 +338,16 @@ function findGroups() {
 
             }
 
-            var groupCard = `
-            {[ card title:'${ item.IsActive } ${ item.Id } ${ item.Name }' titlesize:'h3' content:'<p class="push-half-bottom"><span class="label label-info sans-serif letter-spacing-condensed circular">${ item.Distance } miles</span></p><p class="push-half-bottom">${ item.Description }</p>' linkurl:'/groups/${ item.Id }' linktext:'Group Details' ]}
-            `
+            if(item.Distance) {
+              var groupCard = `
+              {[ card title:'${ item.Name }' titlesize:'h3' content:'<p class="push-half-bottom"><span class="label label-info sans-serif letter-spacing-condensed circular">${ item.Distance } miles</span></p><p class="push-half-bottom">${ item.Description } ${ item.Id }</p>' linkurl:'/groups/${ item.Id }' linktext:'Group Details' ]}
+              `
+            } else {
+              var groupCard = `
+              {[ card title:'${ item.Name }' titlesize:'h3' content:'<p class="push-half-bottom">${ item.Description } ${ item.Id }</p>' linkurl:'/groups/${ item.Id }' linktext:'Group Details' ]}
+              `
+            }
+            
             $('#groups').append(groupCard);
 
             return marker;
@@ -345,6 +356,7 @@ function findGroups() {
           // Add a marker clusterer to manage the markers.
           var markerCluster = new MarkerClusterer(map, markers, {imagePath: 'https://s3.amazonaws.com/ns.assets/newspring/mapmarkers/m'});
           markerCluster.getStyles().map(function(obj){ return Object.assign(obj, {textColor: 'white',textSize:'13'}) });
+          window.markerCluster = markerCluster;
 
           $('#groups').prepend('<h3 class="h5 push-half-bottom">' + response.length + ' groups found</h3>');            
 
