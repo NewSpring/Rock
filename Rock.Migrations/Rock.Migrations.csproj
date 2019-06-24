@@ -371,6 +371,7 @@
     <Compile Include="Migrations\201906202222262_Rollup_0620.cs" />
     <Compile Include="Migrations\201906202222262_Rollup_0620.Designer.cs">
       <DependentUpon>201906202222262_Rollup_0620.cs</DependentUpon>
+    </Compile>
     <Compile Include="Migrations\201905242149577_AddGlobalAttrib_EnableRouteDomainMatching.cs" />
     <Compile Include="Migrations\201905242149577_AddGlobalAttrib_EnableRouteDomainMatching.Designer.cs">
       <DependentUpon>201905242149577_AddGlobalAttrib_EnableRouteDomainMatching.cs</DependentUpon>
