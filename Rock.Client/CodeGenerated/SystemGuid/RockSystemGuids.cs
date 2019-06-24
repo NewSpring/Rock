@@ -28,17 +28,6 @@ namespace Rock.Client.SystemGuid
     #pragma warning disable CS1591
     /// <summary>
     /// </summary>
-    public class AssessmentType
-    {
-        public const string CONFLICT = "CE7E1986-FDC3-4A3F-9464-26A65D684E29";
-        public const string DISC = "A5CB2E3D-118A-41F2-972B-325A328B0B54";
-        public const string EQ = "DE2D65A3-FC36-4472-B5DF-FAD30EEC27A0";
-        public const string GIFTS = "B8FBD371-6B32-4BE5-872F-51400D16EC5D";
-        public const string MOTIVATORS = "EABE1ABA-4A23-44FF-8C7F-6B71383BED09";
-    }
-
-    /// <summary>
-    /// </summary>
     public class Attribute
     {
         public const string BINARYFILETYPE_FILESTORAGE_ROOTPATH = "3CAFA34D-9208-439B-A046-CB727FB729DE";
@@ -239,7 +228,6 @@ namespace Rock.Client.SystemGuid
     /// </summary>
     public class DefinedType
     {
-        public const string ASSESSMENT_CONFLICT_PROFILE = "EE7E089E-DF81-4407-8BFA-AD865FA5427A";
         public const string BACKGROUND_CHECK_TYPES = "BC2FDF9A-93B8-4325-8DE9-2F7B1943BFDF";
         public const string BENEVOLENCE_REQUEST_STATUS = "2787B088-D607-4D69-84FF-850A6891EE34";
         public const string BENEVOLENCE_RESULT_TYPE = "35FC0225-3DAC-48B4-BDF7-AFDE104FB60E";
@@ -322,11 +310,6 @@ namespace Rock.Client.SystemGuid
         public const string CHECKIN_SEARCH_TYPE_PHONE_NUMBER = "F3F66040-C50F-4D13-9652-780305FFFE23";
         public const string CHECKIN_SEARCH_TYPE_SCANNED_ID = "7668CE15-E372-47EE-8FF8-6FEE09F7C858";
         public const string COMMUNICATION_MEDIUM_EMAIL = "FC51461D-0C31-4C6B-A7C8-B3E8482C1055";
-        public const string CONFLICT_PROFILE_AVOIDING = "663B0F4A-DE1F-46BE-8BDD-D7C98863DDC4";
-        public const string CONFLICT_PROFILE_COMPROMISING = "CF78D6B1-38AA-4FF7-9A4B-E900438FA85A";
-        public const string CONFLICT_PROFILE_RESOLVING = "DF7B1EB2-7E7E-4F91-BD26-C6DFD88E38DF";
-        public const string CONFLICT_PROFILE_WINNING = "56300095-86AD-43FE-98D2-50829E9223C2";
-        public const string CONFLICT_PROFILE_YEILDING = "4AB06A6F-F5B1-4385-9365-199EA7969E50";
         public const string CURRENCY_TYPE_ACH = "DABEE8FD-AEDF-43E1-8547-4C97FA14D9B6";
         public const string CURRENCY_TYPE_ANDROID_PAY = "6151F6E0-3223-46BA-A59E-E091BE4AF75C";
         public const string CURRENCY_TYPE_APPLE_PAY = "D42C4DF7-1AE9-4DDE-ADA2-774B866B798C";
@@ -1060,7 +1043,6 @@ namespace Rock.Client.SystemGuid
     /// </summary>
     public class SystemEmail
     {
-        public const string ASSESSMENT_REQUEST = "41FF4269-7B48-40CD-81D4-C11370A13DED";
         public const string ATTENDANCE_NOTIFICATION = "CA794BD8-25C5-46D9-B7C2-AD8190AC27E6";
         public const string CONFIG_EXCEPTION_NOTIFICATION = "75CB0A4A-B1C5-4958-ADEB-8621BD231520";
         public const string CONFIG_JOB_NOTIFICATION = "691FEA1B-E5C4-4BF8-A7CD-C588F5C63CA8";
@@ -1095,7 +1077,6 @@ namespace Rock.Client.SystemGuid
     public class WorkflowType
     {
         public const string PROTECTMYMINISTRY = "16D12EF7-C546-4039-9036-B73D118EDC90";
-        public const string REQUEST_ASSESSMENT = "31DDC001-C91A-4418-B375-CAB1475F7A62";
         public const string UNATTENDED_CHECKIN = "011E9F5A-60D4-4FF5-912A-290881E37EAF";
     }
 

@@ -301,7 +301,7 @@ namespace Rock.Data
         {
             Migration.Sql( $@"
                 -- delete just in case Rock added it automatically before it was migrated
-                DELETE FROM [BlockType] 
+                DELETE FROM [BlockType]
 	            WHERE [Path] = '{1}' AND [Guid] != '{guid}';
 
                 -- look up existing block by guid and insert/update as needed
@@ -375,11 +375,11 @@ namespace Rock.Data
         public void RenameBlockType( string oldPath, string newPath, string newCategory = null, string newName = null, string newDescription = null )
         {
             Migration.Sql( string.Format( @"
-                DELETE FROM [BlockType] 
+                DELETE FROM [BlockType]
 	            WHERE [Path] = '{1}'
 
-                UPDATE [BlockType] SET 
-		            [Path] = '{1}', 
+                UPDATE [BlockType] SET
+		            [Path] = '{1}',
 		            [Category] = CASE WHEN '{2}' <> '' THEN '{2}' ELSE [Category] END,
 		            [Name] = CASE WHEN '{3}' <> '' THEN '{3}' ELSE [Name] END,
                     [Description] = CASE WHEN '{4}' <> '' THEN '{4}' ELSE [Description] END
@@ -446,10 +446,10 @@ namespace Rock.Data
         {
             var attributeName = attributeKey.SplitCase();
             string updateSql = $@"
-                DECLARE 
+                DECLARE
                     @FieldTypeId int
                     ,@AttributeId int
-                
+
                 SET @FieldTypeId = (SELECT [Id] FROM [FieldType] WHERE [Guid] = '{Rock.SystemGuid.FieldType.TEXT}')
                 SET @AttributeId = (SELECT [Id]
                     FROM [Attribute]
@@ -467,7 +467,7 @@ namespace Rock.Data
                 BEGIN
                     INSERT INTO [Attribute] (
                         [IsSystem],[FieldTypeId],[EntityTypeId],[EntityTypeQualifierColumn],[EntityTypeQualifierValue],
-                        [Order],[IsGridColumn],[IsMultiValue],[IsRequired],                        
+                        [Order],[IsGridColumn],[IsMultiValue],[IsRequired],
                         [Key],[Name],[DefaultValue], [Guid])
                     VALUES(
                         1,@FieldTypeId,NULL,'{Rock.Model.Attribute.SYSTEM_SETTING_QUALIFIER}','',
@@ -509,7 +509,7 @@ namespace Rock.Data
                 BEGIN
                     INSERT INTO [Attribute] (
                         [IsSystem],[FieldTypeId],[EntityTypeId],[EntityTypeQualifierColumn],[EntityTypeQualifierValue],
-                        [Order],[IsGridColumn],[IsMultiValue],[IsRequired],                        
+                        [Order],[IsGridColumn],[IsMultiValue],[IsRequired],
                         [Key],[Name],[DefaultValue], [Guid])
                     VALUES(
                         1,@FieldTypeId,NULL,'{Rock.Model.Attribute.SYSTEM_SETTING_QUALIFIER}','',
@@ -557,12 +557,12 @@ namespace Rock.Data
                         1,@SiteId,'{1}','{2}','{3}','{4}')
 
                 END
-                ELSE 
+                ELSE
                 BEGIN
-                    
-                    UPDATE [Layout] 
-                    SET [Guid]= '{4}', 
-                        [Name] = '{2}', 
+
+                    UPDATE [Layout]
+                    SET [Guid]= '{4}',
+                        [Name] = '{2}',
                         [Description] = '{3}',
                         [IsSystem] = 1
                     WHERE [Guid] =  '{4}'
@@ -593,9 +593,9 @@ namespace Rock.Data
                 DECLARE @SiteId int
                 SET @SiteId = (SELECT TOP 1 [Id] FROM [Site] WHERE [Guid] = '{0}')
 
-                UPDATE [Layout] 
-                SET [Guid]= '{4}', 
-                    [Name] = '{2}', 
+                UPDATE [Layout]
+                SET [Guid]= '{4}',
+                    [Name] = '{2}',
                     [Description] = '{3}',
                     [IsSystem] = {5}
                 WHERE [SiteId] =  @SiteId
@@ -719,7 +719,7 @@ namespace Rock.Data
         }
 
         /// <summary>
-        /// Deletes the Page 
+        /// Deletes the Page
         /// </summary>
         /// <param name="guid">The GUID.</param>
         public void DeletePage( string guid )
@@ -778,26 +778,6 @@ namespace Rock.Data
         }
 
         /// <summary>
-        /// Updates the PageId and/or Route for the given PageRouteGuid.
-        /// </summary>
-        /// <param name="pageRouteGuid">The page route unique identifier. Required</param>
-        /// <param name="pageGuid">The page unique identifier. Required.</param>
-        /// <param name="route">The route. Required.</param>
-        public void UpdatePageRoute( string pageRouteGuid, string pageGuid, string route )
-        {
-            string sql = $@"
-                DECLARE @pageId INT = (SELECT [Id] FROM [dbo].[Page] WHERE [Guid] = '{pageGuid}')
-                IF (EXISTS(SELECT [Id] FROM [dbo].[PageRoute] WHERE [Guid] = '{pageRouteGuid}') AND @pageId IS NOT NULL)
-                BEGIN
-                    UPDATE [dbo].[PageRoute]
-                    SET [PageId] = @pageId, [Route] = '{route}'
-                    WHERE [Guid] = '{pageRouteGuid}'
-                END";
-
-            Migration.Sql( sql );
-        }
-
-        /// <summary>
         /// Adds or Updates PageContext to the given page, entity, idParameter
         /// </summary>
         /// <param name="pageGuid">The page GUID.</param>
@@ -835,23 +815,6 @@ namespace Rock.Data
         public void DeletePageContext( string guid )
         {
             Migration.Sql( string.Format( @"DELETE FROM [PageContext] WHERE [Guid] = '{0}'", guid ) );
-        }
-
-        /// <summary>
-        /// Values the tuple.
-        /// </summary>
-        /// <param name="pageGuid">The page unique identifier.</param>
-        /// <param name="layoutGuid">The layout unique identifier.</param>
-        public void UpdatePageLayout( string pageGuid, string layoutGuid )
-        {
-            string sql = $@"
-                DECLARE @layoutId INT = (SELECT [Id] FROM [dbo].[Layout] WHERE [Guid] = '{layoutGuid}' )
-                IF EXISTS(SELECT [Id] FROM [Page] WHERE [Guid] = '{pageGuid}' AND  [LayoutId] <> @layoutId )
-                BEGIN
-	                UPDATE [dbo].[Page] SET [LayoutId] = @layoutId WHERE [Guid] = '{pageGuid}'
-                END";
-
-            Migration.Sql( sql );
         }
 
         #endregion
@@ -1061,12 +1024,12 @@ namespace Rock.Data
         public void UpdateCategory( string entityTypeGuid, string name, string iconCssClass, string description, string guid, int order = 0, string parentCategoryGuid = "" )
         {
             StringBuilder sql = new StringBuilder();
-            
+
             sql.AppendFormat( @"
 
                 DECLARE @EntityTypeId int = (SELECT [Id] FROM [EntityType] WHERE [Guid] = '{0}')
 
-                DECLARE @ParentCategoryId int 
+                DECLARE @ParentCategoryId int
 ", entityTypeGuid );
 
             var parentGuid = parentCategoryGuid.AsGuidOrNull();
@@ -1084,15 +1047,15 @@ namespace Rock.Data
             }
 
             sql.AppendFormat( @"
-                    DECLARE @CategoryId int = ( 
-                        SELECT TOP 1 [Id] 
-                        FROM [Category] 
+                    DECLARE @CategoryId int = (
+                        SELECT TOP 1 [Id]
+                        FROM [Category]
                         WHERE [EntityTypeId] = @EntityTypeId
                         AND [Name] = '{0}'
                         AND [ParentCategoryId] = @ParentCategoryId
                     )
 
-                    IF @CategoryId IS NOT NULL 
+                    IF @CategoryId IS NOT NULL
                     BEGIN
                         UPDATE [Category] SET [Guid] = '{3}'
                         WHERE [Id] = @CategoryId
@@ -1229,26 +1192,26 @@ namespace Rock.Data
                     DECLARE @FirstAttributeId int
                     DECLARE @LastAttributeId int
 
-                    SELECT 
-                        @FirstAttributeId = MIN([Id]),  
+                    SELECT
+                        @FirstAttributeId = MIN([Id]),
                         @LastAttributeId = MAX([Id])
                     FROM [Attribute]
                     WHERE [EntityTypeId] = @EntityTypeId
                     AND [EntityTypeQualifierColumn] = 'BlockTypeId'
                     AND [EntityTypeQualifierValue] = CAST(@BlockTypeId as varchar)
-                    AND [Key] = '{2}' 
+                    AND [Key] = '{2}'
 
                     IF @FirstAttributeId IS NOT NULL AND @FirstAttributeId <> @LastAttributeId
                     BEGIN
                         -- We have duplicate attributes, update values for the duplicates to point to first attribute
                         UPDATE V SET [AttributeId] = @FirstAttributeId
                         FROM [Attribute] A
-                        INNER JOIN [AttributeValue] V 
+                        INNER JOIN [AttributeValue] V
                             ON V.[AttributeId] = A.[Id]
                         WHERE A.[EntityTypeId] = @EntityTypeId
                         AND A.[EntityTypeQualifierColumn] = 'BlockTypeId'
                         AND A.[EntityTypeQualifierValue] = CAST(@BlockTypeId as varchar)
-                        AND A.[Key] = '{2}' 
+                        AND A.[Key] = '{2}'
                         AND A.[Id] <> @FirstAttributeId
 
                         -- Delete the duplicate attributes
@@ -1256,7 +1219,7 @@ namespace Rock.Data
                         WHERE [EntityTypeId] = @EntityTypeId
                         AND [EntityTypeQualifierColumn] = 'BlockTypeId'
                         AND [EntityTypeQualifierValue] = CAST(@BlockTypeId as varchar)
-                        AND [Key] = '{2}' 
+                        AND [Key] = '{2}'
                         AND [Id] <> @FirstAttributeId
 				    END
 
@@ -1841,7 +1804,7 @@ namespace Rock.Data
                 end"
                 , entityTypeName
                 , isEntity ? 1 : 0
-                , isSecured ? 1 : 0 
+                , isSecured ? 1 : 0
                 )
             );
 
@@ -1935,10 +1898,10 @@ namespace Rock.Data
                 SET @AttributeId = (SELECT [Id] FROM [Attribute] WHERE [Guid] = '{0}')
 
                 IF NOT EXISTS(
-                    SELECT * 
-                    FROM [AttributeQualifier] 
-                    WHERE [AttributeId] = @AttributeId 
-                    AND [Key] = '{1}' 
+                    SELECT *
+                    FROM [AttributeQualifier]
+                    WHERE [AttributeId] = @AttributeId
+                    AND [Key] = '{1}'
                 )
                 BEGIN
                     INSERT INTO [AttributeQualifier] (
@@ -1951,8 +1914,8 @@ namespace Rock.Data
                     UPDATE [AttributeQualifier] SET
                         [Value] = '{2}',
                         [Guid] = '{3}'
-                    WHERE [AttributeId] = @AttributeId 
-                    AND [Key] = '{1}' 
+                    WHERE [AttributeId] = @AttributeId
+                    AND [Key] = '{1}'
                 END
 ",
                     attributeGuid, // {0}
@@ -2027,7 +1990,7 @@ namespace Rock.Data
         /// <param name="value">The value.</param>
         /// <param name="appendToExisting">if set to <c>true</c> appends the value to the existing value instead of replacing.</param>
         public void AddBlockAttributeValue( bool skipIfAlreadyExists, string blockGuid, string attributeGuid, string value, bool appendToExisting = false )
-        { 
+        {
             var addBlockValueSQL = string.Format( @"
 
                 DECLARE @BlockId int
@@ -2072,7 +2035,7 @@ namespace Rock.Data
                     value.Replace( "'", "''" ),
                     ( appendToExisting ? "1" : "0" )
                 );
-            
+
             if ( skipIfAlreadyExists )
             {
                 addBlockValueSQL = $@"IF NOT EXISTS (
@@ -2138,14 +2101,14 @@ BEGIN
                     WITH CTE AS
                         (
                             SELECT Value, REPLACE(','+ Value +',', ',{2},',',') As newValue
-                            FROM [AttributeValue] WHERE [AttributeId] = @AttributeId AND [EntityId] = @BlockId 
+                            FROM [AttributeValue] WHERE [AttributeId] = @AttributeId AND [EntityId] = @BlockId
                         )
 
 
                         UPDATE CTE
                         SET Value = ISNULL(
                                             STUFF(
-                                                STUFF(newValue, 1, 1, ''), 
+                                                STUFF(newValue, 1, 1, ''),
                                                 LEN(newValue)-1, 2, '')
                                         , '')
                 END", blockGuid, attributeGuid, value ) );
@@ -2322,7 +2285,7 @@ BEGIN
                     WHERE [EntityTypeId] = @EntityTypeId
                     AND [EntityTypeQualifierColumn] = 'DefinedTypeId'
                     AND [EntityTypeQualifierValue] = CAST(@DefinedTypeId as varchar)
-                    AND [Key] = '{2}'  
+                    AND [Key] = '{2}'
 
                 END
 ",
@@ -2403,7 +2366,7 @@ BEGIN
                     WHERE [EntityTypeId] = @EntityTypeId
                     AND [EntityTypeQualifierColumn] = 'DefinedTypeId'
                     AND [EntityTypeQualifierValue] = CAST(@DefinedTypeId as varchar)
-                    AND [Key] = '{key}'  
+                    AND [Key] = '{key}'
 
                 END" );
         }
@@ -2457,7 +2420,7 @@ BEGIN
                     WHERE [EntityTypeId] = @EntityTypeId
                     AND [EntityTypeQualifierColumn] = 'DefinedTypeId'
                     AND [EntityTypeQualifierValue] = CAST(@DefinedTypeId as varchar)
-                    AND [guid] = '{guid}'  
+                    AND [guid] = '{guid}'
 
                 END" );
         }
@@ -3026,7 +2989,7 @@ END
                         [IsSystem] = {IsSystem.Bit()}
                     WHERE Id = @Id;
                 END" );
-                    
+
         }
 
         /// <summary>
@@ -3096,7 +3059,7 @@ END
         }
 
         #endregion
-        
+
         #region Security/Auth
 
         /// <summary>
@@ -4744,7 +4707,7 @@ END
 
                 DECLARE @WorkflowTypeId int = (SELECT [Id] FROM [WorkflowType] WHERE [Guid] = '{0}')
 
-                IF @WorkflowTypeId IS NOT NULL 
+                IF @WorkflowTypeId IS NOT NULL
                 BEGIN
 
                     IF EXISTS ( SELECT [Id] FROM [WorkflowActivityType] WHERE [Guid] =  '{6}' )
@@ -5311,16 +5274,16 @@ END
         /// <summary>
         /// Normalizes line endings of the given column so your WHERE clause
         /// or REPLACE function works as you expect it to.
-        /// 
+        ///
         /// Call this on the search _condition column of your WHERE clause
         /// or on the string_expression in your REPLACE call when you are using
         /// multi line strings!
-        /// 
+        ///
         /// <para>
         /// NOTE: It does this by first changing CRLF (13 10) to GS (29;group separator),
         /// then changing LF to CRLF, then changing GS back to CRLF.
         /// </para>
-        /// 
+        ///
         /// <para>
         /// Example 1:
         ///     "WHERE " + NormalizeColumnCRLF( "GroupViewLavaTemplate" ) + " LIKE '%...%'"
@@ -5335,7 +5298,7 @@ END
         /// Example 3:
         ///     var targetColumn = NormalizeColumnCRLF( "GroupViewLavaTemplate" );
         ///     Sql( $@"
-        ///     UPDATE[GroupType] 
+        ///     UPDATE[GroupType]
         ///     SET[GroupViewLavaTemplate] = REPLACE( {targetColumn}, '{lavaTemplate}', '{newLavaTemplate}' )
         ///     WHERE {targetColumn} NOT LIKE '%{newLavaTemplate}%'"
         ///     );
@@ -5353,8 +5316,8 @@ END
 
             column = column.Replace( '[', '\0' ).Replace( ']', '\0' );
             return $@"
-	            REPLACE( 
-		            REPLACE( 
+	            REPLACE(
+		            REPLACE(
 			            REPLACE( [{column}], CHAR(13)+CHAR(10), CHAR(29) )
 		            , CHAR(10), CHAR(13)+CHAR(10) )
 	            , CHAR(29), CHAR(13)+CHAR(10) )";

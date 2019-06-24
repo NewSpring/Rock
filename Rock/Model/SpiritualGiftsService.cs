@@ -334,7 +334,7 @@ namespace Rock.Model
         }
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         public class SpiritualGift
         {

@@ -75,10 +75,11 @@ namespace Rock.Financial
         /// and returns a customer account token that can be used for future transactions.
         /// </summary>
         /// <param name="financialGateway">The financial gateway.</param>
+        /// <param name="paymentToken">The payment token.</param>
         /// <param name="paymentInfo">The payment information.</param>
         /// <param name="errorMessage">The error message.</param>
         /// <returns></returns>
-        string CreateCustomerAccount( FinancialGateway financialGateway, ReferencePaymentInfo paymentInfo, out string errorMessage );
+        string CreateCustomerAccount( FinancialGateway financialGateway, string paymentToken, PaymentInfo paymentInfo, out string errorMessage );
 
         /// <summary>
         /// Gets the earliest scheduled start date that the gateway will accept for the start date, based on the current local time.
@@ -86,6 +87,6 @@ namespace Rock.Financial
         /// <param name="financialGateway">The financial gateway.</param>
         /// <returns></returns>
         DateTime GetEarliestScheduledStartDate( FinancialGateway financialGateway );
-        
+
     }
 }

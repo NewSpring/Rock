@@ -17,25 +17,18 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.Data.Entity;
 using System.Linq;
 using System.Text;
-using System.Text.RegularExpressions;
 using System.Web.UI;
 using System.Web.UI.HtmlControls;
 using System.Web.UI.WebControls;
-
-using Newtonsoft.Json;
-
 using Rock;
 using Rock.Attribute;
 using Rock.CheckIn;
 using Rock.Data;
 using Rock.Model;
 using Rock.Security;
-using Rock.Utility;
 using Rock.Web.Cache;
-using Rock.Web.UI.Controls;
 
 namespace RockWeb.Blocks.CheckIn
 {
@@ -134,14 +127,6 @@ namespace RockWeb.Blocks.CheckIn
         Category = "Manager Settings",
         Order = 20 )]
 
-    [BooleanField(
-        "Allow Label Reprinting",
-        Key = AttributeKey.AllowLabelReprinting,
-        Description = " Determines if reprinting labels should be allowed.",
-        DefaultBooleanValue = false,
-        Category = "Manager Settings",
-        Order = 21 )]
-
     public partial class Welcome : CheckInBlock
     {
         #region Attribute Keys
@@ -159,7 +144,6 @@ namespace RockWeb.Blocks.CheckIn
             public const string CheckinButtonText = "CheckinButtonText";
             public const string NoOptionCaption = "NoOptionCaption";
             public const string AllowOpeningAndClosingRooms = "AllowOpeningAndClosingRooms";
-            public const string AllowLabelReprinting = "AllowLabelReprinting";
         }
 
         #endregion
@@ -292,6 +276,18 @@ namespace RockWeb.Blocks.CheckIn
         }
 
         /// <summary>
+        /// Handles the Click event of the btnOverride control.
+        /// </summary>
+        /// <param name="sender">The source of the event.</param>
+        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        protected void btnOverride_Click( object sender, EventArgs e )
+        {
+            var queryParams = new Dictionary<string, string>();
+            queryParams.Add( "Override", "True" );
+            NavigateToNextPage( queryParams );
+        }
+
+        /// <summary>
         /// Handles the start click.
         /// </summary>
         protected void HandleStartClick()
@@ -308,8 +304,9 @@ namespace RockWeb.Blocks.CheckIn
             CurrentCheckInState.Messages = new List<CheckInMessage>();
         }
 
+        // TODO: Add support for scanner
         /// <summary>
-        /// Performs a search for the family.
+        /// Somes the scanner search.
         /// </summary>
         /// <param name="searchType">Type of the search.</param>
         /// <param name="searchValue">The search value.</param>
@@ -356,7 +353,6 @@ namespace RockWeb.Blocks.CheckIn
             ManagerLoggedIn = false;
             pnlManagerLogin.Visible = false;
             pnlManager.Visible = false;
-            HideReprintPanels();
             btnManager.Visible = ( CurrentCheckInType != null ? CurrentCheckInType.EnableManagerOption : true );
             btnOverride.Visible = ( CurrentCheckInType != null ? CurrentCheckInType.EnableOverride : true );
 
@@ -817,7 +813,6 @@ namespace RockWeb.Blocks.CheckIn
             RefreshView();
             ManagerLoggedIn = false;
             pnlManager.Visible = false;
-            HideReprintPanels();
         }
 
         /// <summary>
@@ -876,26 +871,13 @@ namespace RockWeb.Blocks.CheckIn
         }
 
         /// <summary>
-        /// Handles the Click event of the lbCancel control.
-        /// </summary>
-        /// <param name="sender">The source of the event.</param>
-        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
-        protected void lbCancel_Click( object sender, EventArgs e )
-        {
-            btnBack_Click( sender, e );
-        }
-
-        #endregion
-
-        /// <summary>
-        /// Shows the management screen details.
+        /// Shows the management details.
         /// </summary>
         private void ShowManagementDetails()
         {
             // Only show Schedule Locations if setting is not empty
             btnScheduleLocations.Visible = GetAttributeValue( AttributeKey.ScheduledLocationsPage ).IsNotNullOrWhiteSpace();
 
-            btnReprintLabels.Visible = GetAttributeValue( AttributeKey.AllowLabelReprinting ).AsBoolean();
             pnlManagerLogin.Visible = false;
             pnlManager.Visible = true;
             btnManager.Visible = false;
@@ -1006,6 +988,15 @@ namespace RockWeb.Blocks.CheckIn
             }
         }
 
-        #endregion
+        /// <summary>
+        /// Handles the Click event of the lbCancel control.
+        /// </summary>
+        /// <param name="sender">The source of the event.</param>
+        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        protected void lbCancel_Click( object sender, EventArgs e )
+        {
+            btnBack_Click( sender, e );
+        }
+
     }
 }

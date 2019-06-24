@@ -402,12 +402,12 @@ namespace RockWeb.Blocks.Event
                 // Otherwise if template allows multiple, set the max amount
                 if ( RegistrationTemplate != null && RegistrationTemplate.AllowMultipleRegistrants )
                 {
-                    if ( !RegistrationTemplate.MaxRegistrants.HasValue )
+                    if ( RegistrationTemplate.MaxRegistrants <= 0 )
                     {
                         return int.MaxValue;
                     }
 
-                    return RegistrationTemplate.MaxRegistrants.Value;
+                    return RegistrationTemplate.MaxRegistrants;
                 }
 
                 // Default is a maximum of one
@@ -1785,7 +1785,7 @@ namespace RockWeb.Blocks.Event
             if ( RegistrationState != null )
             {
                 // Calculate the available slots. If maxAttendees is 0 that means unlimited since this is not a nullable.
-                if ( !RegistrationState.RegistrationId.HasValue && RegistrationInstanceState != null && RegistrationInstanceState.MaxAttendees.HasValue )
+                if ( !RegistrationState.RegistrationId.HasValue && RegistrationInstanceState != null && RegistrationInstanceState.MaxAttendees != 0 )
                 {
                     var existingRegistrantIds = RegistrationState.Registrants.Select( r => r.Id ).ToList();
                     var otherRegistrantsCount = new RegistrationRegistrantService( new RockContext() ).Queryable()
@@ -5457,6 +5457,8 @@ namespace RockWeb.Blocks.Event
         {
             if ( RegistrationState != null )
             {
+                RegistrationState.Registrants.ForEach( r => r.DiscountApplies = true );
+
                 var discounts = RegistrationTemplate.Discounts
                         .Where( d => d.AutoApplyDiscount )
                         .OrderBy( d => d.Order )

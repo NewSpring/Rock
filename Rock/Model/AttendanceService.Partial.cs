@@ -16,11 +16,11 @@
 //
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Data;
 using System.Data.Entity;
 using System.Data.Entity.SqlServer;
 using System.Linq;
+
 using Rock.Chart;
 using Rock.Communication;
 using Rock.Data;
@@ -107,7 +107,7 @@ namespace Rock.Model
             var occurrenceService = new AttendanceOccurrenceService( (RockContext)Context );
             var occurrence = occurrenceService.GetOrAdd( checkinDateTime.Date, groupId, locationId, scheduleId );
 
-            // If we still don't have an occurrence record (i.e. validation failed) return null 
+            // If we still don't have an occurrence record (i.e. validation failed) return null
             if ( occurrence == null )
                 return null;
 
@@ -309,7 +309,7 @@ namespace Rock.Model
             var includeNullCampus = ( campusIds ?? "" ).Split( ',' ).ToList().Any( a => a.Equals( "null", StringComparison.OrdinalIgnoreCase ) );
             var campusIdList = ( campusIds ?? "" ).Split( ',' ).AsIntegerList();
 
-            // remove 0 from the list, just in case it is there 
+            // remove 0 from the list, just in case it is there
             campusIdList.Remove( 0 );
 
             if ( campusIdList.Any() )
@@ -590,7 +590,7 @@ namespace Rock.Model
         }
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         public class AttendanceWithSummaryDateTime
         {
@@ -613,23 +613,12 @@ namespace Rock.Model
 
         /// <summary>
         /// Sends the scheduled attendance confirmation emails and marks ScheduleConfirmationSent = true, then returns the number of emails sent.
-        /// Make sure to call rockContext.SaveChanges() after running this.
-        /// NOTE: This doesn't check <see cref="Attendance.ScheduleConfirmationSent" />, so you'll need to add that condition to the sendConfirmationAttendancesQuery parameter
         /// </summary>
         /// <param name="sendConfirmationAttendancesQuery">The send confirmation attendances query.</param>
-        /// <param name="errorMessages">The error messages.</param>
         /// <returns></returns>
-        public int SendScheduleConfirmationSystemEmails( IQueryable<Attendance> sendConfirmationAttendancesQuery, out List<string> errorMessages )
+        public int SendScheduleConfirmationSystemEmails( IQueryable<Attendance> sendConfirmationAttendancesQuery )
         {
             int emailsSent = 0;
-            errorMessages = new List<string>();
-
-            sendConfirmationAttendancesQuery = sendConfirmationAttendancesQuery.Where( a =>
-                a.PersonAlias.Person.Email != null
-                && a.PersonAlias.Person.Email != string.Empty
-                && a.PersonAlias.Person.EmailPreference != EmailPreference.DoNotEmail
-                && a.PersonAlias.Person.IsEmailActive );
-
             var sendConfirmationAttendancesQueryList = sendConfirmationAttendancesQuery.ToList();
             var attendancesBySystemEmailTypeList = sendConfirmationAttendancesQueryList.GroupBy( a => a.Occurrence.Group.GroupType.ScheduleConfirmationSystemEmailId ).Where( a => a.Key.HasValue ).Select( s => new
             {
@@ -638,8 +627,6 @@ namespace Rock.Model
             } ).ToList();
 
             var rockContext = this.Context as RockContext;
-
-            List<Exception> exceptionList = new List<Exception>();
 
             foreach ( var attendancesBySystemEmailType in attendancesBySystemEmailTypeList )
             {
@@ -655,45 +642,28 @@ namespace Rock.Model
                 {
                     try
                     {
+
                         var emailMessage = new RockEmailMessage( scheduleConfirmationSystemEmail );
                         var recipient = attendancesByPerson.Person.Email;
                         var attendances = attendancesByPerson.Attendances;
+
+                        foreach ( var attendance in attendances )
+                        {
+                            attendance.ScheduleConfirmationSent = true;
+                        }
 
                         var mergeFields = Rock.Lava.LavaHelper.GetCommonMergeFields( null );
                         mergeFields.Add( "Attendance", attendances.FirstOrDefault() );
                         mergeFields.Add( "Attendances", attendances );
                         emailMessage.AddRecipient( new RecipientData( recipient, mergeFields ) );
-                        List<string> sendErrors;
-                        bool sendSuccess = emailMessage.Send( out sendErrors );
-
-                        if ( sendSuccess )
-                        {
-                            emailsSent++;
-                            foreach ( var attendance in attendances )
-                            {
-                                attendance.ScheduleConfirmationSent = true;
-                            }
-                        }
-                        else
-                        {
-                            errorMessages.AddRange( sendErrors );
-                        }
+                        emailMessage.Send();
+                        emailsSent++;
                     }
                     catch ( Exception ex )
                     {
-                        var emailException = new Exception( $"Exception occurred when trying to send Schedule Confirmation Email to { attendancesByPerson.Person }", ex );
-                        errorMessages.Add( emailException.Message );
-                        exceptionList.Add( emailException );
+                        ExceptionLogService.LogException( new Exception( $"Exception occurred trying to send ScheduleConfirmationSystemEmailId to { attendancesByPerson.Person }", ex ) );
                     }
                 }
-            }
-
-            // group messages that are exactly the same and put a count of those in the message
-            errorMessages = errorMessages.GroupBy( a => a ).Select( s => s.Count() > 1 ? $"{s.Key}  ({s.Count()})" : s.Key ).ToList();
-
-            if ( exceptionList.Any() )
-            {
-                ExceptionLogService.LogException( new AggregateException( "Errors Occurred sending schedule confirmation emails", exceptionList ) );
             }
 
             return emailsSent;
@@ -785,7 +755,7 @@ namespace Rock.Model
         }
 
         /// <summary>
-        /// Gets a list of available the scheduler resources (people) based on the options specified in schedulerResourceParameters 
+        /// Gets a list of available the scheduler resources (people) based on the options specified in schedulerResourceParameters
         /// </summary>
         /// <param name="schedulerResourceParameters">The scheduler resource parameters.</param>
         /// <returns></returns>
@@ -849,7 +819,7 @@ namespace Rock.Model
                 if ( dataView != null )
                 {
                     List<string> errorMessages;
-                    personQry = dataView.GetQuery( null, rockContext, null, out errorMessages ) as IQueryable<Person>;
+                    personQry = dataView.GetQuery( null, null, out errorMessages ) as IQueryable<Person>;
                 }
             }
 
@@ -1034,8 +1004,6 @@ namespace Rock.Model
                     schedulerResource.LastAttendanceDateTime = personIdLastAttendedDateTimeLookup.GetValueOrNull( schedulerResource.PersonId );
                     var scheduledForGroupIds = scheduledAttendanceGroupIdsLookup.GetValueOrNull( schedulerResource.PersonId );
 
-                    schedulerResource.ConfirmationStatus = ScheduledAttendanceItemStatus.Unscheduled.ConvertToString( false ).ToLower();
-
                     // see if they are scheduled for some other group during this occurrence
                     schedulerResource.HasSchedulingConflict = scheduledForGroupIds?.Any( groupId => groupId != schedulerResourceParameters.AttendanceOccurrenceGroupId ) ?? false;
 
@@ -1063,7 +1031,7 @@ namespace Rock.Model
         }
 
         /// <summary>
-        /// Gets a list of SchedulerResourceAttend records 
+        /// Gets a list of SchedulerResourceAttend records
         /// </summary>
         /// <param name="attendanceOccurrenceId">The attendance occurrence identifier.</param>
         /// <returns></returns>
@@ -1280,6 +1248,8 @@ namespace Rock.Model
                  && a.Occurrence.GroupId == attendanceOccurrence.GroupId
                  && a.Occurrence.OccurrenceDate == attendanceOccurrence.OccurrenceDate
                 && a.Occurrence.LocationId == null ).ToList();
+
+//##TODO## test
 
             if ( unspecifiedLocationResourceAttendanceList.Any() )
             {
@@ -1616,14 +1586,6 @@ namespace Rock.Model
         public int PersonId { get; set; }
 
         /// <summary>
-        /// Gets or sets the <see cref="ScheduledAttendanceItemStatus"/> as a lowercase string
-        /// </summary>
-        /// <value>
-        /// The status.
-        /// </value>
-        public string ConfirmationStatus { get; set; }
-
-        /// <summary>
         /// Gets or sets the GroupMemberId.
         /// NOTE: This will be NULL if the resource list has manually added personIds and/or comes from a Person DataView.
         /// </summary>
@@ -1774,7 +1736,7 @@ namespace Rock.Model
     }
 
     /// <summary>
-    /// 
+    ///
     /// </summary>
     public enum ScheduledAttendanceItemStatus
     {
@@ -1791,16 +1753,11 @@ namespace Rock.Model
         /// <summary>
         /// declined
         /// </summary>
-        Declined,
-
-        /// <summary>
-        /// Person isn't Scheduled (they would be in the list of Unscheduled resources)
-        /// </summary>
-        Unscheduled,
+        Declined
     }
 
     /// <summary>
-    /// 
+    ///
     /// </summary>
     public enum SchedulerResourceListSourceType
     {
@@ -1822,7 +1779,7 @@ namespace Rock.Model
     }
 
     /// <summary>
-    /// 
+    ///
     /// </summary>
     public enum SchedulerResourceGroupMemberFilterType
     {
@@ -1838,7 +1795,7 @@ namespace Rock.Model
     }
 
     /// <summary>
-    /// 
+    ///
     /// </summary>
     [RockClientInclude( "Use this as the Content of a ~/api/Attendances/GetSchedulerResources POST" )]
     public class SchedulerResourceParameters
@@ -1903,7 +1860,7 @@ namespace Rock.Model
     #endregion Group Scheduling related classes and types
 
     /// <summary>
-    /// 
+    ///
     /// </summary>
     public static class AttendanceQryExtensions
     {

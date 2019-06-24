@@ -20,13 +20,8 @@ using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text.RegularExpressions;
-using System.Web.UI;
-
-using Newtonsoft.Json;
 
 using Rock.CheckIn;
-using Rock.Data;
-using Rock.Model;
 
 namespace Rock.Utility
 {
@@ -248,25 +243,25 @@ namespace Rock.Utility
         var labelData = {0};
 
 		function onDeviceReady() {{
-            try {{			
+            try {{
                 printLabels();
-            }} 
+            }}
             catch (err) {{
                 console.log('An error occurred printing labels: ' + err);
             }}
 		}}
-		
+
 		function alertDismissed() {{
 		    // do something
 		}}
-		
+
 		function printLabels() {{
 		    ZebraPrintPlugin.printTags(
-            	JSON.stringify(labelData), 
-            	function(result) {{ 
+            	JSON.stringify(labelData),
+            	function(result) {{
 			        console.log('Tag printed');
 			    }},
-			    function(error) {{   
+			    function(error) {{
 				    // error is an array where:
 				    // error[0] is the error message
 				    // error[1] determines if a re-print is possible (in the case where the JSON is good, but the printer was not connected)
@@ -356,209 +351,5 @@ namespace Rock.Utility
             }
         }
         #endregion
-
-        #region Reprint Label Helper Methods & Classes
-
-        /// <summary>
-        /// Get a list of available check-in label types to reprint for the given person and attendanceIds.
-        /// </summary>
-        /// <param name="personId"></param>
-        /// <param name="attendanceIds"></param>
-        /// <returns>a list of available ReprintLabelCheckInLabelType</returns>
-        public static List<ReprintLabelCheckInLabelType> GetLabelTypesForPerson( int personId, List<int> attendanceIds )
-        {
-            List<ReprintLabelCheckInLabelType> labelTypes = new List<ReprintLabelCheckInLabelType>();
-
-            var rockContext = new RockContext();
-            var attendanceService = new AttendanceService( rockContext );
-            var binaryFileService = new BinaryFileService( rockContext );
-
-            // Get the attendance records for the set given to us
-            var attendanceRecords = attendanceService.GetByIds( attendanceIds );
-
-            // If no data was found return the empty list.
-            if ( attendanceRecords == null )
-            {
-                return labelTypes;
-            }
-
-            var handledList = new Dictionary<Guid, bool>();
-
-            foreach ( var attendance in attendanceRecords.Where( a => a.AttendanceData != null ) )
-            {
-                var attendanceData = attendance.AttendanceData;
-
-                var json = attendanceData.LabelData.Trim();
-
-                // If no data was found, then skip this attendance record.
-                if ( json == null )
-                {
-                    continue;
-                }
-
-                // determine if the return type is an array or not
-                if ( json.Substring( 0, 1 ) == "[" )
-                {
-                    // De-serialize the JSON into a list of objects
-                    var checkinLabels = JsonConvert.DeserializeObject<List<CheckInLabel>>( json );
-                    if ( checkinLabels == null )
-                    {
-                        continue;
-                    }
-
-                    var fileGuids = checkinLabels.Where( l => l.PersonId == personId && !handledList.ContainsKey( l.FileGuid ) )
-                        .Select( l => l.FileGuid )
-                        .ToList();
-
-                    if ( fileGuids == null || fileGuids.Count == 0 )
-                    {
-                        continue;
-                    }
-
-                    var labels = binaryFileService.GetByGuids( fileGuids );
-
-                    foreach ( var label in labels )
-                    {
-                        handledList.AddOrReplace( label.Guid, true );
-                        labelTypes.Add( new ReprintLabelCheckInLabelType
-                        {
-                            Name = label.FileName,
-                            LabelFileId = ( int ) label.Id,
-                            FileGuid = label.Guid,
-                            PersonId = personId,
-                            AttendanceIds = attendanceIds
-                        } );
-                    }
-                }
-            }
-
-            return labelTypes;
-        }
-
-        #endregion
     }
-
-    #region Reprint Label Helper Classes
-
-    /// <summary>
-    /// The class structure used with label reprinting as a view model for on screen button choices.
-    /// </summary>
-    public class ReprintLabelPersonResult
-    {
-        /// <summary>
-        /// The Person's Id 
-        /// </summary>
-        public int Id { get; set; }
-        /// <summary>
-        /// A list of Attendance Ids.
-        /// </summary>
-        public List<int> AttendanceIds { get; set; }
-        /// <summary>
-        /// The Guid of the Person.
-        /// </summary>
-        public Guid PersonGuid { get; set; }
-        /// <summary>
-        /// The Person's name.
-        /// </summary>
-        public string Name { get; set; }
-        /// <summary>
-        /// Gets or sets the location and schedule names shown on the button.
-        /// </summary>
-        /// <value>
-        /// The location and schedule names.
-        /// </value>
-        public string LocationAndScheduleNames { get; set; }
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="ReprintLabelPersonResult"/> class.
-        /// </summary>
-        public ReprintLabelPersonResult()
-        {
-        }
-
-        /// <summary>
-        /// Constructor to create an object for the given attendance list.
-        /// </summary>
-        /// <param name="attendances"></param>
-        public ReprintLabelPersonResult( List<Attendance> attendances )
-        {
-            if ( attendances.Any() )
-            {
-                var person = attendances.First().PersonAlias.Person;
-                Id = person.Id;
-                AttendanceIds = attendances.Select( a => a.Id ).ToList();
-                PersonGuid = person.Guid;
-                Name = person.FullName;
-
-                LocationAndScheduleNames = attendances
-                    .Select( a => string.Format( "{0} {1}",
-                            a.Occurrence.Location.Name,
-                            a.Occurrence.Schedule != null ? a.Occurrence.Schedule.Name : string.Empty ) )
-                    .Distinct()
-                    .ToList()
-                    .AsDelimited( "\r\n" );
-            }
-        }
-
-        /// <summary>
-        /// Returns a <see cref="System.String" /> that represents this instance.
-        /// </summary>
-        /// <returns>
-        /// A <see cref="System.String" /> that represents this instance.
-        /// </returns>
-        public override string ToString()
-        {
-            return string.Format( "{0} <span class='pull-right'>{1}</span>", Name, LocationAndScheduleNames );
-        }
-    }
-
-    /// <summary>
-    /// Class used as a structure for the reprinting of labels.
-    /// </summary>
-    public class ReprintLabelCheckInLabelType
-    {
-        /// <summary>
-        /// Gets or sets the identifier.
-        /// </summary>
-        /// <value>
-        /// The identifier.
-        /// </value>
-        public int Id { get; set; }
-        /// <summary>
-        /// Gets or sets the label binary file identifier.
-        /// </summary>
-        /// <value>
-        /// The label file identifier.
-        /// </value>
-        public int LabelFileId { get; set; }
-        /// <summary>
-        /// Gets or sets the label binary file unique identifier.
-        /// </summary>
-        /// <value>
-        /// The file unique identifier.
-        /// </value>
-        public Guid FileGuid { get; set; }
-        /// <summary>
-        /// Gets or sets the name.
-        /// </summary>
-        /// <value>
-        /// The name.
-        /// </value>
-        public string Name { get; set; }
-        /// <summary>
-        /// Gets or sets the person's Id.
-        /// </summary>
-        /// <value>
-        /// The person identifier.
-        /// </value>
-        public int PersonId { get; set; }
-        /// <summary>
-        /// Gets or sets a list of attendance ids.
-        /// </summary>
-        /// <value>
-        /// The attendance ids.
-        /// </value>
-        public List<int> AttendanceIds { get; set; }
-    }
-    #endregion
 }

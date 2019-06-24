@@ -480,7 +480,7 @@ Guid - ContentChannelItem Guid
                     var itemMergeFields = new Dictionary<string, object>( commonMergeFields );
 
                     var enabledCommands = GetAttributeValue( "EnabledLavaCommands" );
-                    
+
                     itemMergeFields.AddOrReplace( "Item", contentChannelItem );
                     contentChannelItem.Content = contentChannelItem.Content.ResolveMergeFields( itemMergeFields, enabledCommands );
                     contentChannelItem.LoadAttributes();

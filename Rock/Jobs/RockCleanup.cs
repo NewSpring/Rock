@@ -221,14 +221,13 @@ namespace Rock.Jobs
                 rockCleanupExceptions.Add( new Exception( "Exception in GroupMembershipCleanup", ex ) );
             }
 
-            try
+            if ( databaseRowsCleanedUp.Any( a => a.Value > 0 ) )
             {
-                var rowsDeleted = AttendanceDataCleanup( dataMap );
-                databaseRowsCleanedUp.Add( "Attendance Data (old label data)", rowsDeleted );
+                context.Result = string.Format( "Rock Cleanup cleaned up {0}", databaseRowsCleanedUp.Where( a => a.Value > 0 ).Select( a => $"{a.Value} {a.Key.PluralizeIf( a.Value != 1 )}" ).ToList().AsDelimited( ", ", " and " ) );
             }
-            catch ( Exception ex )
+            else
             {
-                rockCleanupExceptions.Add( new Exception( "Exception in AttendanceDataCleanup", ex ) );
+                context.Result = "Rock Cleanup completed";
             }
 
             try
@@ -239,18 +238,6 @@ namespace Rock.Jobs
             catch ( Exception ex )
             {
                 rockCleanupExceptions.Add( new Exception( "Exception in LocationCleanup", ex ) );
-            }
-
-            // ***********************
-            //  Final count and report
-            // ***********************
-            if ( databaseRowsCleanedUp.Any( a => a.Value > 0 ) )
-            {
-                context.Result = string.Format( "Rock Cleanup cleaned up {0}", databaseRowsCleanedUp.Where( a => a.Value > 0 ).Select( a => $"{a.Value} {a.Key.PluralizeIf( a.Value != 1 )}" ).ToList().AsDelimited( ", ", " and " ) );
-            }
-            else
-            {
-                context.Result = "Rock Cleanup completed";
             }
 
             if ( rockCleanupExceptions.Count > 0 )

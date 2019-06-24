@@ -21,8 +21,6 @@ using System.ComponentModel.Composition;
 using System.Data.Entity;
 using System.Linq;
 
-using Newtonsoft.Json;
-using Rock.Attribute;
 using Rock.CheckIn;
 using Rock.Data;
 using Rock.Model;
@@ -36,8 +34,6 @@ namespace Rock.Workflow.Action.CheckIn
     [Description( "Creates Check-in Labels" )]
     [Export( typeof( ActionComponent ) )]
     [ExportMetadata( "ComponentName", "Create Labels" )]
-    [BooleanField( "Enable Saving Label Data", "Select 'Yes' if the label data should be temporarily saved on the attendance record. Select 'No' to disable saving label data.", true )]
-
     public class CreateLabels : CheckInActionComponent
     {
         /// <summary>
@@ -194,13 +190,6 @@ namespace Rock.Workflow.Action.CheckIn
                             }
                         }
                     }
-
-                    // Save the label data
-                    var enableSavingLabelData = GetAttributeValue( action, "EnableSavingLabelData" ).AsBoolean( true );
-                    if ( enableSavingLabelData )
-                    {
-                        SaveLabelToAttendance( family );
-                    }
                 }
 
                 return true;
@@ -227,14 +216,14 @@ namespace Rock.Workflow.Action.CheckIn
         ///         "FileGuid":"9b098db0-952c-43fb-a5bd-511e3c2b72fb",
         ///         "LabelFile":"/GetFile.ashx?id=33",
         ///         "LabelKey":"9b098db0-952c-43fb-a5bd-511e3c2b72fb",
-        ///         "MergeFields":{ 
-        ///                  "WWW":"K46", 
-        ///                  "2":"Ted Decker", 
-        ///                  "AAA":"", 
-        ///                  "3":"Bears Room 4:30 (test)", 
-        ///                  "LLL":"", 
-        ///                  "5":"", 
-        ///                  "7":"" 
+        ///         "MergeFields":{
+        ///                  "WWW":"K46",
+        ///                  "2":"Ted Decker",
+        ///                  "AAA":"",
+        ///                  "3":"Bears Room 4:30 (test)",
+        ///                  "LLL":"",
+        ///                  "5":"",
+        ///                  "7":""
         ///         }
         ///      },
         ///      {

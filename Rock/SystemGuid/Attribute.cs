@@ -88,18 +88,6 @@ namespace Rock.SystemGuid
         /// </summary>
         public const string PERSON_GIVING_ENVELOPE_NUMBER = "76C33FBC-8799-4DF1-B2FE-A6C41AC3DD49";
 
-        #region Assessment Test Related
-
-        /// <summary>
-        /// The attribute that stores the date the person took the DISC test
-        /// </summary>
-        public const string PERSON_DISC_LAST_SAVE_DATE = "990275DB-611B-4D2E-94EA-3FFA1186A5E1";
-
-        /// <summary>
-        /// The person attribute for the DISC profile
-        /// </summary>
-        public const string PERSON_DISC_PROFILE = "6EAC3DF8-CA81-41A5-B1CF-A8DD7BD42F8D";
-
         /// <summary>
         /// The person attribute for the dominant gifts
         /// </summary>
@@ -126,37 +114,37 @@ namespace Rock.SystemGuid
         public const string PERSON_CONFLICT_MODE_WINNING = "7147F706-388E-45E6-BE21-893FC7D652AA";
 
         /// <summary>
-        /// The person attribute for the conflict mode: resolving 
+        /// The person attribute for the conflict mode: resolving
         /// </summary>
         public const string PERSON_CONFLICT_MODE_RESOLVING = "5B811EAC-51B2-41F2-A55A-C966D9DB05EE";
 
         /// <summary>
-        /// The person attribute for the conflict mode: compromising  
+        /// The person attribute for the conflict mode: compromising
         /// </summary>
         public const string PERSON_CONFLICT_MODE_COMPROMISING = "817D6B13-E4AA-4E93-8547-FE711A0065F2";
 
         /// <summary>
-        /// The person attribute for the conflict mode: avoiding  
+        /// The person attribute for the conflict mode: avoiding
         /// </summary>
         public const string PERSON_CONFLICT_MODE_AVOIDING = "071A8EFA-AD1C-436A-8E1E-23D215617004";
 
         /// <summary>
-        /// The person attribute for the conflict mode: yielding  
+        /// The person attribute for the conflict mode: yielding
         /// </summary>
         public const string PERSON_CONFLICT_MODE_YIELDING = "D30A33AD-7A60-43E0-84DA-E23600156BF7";
 
         /// <summary>
-        /// The person attribute for the conflict engagement profile: accommodating  
+        /// The person attribute for the conflict engagement profile: accommodating
         /// </summary>
         public const string PERSON_CONFLICT_THEME_ACCOMMODATING = "404A64FB-7396-4896-9C94-84DE21E995CA";
 
         /// <summary>
-        /// The person attribute for the conflict engagement profile: winning  
+        /// The person attribute for the conflict engagement profile: winning
         /// </summary>
         public const string PERSON_CONFLICT_THEME_WINNING = "6DE5878D-7CDB-404D-93A7-27CFF5E98C3B";
 
         /// <summary>
-        /// The person attribute for the conflict engagement profile: solving  
+        /// The person attribute for the conflict engagement profile: solving
         /// </summary>
         public const string PERSON_CONFLICT_THEME_SOLVING = "33235605-D8BB-4C1E-B231-6F085970A14F";
 

@@ -70,7 +70,7 @@ namespace Rock.SystemGuid
         public const string COMMUNICATION_SMS_FROM = "611BDE1F-7405-4D16-8626-CCFEDB0E62BE";
 
         /// <summary>
-        /// The list of phone country code formats and how to format their numbers 
+        /// The list of phone country code formats and how to format their numbers
         /// </summary>
         public const string COMMUNICATION_PHONE_COUNTRY_CODE = "45E9EF7C-91C7-45AB-92C1-1D6219293847";
 
@@ -88,11 +88,6 @@ namespace Rock.SystemGuid
         /// Guid for the DISC Results of personalities.
         /// </summary>
         public const string DISC_RESULTS_TYPE = "F06DDAD8-6058-4182-AD0A-B523BB7A2D78";
-
-        /// <summary>
-        /// Guid for the Conflict Profile assessment.
-        /// </summary>
-        public const string ASSESSMENT_CONFLICT_PROFILE = "EE7E089E-DF81-4407-8BFA-AD865FA5427A";
 
         /// <summary>
         /// Guid for the Domains Sharing Logins
@@ -113,11 +108,11 @@ namespace Rock.SystemGuid
         /// Guid for Financial Currency Type
         /// </summary>
         public const string FINANCIAL_ACCOUNT_TYPE = "752DA126-471F-4221-8503-5297593C99FF";
-		
+
         /// <summary>
         /// Guid for Financial Currency Type
         /// </summary>
-        public const string FINANCIAL_CURRENCY_TYPE =  "1D1304DE-E83A-44AF-B11D-0C66DD600B81"; 
+        public const string FINANCIAL_CURRENCY_TYPE =  "1D1304DE-E83A-44AF-B11D-0C66DD600B81";
 
         /// <summary>
         /// Guid for Financial Credit Card Type
@@ -125,7 +120,7 @@ namespace Rock.SystemGuid
         public const string FINANCIAL_CREDIT_CARD_TYPE =  "2BD4FFB0-6C7F-4890-8D08-00F0BB7B43E9";
 
         /// <summary>
-        /// Guid for Financial Frequency 
+        /// Guid for Financial Frequency
         /// </summary>
         public const string FINANCIAL_FREQUENCY = "1F645CFB-5BBD-4465-B9CA-0D2104A1479B";
 

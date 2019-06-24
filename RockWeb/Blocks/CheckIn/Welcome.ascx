@@ -304,7 +304,6 @@
             </div>
 
             <div class="controls kioskmanager-actions checkin-actions">
-                <asp:LinkButton ID="btnReprintLabels" runat="server" CssClass="btn btn-default btn-large btn-block btn-checkin-select" Text="Reprint Labels" OnClick="btnReprintLabels_Click" />
                 <asp:LinkButton ID="btnOverride" runat="server" CssClass="btn btn-default btn-large btn-block btn-checkin-select" Text="Override" OnClick="btnOverride_Click" />
                 <asp:LinkButton ID="btnScheduleLocations" runat="server" CssClass="btn btn-default btn-large btn-block btn-checkin-select" Text="Schedule Locations" OnClick="btnScheduleLocations_Click" />
                 <asp:LinkButton ID="btnBack" runat="server" CssClass="btn btn-default btn-large btn-block btn-checkin-select" Text="Back" OnClick="btnBack_Click" />
@@ -424,7 +423,7 @@
                 </div>
             </div>
 
-            <div class="checkin-footer">   
+            <div class="checkin-footer">
                 <div class="checkin-actions">
                     <asp:LinkButton CssClass="btn btn-primary" ID="lbMangerReprintDone" runat="server" OnClick="lbManagerReprintDone_Click" Text="Done" />
                 </div>
@@ -441,7 +440,6 @@
             <div class="checkin-body">
 
                 <div class="checkin-scroll-panel">
-
                     <div class="scroller">
                         <div class="row">
                             <div class="col-md-6">
@@ -481,6 +479,8 @@
                             </div>
                         </div>
                     </div>
+
+
 
                 </div>
             </div>
