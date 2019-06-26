@@ -1,4 +1,4 @@
-﻿// <copyright>
+// <copyright>
 // Copyright by the Spark Development Network
 //
 // Licensed under the Rock Community License (the "License");
@@ -192,11 +192,11 @@ namespace Rock.Migrations
                     [Description],
                     [AssessmentPath],
                     [AssessmentResultsPath],
-                    [IsActive], 
+                    [IsActive],
                     [RequiresRequest],
                     [MinimumDaysToRetake],
                     [ValidDuration],
-                    [IsSystem], 
+                    [IsSystem],
                     [Guid])
                 VALUES (
                     '{title}',
@@ -411,7 +411,7 @@ namespace Rock.Migrations
                   ,[CronExpression]
                   ,[NotificationStatus]
                   ,[Guid] )
-               VALUES ( 
+               VALUES (
                   0
                   ,1
                   ,'Send Assessment Reminders'
@@ -632,7 +632,7 @@ SELECT  CASE
 
             // Add Request Assessment
             Sql( @"
-                DECLARE @bioWFActionsAttributeValueId INT = 
+                DECLARE @bioWFActionsAttributeValueId INT =
                 (SELECT v.[Id]
                 FROM [dbo].[attribute] a
                 JOIN [AttributeValue] v ON a.id = v.AttributeId
@@ -651,7 +651,7 @@ SELECT  CASE
 
             // Remove legacy DISC Request
             Sql( @"
-                DECLARE @bioWFActionsAttributeValueId INT = 
+                DECLARE @bioWFActionsAttributeValueId INT =
                 (SELECT v.[Id]
                 FROM [dbo].[attribute] a
                 JOIN [AttributeValue] v ON a.id = v.AttributeId
@@ -706,7 +706,7 @@ SELECT  CASE
                         {{ dominantGift.Value }}
                     </td>
                     <td>
-                        {{ dominantGift.Description }}    
+                        {{ dominantGift.Description }}
                     </td>
                 </tr>
             {% endfor %}
@@ -721,7 +721,7 @@ SELECT  CASE
     </table>
     </div>
 </div>
-    
+
 <div class='row'>
     <div class='col-md-12'>
         <h2 class='h2'> Supportive Gifts</h2>
@@ -1277,7 +1277,7 @@ SELECT  CASE
             RockMigrationHelper.AddOrUpdatePersonAttributeByGuid( @"E73B9F41-8325-4229-8EA5-75180066680C", categories, @"Motivators: Growth Propensity", @"Growth Propensity", @"core_MotivatorGrowthPropensity", @"", @"", 4, @"", Rock.SystemGuid.Attribute.PERSON_MOTIVATOR_GROWTHPROPENSITY );
             RockMigrationHelper.AddAttributeQualifier( Rock.SystemGuid.Attribute.PERSON_MOTIVATOR_GROWTHPROPENSITY, @"ConfigurationJSON", @"[{""Guid"":""72536eae-bc85-41e6-a1b2-19755d7fd15e"",""RangeIndex"":0,""Label"":""Very High"",""Color"":""#3f56a1"",""HighValue"":null,""LowValue"":99.0},{""Guid"":""487cc20c-456d-439c-8beb-b61572b02c2a"",""RangeIndex"":1,""Label"":""High"",""Color"":""#3f56a1"",""HighValue"":98.0,""LowValue"":85.0},{""Guid"":""c7c1bb14-1b8d-44f5-911a-5acf2c94a1ef"",""RangeIndex"":2,""Label"":""Medium"",""Color"":""#0e9445"",""HighValue"":84.0,""LowValue"":17.0},{""Guid"":""a58108b7-3841-408f-a1b9-a0c3fc4daa8a"",""RangeIndex"":3,""Label"":""Somewhat Low"",""Color"":""#f0e3ba"",""HighValue"":16.0,""LowValue"":3.0},{""Guid"":""97e4f6d6-8225-439a-83bb-ca2469f917e8"",""RangeIndex"":4,""Label"":""Low"",""Color"":""#f13c1f"",""HighValue"":2.0,""LowValue"":0.0}]", @"537E9E56-C705-4736-B250-57D23305DF5B" );
             AddReadOnlySecurityToAttribute( Rock.SystemGuid.Attribute.PERSON_MOTIVATOR_GROWTHPROPENSITY );
-            
+
             // Person Attribute "Motivators: Relational Theme"
             RockMigrationHelper.AddOrUpdatePersonAttributeByGuid( @"E73B9F41-8325-4229-8EA5-75180066680C", categories, @"Motivators: Relational Theme", @"Relational Theme", @"core_MotivatorsRelationalTheme", @"", @"", 3, @"", Rock.SystemGuid.Attribute.PERSON_MOTIVATORS_RELATIONAL_THEME );
             RockMigrationHelper.AddAttributeQualifier( Rock.SystemGuid.Attribute.PERSON_MOTIVATORS_RELATIONAL_THEME, @"ConfigurationJSON", @"[{""Guid"":""bd0a2d33-4bb0-44ee-a343-cfe80e0c3a79"",""RangeIndex"":0,""Label"":""High"",""Color"":""#80bb7c"",""HighValue"":null,""LowValue"":67.0},{""Guid"":""f3aef44f-177f-408e-8739-3b2f6d4fbb8f"",""RangeIndex"":1,""Label"":""Medium"",""Color"":""#a0cc9e"",""HighValue"":66.0,""LowValue"":34.0},{""Guid"":""d101199c-c095-4778-92ea-e2ea9957d7c5"",""RangeIndex"":2,""Label"":""Low"",""Color"":""#c1debf"",""HighValue"":33.0,""LowValue"":0.0}]", @"FF41610F-7ABA-46E8-95A4-4A0CF6273A41" );
@@ -1320,7 +1320,7 @@ SELECT  CASE
                     SELECT TOP 1 [Id]
                     FROM [EntityType]
                     WHERE [Name] = 'Rock.Model.DefinedType' )
-                    
+
                     DECLARE @CategoryId int = (
                     SELECT TOP 1 [Id] FROM [Category]
                     WHERE [EntityTypeId] = @DefinedTypeEntityTypeId
@@ -1355,7 +1355,7 @@ SELECT  CASE
             #endregion Attrib for BlockType: Motivators Assessment:Instructions
             #region Attrib for BlockType: Motivators Assessment:Results Message
             RockMigrationHelper.UpdateBlockTypeAttribute( "18CF8DA8-5DE0-49EC-A279-D5507CFA5713", "1D0D3794-C210-48A8-8C68-3FBEC08A6BA5", "Results Message", "ResultsMessage", "", @"The text (HTML) to display at the top of the results section.<span class='tip tip-lava'></span><span class='tip tip-html'></span>", 1, @"<p>
-   This assessment identifies 22 different motivators (scales) which illustrate different things to which we all assign importance. These motivators listed in descending order on the report from the highest to the lowest. No one motivator is better than another. They are all critical and essential for the health of an organization. There are over 1,124,000,727,777,607,680,000 different combinations of these 22 motivators so we would hope you realize that your exceptional combination is clearly unique. We believe it is as important for you to know the motivators which are at the top as well as the ones at the bottom of your list. This is because you would best be advised to seek roles and responsibilities where your top motivators are needed. On the other hand, it would be advisable to <i>avoid roles or responsibilities where your bottom motivators would be required</i>. 
+   This assessment identifies 22 different motivators (scales) which illustrate different things to which we all assign importance. These motivators listed in descending order on the report from the highest to the lowest. No one motivator is better than another. They are all critical and essential for the health of an organization. There are over 1,124,000,727,777,607,680,000 different combinations of these 22 motivators so we would hope you realize that your exceptional combination is clearly unique. We believe it is as important for you to know the motivators which are at the top as well as the ones at the bottom of your list. This is because you would best be advised to seek roles and responsibilities where your top motivators are needed. On the other hand, it would be advisable to <i>avoid roles or responsibilities where your bottom motivators would be required</i>.
 </p>
 
 <h2>Influential, Organizational, Intellectual, and Operational</h2>
@@ -1370,11 +1370,11 @@ Each of the 22 motivators are grouped into one of four clusters: Influential, Or
       <div class=""panel-body"">
     {[chart type:'horizontalBar' chartheight:'200px' ]}
     {% for motivatorClusterScore in MotivatorClusterScores %}
-        [[dataitem label:'{{ motivatorClusterScore.DefinedValue.Value }}' value:'{{ motivatorClusterScore.Value }}' fillcolor:'{{ motivatorClusterScore.DefinedValue | Attribute:'Color' }}' ]] 
+        [[dataitem label:'{{ motivatorClusterScore.DefinedValue.Value }}' value:'{{ motivatorClusterScore.Value }}' fillcolor:'{{ motivatorClusterScore.DefinedValue | Attribute:'Color' }}' ]]
         [[enddataitem]]
     {% endfor %}
     {[endchart]}
-    
+
         Source: <a href=""https://healthygrowingleaders.com"">https://healthygrowingleaders.com</a>
       </div>
     </div>
@@ -1405,7 +1405,7 @@ This graph is based on the average composite score for each cluster of Motivator
         {% for motivatorScore in MotivatorScores %}
         {% assign cluster = motivatorScore.DefinedValue | Attribute:'Cluster' %}
             {% if cluster and cluster != empty %}
-                [[dataitem label:'{{ motivatorScore.DefinedValue.Value }}' value:'{{ motivatorScore.Value }}' fillcolor:'{{ motivatorScore.DefinedValue | Attribute:'Color' }}' ]] 
+                [[dataitem label:'{{ motivatorScore.DefinedValue.Value }}' value:'{{ motivatorScore.Value }}' fillcolor:'{{ motivatorScore.DefinedValue | Attribute:'Color' }}' ]]
                 [[enddataitem]]
             {% endif %}
         {% endfor %}
@@ -1657,7 +1657,7 @@ This graph is based on the average composite score for each cluster of Motivator
             string updatePageSQL = @"
 
                 DECLARE @LayoutId int = ( SELECT [Id] FROM [Layout] WHERE [Guid] = 'BE15B7BC-6D64-4880-991D-FDE962F91196' )
-                
+
                 UPDATE [Page]
                 SET [LayoutId] = @LayoutId
                 WHERE [Guid] = ('06410598-3DA4-4710-A047-A518157753AB')";
@@ -1668,7 +1668,7 @@ This graph is based on the average composite score for each cluster of Motivator
 
 
         /// <summary>
-        /// ED: Updates the Category Name of the TrueWiring Defined Types to 'Personality Assessments' 
+        /// ED: Updates the Category Name of the TrueWiring Defined Types to 'Personality Assessments'
         /// </summary>
         private void DefinedTypeCategoryTrueWiringToPersonalityAssessmentsUp()
         {
@@ -1676,7 +1676,7 @@ This graph is based on the average composite score for each cluster of Motivator
         }
 
         /// <summary>
-        /// Reverts - ED: Updates the Category Name of the TrueWiring Defined Types to 'Personality Assessments' 
+        /// Reverts - ED: Updates the Category Name of the TrueWiring Defined Types to 'Personality Assessments'
         /// </summary>
         private void DefinedTypeCategoryTrueWiringToPersonalityAssessmentsDown()
         {
@@ -1884,7 +1884,7 @@ This graph is based on the average composite score for each cluster of Motivator
                     [Name]='Motivator Expressing',
 					[AbbreviatedName]='Motivator Expressing'
                     WHERE [Guid]='{Rock.SystemGuid.Attribute.PERSON_MOTIVATOR_EXPRESSING}'
-                    
+
                     UPDATE
 	                    [Attribute]
                     SET [Key]='core_MotivatorAdapting',

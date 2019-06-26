@@ -1,4 +1,4 @@
-﻿<%@ Control Language="C#" AutoEventWireup="true" CodeFile="Welcome.ascx.cs" Inherits="RockWeb.Blocks.CheckIn.Welcome" %>
+<%@ Control Language="C#" AutoEventWireup="true" CodeFile="Welcome.ascx.cs" Inherits="RockWeb.Blocks.CheckIn.Welcome" %>
 <style>
     .js-search-value {
         position: absolute;
@@ -424,7 +424,7 @@
                 </div>
             </div>
 
-            <div class="checkin-footer">   
+            <div class="checkin-footer">
                 <div class="checkin-actions">
                     <asp:LinkButton CssClass="btn btn-primary" ID="lbMangerReprintDone" runat="server" OnClick="lbManagerReprintDone_Click" Text="Done" />
                 </div>

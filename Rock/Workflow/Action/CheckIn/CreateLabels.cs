@@ -1,4 +1,4 @@
-﻿// <copyright>
+// <copyright>
 // Copyright by the Spark Development Network
 //
 // Licensed under the Rock Community License (the "License");
@@ -227,14 +227,14 @@ namespace Rock.Workflow.Action.CheckIn
         ///         "FileGuid":"9b098db0-952c-43fb-a5bd-511e3c2b72fb",
         ///         "LabelFile":"/GetFile.ashx?id=33",
         ///         "LabelKey":"9b098db0-952c-43fb-a5bd-511e3c2b72fb",
-        ///         "MergeFields":{ 
-        ///                  "WWW":"K46", 
-        ///                  "2":"Ted Decker", 
-        ///                  "AAA":"", 
-        ///                  "3":"Bears Room 4:30 (test)", 
-        ///                  "LLL":"", 
-        ///                  "5":"", 
-        ///                  "7":"" 
+        ///         "MergeFields":{
+        ///                  "WWW":"K46",
+        ///                  "2":"Ted Decker",
+        ///                  "AAA":"",
+        ///                  "3":"Bears Room 4:30 (test)",
+        ///                  "LLL":"",
+        ///                  "5":"",
+        ///                  "7":""
         ///         }
         ///      },
         ///      {

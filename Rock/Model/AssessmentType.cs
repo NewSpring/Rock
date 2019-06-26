@@ -1,4 +1,4 @@
-﻿// <copyright>
+// <copyright>
 // Copyright by the Spark Development Network
 //
 // Licensed under the Rock Community License (the "License");
@@ -38,7 +38,7 @@ namespace Rock.Model
         #region Entity Properties
 
         /// <summary>
-        /// Gets or sets the Title of the <see cref="Rock.Model.AssessmentType"/>  
+        /// Gets or sets the Title of the <see cref="Rock.Model.AssessmentType"/>
         /// </summary>
         /// <value>
         /// A <see cref="System.String"/> for the Title.
@@ -59,7 +59,7 @@ namespace Rock.Model
         public string Description { get; set; }
 
         /// <summary>
-        /// Gets or sets the AssessmentPath of the <see cref="Rock.Model.AssessmentType"/>  
+        /// Gets or sets the AssessmentPath of the <see cref="Rock.Model.AssessmentType"/>
         /// </summary>
         /// <value>
         /// A <see cref="System.String"/> for the AssessmentPath.
@@ -196,7 +196,7 @@ namespace Rock.Model
         /// Initializes a new instance of the <see cref="AssessmentTypeConfiguration" /> class.
         /// </summary>
         public AssessmentTypeConfiguration()
-        { 
+        {
         }
     }
 

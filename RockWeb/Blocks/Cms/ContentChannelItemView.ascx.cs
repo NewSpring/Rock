@@ -1,4 +1,4 @@
-﻿// <copyright>
+// <copyright>
 // Copyright by the Spark Development Network
 //
 // Licensed under the Rock Community License (the "License");
@@ -480,7 +480,7 @@ Guid - ContentChannelItem Guid
                     var itemMergeFields = new Dictionary<string, object>( commonMergeFields );
 
                     var enabledCommands = GetAttributeValue( "EnabledLavaCommands" );
-                    
+
                     itemMergeFields.AddOrReplace( "Item", contentChannelItem );
                     contentChannelItem.Content = contentChannelItem.Content.ResolveMergeFields( itemMergeFields, enabledCommands );
                     contentChannelItem.LoadAttributes();

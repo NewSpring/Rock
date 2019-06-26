@@ -1,4 +1,4 @@
-﻿// <copyright>
+// <copyright>
 // Copyright by the Spark Development Network
 //
 // Licensed under the Rock Community License (the "License");
@@ -29,7 +29,7 @@ using Rock.Web.UI.Controls;
 namespace Rock.Field.Types
 {
     /// <summary>
-    /// 
+    ///
     /// </summary>
     /// <seealso cref="Rock.Field.FieldType" />
     public class ConditionalScaleFieldType : DecimalFieldType
@@ -214,7 +214,7 @@ namespace Rock.Field.Types
 
         /// <summary>
         /// Returns the field's current value(s)
-        /// </summary> 
+        /// </summary>
         /// <param name="parentControl">The parent control.</param>
         /// <param name="value">Information about the value</param>
         /// <param name="configurationValues">The configuration values.</param>
@@ -248,11 +248,11 @@ namespace Rock.Field.Types
         #region Classes
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         private class ConditionalScaleRangeRule
         {
-            // Identification of the Rule (so that DataFilter configs know which RangeRule is referenced ) 
+            // Identification of the Rule (so that DataFilter configs know which RangeRule is referenced )
             public Guid Guid { get; set; }
 
             public int RangeIndex { get; set; }
@@ -267,7 +267,7 @@ namespace Rock.Field.Types
         }
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         /// <seealso cref="System.Web.UI.ITemplate" />
         private class ConditionalScaleRangeRuleItemTemplate : ITemplate

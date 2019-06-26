@@ -1,4 +1,4 @@
-﻿// <copyright>
+// <copyright>
 // Copyright by the Spark Development Network
 //
 // Licensed under the Rock Community License (the "License");
@@ -107,7 +107,7 @@ namespace Rock.Model
             var occurrenceService = new AttendanceOccurrenceService( (RockContext)Context );
             var occurrence = occurrenceService.GetOrAdd( checkinDateTime.Date, groupId, locationId, scheduleId );
 
-            // If we still don't have an occurrence record (i.e. validation failed) return null 
+            // If we still don't have an occurrence record (i.e. validation failed) return null
             if ( occurrence == null )
                 return null;
 
@@ -309,7 +309,7 @@ namespace Rock.Model
             var includeNullCampus = ( campusIds ?? "" ).Split( ',' ).ToList().Any( a => a.Equals( "null", StringComparison.OrdinalIgnoreCase ) );
             var campusIdList = ( campusIds ?? "" ).Split( ',' ).AsIntegerList();
 
-            // remove 0 from the list, just in case it is there 
+            // remove 0 from the list, just in case it is there
             campusIdList.Remove( 0 );
 
             if ( campusIdList.Any() )
@@ -590,7 +590,7 @@ namespace Rock.Model
         }
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         public class AttendanceWithSummaryDateTime
         {
@@ -785,7 +785,7 @@ namespace Rock.Model
         }
 
         /// <summary>
-        /// Gets a list of available the scheduler resources (people) based on the options specified in schedulerResourceParameters 
+        /// Gets a list of available the scheduler resources (people) based on the options specified in schedulerResourceParameters
         /// </summary>
         /// <param name="schedulerResourceParameters">The scheduler resource parameters.</param>
         /// <returns></returns>
@@ -1063,7 +1063,7 @@ namespace Rock.Model
         }
 
         /// <summary>
-        /// Gets a list of SchedulerResourceAttend records 
+        /// Gets a list of SchedulerResourceAttend records
         /// </summary>
         /// <param name="attendanceOccurrenceId">The attendance occurrence identifier.</param>
         /// <returns></returns>
@@ -1774,7 +1774,7 @@ namespace Rock.Model
     }
 
     /// <summary>
-    /// 
+    ///
     /// </summary>
     public enum ScheduledAttendanceItemStatus
     {
@@ -1800,7 +1800,7 @@ namespace Rock.Model
     }
 
     /// <summary>
-    /// 
+    ///
     /// </summary>
     public enum SchedulerResourceListSourceType
     {
@@ -1822,7 +1822,7 @@ namespace Rock.Model
     }
 
     /// <summary>
-    /// 
+    ///
     /// </summary>
     public enum SchedulerResourceGroupMemberFilterType
     {
@@ -1838,7 +1838,7 @@ namespace Rock.Model
     }
 
     /// <summary>
-    /// 
+    ///
     /// </summary>
     [RockClientInclude( "Use this as the Content of a ~/api/Attendances/GetSchedulerResources POST" )]
     public class SchedulerResourceParameters
@@ -1903,7 +1903,7 @@ namespace Rock.Model
     #endregion Group Scheduling related classes and types
 
     /// <summary>
-    /// 
+    ///
     /// </summary>
     public static class AttendanceQryExtensions
     {

@@ -1,4 +1,4 @@
-﻿// <copyright>
+// <copyright>
 // Copyright by the Spark Development Network
 //
 // Licensed under the Rock Community License (the "License");
@@ -121,7 +121,7 @@ namespace Rock.Model
         #endregion
 
         #region Virtual Properties
-        
+
         /// <summary>
         /// Gets or sets the <see cref="Rock.Model.AssessmentType"/> that represents the type of the assessment.
         /// </summary>

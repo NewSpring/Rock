@@ -1,4 +1,4 @@
-﻿// <copyright>
+// <copyright>
 // Copyright by the Spark Development Network
 //
 // Licensed under the Rock Community License (the "License");
@@ -38,7 +38,7 @@ namespace Rock.Web
         /// <summary>
         /// Determine the logical page being requested by evaluating the routedata, or querystring and
         /// then loading the appropriate layout (ASPX) page
-        /// 
+        ///
         /// Pick url on the following priority order:
         /// 1. PageId
         /// 2. Route match and site match
@@ -47,7 +47,7 @@ namespace Rock.Web
         /// 5. ShortLink with no site match
         /// 6. If there is no routing info in the request then set to default page
         /// 7. 404 if route does not exist
-        /// 
+        ///
         /// </summary>
         /// <param name="requestContext"></param>
         /// <returns></returns>
@@ -263,7 +263,7 @@ namespace Rock.Web
                 string theme = page.Layout.Site.Theme;
                 string layout = page.Layout.FileName;
                 string layoutPath = PageCache.FormatPath( theme, layout );
-                
+
                 try
                 {
                     return CreateRockPage( page, layoutPath, routeId, parms, routeHttpRequest );
@@ -317,7 +317,7 @@ namespace Rock.Web
 
             var routesToInsert = new RouteCollection();
 
-            // Add ignore rule for asp.net ScriptManager files. 
+            // Add ignore rule for asp.net ScriptManager files.
             routesToInsert.Ignore( "{resource}.axd/{*pathInfo}" );
 
             //Add page routes, order is very important here as IIS takes the first match
@@ -418,7 +418,7 @@ namespace Rock.Web
                 routeId = pageAndRouteIdDefault.RouteId;
 
                 // Then check to see if any can be matched by site
-                
+
 
                 if ( site == null )
                 {

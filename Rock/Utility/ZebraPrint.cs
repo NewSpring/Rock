@@ -1,4 +1,4 @@
-﻿// <copyright>
+// <copyright>
 // Copyright by the Spark Development Network
 //
 // Licensed under the Rock Community License (the "License");
@@ -248,25 +248,25 @@ namespace Rock.Utility
         var labelData = {0};
 
 		function onDeviceReady() {{
-            try {{			
+            try {{
                 printLabels();
-            }} 
+            }}
             catch (err) {{
                 console.log('An error occurred printing labels: ' + err);
             }}
 		}}
-		
+
 		function alertDismissed() {{
 		    // do something
 		}}
-		
+
 		function printLabels() {{
 		    ZebraPrintPlugin.printTags(
-            	JSON.stringify(labelData), 
-            	function(result) {{ 
+            	JSON.stringify(labelData),
+            	function(result) {{
 			        console.log('Tag printed');
 			    }},
-			    function(error) {{   
+			    function(error) {{
 				    // error is an array where:
 				    // error[0] is the error message
 				    // error[1] determines if a re-print is possible (in the case where the JSON is good, but the printer was not connected)
@@ -446,7 +446,7 @@ namespace Rock.Utility
     public class ReprintLabelPersonResult
     {
         /// <summary>
-        /// The Person's Id 
+        /// The Person's Id
         /// </summary>
         public int Id { get; set; }
         /// <summary>

@@ -376,6 +376,10 @@
     <Compile Include="Migrations\201906242102336_Rollup_0624.Designer.cs">
       <DependentUpon>201906242102336_Rollup_0624.cs</DependentUpon>
     </Compile>
+    <Compile Include="Migrations\201905242149577_AddGlobalAttrib_EnableRouteDomainMatching.cs" />
+    <Compile Include="Migrations\201905242149577_AddGlobalAttrib_EnableRouteDomainMatching.Designer.cs">
+      <DependentUpon>201905242149577_AddGlobalAttrib_EnableRouteDomainMatching.cs</DependentUpon>
+    </Compile>
     <Compile Include="Migrations\CreateDatabase\201311251734059_CreateDatabase.cs" />
     <Compile Include="Migrations\CreateDatabase\201311251734059_CreateDatabase.Designer.cs">
       <DependentUpon>201311251734059_CreateDatabase.cs</DependentUpon>
@@ -899,6 +903,9 @@
     <EmbeddedResource Include="Migrations\201906242102336_Rollup_0624.resx">
       <DependentUpon>201906242102336_Rollup_0624.cs</DependentUpon>
     </EmbeddedResource>
+    <EmbeddedResource Include="Migrations\201905242149577_AddGlobalAttrib_EnableRouteDomainMatching.resx">
+      <DependentUpon>201905242149577_AddGlobalAttrib_EnableRouteDomainMatching.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="Migrations\CreateDatabase\201311251734059_CreateDatabase.resx">
       <DependentUpon>201311251734059_CreateDatabase.cs</DependentUpon>
     </EmbeddedResource>
@@ -1350,7 +1357,7 @@
 CALL CopyToPackage.bat
 </PreBuildEvent>
   </PropertyGroup>
-  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
+  <!-- To modify your build process, add your task inside one of the targets below and uncomment it.
        Other similar extension points exist, see Microsoft.Common.targets.
   <Target Name="BeforeBuild">
   </Target>

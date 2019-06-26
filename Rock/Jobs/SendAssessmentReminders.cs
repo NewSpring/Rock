@@ -1,4 +1,4 @@
-﻿// <copyright>
+// <copyright>
 // Copyright by the Spark Development Network
 //
 // Licensed under the Rock Community License (the "License");
@@ -37,7 +37,7 @@ namespace Rock.Jobs
     #region Job Attributes
 
     /// <summary>
-    /// 
+    ///
     /// </summary>
     /// <seealso cref="Quartz.IJob" />
     [IntegerField( "Reminder Every",
@@ -67,7 +67,7 @@ namespace Rock.Jobs
     public class SendAssessmentReminders : IJob
     {
         /// <summary>
-        /// 
+        ///
         /// </summary>
         protected static class AttributeKeys
         {
@@ -87,7 +87,7 @@ namespace Rock.Jobs
             public const string AssessmentSystemEmail = "AssessmentSystemEmail";
         }
 
-        /// <summary> 
+        /// <summary>
         /// Empty constructor for job initialization
         /// <para>
         /// Jobs require a public empty constructor so that the scheduler can instantiate the class whenever it needs.

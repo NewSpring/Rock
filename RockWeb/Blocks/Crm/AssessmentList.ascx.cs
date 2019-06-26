@@ -1,4 +1,4 @@
-﻿// <copyright>
+// <copyright>
 // Copyright by the Spark Development Network
 //
 // Licensed under the Rock Community License (the "License");
@@ -198,7 +198,7 @@ namespace Rockweb.Blocks.Crm
             AssessmentTypeService assessmentTypeService = new AssessmentTypeService( rockContext );
             var allAssessmentsOfEachType = assessmentTypeService.Queryable().AsNoTracking()
                 .Where( x => x.IsActive == true )
-                .Select( t => new AssessmentTypeListItem 
+                .Select( t => new AssessmentTypeListItem
                 {
                     Title = t.Title,
                     AssessmentPath = t.AssessmentPath,
@@ -219,14 +219,14 @@ namespace Rockweb.Blocks.Crm
                             .OrderBy( x => x.Status )
                             .ThenByDescending( x => x.CompletedDate )
                             .FirstOrDefault(),
-                    
+
                     }
                 )
                 // order by requested then by pending, completed, then by available to take
                 .OrderByDescending( x => x.LastRequestObject.Status )
                 .ThenBy( x => x.LastRequestObject )
                 .ToList();
-            
+
             // Checks current request types to use against the settings
             bool areThereAnyPendingRequests = false;
             bool areThereAnyRequests = false;
@@ -280,7 +280,7 @@ namespace Rockweb.Blocks.Crm
                     var onlyAllowedRequestedOrCompleted = allAssessmentsOfEachType
                         .Where( x => x.RequiresRequest != true
                             || ( x.LastRequestObject != null && x.LastRequestObject.Status == AssessmentRequestStatus.Pending )
-                            || ( x.LastRequestObject != null && x.LastRequestObject.CompletedDate != null ) 
+                            || ( x.LastRequestObject != null && x.LastRequestObject.CompletedDate != null )
                         );
 
                     mergeFields.Add( "AssessmentTypes", onlyAllowedRequestedOrCompleted );

@@ -1,4 +1,4 @@
-﻿// <copyright>
+// <copyright>
 // Copyright by the Spark Development Network
 //
 // Licensed under the Rock Community License (the "License");
@@ -86,6 +86,6 @@ namespace Rock.Financial
         /// <param name="financialGateway">The financial gateway.</param>
         /// <returns></returns>
         DateTime GetEarliestScheduledStartDate( FinancialGateway financialGateway );
-        
+
     }
 }

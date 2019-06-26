@@ -1,4 +1,4 @@
-﻿// <copyright>
+// <copyright>
 // Copyright by the Spark Development Network
 //
 // Licensed under the Rock Community License (the "License");
@@ -154,7 +154,7 @@ namespace RockWeb.Blocks.Event
         DefaultValue = "",
         Order = 10)]
 
-    #region Advanced Block Attribute Settings 
+    #region Advanced Block Attribute Settings
 
     [MemoField(
         "Registration Template Instructions Lava Template",

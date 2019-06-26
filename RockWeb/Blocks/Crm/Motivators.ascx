@@ -1,4 +1,4 @@
-﻿<%@ Control Language="C#" AutoEventWireup="true" CodeFile="Motivators.ascx.cs" Inherits="Rockweb.Blocks.Crm.Motivators" ViewStateMode="Enabled" EnableViewState="true" %>
+<%@ Control Language="C#" AutoEventWireup="true" CodeFile="Motivators.ascx.cs" Inherits="Rockweb.Blocks.Crm.Motivators" ViewStateMode="Enabled" EnableViewState="true" %>
 <script type="text/javascript">
     ///<summary>
     /// Fade-in effect for the panel.

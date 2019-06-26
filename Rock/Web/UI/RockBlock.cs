@@ -1,4 +1,4 @@
-﻿// <copyright>
+// <copyright>
 // Copyright by the Spark Development Network
 //
 // Licensed under the Rock Community License (the "License");
@@ -833,29 +833,6 @@ namespace Rock.Web.UI
                     pageReference.QueryString[qryParam.Key] = qryParam.Value;
                 }
             }
-
-            return NavigateToPage( pageReference );
-        }
-
-        /// <summary>
-        /// Navigates to current page reference including current page and query parameters not included in the removeQueryParameterKeys parameter.
-        /// </summary>
-        /// <param name="removeQueryParameterKeys">The remove query parameter keys.</param>
-        /// <returns></returns>
-        public bool NavigateToCurrentPageReferenceWithRemove( List<string> removeQueryParameterKeys )
-        {
-            var pageReference = new Rock.Web.PageReference( this.CurrentPageReference );
-            var currentQueryStrings = new System.Collections.Specialized.NameValueCollection( pageReference.QueryString );
-
-            if ( removeQueryParameterKeys != null )
-            {
-                foreach ( var key in removeQueryParameterKeys )
-                {
-                    currentQueryStrings.Remove( key );
-                }
-            }
-
-            pageReference.QueryString = new System.Collections.Specialized.NameValueCollection( currentQueryStrings );
 
             return NavigateToPage( pageReference );
         }

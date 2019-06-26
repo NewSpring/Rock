@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -624,7 +624,7 @@ namespace Rock.Model
         }
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         public class MotivatorData
         {
@@ -700,7 +700,7 @@ namespace Rock.Model
         }
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         public enum OptionType
         {
