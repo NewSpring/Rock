@@ -1,7 +1,7 @@
 {% comment %} {% include '~~/Assets/Lava/GroupFinder.lava' %} {% endcomment %}
 {% assign apiKey = 'Global' | Attribute:'GoogleApiKey' %}
 {% javascript id:'googlemapsmarkerclusterer' url:'https://developers.google.com/maps/documentation/javascript/examples/markerclusterer/markerclusterer.js' %}{% endjavascript %}
-{% javascript id:'googlemapsapi' url:'{{ "https://maps.googleapis.com/maps/api/js?key=" | Append:apiKey }}' %}{% endjavascript %}
+{% javascript id:'googlemapsapi' url:'{{ "https://maps.googleapis.com/maps/api/js?key=" | Append:apiKey }}&force=canvas' %}{% endjavascript %}
 {{ 'https://cdnjs.cloudflare.com/ajax/libs/URI.js/1.19.1/URI.min.js' | AddScriptLink }}
 
 {%- assign currentUrl = 'Global' | Page:'Url' -%}
@@ -13,55 +13,24 @@
 
 <style>
 
-  #map-canvas {
-    position: fixed! important;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    width: 50%;
-  }
-
-  .list-group .checkbox {
-    margin-top:5px;
-  }
-
-  .btn-filter {
-    position: relative;
-    margin-bottom: 4px;
-  }
-
-  .btn-filter.active:after {
-    position: absolute;
-    top: 50%;
-    right: 10px;
-    margin-top: -13px;
-    content:'\f00d';
-    font-family:"Font Awesome 5 Pro";
-    font-weight: 900;
-  }
-
-  .btn-filter.active,
-  .btn-filter.active:hover,
-  .btn-filter.btn-default.active:focus {
-    background-color: #6bac43;
-    color: #fff;
-    box-shadow: none;
-    padding-right: 30px;
+  .border-transparent {
+    border-color: transparent;
   }
 
   footer {
     display: none;
   }
 
-  @media screen and (max-width: 667px) {
-    #map-canvas {
-      position: relative !important;
-      width: 100%;
-      top: 0 !important;
-    }
+  #groups {
+    margin-right: 50%;
   }
 
-
+  @media screen and (max-width: 667px) {
+    #groups {
+      margin-right: 0;
+      margin-top: 400px;
+    }
+  };
 
 
   @-webkit-keyframes rotating /* Safari and Chrome */ {
@@ -92,12 +61,22 @@
     transform: rotate(360deg);
   }
 }
+
 .rotating {
   -webkit-animation: rotating .5s linear infinite;
   -moz-animation: rotating .5s linear infinite;
   -ms-animation: rotating .5s linear infinite;
   -o-animation: rotating .5s linear infinite;
   animation: rotating .5s linear infinite;
+}
+
+.js-close-fullscreen-map .fa-circle:before {
+  border-radius:1000px;
+  box-shadow: 0 1px 3px rgba(28,28,28,0.25), 0 3px 0px rgba(28,28,28,0.1);
+}
+
+.js-close-fullscreen-map:focus {
+  color: #fff;
 }
 </style>
 
@@ -106,103 +85,65 @@
 
 
 
-<div id="group-finder-wrapper" style="margin: -30px;">
-  
-  <div id="map-canvas"></div>
-
-  <div class="js-filters width-half xs-width-full soft xs-soft-sides xs-hard-ends" style="overflow-y: auto;">
-    <h2 class="push-half-bottom">Find Your Group</h2>
-    <div class="form-group push-half-bottom">
-      <input type="text" class="form-control" id="exampleInputEmail1" placeholder="Enter Your Zip Code">
-    </div>
-
-    {[ accordion ]}
-      [[ item title:'Filters' ]]
-      <div id="dynamic-content">
-        <div class="js-filter-campuses">
-          {% assign campusesSorted = Campuses | Sort:'Name' %}
-          <h3 class="h5 push-half-bottom">Campus</h3>
-          <p>
-            {%- for campus in campusesSorted -%}
-              {% assign IsPublic = campus | Attribute:'Public' %}
-              {%- if campus.IsActive && IsPublic == 'Yes' -%}
-                <a href="#" data-key="campuses" data-value="{{ campus.Id }}" class="btn btn-default btn-filter btn-sm js-filter js-{{ campus.Id }}">{{ campus.Name }}</a>
-              {%- endif -%}
-            {%- endfor -%}
-          </p>
-          </div>
-
-          <div class="js-filter-days">
-          <h3 class="h5 push-half-bottom">Day of the Week</h3>
-          <p>
-            {%- for day in daysofweek -%}
-              <a href="#" data-key="schedules" data-value="{{ day | Downcase}}" class="btn btn-default btn-filter btn-sm js-filter js-{{ day | Downcase}}">{{ day }}</a>
-            {%- endfor -%}
-          </p>
-          </div>
-
-          <div class="js-filter-tags">
-          <h3 class="h5 push-half-bottom">Demographic/Focus</h3>
-            <p>
-            <a href="#" data-key="kidfriendly" data-value="true" class="btn btn-default btn-filter btn-sm js-filter js-kid-friendly">Kid Friendly</a>
-            
-            {% assign tags = 52 | FromCache:'DefinedType' %}
-            {%- for tag in tags.DefinedValues -%}
-              <a href="#" data-key="tags" data-value="{{ tag.Value | Downcase }}" class="btn btn-default btn-filter btn-sm js-filter js-{{ tag.Value | Downcase }}">{{ tag.Value }}</a>
-            {%- endfor -%}
-            <br>
-            {% assign tags = 69 | FromCache:'DefinedType' %}
-            {%- for tag in tags.DefinedValues -%}
-              <a href="#" data-key="tags" data-value="{{ tag.Value | Downcase }}" class="btn btn-default btn-filter btn-sm js-filter js-{{ tag.Value | Downcase }}">{{ tag.Value }}</a>
-            {%- endfor -%}
-            <br>
-            {% assign tags = 70 | FromCache:'DefinedType' %}
-            {%- for tag in tags.DefinedValues -%}
-              <a href="#" data-key="tags" data-value="{{ tag.Value | Downcase }}" class="btn btn-default btn-filter btn-sm js-filter js-{{ tag.Value | Downcase }}">{{ tag.Value }}</a>
-            {%- endfor -%}
-
-            </p>
-          </div>
-        </div>
-      [[ enditem ]]
-    {[ endaccordion ]}
-
-    <div id="groups">
-      <p class="text-center"><i class="fas fa-lg text-primary fa-spinner-third rotating"></i></p>
-    </div>
-
+<div id="group-finder-wrapper" class="position-fixed top-zero right-zero bottom-zero left-zero" style="overflow-y: scroll;  -webkit-overflow-scrolling: touch;">
+  <div id="map-wrapper" class="position-fixed top-zero right-zero bottom-zero left-zero">
+    <a href="#" class="hidden js-close-fullscreen-map position-absolute top-zero left-zero push-top push-left xs-push-half-top xs-push-half-left text-white text-hover-white" style="z-index: 100;">
+      <span class="fa-stack fa-lg">
+        <i class="fas fa-circle fa-stack-2x"></i>
+        <i class="fas fa-times fa-stack-1x text-gray-darker"></i>
+      </span>
+    </a>
+    <div id="map-canvas" class="full-screen"></div>
+  </div>
+  <div id="groups" class="position-relative soft xs-soft-half" style="z-index: 1000;">
+    <p class="text-center"><i class="fas fa-lg text-primary fa-spinner-third rotating"></i></p>
   </div>
 </div>
 
 
 
 <script>
-$(document).ready(function(){
+document.addEventListener("DOMContentLoaded", function() {
 
-  var mapContainer = $('#map-canvas');
+  var zipinput = document.getElementById('zipinput');
+  var zipbutton = document.getElementById('zipbutton');
 
-  // mapContainer.addEventListener('touchstart' function(){
-    
-  // });
+  zipinput.addEventListener('keydown',function(e){
+    if (e.keyCode === 13) {
+      e.preventDefault();
+      findGroups(zipinput.value);
+    }
+  });
+
+  zipbutton.addEventListener('click',function(e){
+    e.preventDefault();
+    findGroups(zipinput.value);
+  });
+
+
+  var windowWidth = window.innerWidth;
+  var windowHeight = window.innerHeight;
+  var groupFinderWrapper = document.getElementById("group-finder-wrapper");
+  var groupFinderWrapper = document.getElementById("group-finder-wrapper");
 
   function groupFinderLayout(){
-    var windowWidth = window.innerWidth;
-    var windowHeight = window.innerHeight;
-    console.log(windowHeight)
 
-    if(windowWidth > 667) {
+    if(windowWidth > 668) {
       // Desktop
       var wrapperOffset = $('#navigation').height() + $('#navigation-secondary').height();
     } else {
       // Mobile
-      var wrapperOffset = 0;
-      document.getElementById("map-canvas").style.height = "500px";
+      var wrapperOffset = $('#navigation-secondary').height();
     }
+
+    groupFinderWrapper.style.top = wrapperOffset + "px";
+
   };
 
   groupFinderLayout();
 
   window.addEventListener('resize', groupFinderLayout);
+
 
   var defaultLatLng = new google.maps.LatLng(34.0374891,-81.0076046); // Default
   
@@ -210,109 +151,15 @@ $(document).ready(function(){
 
   function drawMap(latlng) {
       var myOptions = {
-          center: latlng,
-          zoom: 8,
-          scrollwheel: false,
-          streetViewControl: false,
-          styles: [
-            {
-                "featureType": "landscape.man_made",
-                "elementType": "all",
-                "stylers": [
-                    {
-                        "color": "#faf5ed"
-                    },
-                    {
-                        "lightness": "0"
-                    },
-                    {
-                        "gamma": "1"
-                    }
-                ]
-            },
-            {
-                "featureType": "poi.park",
-                "elementType": "geometry.fill",
-                "stylers": [
-                    {
-                        "color": "#bae5a6"
-                    }
-                ]
-            },
-            {
-                "featureType": "road",
-                "elementType": "all",
-                "stylers": [
-                    {
-                        "weight": "1.00"
-                    },
-                    {
-                        "gamma": "1.8"
-                    },
-                    {
-                        "saturation": "0"
-                    }
-                ]
-            },
-            {
-                "featureType": "road",
-                "elementType": "geometry.fill",
-                "stylers": [
-                    {
-                        "hue": "#ffb200"
-                    }
-                ]
-            },
-            {
-                "featureType": "road.arterial",
-                "elementType": "geometry.fill",
-                "stylers": [
-                    {
-                        "lightness": "0"
-                    },
-                    {
-                        "gamma": "1"
-                    }
-                ]
-            },
-            {
-                "featureType": "transit.station.airport",
-                "elementType": "all",
-                "stylers": [
-                    {
-                        "hue": "#b000ff"
-                    },
-                    {
-                        "saturation": "23"
-                    },
-                    {
-                        "lightness": "-4"
-                    },
-                    {
-                        "gamma": "0.80"
-                    }
-                ]
-            },
-            {
-                "featureType": "water",
-                "elementType": "all",
-                "stylers": [
-                    {
-                        "color": "#a0daf2"
-                    }
-                ]
-            }
-        ],
-        mapTypeId: google.maps.MapTypeId.ROADMAP,
-        fullscreenControl: false,
-        mapTypeControlOptions: {
-          mapTypeIds: []
-        }
+        center: latlng,
+        zoom: 8,
+        gestureHandling: 'greedy',
+        {{ 'Global' | Attribute:'GoogleMapsOptions' }}
       };
       map = new google.maps.Map(document.getElementById("map-canvas"), myOptions);
       // place the infowindow.  Invisible, without content.
       var infowindow = new google.maps.InfoWindow({
-          content: '',
+        content: '',
       });
 
       bounds = new google.maps.LatLngBounds();
@@ -332,64 +179,67 @@ $(document).ready(function(){
 
 });
 
-var removeValue = function(list, value, separator) {
-  separator = separator || ",";
-  var values = list.split(separator);
-  for(var i = 0 ; i < values.length ; i++) {
-    if(values[i] == value) {
-      values.splice(i, 1);
-      return values.join(separator);
-    }
-  }
-  return list;
-}
-
 function updateFilters() {
   var currentUrl = window.location.href;
   var uri = URI(window.location.href);
   var query = uri.search(true);
 
   $('.js-filters .js-filter').each(function(i, obj) {
-    var filter = $(obj);
-    var key = filter.data("key");
-    var value = filter.data("value");
-    if (uri.hasQuery(key, true)) {
-      if(URI().query(true)[key].includes(value)) {
-            var array = removeValue(URI().query(true)[key], filter.data("value"));
-          if(bye.length == 0) {
-             var link = URI(window.location.href).removeSearch(key);
-          } else {
-             var link = URI(window.location.href).setSearch(key, array);
-          }
-          filter.removeClass("active").attr('href',link);
-      } else {
-        var array = URI().query(true)[key] + ',' + value;
-        link = URI(window.location.href).setSearch(key, array);
-        filter.addClass("active").attr('href',link);
-      }
-    } else {
-      link = URI(window.location.href).addSearch(key, value);
+    filter = $(obj);
+    if (URI(window.location.href).hasQuery(filter.data("key"), filter.data("value"), true)) {
+      link = URI(window.location.href).removeSearch(filter.data("key"), filter.data("value"));
       filter.addClass("active").attr('href',link);
+    } else {
+      link = URI(window.location.href).addSearch(filter.data("key"), filter.data("value"));
+      filter.removeClass("active").attr('href',link);
     }
   });
 }
 
-function findGroups() {
-  console.log('finding groups...');
+function removeURLParameter(url, parameter) {
+  var urlparts = url.split('?');   
+  if (urlparts.length >= 2) {
+
+    var prefix = encodeURIComponent(parameter) + '=';
+    var pars = urlparts[1].split(/[&;]/g);
+
+    for (var i = pars.length; i-- > 0;) {    
+      if (pars[i].lastIndexOf(prefix, 0) !== -1) {  
+        pars.splice(i, 1);
+      }
+    }
+
+    return urlparts[0] + (pars.length > 0 ? '?' + pars.join('&') : '');
+  }
+  return url;
+}
+
+function findGroups(PostalCode) {
+  $('#groups').html('<p class="text-center"><i class="fas fa-lg text-primary fa-spinner-third rotating"></i></p>')
   var currentUrl = window.location.href;
-  var uri = URI(window.location.href);
   var urlParams = new URLSearchParams(currentUrl);
 
+  if(!PostalCode){
+    var PostalCode = urlParams.get('PostalCode').toString();
+    zipinput.value = PostalCode;
+  }
+  
   var campusesArray = urlParams.getAll('campuses').toString();
   var schedulesArray = urlParams.getAll('schedules').toString();
   var tagsArray = urlParams.getAll('tags').toString();
 
+  if(PostalCode) {
+    urlParams.set('PostalCode', PostalCode);
+  } else {
+    urlParams.delete('PostalCode');
+  }
+
   if(campusesArray){
-    urlParams.delete('campuses')
+    urlParams.delete('campuses');
     urlParams.append('campuses',campusesArray);
   }
   if(schedulesArray){
-    urlParams.delete('schedules')
+    urlParams.delete('schedules');
     urlParams.append('schedules',schedulesArray);
   }
   if(tagsArray){
@@ -397,24 +247,27 @@ function findGroups() {
     urlParams.append('tags',tagsArray);
   }
 
+  var query = decodeURIComponent(urlParams.toString()).split("?")[1];
   
 
-  console.log(urlParams.toString());
+  if(!query.includes("PostalCode")){
+    zipinput.focus();
+    $('#groups').html('<div class="alert alert-info" role="alert">Please enter your zip code.</div>');
+    return;
+  }
 
-  var query = uri.query();
-  
-
+  // history.pushState(null, null, currentUrl.split('?')[0] + '?' + query);
 
   $.ajax({
       url: '/api/GroupFinder?' + query,
       dataType: 'json',
       success: function(response) {
-        
-        console.log('found ' + response.length + ' groups')
+
         $('#groups').html(" ");
 
         if(window.markerCluster){
           window.markerCluster.clearMarkers();
+          bounds = new google.maps.LatLngBounds();
         }
 
         if(!$.isEmptyObject(response)){
@@ -422,7 +275,7 @@ function findGroups() {
             if (item.GroupLocation !== null) {
               var marker = new google.maps.Marker({
                 position: new google.maps.LatLng(item.GroupLocation.Latitude, item.GroupLocation.Longitude),
-                icon: 'https://s3.amazonaws.com/ns.assets/newspring/mapmarkers/marker.png'
+                icon: '{{ "Global" | Attribute:"GoogleMapsMarkerImage","Url" }}'
               });
 
               google.maps.event.addListener(marker, 'click', function() {
@@ -433,20 +286,15 @@ function findGroups() {
 
             }
 
-            if(item.Distance) {
-              var groupCard = `
-              {[ card title:'${ item.Name }' titlesize:'h3' content:'<p class="push-half-bottom"><span class="label label-info sans-serif letter-spacing-condensed circular">${ item.Distance } miles</span></p><p class="push-half-bottom">${ item.Description } ${ item.Id }</p>' linkurl:'/groups/${ item.Id }' linktext:'Group Details' ]}
-              `
-            } else {
-              var groupCard = `
-              {[ card title:'${ item.Name }' titlesize:'h3' content:'<p class="push-half-bottom">${ item.Description } ${ item.Id }</p>' linkurl:'/groups/${ item.Id }' linktext:'Group Details' ]}
-              `
-            }
+            var groupCard = `
+            {[ card title:'${ item.Name }' titlesize:'h3' content:'${ item.Distance ? `<p class="push-half-bottom"><span class="label label-info sans-serif letter-spacing-condensed circular">${ item.Distance } miles</span></p>` : `` }${ item.Schedule != null && item.Schedule != "No Schedule" ? `<p class="sans-serif stronger letter-spacing-condensed push-half-bottom"><small>${ item.Schedule }</small></p><p class="push-half-bottom">${ item.Description }</p>` : `` }' linkurl:'/groups/${ item.Id }' linktext:'Group Details' ]}
+            `
             
             $('#groups').append(groupCard);
 
             return marker;
           });
+          
 
           // Add a marker clusterer to manage the markers.
           var markerCluster = new MarkerClusterer(map, markers, {imagePath: 'https://s3.amazonaws.com/ns.assets/newspring/mapmarkers/m'});
@@ -454,14 +302,29 @@ function findGroups() {
           window.markerCluster = markerCluster;
 
           $('#groups').prepend('<h3 class="h5 push-half-bottom">' + response.length + ' groups found</h3>');            
-
-          map.setOptions({ maxZoom: 15 });
+          
           map.fitBounds(bounds);
-          map.setOptions({ maxZoom: null });
         } else {
-          $('#groups').html('No Results');
+          $('#groups').html('<h3 class="h5">No Groups Found</h3>');
         }
       }
   });
+
+  var fullscreenMapCloseButton = $('.js-close-fullscreen-map');
+  var windowWidth = window.innerWidth;
+  var windowHeight = window.innerHeight;
+  var mapCanvas = document.getElementById("map-wrapper");
+
+  if(windowWidth <= 668) {
+    map.addListener('drag', function() {
+      fullscreenMapCloseButton.removeClass('hidden');
+      mapCanvas.style.height = windowHeight + "px";
+    }, false);
+
+    fullscreenMapCloseButton[0].addEventListener('click', function(){
+      fullscreenMapCloseButton.addClass('hidden');
+      mapCanvas.style.height = windowHeight / 3 + "px";
+    });
+  };
 }
 </script>
