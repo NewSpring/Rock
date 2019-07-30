@@ -40,75 +40,75 @@
 
 }
 
-// .checkbox {
-// margin-top: 0;
-// }
+.checkbox {
+    margin-top: 0;
+}
 
-// .checkbox input[type="checkbox"] {
-// opacity: 0;
-// }
+.checkbox input[type="checkbox"] {
+    opacity: 0;
+}
 
-// .checkbox label {
-//     position: relative;
-//     display: inline-block;
-//     font-family: 'Meta Serif Pro';
-//     width: 100%;
+.checkbox label {
+    position: relative;
+    display: inline-block;
+    font-family: 'Meta Serif Pro';
+    width: 100%;
     
-//     /*16px width of fake checkbox + 6px distance between fake checkbox and text*/
-//     padding-left: 28px;
-// }
+    /*16px width of fake checkbox + 6px distance between fake checkbox and text*/
+    padding-left: 28px;
+}
 
-// .checkbox label::before,
-// .checkbox label::after {
-//     position: absolute;
-//     content: "";
+.checkbox label::before,
+.checkbox label::after {
+    position: absolute;
+    content: "";
     
-//     /*Needed for the line-height to take effect*/
-//     display: inline-block;
-// }
+    /*Needed for the line-height to take effect*/
+    display: inline-block;
+}
 
-// /*Outer box of the fake checkbox*/
-// .checkbox label::before{
-//     height: 22px;
-//     width: 22px;
-//     border: 2px solid #ddd;
-//     left: 0px;
-//     border-radius: 3px;
+/*Outer box of the fake checkbox*/
+.checkbox label::before{
+    height: 22px;
+    width: 22px;
+    border: 2px solid #ddd;
+    left: 0px;
+    border-radius: 3px;
     
-//     /*(24px line-height - 16px height of fake checkbox) / 2 - 1px for the border
-//     *to vertically center it.
-//     */
-//     top: 1px;
-// }
+    /*(24px line-height - 16px height of fake checkbox) / 2 - 1px for the border
+    *to vertically center it.
+    */
+    top: 1px;
+}
 
-// /*Checkmark of the fake checkbox*/
-// .checkbox label::after {
-//     height: 8px;
-//     width: 13px;
-//     border-left: 3px solid;
-//     border-bottom: 3px solid;
-//     transform: rotate(-45deg);
-//     left: 5px;
-//     top: 6px;
-//     border-color: #fff;
-// }
+/*Checkmark of the fake checkbox*/
+.checkbox label::after {
+    height: 8px;
+    width: 13px;
+    border-left: 3px solid;
+    border-bottom: 3px solid;
+    transform: rotate(-45deg);
+    left: 5px;
+    top: 6px;
+    border-color: #fff;
+}
 
-// /*Hide the checkmark by default*/
-// .checkbox input[type="checkbox"] + label::after {
-//     content: none;
-// }
+/*Hide the checkmark by default*/
+.checkbox input[type="checkbox"] + label::after {
+    content: none;
+}
 
-// .checkbox input[type="checkbox"]:checked + label::before {
-//     background-color: #6bac43;
-//     border-color: #6bac43;
-// }
+.checkbox input[type="checkbox"]:checked + label::before {
+    background-color: #6bac43;
+    border-color: #6bac43;
+}
 
-// .checkbox input[type="checkbox"]:checked + label::after {
-//     content: "";
-// }
+.checkbox input[type="checkbox"]:checked + label::after {
+    content: "";
+}
 
-// /*Adding focus styles on the outer-box of the fake checkbox*/
-// .checkbox input[type="checkbox"]:focus + label::before {
-//     /* outline: rgb(59, 153, 252) auto 5px; */
-//     border-color: #6bac43;
-// }
+/*Adding focus styles on the outer-box of the fake checkbox*/
+.checkbox input[type="checkbox"]:focus + label::before {
+    /* outline: rgb(59, 153, 252) auto 5px; */
+    border-color: #6bac43;
+}

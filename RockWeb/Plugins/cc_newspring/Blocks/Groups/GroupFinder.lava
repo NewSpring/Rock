@@ -1,4 +1,3 @@
-{% comment %} {% include '~~/Assets/Lava/GroupFinder.lava' %} {% endcomment %}
 {% assign apiKey = 'Global' | Attribute:'GoogleApiKey' %}
 {% javascript id:'googlemapsmarkerclusterer' url:'https://developers.google.com/maps/documentation/javascript/examples/markerclusterer/markerclusterer.js' %}{% endjavascript %}
 {% javascript id:'googlemapsapi' url:'{{ "https://maps.googleapis.com/maps/api/js?key=" | Append:apiKey }}&force=canvas' %}{% endjavascript %}
@@ -6,82 +5,312 @@
 
 {%- assign currentUrl = 'Global' | Page:'Url' -%}
 {%- assign groupViewUrl = "/groups/" -%}
-{%- assign daysofweek = "Sunday,Monday,Tuesday,Wednesday,Thursday,Friday,Saturday" -%}
-{%- assign daysofweek = daysofweek | Split:',' -%}
-{%- capture noResults -%}<div class="no-results">Unfortunately, we didn't find any groups matching your search. Gather some friends, and start your own group!</div>
-{%- endcapture -%}
+
 
 <style>
-
-  .border-transparent {
-    border-color: transparent;
+  .cursor-pointer {
+    cursor: pointer;
   }
 
-  footer {
+  #groups-container {
+    position: absolute;
+    top: 40%;
+    left: 0;
+    right: 0;
+  }
+
+  #filters {
+    top: 100%;
+    overflow-y: auto;
+    transition: top .2s ease;
+  }
+
+  #filters.active {
+    top: 0;
+  }
+
+  .btn-filter {
+    margin-bottom: 5px;
+  }
+
+  .btn-filter.active:focus, .btn-filter.active:hover, .btn-filter.active {
+    position: relative;
+    background-color: #6bac43 !important;
+    border-color: #6bac43 !important;
+    box-shadow: none !important;
+    color: #fff !important;
+  }
+
+  .btn-sm.btn-filter.active {
+    padding-right: 35px;
+  }
+
+  .btn-sm.btn-filter.active:before {
+    content: '\f00c';
+    position: absolute;
+    top: 4px;
+    right: 10px;
+    font-weight: 900;
+    font-family: "Font Awesome\ 5 Pro" !important;
+  }
+
+  #zone-footer {
     display: none;
   }
 
-  #groups {
-    margin-right: 50%;
-  }
-
-  @media screen and (max-width: 667px) {
-    #groups {
-      margin-right: 0;
-      margin-top: 400px;
+  @media only screen and (min-width : 669px) {
+    #groups-container {
+      right: 50%;
+      top: 0;
     }
-  };
-
-
-  @-webkit-keyframes rotating /* Safari and Chrome */ {
-  from {
-    -webkit-transform: rotate(0deg);
-    -o-transform: rotate(0deg);
-    transform: rotate(0deg);
   }
-  to {
-    -webkit-transform: rotate(360deg);
-    -o-transform: rotate(360deg);
-    transform: rotate(360deg);
-  }
-}
-@keyframes rotating {
-  from {
-    -ms-transform: rotate(0deg);
-    -moz-transform: rotate(0deg);
-    -webkit-transform: rotate(0deg);
-    -o-transform: rotate(0deg);
-    transform: rotate(0deg);
-  }
-  to {
-    -ms-transform: rotate(360deg);
-    -moz-transform: rotate(360deg);
-    -webkit-transform: rotate(360deg);
-    -o-transform: rotate(360deg);
-    transform: rotate(360deg);
-  }
-}
-
-.rotating {
-  -webkit-animation: rotating .5s linear infinite;
-  -moz-animation: rotating .5s linear infinite;
-  -ms-animation: rotating .5s linear infinite;
-  -o-animation: rotating .5s linear infinite;
-  animation: rotating .5s linear infinite;
-}
-
-.js-close-fullscreen-map .fa-circle:before {
-  border-radius:1000px;
-  box-shadow: 0 1px 3px rgba(28,28,28,0.25), 0 3px 0px rgba(28,28,28,0.1);
-}
-
-.js-close-fullscreen-map:focus {
-  color: #fff;
-}
 </style>
 
+<div id="map-container" class="full-screen">
+  <div id="map-canvas" class="position-fixed full-screen"></div>
 
-{%- assign wrapperId = uniqueid -%}
+  <div id="groups-container" class="soft xs-soft-half hard-bottom">
+
+    <input id="zip-input" type="text" autocomplete="off" class="form-control input-lg sans-serif stronger letter-spacing-condensed rounded shadowed push-half-bottom" style="outline: 0; border: 0;" placeholder="Enter your ZIP code">
+    
+    <div class="row">
+        <div class="col-xs-6">
+            <a href="#" id="open-filters" class="btn btn-block btn-default shadowed" style="outline: 0; border: 0;">Filters</a>
+        </div><div class="col-xs-6">
+            <a href="#" id="find-groups" class="btn btn-block btn-primary shadowed pull-right" style="outline: 0; border: 0;">Find Groups</a>
+        </div>
+    </div>
+
+    <div id="groups-list" class="push-top">
+    </div>
+
+  </div>
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<script>
+
+// Setup variables
+var mapContainer = $('#map-container');
+var groupsList = $('#groups-list');
+var zipinput = document.getElementById('zip-input');
+var findgroupsbutton = document.getElementById('find-groups');
+var windowWidth = window.innerWidth;
+var filtersContainer = $('#filters');
+var map;
+var latlng = new google.maps.LatLng(33.8361, -81.1637);
+
+// Set map center offset
+google.maps.Map.prototype.setCenterWithOffset= function(latlng, offsetX, offsetY) {
+    var map = this;
+    var ov = new google.maps.OverlayView();
+    ov.onAdd = function() {
+        var proj = this.getProjection();
+        var aPoint = proj.fromLatLngToContainerPixel(latlng);
+        aPoint.x = aPoint.x+offsetX;
+        aPoint.y = aPoint.y+offsetY;
+        map.setCenter(proj.fromContainerPixelToLatLng(aPoint));
+    }; 
+    ov.draw = function() {}; 
+    ov.setMap(this); 
+};
+
+// Initialize and add the map
+function initMap() {
+
+  // The location of SC
+  var sc = {lat: 33.8361, lng: -81.1637};
+  // The map, centered at SC
+  map = new google.maps.Map(
+    document.getElementById('map-canvas'), {
+      zoom: 7, 
+      center: sc,
+      gestureHandling: 'greedy',
+      {{ 'Global' | Attribute:'GoogleMapsOptions' }}
+    }
+  );
+
+  bounds = new google.maps.LatLngBounds();
+
+  if(windowWidth >= 668) {
+    map.setCenterWithOffset(latlng, -window.innerWidth/4, 0);
+  }
+}
+
+initMap();
+
+
+// Calculate layout for group finder (top offsets for navigation, etc)
+function groupFinderLayout() {  
+  windowWidth = window.innerWidth;
+  var topOffset;
+
+  if(windowWidth <= 668) {
+    topOffset = $('#navigation-secondary')[0].offsetHeight;
+    bottomOffset = $('#navigation')[0].offsetHeight - 15;
+  } else {
+    topOffset = $('#navigation')[0].offsetHeight + $('#navigation-secondary')[0].offsetHeight;
+    bottomOffset = 0;
+  };
+
+  mapContainer.css('top', topOffset + 'px');
+  groupsList.css('margin-bottom', bottomOffset + 'px');
+}
+
+// Open filters container
+function openFilters(){
+  $('#filters').addClass('active');
+  $('html').css( "overflow", "hidden" );
+
+  navHeight = $('#zone-navigation')[0].offsetHeight;
+  
+  if(windowWidth <= 668) {
+    filtersContainer.css('top', '0px');
+    filtersContainer.css('bottom', navHeight + 'px');
+  } else {
+    filtersContainer.css('top', navHeight + 'px');
+    filtersContainer.css('bottom', '0px');
+  };
+}
+
+// Close filters container
+function closeFilters(){
+  $('#filters').removeClass('active');
+  $('html').css( "overflow", "auto" );
+  filtersContainer.css('top', '100%');
+  filtersContainer.css('bottom', '0px');
+}
+
+function findGroups(PostalCode) {
+  var currentUrl = window.location.href;
+  var urlParams = new URLSearchParams(currentUrl);
+  var query = 'GroupTypeId=25&PostalCode=' + PostalCode + '&campus=12';
+
+  $.ajax({
+      url: '/api/GroupFinder?' + query,
+      dataType: 'json',
+      success: function(response) {
+
+        console.log(response);
+
+        groupsList.html(" ");
+
+        // If response is not empty, show groups
+        if(!$.isEmptyObject(response)){
+          var markers = response.map(function(item, i) {
+            if (item.GroupLocation !== null) {
+              var marker = new google.maps.Marker({
+                position: new google.maps.LatLng(item.GroupLocation.Latitude, item.GroupLocation.Longitude),
+                icon: '{{ "Global" | Attribute:"GoogleMapsMarkerImage","Url" }}'
+              });
+
+              google.maps.event.addListener(marker, 'click', function() {
+                window.location.href = "/groups/" + item.Id;
+              });
+
+              bounds.extend(marker.position);
+
+            }
+
+            var groupCard = `
+            {[ card title:'${ item.Name }' titlesize:'h4' content:'${ item.Distance ? `<p class="push-half-bottom"><span class="label label-info sans-serif letter-spacing-condensed circular">${ item.Distance } miles</span></p>` : `` }${ item.Schedule != null && item.Schedule != "No Schedule" ? `<p class="sans-serif stronger letter-spacing-condensed push-half-bottom"><small>${ item.Schedule }</small></p><p class="push-half-bottom">${ item.Description }</p>` : `` }' linkurl:'/groups/${ item.Id }' linktext:'Group Details' ]}
+            `
+            
+            groupsList.append(groupCard);
+
+            return marker;
+          });
+          
+
+          // Add a marker clusterer to manage the markers.
+          var markerCluster = new MarkerClusterer(map, markers, {imagePath: 'https://s3.amazonaws.com/ns.assets/newspring/mapmarkers/m'});
+          markerCluster.getStyles().map(function(obj){ return Object.assign(obj, {textColor: 'white',textSize:'13'}) });
+          window.markerCluster = markerCluster;
+
+          groupsList.prepend('<h3 class="h5 push-half-bottom">' + response.length + ' groups found</h3>');            
+          
+          map.fitBounds(bounds);
+        } else {
+          groupsList.html('<h3 class="h5">No Groups Found</h3>');
+        }
+      }
+  });
+}
+
+// Setup layout
+groupFinderLayout();
+
+
+
+
+
+///// EVENT BINDING /////
+
+
+
+
+
+// Recalc layout whenever window is resized
+window.addEventListener('resize', groupFinderLayout);
+
+// Toggling individual filters
+$('.js-filter').on('click', function(){
+  console.log('search!');
+  // $(this).toggleClass('active');
+});
+
+// Open Filters Drawer
+$('#open-filters').on('click',function(){
+  event.preventDefault();
+  openFilters();
+});
+
+// Close Filters Drawer
+$('#close-filters').on('click',function(){
+  event.preventDefault();
+  closeFilters();
+});
+
+// Search Groups Button
+$('#search-groups').on('click',function(){
+  event.preventDefault();
+  closeFilters();
+});
+
+// Listen to ZIP input for enter key and find groups when it's pressed
+zipinput.addEventListener('keydown',function(e){
+  if (e.keyCode === 13) {
+    e.preventDefault();
+    findGroups(zipinput.value);
+  }
+});
+
+// Find groups when button is clicked
+findgroupsbutton.addEventListener('click',function(e){
+  e.preventDefault();
+  findGroups(zipinput.value);
+});
+
+
+
+</script>
+
+{% comment %} {%- assign wrapperId = uniqueid -%}
 
 
 
@@ -327,4 +556,4 @@ function findGroups(PostalCode) {
     });
   };
 }
-</script>
+</script> {% endcomment %}

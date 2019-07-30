@@ -8,6 +8,7 @@ _ReSharper.*
 *.v11.suo
 *.user
 *.suo
+*.vscode
 #*.Framework.XML
 
 #specific files
