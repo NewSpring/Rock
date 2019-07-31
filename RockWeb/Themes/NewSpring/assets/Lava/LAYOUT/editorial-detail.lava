@@ -53,7 +53,12 @@
     {% assign subtitle = Item | Attribute:'Subtitle' %}
     {% assign summary = Item | Attribute:'Summary' %}
     {% assign video = Item | Attribute:'Video','RawValue' %}
-    {% assign date = Item.StartDateTime | Date:'MMMM d, yyyy' %}
+    {% assign month = Item.StartDateTime | Date:'MMMM' %}
+	{% if month == 'January' or month == 'February' or month == 'August' or month == 'September' or month == 'October' or month == 'November' or month == 'December' %}
+		{% assign date = Item.StartDateTime | Date:'MMM. d, yyyy' %}
+	{% elseif month == 'March' or month == 'April' or month == 'May' or month == 'June' or month == 'July' %}
+		{% assign date = Item.StartDateTime | Date:'MMMM d, yyyy' %}
+	{% endif %}
     {% assign itemimageurl = Item | Attribute:'ImageLandscape','Url' %}
 
     {% capture imageurl %}
