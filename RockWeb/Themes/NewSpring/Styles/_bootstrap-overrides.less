@@ -5,6 +5,13 @@
 }
 
 // Buttons
+
+.btn {
+  .button-size(@padding-base-vertical; @padding-base-horizontal; @font-size-base; @line-height-base; @btn-border-radius-base);
+  padding-top: @padding-base-vertical + 1;
+  padding-bottom: @padding-base-vertical - 1;
+}
+
 .btn-sm {
   .button-size(@padding-small-vertical; @padding-small-horizontal; @font-size-small; @line-height-small; @btn-border-radius-small);
   padding-top: @padding-small-vertical + 1;

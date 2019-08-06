@@ -12,93 +12,77 @@
     cursor: pointer;
   }
 
-  #groups-container {
-    position: absolute;
-    top: 40%;
-    left: 0;
+  .group-details {
+    z-index: 1000;
+  }
+
+  .group-details:before {
+    content:'';
+    position: fixed;
+    top: 0;
     right: 0;
+    bottom: 0;
+    left: 0;
+    background-color: rgba(0,0,0,.9);
+  }
+
+  #loader {
+    position: relative;
+    z-index: 1;
+    opacity: .95;
+  }
+
+  #loader i {
+    opacity: 1;
   }
 
   #filters {
-    top: 100%;
+    z-index: -1000;
+    opacity: 0;
     overflow-y: auto;
-    transition: top .2s ease;
+    -webkit-overflow-scrolling: touch;
   }
 
   #filters.active {
-    top: 0;
-  }
-
-  .btn-filter {
-    margin-bottom: 5px;
-  }
-
-  .btn-filter.active:focus, .btn-filter.active:hover, .btn-filter.active {
-    position: relative;
-    background-color: #6bac43 !important;
-    border-color: #6bac43 !important;
-    box-shadow: none !important;
-    color: #fff !important;
-  }
-
-  .btn-sm.btn-filter.active {
-    padding-right: 35px;
-  }
-
-  .btn-sm.btn-filter.active:before {
-    content: '\f00c';
-    position: absolute;
-    top: 4px;
-    right: 10px;
-    font-weight: 900;
-    font-family: "Font Awesome\ 5 Pro" !important;
+    z-index: 1;
+    opacity: 1;
   }
 
   #zone-footer {
     display: none;
   }
 
-  @media only screen and (min-width : 669px) {
-    #groups-container {
-      right: 50%;
-      top: 0;
-    }
+  .rotate {
+		-webkit-animation: rotation .3s infinite linear;
   }
+
+  @-webkit-keyframes rotation {
+      from {
+          -webkit-transform: rotate(0deg);
+      }
+      to {
+          -webkit-transform: rotate(359deg);
+      }
+  }
+
+  @media only screen and (min-width : 669px) {
+
+  }
+
+  @media only screen and (min-width : 1281px) {
+
+  }
+
 </style>
 
-<div id="map-container" class="full-screen">
-  <div id="map-canvas" class="position-fixed full-screen"></div>
 
-  <div id="groups-container" class="soft xs-soft-half hard-bottom">
 
-    <input id="zip-input" type="text" autocomplete="off" class="form-control input-lg sans-serif stronger letter-spacing-condensed rounded shadowed push-half-bottom" style="outline: 0; border: 0;" placeholder="Enter your ZIP code">
-    
-    <div class="row">
-        <div class="col-xs-6">
-            <a href="#" id="open-filters" class="btn btn-block btn-default shadowed" style="outline: 0; border: 0;">Filters</a>
-        </div><div class="col-xs-6">
-            <a href="#" id="find-groups" class="btn btn-block btn-primary shadowed pull-right" style="outline: 0; border: 0;">Find Groups</a>
-        </div>
-    </div>
+<div id="map-canvas" class="position-fixed bg-gray-darker full-screen"></div>
 
-    <div id="groups-list" class="push-top">
-    </div>
+{% include '~/Plugins/cc_newspring/Blocks/Groups/GroupFinderFilters.lava' %}
 
-  </div>
-
+<div class="group-details position-fixed full-screen">
 </div>
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -106,29 +90,18 @@
 <script>
 
 // Setup variables
-var mapContainer = $('#map-container');
-var groupsList = $('#groups-list');
+var navigationHeight = $('#navigation')[0].offsetHeight;
+var navigationSecondaryHeight = $('#navigation-secondary')[0].offsetHeight;
+var windowWidth = window.innerWidth;
+
+var mapCanvas = $('#map-canvas');
 var zipinput = document.getElementById('zip-input');
 var findgroupsbutton = document.getElementById('find-groups');
 var windowWidth = window.innerWidth;
 var filtersContainer = $('#filters');
-var map;
-var latlng = new google.maps.LatLng(33.8361, -81.1637);
-
-// Set map center offset
-google.maps.Map.prototype.setCenterWithOffset= function(latlng, offsetX, offsetY) {
-    var map = this;
-    var ov = new google.maps.OverlayView();
-    ov.onAdd = function() {
-        var proj = this.getProjection();
-        var aPoint = proj.fromLatLngToContainerPixel(latlng);
-        aPoint.x = aPoint.x+offsetX;
-        aPoint.y = aPoint.y+offsetY;
-        map.setCenter(proj.fromContainerPixelToLatLng(aPoint));
-    }; 
-    ov.draw = function() {}; 
-    ov.setMap(this); 
-};
+var activeMarker;
+var markerImage = '{{ "Global" | Attribute:"GoogleMapsMarkerImageActive","Url" }}';
+var markers = [];
 
 // Initialize and add the map
 function initMap() {
@@ -138,18 +111,17 @@ function initMap() {
   // The map, centered at SC
   map = new google.maps.Map(
     document.getElementById('map-canvas'), {
-      zoom: 7, 
+      zoom: 8, 
       center: sc,
       gestureHandling: 'greedy',
-      {{ 'Global' | Attribute:'GoogleMapsOptions' }}
+      {{ 'Global' | Attribute:'GoogleMapsOptions' }},
+      zoomControlOptions: {
+        position: google.maps.ControlPosition.TOP_RIGHT
+    },
     }
   );
 
   bounds = new google.maps.LatLngBounds();
-
-  if(windowWidth >= 668) {
-    map.setCenterWithOffset(latlng, -window.innerWidth/4, 0);
-  }
 }
 
 initMap();
@@ -158,95 +130,87 @@ initMap();
 // Calculate layout for group finder (top offsets for navigation, etc)
 function groupFinderLayout() {  
   windowWidth = window.innerWidth;
-  var topOffset;
 
   if(windowWidth <= 668) {
-    topOffset = $('#navigation-secondary')[0].offsetHeight;
-    bottomOffset = $('#navigation')[0].offsetHeight - 15;
+    // Mobile
+    mapCanvas.css('top',navigationSecondaryHeight + 'px');
+    mapCanvas.css('bottom',navigationHeight + 'px');
+    filtersContainer.css('top',navigationSecondaryHeight + 'px');
+    filtersContainer.css('bottom',navigationHeight + 'px');
   } else {
-    topOffset = $('#navigation')[0].offsetHeight + $('#navigation-secondary')[0].offsetHeight;
-    bottomOffset = 0;
+    // Desktop   
   };
 
-  mapContainer.css('top', topOffset + 'px');
-  groupsList.css('margin-bottom', bottomOffset + 'px');
 }
 
 // Open filters container
 function openFilters(){
   $('#filters').addClass('active');
   $('html').css( "overflow", "hidden" );
-
-  navHeight = $('#zone-navigation')[0].offsetHeight;
-  
-  if(windowWidth <= 668) {
-    filtersContainer.css('top', '0px');
-    filtersContainer.css('bottom', navHeight + 'px');
-  } else {
-    filtersContainer.css('top', navHeight + 'px');
-    filtersContainer.css('bottom', '0px');
-  };
 }
 
 // Close filters container
 function closeFilters(){
   $('#filters').removeClass('active');
   $('html').css( "overflow", "auto" );
-  filtersContainer.css('top', '100%');
-  filtersContainer.css('bottom', '0px');
 }
 
 function findGroups(PostalCode) {
+  console.log('finding groups...')
   var currentUrl = window.location.href;
   var urlParams = new URLSearchParams(currentUrl);
-  var query = 'GroupTypeId=25&PostalCode=' + PostalCode + '&campus=12';
+  var query = 'GroupTypeId=25&campuses=8&PostalCode=' + PostalCode;
+  $('body').prepend('<p id="loader" class="bg-gray-darker position-fixed full-screen flush" style="display: flex; align-items: center;"><i class="fas fa-2x fa-spinner-third text-primary rotate display-block mx-auto"></i></p>');
+  
 
   $.ajax({
       url: '/api/GroupFinder?' + query,
       dataType: 'json',
       success: function(response) {
+        console.log(response.length + ' groups found.')
 
-        console.log(response);
+        $('#loader').remove();
 
-        groupsList.html(" ");
+        // Clear group list
+       
 
-        // If response is not empty, show groups
+        // If response is not empty
         if(!$.isEmptyObject(response)){
-          var markers = response.map(function(item, i) {
+
+          markers = response.map(function(item, i) {
+
+            // If group has a meeting location
             if (item.GroupLocation !== null) {
+
+              // Create a new marker
               var marker = new google.maps.Marker({
                 position: new google.maps.LatLng(item.GroupLocation.Latitude, item.GroupLocation.Longitude),
-                icon: '{{ "Global" | Attribute:"GoogleMapsMarkerImage","Url" }}'
+                icon: markerImage
               });
 
-              google.maps.event.addListener(marker, 'click', function() {
-                window.location.href = "/groups/" + item.Id;
+              // Add click listener to the marker
+              marker.addListener('click', function() {
+                
               });
 
+              // Add marker to the map
+              marker.setMap(map);
+
+              // Extend bounds to include marker
               bounds.extend(marker.position);
 
+              // Set item index to connect dom elements to markers
+              item.index = i;
+
+              // Add marker to markers array
+              return marker;
             }
 
-            var groupCard = `
-            {[ card title:'${ item.Name }' titlesize:'h4' content:'${ item.Distance ? `<p class="push-half-bottom"><span class="label label-info sans-serif letter-spacing-condensed circular">${ item.Distance } miles</span></p>` : `` }${ item.Schedule != null && item.Schedule != "No Schedule" ? `<p class="sans-serif stronger letter-spacing-condensed push-half-bottom"><small>${ item.Schedule }</small></p><p class="push-half-bottom">${ item.Description }</p>` : `` }' linkurl:'/groups/${ item.Id }' linktext:'Group Details' ]}
-            `
-            
-            groupsList.append(groupCard);
-
-            return marker;
           });
           
-
-          // Add a marker clusterer to manage the markers.
-          var markerCluster = new MarkerClusterer(map, markers, {imagePath: 'https://s3.amazonaws.com/ns.assets/newspring/mapmarkers/m'});
-          markerCluster.getStyles().map(function(obj){ return Object.assign(obj, {textColor: 'white',textSize:'13'}) });
-          window.markerCluster = markerCluster;
-
-          groupsList.prepend('<h3 class="h5 push-half-bottom">' + response.length + ' groups found</h3>');            
-          
+          // Fit map bounds to marker array bounds
           map.fitBounds(bounds);
-        } else {
-          groupsList.html('<h3 class="h5">No Groups Found</h3>');
+
         }
       }
   });
@@ -254,6 +218,8 @@ function findGroups(PostalCode) {
 
 // Setup layout
 groupFinderLayout();
+
+findGroups('29678');
 
 
 
@@ -305,8 +271,6 @@ findgroupsbutton.addEventListener('click',function(e){
   e.preventDefault();
   findGroups(zipinput.value);
 });
-
-
 
 </script>
 
