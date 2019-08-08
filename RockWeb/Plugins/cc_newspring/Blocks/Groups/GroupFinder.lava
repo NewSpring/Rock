@@ -102,6 +102,7 @@
 
 
 
+
 <div id="map-canvas" class="position-fixed bg-gray-darker full-screen"></div>
 
 {% include '~/Plugins/cc_newspring/Blocks/Groups/GroupFinderFilters.lava' %}
@@ -113,8 +114,6 @@
     </div>
   </div>
 </div>
-
-
 
 
 <script>
@@ -134,49 +133,53 @@ var currentUrl = window.location.href;
 var query = currentUrl.split('?')[1];
 var urlParams = new URLSearchParams(query);
 var postalCode = urlParams.get("PostalCode");
+var activeFilters;
 var checkbox;
 
-urlParams.forEach(function(value, key) {
-  valuesArray = value.split(',');
-  if(valuesArray.length > 0) {
-    // If a filter has more than one value associated with it
+function updateFilters(){
+  urlParams.forEach(function(value, key) {
+    valuesArray = value.split(',');
+    if(valuesArray.length > 0) {
+      // If a filter has more than one value associated with it
 
-    // Loop through values associated with key
-    valuesArray.forEach(function(i) {
+      // Loop through values associated with key
+      valuesArray.forEach(function(i) {
+
+        // Find checkbox associated with the key/value
+        checkbox = document.querySelector('[data-key="' + key + '"][data-value="' + i + '"]');
+
+        // Check the checkbox
+        if(checkbox) {
+          checkbox.checked = true;
+        }
+
+      });
+
+    } else {
+      // If a filter has only one value associated with it
 
       // Find checkbox associated with the key/value
-      checkbox = document.querySelector('[data-key="' + key + '"][data-value="' + i + '"]');
+      checkbox = document.querySelector('[data-key="' + key + '"][data-value="' + valuesArray[0] + '"]');
 
       // Check the checkbox
       if(checkbox) {
         checkbox.checked = true;
       }
 
-    });
-
-  } else {
-    // If a filter has only one value associated with it
-
-    // Find checkbox associated with the key/value
-    checkbox = document.querySelector('[data-key="' + key + '"][data-value="' + valuesArray[0] + '"]');
-
-    // Check the checkbox
-    if(checkbox) {
-      checkbox.checked = true;
     }
+    
+  });
 
+  activeFilters = document.querySelectorAll('#filters input[type="checkbox"]:checked').length;
+  if(activeFilters > 0) {
+    $('#open-filters')[0].innerHTML = "Filters (" + activeFilters + ")";
+  } else {
+    $('#open-filters')[0].innerHTML = "Filters";
   }
-  
-});
 
-if(postalCode) {
-  // Set ZIP input value if postal code exists in query string
-  zipinput.value = postalCode;
-
-  // Search Groups
-  findGroups(query);
 }
 
+updateFilters();
 initMap();
 
 // Setup layout
@@ -244,6 +247,7 @@ function closeFilters(){
 function findGroups(query) {
   baseUrl = currentUrl.split('?')[0];
   history.pushState(null, null, baseUrl + '?' + decodeURIComponent(query));
+  updateFilters();
   $('body').prepend('<p id="loader" class="bg-gray-darker position-fixed full-screen flush" style="display: flex; align-items: center;"><i class="fas fa-2x fa-spinner-third text-primary rotate display-block mx-auto"></i></p>');
 
   $.ajax({
@@ -361,7 +365,7 @@ var currentValues = [];
 
 // Toggling individual filters
 $('.js-filter').on('click', function(){
-
+  
   // Key of filter clicked
   var filterKey = event.target.dataset.key;
 
@@ -448,10 +452,57 @@ zipinput.addEventListener('keydown',function(e){
 // Find groups when button is clicked
 findgroupsbutton.addEventListener('click',function(e){
   e.preventDefault();
-  urlParams.set('PostalCode', zipinput.value);
-  query = urlParams.toString();
-  findGroups(query);
+  postalCode = zipinput.value;
+
+  if(postalCode != '') {
+
+    urlParams.set('PostalCode', postalCode);
+    query = urlParams.toString();
+    findGroups(query);
+
+  } else {
+
+    $('.group-details .content')[0].innerHTML = '';
+    $('.group-details').addClass('active');
+    var message = `
+    <h2 class="h3 push-right push-half-bottom">Whoops!</h3>
+    <p class="push-half-bottom">Please enter your ZIP code to find a group near you.</p>
+    <p class="flush"><a href="#" class="btn btn-primary" onclick="$('.group-details').removeClass('active'); event.preventDefault();">Dismiss</a></p>
+    `;
+
+    $('.group-details .content').append(message);
+
+  }
   closeFilters();
 });
+
+if(postalCode) {
+  // Set ZIP input value if postal code exists in query string
+  zipinput.value = postalCode;
+
+  // Search Groups
+  findGroups(query);
+}
+
+
+{% if CurrentPerson and CurrentPerson != empty %}
+  campusId = "{% assign personCampus = CurrentPerson | Campus %}{{ personCampus.Id }}"
+  postalCode = "{% assign zipParts = CurrentPerson | Address:'Home','[[PostalCode]]' | Split:'-' %}{{ zipParts[0] }}";
+  zipinput.value = postalCode;
+  urlParams.set('PostalCode', postalCode);
+  urlParams.set('campuses', campusId);
+  query = urlParams.toString();
+  updateFilters();
+  findGroups(query);
+{% else %}
+  $('.group-details .content')[0].innerHTML = '';
+  $('.group-details').addClass('active');
+  var message = `
+  <h2 class="h3 push-right push-half-bottom">Find Your Group</h3>
+  <p class="push-half-bottom">To find a group near you, enter your ZIP code, set any filters you wish to refine your search by, and then click "Find Groups".</p>
+  <p class="flush"><a href="#" class="btn btn-primary" onclick="$('.group-details').removeClass('active'); event.preventDefault(); zipinput.focus();">Let's Get Started!</a></p>
+  `;
+  $('.group-details .content').append(message);
+{% endif %}
 
 </script>
