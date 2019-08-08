@@ -467,7 +467,7 @@ findgroupsbutton.addEventListener('click',function(e){
     var message = `
     <h2 class="h3 push-right push-half-bottom">Whoops!</h3>
     <p class="push-half-bottom">Please enter your ZIP code to find a group near you.</p>
-    <p class="flush"><a href="#" class="btn btn-primary" onclick="$('.group-details').removeClass('active'); event.preventDefault();">Dismiss</a></p>
+    <p class="flush"><a href="#" class="btn btn-primary" onclick="$('.group-details').removeClass('active'); event.preventDefault(); zipinput.focus(); openFilters();">Dismiss</a></p>
     `;
 
     $('.group-details .content').append(message);
@@ -500,7 +500,7 @@ if(postalCode) {
   var message = `
   <h2 class="h3 push-right push-half-bottom">Find Your Group</h3>
   <p class="push-half-bottom">To find a group near you, enter your ZIP code, set any filters you wish to refine your search by, and then click "Find Groups".</p>
-  <p class="flush"><a href="#" class="btn btn-primary" onclick="$('.group-details').removeClass('active'); event.preventDefault(); zipinput.focus();">Let's Get Started!</a></p>
+  <p class="flush"><a href="#" class="btn btn-primary" onclick="$('.group-details').removeClass('active'); event.preventDefault(); zipinput.focus(); openFilters();">Let's Get Started!</a></p>
   `;
   $('.group-details .content').append(message);
 {% endif %}
