@@ -3,11 +3,11 @@
 ### What does this PR do, or why is it needed?
 
 ### How do I test this PR?
-This should include items needed to add to a local Rock instance in order for this change to work and/or which database this PR can be tested against.
 
 ## TODO
 
 - [ ] PR has a relevant title that will be understandable in a public changelog (ie...non developers)
+- [ ] Testing info includes any items that need to be added to a local Rock instance in order to test and/or the database against which it can be tested.
 - [ ] Upload GIF(s) of relevant changes
 - [ ] Set a relevant reviewer
 
