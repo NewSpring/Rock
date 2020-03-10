@@ -67,17 +67,39 @@
 
 {% for item in Items -%}
 
-  {% capture parentTitle %}{[ getParentTitleFromChildId id:'{{ item.Id }}' ]}{% endcapture %}
-  {% capture permalink %}{{ PublicApplicationRoot }}{[ getPermalink cciid:'{{ item.Id }}' ]}{% endcapture %}
+    {% comment %}
+        Getting the Parent Data
+    {% endcomment %}
+    {% assign parentCount = item.ParentItems | Size %}
+    {% if parentCount >= 1 %}
+        {% assign parentId = item.ParentItems[0].ContentChannelItemId %}
+        {% contentchannelitem id:'{{ parentId }}' iterator:'parents' %}
+            {% for parent in parents %}
+                {% assign parentTitle = parent.Title %}
+                {% assign parentImageLandscape = parent | Attribute:'ImageLandscape','Url' | Escape %}
+                {% assign parentImageSquare = parent | Attribute:'ImageSquare','Url' | Escape %}
+                {% contentchannelitemslug where:'ContentChannelItemId == {{ parent.Id }}' iterator:'slugs' limit:'1' %}
+                    {% for slug in slugs %}
+                        {% capture parentSlug %}{{ slug.Slug }}{% endcapture %}
+                    {% endfor %}
+                {% endcontentchannelitemslug %}
+            {% endfor %}
+        {% endcontentchannelitem %}
+    {% endif %}
 
-    {% if permalink and permalink != empty %}
-        {% capture itemLink %}{{ permalink }}{% endcapture %}
+    {% capture itemSlug %}
+        {% contentchannelitemslug where:'ContentChannelItemId == {{ item.Id }}' iterator:'slugs' limit:'1' %}
+            {% for slug in slugs %}
+                {{ slug.Slug }}
+            {% endfor %}
+        {% endcontentchannelitemslug %}
+    {% endcapture %}
+
+    {% if itemSlug and itemSlug != empty %}
+        {% capture itemLink %}{{ PublicApplicationRoot }}{{ Channel.ChannelUrl }}{% if parentSlug and parentSlug != empty %}/{{ parentSlug | Trim }}{% endif %}/{{ itemSlug | Trim }}{% endcapture %}
         {% assign itemSubtitle = item | Attribute:'Subtitle' | StripHtml | HtmlDecode %}
         {% assign itemSummary = item | Attribute:'Summary' | HtmlDecode %}
         {% assign itemContent = item.Content | HtmlDecode %}
-        {% assign communicatorsGuid = item | Attribute:'Communicators','RawValue' %}
-        {% capture communicators %}{[ communicatorNames guid:'{{ communicatorsGuid }}' ]}{% endcapture %}
-        {% assign communicators = communicators | Trim %}
         {% assign itemImageLandscape = item | Attribute:'ImageLandscape','Url' | Escape %}
         {% assign itemImageSquare = item | Attribute:'ImageSquare','Url' | Escape %}
         {% assign itemAudio = item | Attribute:'AudioFile','Url' | Escape %}
@@ -85,8 +107,15 @@
         {% assign itemActualDate = item | Attribute:'ActualDate' | Date:'ddd, dd MMM yyyy HH:mm:00 EST' %}
         {% assign itemWistia = item | Attribute:'Video','RawValue' %}
         {% capture itemWistiaEmbed %}{[ wistiaEmbed id:'{{ itemWistia }}' ]}{% endcapture %}
-        {% assign itemScripturesGuid = item | Attribute:'Scriptures','RawValue' %}
-        {% capture itemScriptures %}{[ scriptureReferences guid:'{{ itemScripturesGuid }}' ]}{% endcapture %}
+
+        {% capture itemCommunicatorsString %}{{ item | Attribute:'Communicators' }}{% endcapture %}
+        {% assign itemCommunicatorsObject = itemCommunicatorsString | FromJSON %}
+        {% capture communicators %}{% for communicator in itemCommunicatorsObject.Attributes %}{% if communicator.Communicator and communicator.Communicator != empty %}{{ communicator.Communicator }}{% else %}{{ communicator.GuestCommunicator }}{% endif %}{% unless forloop.last %}, {% endunless %}{% endfor %}{% endcapture %}
+        {% assign communicators = communicators | Trim %}
+
+        {% capture itemScripturesString %}{{ item | Attribute:'Scriptures' }}{% endcapture %}
+        {% assign itemScripturesObject = itemScripturesString | FromJSON %}
+        {% capture itemScriptures %}{% for scripture in itemScripturesObject.Attributes %}{{ scripture.Book }} {{ scripture.Reference }}{% unless forloop.last %}, {% endunless %}{% endfor %}{% endcapture %}
         {% assign itemScriptures = itemScriptures | Trim %}
 
         <item>
@@ -111,7 +140,7 @@
             {% assign description = description | Trim %}
 
             {% if description and description != empty and description != '' %}
-                {[ scripturize defaulttranslation:'{{ defaultTranslation }}' landingsite:'BibleGateway' cssclass:'scripture' ]}
+                {[ scripturize defaulttranslation:'{{ defaultTranslation }}' landingsite:'YouVersion' cssclass:'scripture' ]}
                     <description><![CDATA[
                         {{ description }}
                     ]]></description>
@@ -122,9 +151,7 @@
 
             {% if feedtype and feedtype != 'Editorial' %}
                 <itunes:image href="{% if itemImageSquare != empty %}{{ itemImageSquare | Split:'?' | First }}{% elseif parentImageSquare != empty %}{{ parentImageSquare | Split:'?' | First }}{% else %}{{ fallbackImage | Split:'?' | First }}{% endif %}"/>
-                {% if communicators and communicators != empty %}
-                    <itunes:author>NewSpring Church</itunes:author>
-                {% endif %}
+                <itunes:author>{% if communicators and communicators != empty %}{{ communicators }}{% else %}NewSpring Church{% endif %}</itunes:author>
                 {% if itemSubtitle != empty %}<itunes:subtitle>{{ itemSubtitle }}</itunes:subtitle>{% endif %}
                 {% if itemSummary != empty or itemContent != empty %}
                     <itunes:summary><![CDATA[{% if itemSummary and itemSummary != empty %}{{ itemSummary }}{% else %}{{ itemContent | StripHtml | Truncate:200,'...' }}{% endif %}]]></itunes:summary>
