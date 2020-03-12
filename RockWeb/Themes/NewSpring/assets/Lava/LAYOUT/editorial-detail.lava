@@ -128,8 +128,10 @@
                 <div class="ratio-landscape background-cover push-bottom rounded" style="background-image:url('{{ imageUrl }}');"></div>
             {% endif %}
 
-            {% assign scripturesguid = Item | Attribute:'Scriptures','RawValue' %}
-            {% capture scripturereferences %}{[ scriptureReferences guid:'{{ scripturesguid }}' ]}{% endcapture %}
+            {% capture scripturesString %}{{ item | Attribute:'Scriptures' }}{% endcapture %}
+            {% assign scripturesObject = scripturesString | FromJSON %}
+
+            {% capture scripturereferences %}{% for scripture in scripturesObject.Attributes %}{{ scripture.Book }} {{ scripture.Reference }}{% unless forloop.last %}, {% endunless %}{% endfor %}{% endcapture %}
             {% assign scripturereferences = scripturereferences | Trim %}
 
             {%  if scripturereferences and scripturereferences != empty %}
