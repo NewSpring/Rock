@@ -20,6 +20,7 @@
 {% assign channelNameParts = Channel.Name | Split:' - ' %}
 {% assign channelImage = Channel | Attribute:'ImageLandscape','Url' %}
 {% assign channelFeedKeywords = Channel | Attribute:'RSSFeedKeywords' %}
+{% assign channelHiddenAttributeGuids = Channel | Attribute:'HiddenAttributes','RawValue' %}
 {% assign fallbackImage = 'http://ns.images.s3.amazonaws.com/newspring/icons/newspring.podcast.png' %}
 
     <title>{% if feedtype and feedtype != empty and feedtype != 'Editorial' %}{{ orgName }}{% if channelNameParts[0] contains 'Fuse' %} Fuse{% endif %} {{ channelNameParts[1] | Singularize }}{% if feedtype == 'Audio' %} Audio{% elseif feedtype == 'Video' %} Video{% endif %}{% else %}{{ channelNameParts[1] }}{% endif %}</title>
@@ -67,39 +68,30 @@
 
 {% for item in Items -%}
 
-    {% comment %}
-        Getting the Parent Data
-    {% endcomment %}
-    {% assign parentCount = item.ParentItems | Size %}
-    {% if parentCount >= 1 %}
-        {% assign parentId = item.ParentItems[0].ContentChannelItemId %}
-        {% contentchannelitem id:'{{ parentId }}' iterator:'parents' %}
-            {% for parent in parents %}
-                {% assign parentTitle = parent.Title %}
-                {% assign parentImageLandscape = parent | Attribute:'ImageLandscape','Url' | Escape %}
-                {% assign parentImageSquare = parent | Attribute:'ImageSquare','Url' | Escape %}
-                {% contentchannelitemslug where:'ContentChannelItemId == {{ parent.Id }}' iterator:'slugs' limit:'1' %}
-                    {% for slug in slugs %}
-                        {% capture parentSlug %}{{ slug.Slug }}{% endcapture %}
-                    {% endfor %}
-                {% endcontentchannelitemslug %}
-            {% endfor %}
-        {% endcontentchannelitem %}
-    {% endif %}
+  {% capture parentTitle %}{[ getParentTitleFromChildId cciid:'{{ item.Id }}' ]}{% endcapture %}
+  {% capture permalink %}{[ getPermalink cciid:'{{ item.Id }}' ]}{% endcapture %}
 
-    {% capture itemSlug %}
-        {% contentchannelitemslug where:'ContentChannelItemId == {{ item.Id }}' iterator:'slugs' limit:'1' %}
-            {% for slug in slugs %}
-                {{ slug.Slug }}
-            {% endfor %}
-        {% endcontentchannelitemslug %}
-    {% endcapture %}
-
-    {% if itemSlug and itemSlug != empty %}
-        {% capture itemLink %}{{ PublicApplicationRoot }}{{ Channel.ChannelUrl }}{% if parentSlug and parentSlug != empty %}/{{ parentSlug | Trim }}{% endif %}/{{ itemSlug | Trim }}{% endcapture %}
+    {% if permalink and permalink != empty %}
+        {% assign permalink = permalink | Prepend:PublicApplicationRoot %}
+        {% capture itemLink %}{{ permalink }}{% endcapture %}
         {% assign itemSubtitle = item | Attribute:'Subtitle' | StripHtml | HtmlDecode %}
         {% assign itemSummary = item | Attribute:'Summary' | HtmlDecode %}
         {% assign itemContent = item.Content | HtmlDecode %}
+
+        {% if channelHiddenAttributeGuids contains '3a7c9ca6-83a9-4b7e-80f3-3b2711623c79' %}{% else %}
+            {%- comment -%}Only get scripture data if the attribute isn't hidden for the channel{%- endcomment -%}
+            {% capture scriptureJSON %}{{ item | Attribute:'Scriptures' }}{% endcapture %}
+            {% assign scriptureObject = scriptureJSON | FromJSON %}
+            {% capture itemScriptures %}{% for scripture in scriptureObject.Attributes %}{{ scripture.Book }} {{ scripture.Reference }}{% unless forloop.last %}, {% endunless %}{% endfor %}{% endcapture %}
+        {% endif %}
+
+        {% if channelHiddenAttributeGuids contains '59e4c62a-07b8-4377-9764-77b54981d6fc' %}{% else %}
+            {%- comment -%}Only get communicator data if the attribute isn't hidden for the channel{%- endcomment -%}
+            {% capture communicatorsJSON %}{{ item | Attribute:'Communicators' }}{% endcapture %}
+            {% assign communicatorsObject = communicatorsJSON | FromJSON %}
+            {% capture communicators %}{% for communicator in communicatorsObject.Attributes %}{% if communicator.Communicator != empty %}{{ communicator.Communicator }}{% else %}{{ communicator.GuestCommunicator }}{% endif %}{% unless forloop.last %}, {% endunless %}{% endfor %}{% endcapture %}
+        {% endif %}
+
         {% assign itemImageLandscape = item | Attribute:'ImageLandscape','Url' | Escape %}
         {% assign itemImageSquare = item | Attribute:'ImageSquare','Url' | Escape %}
         {% assign itemAudio = item | Attribute:'AudioFile','Url' | Escape %}
@@ -107,16 +99,6 @@
         {% assign itemActualDate = item | Attribute:'ActualDate' | Date:'ddd, dd MMM yyyy HH:mm:00 EST' %}
         {% assign itemWistia = item | Attribute:'Video','RawValue' %}
         {% capture itemWistiaEmbed %}{[ wistiaEmbed id:'{{ itemWistia }}' ]}{% endcapture %}
-
-        {% capture itemCommunicatorsString %}{{ item | Attribute:'Communicators' }}{% endcapture %}
-        {% assign itemCommunicatorsObject = itemCommunicatorsString | FromJSON %}
-        {% capture communicators %}{% for communicator in itemCommunicatorsObject.Attributes %}{% if communicator.Communicator and communicator.Communicator != empty %}{{ communicator.Communicator }}{% else %}{{ communicator.GuestCommunicator }}{% endif %}{% unless forloop.last %}, {% endunless %}{% endfor %}{% endcapture %}
-        {% assign communicators = communicators | Trim %}
-
-        {% capture itemScripturesString %}{{ item | Attribute:'Scriptures' }}{% endcapture %}
-        {% assign itemScripturesObject = itemScripturesString | FromJSON %}
-        {% capture itemScriptures %}{% for scripture in itemScripturesObject.Attributes %}{{ scripture.Book }} {{ scripture.Reference }}{% unless forloop.last %}, {% endunless %}{% endfor %}{% endcapture %}
-        {% assign itemScriptures = itemScriptures | Trim %}
 
         <item>
             <title><![CDATA[{% if parentTitle and parentTitle != empty %}{{ parentTitle }}: {% endif %}{{ item.Title }}]]></title>
