@@ -8,7 +8,12 @@ _ReSharper.*
 *.v11.suo
 *.user
 *.suo
-#*.Framework.XML
+
+#build artifacts
+**/[Bb]in/[Db]ebug	**/[Bb]in/[Dd]ebug
+**/[Bb]in/[Rr]elease	**/[Bb]in/[Rr]elease
+**/[O]bj/[Db]ebug	**/[Oo]bj/[Dd]ebug
+**/[O]bj/[Rr]elease	**/[Oo]bj/[Rr]elease
 
 #specific files
 RockJobSchedulerService.Xml
