@@ -1,3 +1,4 @@
+# Adding a comment just so that I can get a PR just so that I can get a build just so that I can test changes to apollos-onesignal
 # This script is run by AppVeyor's deploy agent before the deploy
 Import-Module WebAdministration
 
