@@ -61,7 +61,7 @@ before_build:
 - ps: >-
     if (Test-Path 'C:\Tools\NuGet3') { $nugetDir = 'C:\Tools\NuGet3' } else { $nugetDir = 'C:\Tools\NuGet' }
 
-    nuget restore Rock.sln
+    nuget restore Rock.sln -verbosity detailed
 
     $src = "C:\Program Files (x86)\Reference Assemblies\Microsoft\Framework\.NETFramework\v4.5.2\Facades"
 
