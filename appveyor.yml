@@ -70,7 +70,7 @@ before_build:
 
     (Get-Content "C:\projects\Rock\RockWeb\web.config").Replace('<compilation debug="true"', '<compilation debug="false"') | Set-Content "C:\projects\Rock\RockWeb\web.config"
 
-    echo $env:path
+    $env:path -split ";"
 
 # build configuration
 build:
