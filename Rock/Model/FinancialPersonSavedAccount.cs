@@ -26,6 +26,7 @@ using System.Runtime.Serialization;
 using Rock.Data;
 using Rock.Financial;
 using Rock.Web.Cache;
+using Rock.Lava;
 
 namespace Rock.Model
 {
@@ -44,7 +45,7 @@ namespace Rock.Model
         #region Entity Properties
 
         /// <summary>
-        /// Gets or sets the person alias identifier.
+        /// Gets or sets the <see cref="Rock.Model.PersonAlias"/> identifier.
         /// </summary>
         /// <value>
         /// The person alias identifier.
@@ -95,7 +96,7 @@ namespace Rock.Model
         public string TransactionCode { get; set; }
 
         /// <summary>
-        /// Gets or sets the gateway identifier.
+        /// Gets or sets the <see cref="Rock.Model.FinancialGateway"/> identifier.
         /// </summary>
         /// <value>
         /// The gateway identifier.
@@ -104,7 +105,7 @@ namespace Rock.Model
         public int? FinancialGatewayId { get; set; }
 
         /// <summary>
-        /// Gets or sets the financial payment detail identifier.
+        /// Gets or sets the <see cref="Rock.Model.FinancialPaymentDetail"/> identifier.
         /// </summary>
         /// <value>
         /// The financial payment detail identifier.
@@ -152,25 +153,25 @@ namespace Rock.Model
         #region Virtual Properties
 
         /// <summary>
-        /// Gets or sets the person alias.
+        /// Gets or sets the <see cref="Rock.Model.PersonAlias"/>.
         /// </summary>
         /// <value>
         /// The person alias.
         /// </value>
-        [LavaInclude]
+        [LavaVisible]
         public virtual PersonAlias PersonAlias { get; set; }
 
         /// <summary>
-        /// Gets or sets the group.
+        /// Gets or sets the <see cref="Rock.Model.Group"/>.
         /// </summary>
         /// <value>
         /// The group.
         /// </value>
-        [LavaInclude]
+        [LavaVisible]
         public virtual Group Group { get; set; }
 
         /// <summary>
-        /// Gets or sets the gateway.
+        /// Gets or sets the <see cref="Rock.Model.FinancialGateway"/>.
         /// </summary>
         /// <value>
         /// The gateway.
@@ -179,7 +180,7 @@ namespace Rock.Model
         public virtual FinancialGateway FinancialGateway { get; set; }
 
         /// <summary>
-        /// Gets or sets the financial payment detail.
+        /// Gets or sets the <see cref="Rock.Model.FinancialPaymentDetail"/>.
         /// </summary>
         /// <value>
         /// The financial payment detail.
