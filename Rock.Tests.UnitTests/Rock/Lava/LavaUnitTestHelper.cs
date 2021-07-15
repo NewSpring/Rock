@@ -146,7 +146,7 @@ namespace Rock.Tests.UnitTests.Lava
             var context = engine.NewRenderContext( mergeValues );
 
             var result = engine.RenderTemplate( inputTemplate.Trim(), new LavaRenderParameters { Context = context } );
-            
+
             Assert.That.IsFalse( result.HasErrors, "Lava Template is invalid." );
 
             return result.Text;
@@ -162,7 +162,7 @@ namespace Rock.Tests.UnitTests.Lava
             var engines = GetActiveTestEngines();
 
             foreach ( var engine in engines )
-            { 
+            {
                 AssertTemplateOutput( engine.EngineType, expectedOutput, inputTemplate, mergeValues, ignoreWhitespace );
             }
         }
