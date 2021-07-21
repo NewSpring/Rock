@@ -38,6 +38,12 @@ If (Test-Path "$webroot\Themes\RockManager\Styles\_css-overrides.less"){
 	Copy-Item "$webroot\Themes\RockManager\Styles\_css-overrides.less" "$rootfolder\temp\RockManager" -force
 }
 
+# backup redirector file
+If (Test-Path "$webroot\App_Data\TriumphTech-WebAgility\RedirectorRules.json"){
+	Write-Host "Moving RedirectorRules.json to temp dir"
+	Copy-Item "$webroot\App_Data\TriumphTech-WebAgility\RedirectorRules" "$rootfolder\temp" -force
+}
+
 # load the app offline template
 If (Test-Path "$webroot\app_offline-template.htm"){
 	Write-Host "Loading the app offline template"

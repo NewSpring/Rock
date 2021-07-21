@@ -83,6 +83,12 @@ If (Test-Path "$rootfolder\temp\_css-overrides.less"){
 	Copy-Item "$rootfolder\temp\RockManager\_css-overrides.less" "$webroot\Themes\RockManager\Styles" -force
 }
 
+# move redirector file back from temp
+If (Test-Path "$rootfolder\temp\RedirectorRules.json"){
+	Write-Host "Moving RedirectorRules.json from temp dir"
+	Copy-Item "$rootfolder\temp\RedirectorRules.json" "$webroot\App_Data\TriumphTech-WebAgility\RedirectorRules.json" -force
+}
+
 # remove the app offline flag
 If (Test-Path "$webroot\app_offline.htm"){
 	Write-Host "Removing app offline template"
