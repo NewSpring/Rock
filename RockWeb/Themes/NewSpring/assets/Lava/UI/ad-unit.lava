@@ -1,127 +1,113 @@
+{%- assign id = id | Default:uniqueid -%}
 {% assign defaultTranslation = 'Global' | Attribute:'BibleTranslation','Value' %}
 {[ scripturize defaulttranslation:'{{ defaultTranslation }}' landingsite:'BibleGateway' cssclass:'scripture' openintab:'true' ]}
 
 {%- assign modalid = uniqueid -%}
-{% assign textalignment = textalignment | Trim %}
+{% assign ratio = item.Ratio | Downcase %}
+{% assign foregroundColor = item.ForegroundColor | Replace:' ','-' | Downcase %}
 
-{% if id != null and id != '' %}
 <style>
-    {% if backgroundcolor != null and backgroundcolor != '' %}
+    {% if item.BackgroundColor %}
         #{{ id }} {
-            color: #fff;
-        }
-
-        #{{ id }} {
-            background-color: {{ backgroundcolor }};
+            background-color: {{ item.BackgroundColor }};
         }
 
         #{{ id }} blockquote, blockquote footer, blockquote small, blockquote .small {
             color: #fff;
         }
     {% endif %}
-
-    {% if foregroundcolor != null and foregroundcolor != '' %}
-        #{{ id }} a:not(.btn):not(.label) {
-            color: {{ foregroundcolor }};
-        }
-
-        #{{ id }} .btn {
-            background-color: {{ foregroundcolor }};
-            border-color: {{ foregroundcolor }};
-        }
-    {% endif %}
 </style>
-{% endif %}
 
-{% if linkurl != empty or linkedpageid != empty %}
-    {% capture linkurl %}
-        {% if linkedpageroute != empty and linkedpageroute != '' and linkedpageroute != null %}
-            /{{ linkedpageroute }}
-        {% elseif linkedpageid != empty and linkedpageid != '' and linkedpageid != null %}
-            /page/{{ linkedpageid }}
-        {% else %}
-            {{ linkurl }}
-        {% endif %}
-    {% endcapture %}
-{% endif %}
-{% assign linkurl = linkurl | Trim %}
+<section id="{{ id }}" data-column="{{ item.BlockWidth }}" class="shell text-{{ item.TextAlignment }} {% if ratio and ratio != empty %}hard{% endif %} bg-white position-relative overflow-hidden flush-sides soft-double-top xs-soft-top xs-hard-sides xs-push-half-bottom rounded-lg {% if foregroundColor %}text-{{ foregroundColor }}{% endif %}" {% if item.BackgroundColor != '' %}style="background-color:{{ item.BackgroundColor }} !important;"{% endif %}>
 
-    <section data-column="{{ blockwidth }}" {% if id and id != empty %}id="{{ id }}"{% endif %} class="shell {% if textalignment == '' %}text-center{% endif %} {% if ratio and ratio != empty %}hard{% endif %} bg-white position-relative overflow-hidden flush-sides soft-double-top xs-soft-top xs-hard-sides xs-push-half-bottom rounded-lg {% if backgroundcolor != '' or imageurl != '' %}text-white{% endif %}" {% if backgroundcolor != '' %}style="background-color:{{ backgroundcolor }} !important;"{% endif %}>
+    {% if ratio and ratio != empty %}
+    <div class="ratio-{{ ratio }} sm-ratio-shuare xs-ratio-square">
+        <div class="ratio-item d-flex justify-content-center align-items-{{ item.ContentAlignment }} {% if item.Image and item.Image != empty %}{% if item.TextAlignment == 'left' %}floating-left{% elseif item.TextAlignment == 'right' %}floating-right{% endif %}{% endif %} sm-text-center xs-text-center">
+    {% endif %}
 
-        {% if ratio and ratio != empty %}
-        {% assign trimcopy = 'Yes' %}
-        <div class="ratio-{{ ratio }} sm-ratio-shuare xs-ratio-square">
-            <div class="ratio-item d-flex justify-content-center align-items-{{ contentalignment }} {% if imageurl and imageurl != empty %}{% if textalignment == 'Left' %}floating-left{% elseif textalignment == 'Right' %}floating-right{% endif %}{% endif %} sm-text-center xs-text-center">
-        {% endif %}
+                {% if item.Image != null and item.Image != '' %}
+                    <span class="full-screen background-cover background-center {% if item.Grayscale == 'Yes' %}grayscale{% endif %}" style="{% if item.ImageBlur and item.ImageBlur > 0 %}filter: blur({{ item.ImageBlur | Times:2 }}px); top: -50px; right: -50px; bottom: -50px; left: -50px;{% endif %} {% if item.ImageFlip == 'Yes' %}transform:scaleX(-1);{% endif %} background-image: url('{{ item.Image }}'); {% if item.ImageOpacity != null and item.ImageOpacity != '' %}opacity: {{ item.ImageOpacity }};{% endif %}"></span>
+                {% endif %}
 
-                    {% if imageurl != null and imageurl != '' %}
-                        <span class="full-screen background-cover background-center {% if grayscale == 'Yes' %}grayscale{% endif %}" style="{% if imageblur and imageblur > 0 %}filter: blur({{ imageblur | Times:2 }}px); top: -50px; right: -50px; bottom: -50px; left: -50px;{% endif %} {% if imageflip == 'Yes' %}transform:scaleX(-1);{% endif %} background-image: url('{{ imageurl }}'); {% if imageopacity != null and imageopacity != '' %}opacity: {{ imageopacity }};{% endif %}"></span>
-                    {% endif %}
+                <div class="bring-forward text-constrained {% if item.TextAlignment == 'Center' or item.Image == '' %}mx-auto{% endif %} {% if item.TextAlignment == 'Center' and item.Image == '' %}text-center{% elseif item.TextAlignment == 'Right' and item.Image != '' %}text-left pull-right{% elseif item.Image == '' and item.TextAlignment == 'Right' %}text-center{% endif %} xs-text-center soft-double-top soft-bottom soft-double-sides clearfix xs-soft-top xs-soft-sides xs-hard-bottom">
 
-                    <div class="bring-forward text-constrained {% if textalignment == 'Center' or imageurl == '' %}mx-auto{% endif %} {% if textalignment == 'Center' and imageurl == '' %}text-center{% elseif textalignment == 'Right' and imageurl != '' %}text-left pull-right{% elseif imageurl == '' and textalignment == 'Right' %}text-center{% endif %} xs-text-center soft-top soft-double-sides clearfix xs-soft-top xs-soft-sides xs-hard-bottom">
+                    {% if item.HideForegroundElements == 'True' %}<div class="hidden">{% endif %}
 
-                        {% if hideforegroundelements == 'Yes' %}<div class="hidden">{% endif %}
+                        {% if item.Label != null and item.Label != '' %}
+                            <p><small class="label label-default circular sans-serif letter-spacing-condensed">{{ item.Label }}</small></p>
+                        {% endif %}
 
-                            <div class="{% if imageurl == '' or imageurl != '' and textalignment == 'Center' %}text-center{% endif %}">
-                                {% if label != null and label != '' %}
-                                    <p><small class="label label-default circular sans-serif letter-spacing-condensed">{{ label }}</small></p>
-                                {% endif %}
+                        {% if item.Title != null and item.Title != '' %}
+                            <h2 class="{% if item.TitleSize != null and item.TitleSize != '' %}{{ item.TitleSize }}{% endif %} push-half-bottom">{{ item.Title }}</h2>
+                        {% endif %}
 
-                                {% if title != null and title != '' %}
-                                    <h2 class="{% if titlesize != null and titlesize != '' %}{{ titlesize }}{% endif %} push-half-bottom">{{ title }}</h2>
-                                {% endif %}
+                        {% if item.Subtitle != null and item.Subtitle != '' %}
+                            <p class="sans-serif stronger text-uppercase letter-spacing-condensed text-gray-light push-half-bottom"><small>{{ item.Subtitle }}</small></p>
+                        {% endif %}
 
-                                {% if subtitle != null and subtitle != '' %}
-                                    <p class="sans-serif stronger text-uppercase letter-spacing-condensed text-gray-light push-half-bottom"><small>{{ subtitle }}</small></p>
+                        {% assign length = item.Content | Size %}
+                        {% if item.Content and item.Content != empty %}
+                            <div class="{% if item.Image and item.Image != '' and item.TextAlignment == 'Center' %}text-center{% endif %}">
+                                {% if trimcopy == 'Yes' %}
+                                    {{ item.Content | Truncate:140,'...' }}{% if length > 140 %} <a href="#" data-toggle="modal" data-target="#{{ modalid }}">Read More</a>{% endif %}
+                                {% else %}
+                                    {{ item.Content | HtmlDecode }}
                                 {% endif %}
                             </div>
+                        {% endif %}
 
-                            {% assign length = content | Size %}
-                            {% if content and content != empty %}
-                                <div class="{% if imageurl and imageurl != '' and textalignment == 'Center' %}text-center{% endif %}">
-                                    {% if trimcopy == 'Yes' %}
-                                        {{ content | Truncate:140,'...' }}{% if length > 140 %} <a href="#" data-toggle="modal" data-target="#{{ modalid }}">Read More</a>{% endif %}
-                                    {% else %}
-                                        {{ content }}
-                                    {% endif %}
-                                </div>
+                    {% if item.HideForegroundElements == 'True' %}</div>{% endif %}
+
+                    <div class="{% if item.Image == '' or item.Image != '' and item.TextAlignment == 'Center' %}text-center{% endif %}">
+
+                        {% if item.HideForegroundElements == 'True' %}<div class="hidden">{% endif %}
+
+                            {% if item.LinkUrl and item.LinkUrl != empty %}
+                                <p>
+                                    {[ button linkurl:'{{ item.LinkUrl | Trim }}' linktext:'{{ item.LinkText }}' buttontype:'' buttonsize:'' ]}
+                                </p>
                             {% endif %}
 
-                        {% if hideforegroundelements == 'Yes' %}</div>{% endif %}
-
-                        <div class="{% if imageurl == '' or imageurl != '' and textalignment == 'Center' %}text-center{% endif %}">
-
-                            {% if hideforegroundelements == 'Yes' %}<div class="hidden">{% endif %}
-
-                                {% if linkurl and linkurl != empty %}
-                                    <p>
-                                        {[ button linkurl:'{{ linkurl | Trim }}' linktext:'{{ linktext }}' buttontype:'' buttonsize:'' ]}
-                                    </p>
-                                {% endif %}
-
-                                {% if video != null and video != '' %}
-                                    {[ wistiaButton id:'{{ video }}' buttontext:'' buttonclasses:'' contentchannelitemid:'' entitytypeid:'' entityid:'' ]}
-                                {% endif %}
-
-                            {% if hideforegroundelements == 'Yes' %}</div>{% endif %}
-
-                            {% if lava != null and lava != '' %}
-                                {% if hideforegroundelements == 'Yes' %}<div class="soft-ends">{% endif %}
-                                    {{ lava | HtmlDecode }}
-                                {% if hideforegroundelements == 'Yes' %}</div>{% endif %}
+                            {% if item.Video != null and item.Video != '' %}
+                                {[ wistiaButton id:'{{ item.Video }}' buttontext:'' buttonclasses:'' contentchannelitemid:'' entitytypeid:'' entityid:'' ]}
                             {% endif %}
-                        </div>
 
+                        {% if item.HideForegroundElements == 'True' %}</div>{% endif %}
+
+                        {% if item.Lava != null and item.Lava != '' %}
+                            {% if item.HideForegroundElements == 'True' %}<div class="soft-ends">{% endif %}
+                                {{ item.Lava | HtmlDecode }}
+                            {% if item.HideForegroundElements == 'True' %}</div>{% endif %}
+                        {% endif %}
                     </div>
 
-        {% if ratio and ratio != empty %}
-            </div>
+                </div>
+
+    {% if ratio and ratio != empty %}
         </div>
-        {% endif %}
+    </div>
+    {% endif %}
 
-    </section>
+</section>
 
-{% if trimcopy == 'Yes' %}
+{% if item.GradientAmount > 0 and item.ContentAlignment == 'start' or item.ContentAlignment == 'end' and item.BackgroundColor != '' %}
+    {% assign gradientorientation = item.ContentAlignment |  Replace:'start','0' | Replace:'end','180' %}
+    <style>
+        #{{ id }} .background-cover:after {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            left: 0;
+            background: rgb(0,0,0);
+            background: linear-gradient({{ gradientorientation | Append:'deg' }}, transparent 0%, {{ item.BackgroundColor }} 100%);
+            opacity: {{ item.GradientAmount }};
+        }
+    </style>
+{% endif %}
+
+{% if item.TrimCopy == 'Yes' %}
     {% if length > 140 %}
     <div class="modal fade" id="{{ modalid }}" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
         <div class="modal-dialog" role="document">
@@ -130,12 +116,12 @@
                     <a href="#" class="text-gray-darker pull-right" data-dismiss="modal" aria-label="Close">
                         <i class="fa fa-lg fa-times"></i>
                     </a>
-                    {% if title != null and title != '' %}
-                        <h3 class="flush">{{ title }}</h3>
+                    {% if item.Title != null and item.Title != '' %}
+                        <h3 class="flush">{{ item.Title }}</h3>
                     {% endif %}
                 </div>
                 <div class="modal-body soft hard-bottom">
-                    {{ content }}
+                    {{ item.Content }}
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-primary" data-dismiss="modal">Close</button>
