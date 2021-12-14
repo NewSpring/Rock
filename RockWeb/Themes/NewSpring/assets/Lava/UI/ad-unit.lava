@@ -4,19 +4,18 @@
 {%- assign id = id | Default:uniqueid -%}
 {%- assign modalid = uniqueid -%}
 
-{% if id != null and id != '' %}
 <style>
-    {% if backgroundcolor %}
+    {% if backgroundcolor != '' %}
         #{{ id }} {
             background-color: {{ backgroundcolor }};
         }
-
-        #{{ id }} blockquote, blockquote footer, blockquote small, blockquote .small {
-            color: #fff;
-        }
+        {% if foregroundcolor == 'white' %}
+            #{{ id }} blockquote, blockquote footer, blockquote small, blockquote .small {
+                color: #fff;
+            }
+        {% endif %}
     {% endif %}
 </style>
-{% endif %}
 
     <section data-column="{{ blockwidth }}" {% if id and id != empty %}id="{{ id }}"{% endif %} class="shell {% if textalignment == '' %}text-center{% endif %} {% if ratio and ratio != empty %}hard{% endif %} bg-white position-relative overflow-hidden flush-sides hard xs-push-half-bottom rounded-lg text-{{ foregroundcolor }}" {% if backgroundcolor != '' %}style="background-color:{{ backgroundcolor }} !important;"{% endif %}>
 
