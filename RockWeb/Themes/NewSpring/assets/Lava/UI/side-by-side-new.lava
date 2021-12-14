@@ -2,21 +2,7 @@
 {[ scripturize defaulttranslation:'{{ defaultTranslation }}' landingsite:'BibleGateway' cssclass:'scripture' openintab:'true' ]}
 
 {%- assign modalid = uniqueid -%}
-{% if linkurl != empty or linkedpageid != empty %}
-    {% capture linkurl %}
-        {% if linkedpageroute != empty and linkedpageroute != '' and linkedpageroute != null %}
-            /{{ linkedpageroute }}
-        {% elseif linkedpageid != empty and linkedpageid != '' and linkedpageid != null %}
-            /page/{{ linkedpageid }}
-        {% else %}
-            {{ linkurl }}
-        {% endif %}
-    {% endcapture %}
-{% endif %}
-
-{% assign linkurl = linkurl | Trim %}
-
-<section {% if id and id != empty %}id="{{ id }}"{% endif %} class="bg-white soft hard-bottom sm-soft-half-bottom xs-soft-half-bottom position-relative rounded-lg overflow-hidden push-bottom xs-push-half-bottom">
+<section data-column="{{ blockwidth }}" {% if id and id != empty %}id="{{ id }}"{% endif %} class="bg-white soft hard-bottom sm-soft-half-bottom xs-soft-half-bottom position-relative rounded-lg overflow-hidden push-bottom xs-push-half-bottom">
 
 <div class="row {% if imagealignment == 'Right' %}row-reverse{% endif %} floating floating-left">
     <div class="floating-item col-xs-12 col-sm-12 col-md-6 sm-hard xs-hard">

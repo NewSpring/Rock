@@ -2,11 +2,6 @@
 
 <asp:Content ID="ctMain" ContentPlaceHolderID="main" runat="server">
 
-    <Rock:Lava ID="PageColor" runat="server">
-            {% assign pageColor = CurrentPage | Attribute:'PageColor' %}
-            <div class="position-fixed top-zero right-zero bottom-zero left-zero brand-bg" style="background-color: {{ pageColor }}; z-index: -1;"></div>
-    </Rock:Lava>
-
     <div class="soft-top soft-sides xs-soft-half-top xs-soft-half-sides">
 
         <!-- Breadcrumbs -->
@@ -18,24 +13,29 @@
             <span class="ajax-error-message"></span>
         </div>
 
-        <Rock:Zone Name="Feature" runat="server" />
+        <Rock:Lava ID="PageColor" runat="server">
+            {% assign pageColor = CurrentPage | Attribute:'PageColor' %}
+            <div style="background-color: {{ pageColor }};">
+        </Rock:Lava>
 
-        <div id="content" class="clearfix">
-            <Rock:Zone Name="Main" runat="server" />
+            <Rock:Zone Name="Feature" runat="server" />
 
-            <div class="page-constrained mx-auto">
-                <Rock:Zone Name="Section A" runat="server" />
+            <div id="content" class="clearfix">
+                <Rock:Zone Name="Main" runat="server" />
+
+                <div class="page-constrained mx-auto">
+                    <Rock:Zone Name="Section A" runat="server" />
+                </div>
+
+                <Rock:Zone Name="Section B" runat="server" />
+
+                <div class="page-constrained mx-auto">
+                    <Rock:Zone Name="Section C" runat="server" />
+                </div>
+                
+                <Rock:Zone Name="Section D" runat="server" />
             </div>
-
-            <Rock:Zone Name="Section B" runat="server" />
-
-            <div class="page-constrained mx-auto">
-                <Rock:Zone Name="Section C" runat="server" />
-            </div>
-            
-            <Rock:Zone Name="Section D" runat="server" />
         </div>
-
     </div>
 
 </asp:Content>
