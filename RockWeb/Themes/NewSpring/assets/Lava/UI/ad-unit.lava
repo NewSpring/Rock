@@ -23,19 +23,17 @@
         {% assign trimcopy = 'Yes' %}
         <div class="ratio-{{ ratio }} sm-ratio-shuare xs-ratio-square">
             <div class="ratio-item d-flex justify-content-center align-items-{{ contentalignment }} {% if imageurl and imageurl != empty %}{% if textalignment == 'Left' %}floating-left{% elseif textalignment == 'Right' %}floating-right{% endif %}{% endif %} sm-text-center xs-text-center">
-        {% else %}
-        <div class="soft-double-ends">
         {% endif %}
 
                     {% if imageurl != null and imageurl != '' %}
                         <span class="full-screen background-cover background-center {% if grayscale == 'Yes' %}grayscale{% endif %}" style="{% if imageblur and imageblur > 0 %}filter: blur({{ imageblur | Times:2 }}px); top: -50px; right: -50px; bottom: -50px; left: -50px;{% endif %} {% if imageflip == 'Yes' %}transform:scaleX(-1);{% endif %} background-image: url('{{ imageurl }}'); {% if imageopacity != null and imageopacity != '' %}opacity: {{ imageopacity }};{% endif %}"></span>
                     {% endif %}
 
-                    <div class="bring-forward text-constrained {% if textalignment == 'Center' or imageurl == '' %}mx-auto{% endif %} {% if textalignment == 'Center' and imageurl == '' %}text-center{% elseif textalignment == 'Right' and imageurl != '' %}text-left pull-right{% elseif imageurl == '' and textalignment == 'Right' %}text-center{% endif %} xs-text-center soft-double-top soft-bottom soft-double-sides clearfix xs-soft-top xs-soft-sides xs-hard-bottom">
+                    <div class="bring-forward text-constrained {% if textalignment == 'Center' or imageurl == '' %}mx-auto{% endif %} {% if textalignment == 'Center' and imageurl == '' %}text-center{% elseif textalignment == 'Right' and imageurl != '' %}text-left pull-right{% elseif imageurl == '' and textalignment == 'Right' %}text-center{% endif %} xs-text-center soft-double-top soft-bottom soft-double-sides clearfix xs-soft-top xs-soft-sides xs-hard-bottom clearfix">
 
                         {% if hideforegroundelements == 'Yes' %}<div class="hidden">{% endif %}
 
-                            <div class="{% if imageurl == '' or imageurl != '' and textalignment == 'Center' %}text-center{% endif %}">
+                            <div class="{% if textalignment == 'Center' %}text-center{% endif %}">
                                 {% if label != null and label != '' %}
                                     <p><small class="label label-default circular sans-serif letter-spacing-condensed">{{ label }}</small></p>
                                 {% endif %}
@@ -89,8 +87,6 @@
 
         {% if ratio and ratio != empty %}
             </div>
-        </div>
-        {% else %}
         </div>
         {% endif %}
 
