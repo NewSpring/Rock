@@ -1,4 +1,20 @@
-﻿using Rock.Data;
+﻿// <copyright>
+// Copyright by the Spark Development Network
+//
+// Licensed under the Rock Community License (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.rockrms.com/license
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+// </copyright>
+using System;
+using Rock.Data;
 using Rock.Model;
 using Rock.Web.Cache;
 
@@ -6,8 +22,6 @@ namespace Rock.Tests.Integration.TestData
 {
     public static partial class TestDataHelper
     {
-        #region Events
-
         public static class Events
         {
             private const string TestDataForeignKey = "test_data";
@@ -35,6 +49,7 @@ namespace Rock.Tests.Integration.TestData
                 var scheduleSat1800Id = scheduleService.GetId( ScheduleSun1200Guid.AsGuid() );
 
                 // Get Event "Rock Solid Finances".
+                // This event is associated with both the Internal and Public calendars.
                 var eventItemService = new EventItemService( rockContext );
                 var eventItemOccurrenceService = new EventItemOccurrenceService( rockContext );
 
@@ -46,6 +61,7 @@ namespace Rock.Tests.Integration.TestData
                 if ( financeEvent1 == null )
                 {
                     financeEvent1 = new EventItemOccurrence();
+                    financeEvent.EventItemOccurrences.Add( financeEvent1 );
                 }
 
                 var mainCampusId = CampusCache.GetId( MainCampusGuidString.AsGuid() );
@@ -57,13 +73,12 @@ namespace Rock.Tests.Integration.TestData
                 financeEvent1.Guid = FinancesClassOccurrenceSat1630Guid.AsGuid();
                 financeEvent1.CampusId = mainCampusId;
 
-                financeEvent.EventItemOccurrences.Add( financeEvent1 );
-
                 var financeEvent2 = eventItemOccurrenceService.Get( FinancesClassOccurrenceSun1200Guid.AsGuid() );
 
                 if ( financeEvent2 == null )
                 {
                     financeEvent2 = new EventItemOccurrence();
+                    financeEvent.EventItemOccurrences.Add( financeEvent2 );
                 }
 
                 financeEvent2.Location = "Meeting Room 2";
@@ -72,13 +87,8 @@ namespace Rock.Tests.Integration.TestData
                 financeEvent2.Guid = FinancesClassOccurrenceSun1200Guid.AsGuid();
                 financeEvent2.CampusId = secondCampusId;
 
-                financeEvent.EventItemOccurrences.Add( financeEvent2 );
-
                 rockContext.SaveChanges();
             }
         }
-
-        #endregion
-
     }
 }

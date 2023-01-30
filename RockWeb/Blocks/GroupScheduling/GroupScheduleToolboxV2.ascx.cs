@@ -405,7 +405,7 @@ $('#{0}').tooltip();
                 var days = ( groupScheduleRowInfo.OccurrenceEndDate - groupScheduleRowInfo.OccurrenceStartDate ).Days;
                 if ( days > 1 )
                 {
-                    scheduleDate = $"<span class='schedule-date'>{scheduleDate}</span> <span class='small'>({days} days)</span>";
+                    scheduleDate = $"<span class='schedule-date'>{scheduleDate} - {groupScheduleRowInfo.OccurrenceEndDate.ToShortDateString()}</span>";
                 }
                 else
                 {
@@ -756,7 +756,7 @@ $('#{0}').tooltip();
 
             var lScheduleName = e.Row.FindControl( "lScheduleName" ) as Literal;
             var lLocationName = e.Row.FindControl( "lLocationName" ) as Literal;
-            lScheduleName.Text = groupMemberAssignment.Schedule.Name;
+            lScheduleName.Text = GetFormattedScheduleForListing( groupMemberAssignment.Schedule.Name, groupMemberAssignment.Schedule.StartTimeOfDay );
             if ( groupMemberAssignment.LocationId.HasValue )
             {
                 lLocationName.Text = groupMemberAssignment.Location.ToString( true );
@@ -1113,7 +1113,7 @@ $('#{0}').tooltip();
                     occurenceDetail += " - ";
                 }
 
-                occurenceDetail += groupScheduleRowInfo.Location.ToString();
+                occurenceDetail += groupScheduleRowInfo.Location.ToString( true );
             }
 
             occurenceDetail += "</span><span class='schedule-occurrence-schedule'>" + GetOccurrenceScheduleName( groupScheduleRowInfo ) + "</span>";
@@ -1389,9 +1389,12 @@ $('#{0}').tooltip();
                 // limit to schedules that haven't had a schedule preference set yet
                 sortedScheduleList = sortedScheduleList.Where( a =>
                     a.IsActive
-                    && a.IsPublic.HasValue && a.IsPublic.Value &&
-                    !configuredScheduleIds.Contains( a.Id )
-                    || ( selectedScheduleId.HasValue && a.Id == selectedScheduleId.Value ) ).ToList();
+                    && a.IsPublic.HasValue
+                    && a.IsPublic.Value
+                    && ( !configuredScheduleIds.Contains( a.Id )
+                    || ( selectedScheduleId.HasValue
+                        && a.Id == selectedScheduleId.Value ) ) )
+                 .ToList();
 
                 ddlGroupScheduleAssignmentSchedule.Items.Clear();
                 ddlGroupScheduleAssignmentSchedule.Items.Add( new ListItem() );
@@ -1789,8 +1792,13 @@ $('#{0}').tooltip();
 
                 if ( attendanceId.HasValue )
                 {
-                    // if there is an attendanceId, this is an attendance that they just signed up for, but they might have either unselected it, or changed the location, so remove it
-                    attendanceService.ScheduledPersonRemove( attendanceId.Value );
+                    // If there is an attendanceId, this is an attendance that they just signed up for,
+                    // but they might have either unselected it, or changed the location, so remove it.
+                    var attendance = attendanceService.Get( attendanceId.Value );
+                    if ( attendance != null )
+                    {
+                        attendanceService.Delete( attendance );
+                    }
                 }
 
                 if ( cbSignupSchedule.Checked )

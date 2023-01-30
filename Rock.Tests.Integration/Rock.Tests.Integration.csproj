@@ -144,6 +144,11 @@
     <Reference Include="System.Runtime.CompilerServices.Unsafe, Version=5.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
       <HintPath>..\packages\System.Runtime.CompilerServices.Unsafe.5.0.0\lib\net45\System.Runtime.CompilerServices.Unsafe.dll</HintPath>
     </Reference>
+    <Reference Include="System.Runtime.InteropServices.RuntimeInformation, Version=4.0.1.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Runtime.InteropServices.RuntimeInformation.4.3.0\lib\net45\System.Runtime.InteropServices.RuntimeInformation.dll</HintPath>
+      <Private>True</Private>
+      <Private>True</Private>
+    </Reference>
     <Reference Include="System.Runtime.Serialization" />
     <Reference Include="System.Security" />
     <Reference Include="System.ServiceModel" />
@@ -153,6 +158,12 @@
     <Reference Include="System.Web" />
     <Reference Include="System.Web.Http, Version=5.2.3.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35" />
     <Reference Include="System.Xml" />
+    <Reference Include="TimeZoneConverter, Version=6.0.1.0, Culture=neutral, PublicKeyToken=e20ab7d0d9479841, processorArchitecture=MSIL">
+      <HintPath>..\packages\TimeZoneConverter.6.0.1\lib\net462\TimeZoneConverter.dll</HintPath>
+    </Reference>
+    <Reference Include="UAParser, Version=3.1.44.0, Culture=neutral, PublicKeyToken=f7377bf021646069, processorArchitecture=MSIL">
+      <HintPath>..\packages\UAParser.3.1.44\lib\net45\UAParser.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Achievement\GivingToAccountAchievementTest.cs" />
@@ -178,6 +189,7 @@
     <Compile Include="Field.Types\MergeTemplateFieldTypeTests.cs" />
     <Compile Include="Field.Types\MetricCategoriesFieldTypeTests.cs" />
     <Compile Include="Field.Types\UrlLinkFieldTypeTests.cs" />
+    <Compile Include="Interactions\PopulateInteractionSessionTests.cs" />
     <Compile Include="Issues\Issues_v14.cs" />
     <Compile Include="Jobs\GivingAutomationClassificationTests.cs" />
     <Compile Include="Jobs\GivingJourneyHelperTests.cs" />
@@ -246,6 +258,8 @@
     <Compile Include="StorageTests\BaseStorageComponentTests.cs" />
     <Compile Include="StorageTests\GoogleCloudComponentTests.cs" />
     <Compile Include="TestData\EventTestDataHelper.cs" />
+    <Compile Include="TestData\TestDataHelper.Crm.cs" />
+    <Compile Include="TestData\TestDataHelper.Web.cs" />
     <Compile Include="TestFramework\DatabaseIntegrationTestClassBase.cs" />
     <Compile Include="DotLiquid\TemplateTests.cs" />
     <Compile Include="Interactions\PageViewTests.cs" />

@@ -139,6 +139,13 @@ namespace RockWeb.Blocks.Communication
         IsRequired = false,
         Order = 13 )]
 
+    [BooleanField( "Disable Adding Individuals to Recipient Lists",
+        Key = AttributeKey.DisableAddingIndividualsToRecipientLists,
+        Description = "When set to 'Yes' the person picker will be hidden so that additional individuals cannot be added to the recipient list.",
+        DefaultBooleanValue = false,
+        IsRequired = false,
+        Order = 14 )]
+
     #endregion Block Attributes
     [Rock.SystemGuid.BlockTypeGuid( Rock.SystemGuid.BlockType.COMMUNICATION_ENTRY_WIZARD )]
     public partial class CommunicationEntryWizard : RockBlock
@@ -163,6 +170,7 @@ namespace RockWeb.Blocks.Communication
             public const string ShowDuplicatePreventionOption = "ShowDuplicatePreventionOption";
             public const string DefaultAsBulk = "DefaultAsBulk";
             public const string EnablePersonParameter = "EnablePersonParameter";
+            public const string DisableAddingIndividualsToRecipientLists = "DisableAddingIndividualsToRecipientLists";
         }
 
         #endregion Attribute Keys
@@ -184,9 +192,9 @@ namespace RockWeb.Blocks.Communication
 
         private const string CATEGORY_COMMUNICATION_TEMPLATE = "CategoryCommunicationTemplate";
 
-        private bool _smsTransportEnabled = MediumContainer.HasActiveSmsTransport();
-        private bool _emailTransportEnabled = MediumContainer.HasActiveEmailTransport();
-        private bool _pushTransportEnabled = MediumContainer.HasActivePushTransport();
+        private bool _smsTransportEnabled = false;
+        private bool _emailTransportEnabled = false;
+        private bool _pushTransportEnabled = false;
         #endregion
 
         #region Properties
@@ -246,6 +254,10 @@ namespace RockWeb.Blocks.Communication
             Page.Response.Cache.SetCacheability( System.Web.HttpCacheability.NoCache );
             Page.Response.Cache.SetExpires( DateTime.UtcNow.AddHours( -1 ) );
             Page.Response.Cache.SetNoStore();
+
+            _smsTransportEnabled = MediumContainer.HasActiveAndAuthorizedSmsTransport( CurrentPerson );
+            _emailTransportEnabled = MediumContainer.HasActiveAndAuthorizedEmailTransport( CurrentPerson );
+            _pushTransportEnabled = MediumContainer.HasActiveAndAuthorizedPushTransport( CurrentPerson );
 
             // this event gets fired after block settings are updated. it's nice to repaint the screen if these settings would alter it
             this.BlockUpdated += Block_BlockUpdated;
@@ -348,6 +360,9 @@ function onTaskCompleted( resultData )
 
             // set the email preview visible = false on every load so that it doesn't stick around after previewing then navigating
             pnlEmailPreview.Visible = false;
+
+            // hide person picker if the block attribute setting for DisableAddingIndividualsToRecipientLists is true.
+            ppAddPerson.Visible = !GetAttributeValue( AttributeKey.DisableAddingIndividualsToRecipientLists ).AsBoolean();
 
             // Reset the Task Activity controls on the page.
             SignalRTaskActivityUiHelper.SetTaskActivityControlMode( this.RockPage, SignalRTaskActivityUiHelper.ControlModeSpecifier.Hidden );
@@ -1392,7 +1407,7 @@ function onTaskCompleted( resultData )
             }
 
             // Only add recipient preference if at least two options exists.
-            if ( recipientPreferenceEnabled )
+            if ( recipientPreferenceEnabled && ( emailTransportEnabled || smsTransportEnabled ) )
             {
                 rblCommunicationMedium.Items.Add( new ListItem( "Recipient Preference", CommunicationType.RecipientPreference.ConvertToInt().ToString() ) );
             }

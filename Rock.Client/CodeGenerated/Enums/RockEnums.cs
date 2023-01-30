@@ -1093,6 +1093,19 @@ namespace Rock.Client.Enums
 
 }
 
+namespace Rock.Client.Enums.Communication
+{
+    /// <summary>
+    /// </summary>
+    public enum CommunicationMessageFilter
+    {
+        ShowUnreadReplies = 0x0,
+        ShowAllReplies = 0x1,
+        ShowAllMessages = 0x2,
+    }
+
+}
+
 namespace Rock.Client.Enums.Cms
 {
     /// <summary>
@@ -1128,6 +1141,16 @@ namespace Rock.Client.Enums.Controls
         Global = 0x0,
         Personal = 0x1,
         PersonalAndGlobal = 0x2,
+    }
+
+    /// <summary>
+    /// </summary>
+    public enum RequirementLevel
+    {
+        Unspecified = 0x0,
+        Optional = 0x1,
+        Required = 0x2,
+        Unavailable = 0x3,
     }
 
     /// <summary>
@@ -1181,11 +1204,32 @@ namespace Rock.Client.Enums.Event
 
     /// <summary>
     /// </summary>
+    public enum InteractiveExperienceCampusBehavior
+    {
+        FilterSchedulesByCampusGeofences = 0x0,
+        DetermineCampusFromGeofence = 0x1,
+        UseIndividualsCampus = 0x2,
+    }
+
+    /// <summary>
+    /// </summary>
     public enum InteractiveExperiencePushNotificationType
     {
         Never = 0x0,
         EveryAction = 0x1,
         SpecificActions = 0x2,
+    }
+
+}
+
+namespace Rock.Client.Enums.Group
+{
+    /// <summary>
+    /// </summary>
+    public enum ScheduleConfirmationLogic
+    {
+        Ask = 0x0,
+        AutoAccept = 0x1,
     }
 
 }

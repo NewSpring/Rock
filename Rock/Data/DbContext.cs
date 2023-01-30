@@ -29,6 +29,7 @@ using System.Web;
 using Rock.Bus.Message;
 using Rock.Model;
 using Rock.Tasks;
+using Rock.Transactions;
 using Rock.UniversalSearch;
 using Rock.Web.Cache;
 
@@ -282,7 +283,7 @@ namespace Rock.Data
             // SaveChanges() method and return
             if ( args.DisablePrePostProcessing )
             {
-                saveChangesResult.RecordsUpdated = base.SaveChanges();
+                saveChangesResult.RecordsUpdated = SaveChangesInternal();
                 return saveChangesResult;
             }
 
@@ -302,24 +303,7 @@ namespace Rock.Data
                 try
                 {
                     // Save the context changes
-                    saveChangesResult.RecordsUpdated = base.SaveChanges();
-                }
-                catch ( System.Data.Entity.Validation.DbEntityValidationException ex )
-                {
-                    var validationErrors = new List<string>();
-                    foreach ( var error in ex.EntityValidationErrors )
-                    {
-                        foreach ( var prop in error.ValidationErrors )
-                        {
-                            validationErrors.Add( string.Format( "{0} ({1}): {2}", error.Entry.Entity.GetType().Name, prop.PropertyName, prop.ErrorMessage ) );
-                        }
-                    }
-
-                    // Let all the hooks that were called know that the save
-                    // was aborted.
-                    CallSaveFailedHooks( updatedItems );
-
-                    throw new SystemException( "Entity Validation Error: " + validationErrors.AsDelimited( ";" ), ex );
+                    saveChangesResult.RecordsUpdated = SaveChangesInternal();
                 }
                 catch
                 {
@@ -349,6 +333,49 @@ namespace Rock.Data
             }
 
             return saveChangesResult;
+        }
+
+        /// <summary>
+        /// Save changes to the context, and capture additional details for any Entity Framework validation errors.
+        /// </summary>
+        /// <returns></returns>
+        private int SaveChangesInternal()
+        {
+            try
+            {
+                // Save the context changes
+                return base.SaveChanges();
+            }
+            catch ( System.Data.Entity.Validation.DbEntityValidationException ex )
+            {
+                // This exception stores specific validation messages in a custom property.
+                // These messages are often useful for debugging purposes, so we will repackage the exception
+                // to include the additional information in the standard error message.
+                var validationErrors = new List<string>();
+                foreach ( var error in ex.EntityValidationErrors )
+                {
+                    var entry = error.Entry;
+                    var entityType = entry.Entity.GetType();
+                    if ( entityType.IsDynamicProxyType() )
+                    {
+                        entityType = entityType.BaseType;
+                    }
+
+                    var entityDescription = $"{entityType.Name}/{entry.State}";
+
+                    if ( error.Entry.Entity is IEntity entity )
+                    {
+                        entityDescription += $"/Id={entity.Id}";
+                    }
+
+                    foreach ( var prop in error.ValidationErrors )
+                    {
+                        validationErrors.Add( $"[{entityDescription}/Property={prop.PropertyName}] {prop.ErrorMessage}" );
+                    }
+                }
+
+                throw new SystemException( $"Entity Validation Error: { validationErrors.AsDelimited( "; " ) }" );
+            }
         }
 
         /// <summary>
@@ -678,8 +705,8 @@ namespace Rock.Data
                 tcsPostSave.SetResult( true );
             }
 
-            var processIndexMsgs = new List<BusStartedTaskMessage>();
-            var deleteIndexMsgs = new List<BusStartedTaskMessage>();
+            List<ITransaction> indexTransactions = new List<ITransaction>();
+            var deleteContentCollectionIndexingMsgs = new List<BusStartedTaskMessage>();
             foreach ( var item in updatedItems )
             {
                 // check if this entity should be passed on for indexing
@@ -687,23 +714,24 @@ namespace Rock.Data
                 {
                     if ( item.State == EntityContextState.Detached || item.State == EntityContextState.Deleted )
                     {
-                        var deleteEntityTypeIndexMsg = new DeleteEntityTypeIndex.Message
+                        DeleteIndexEntityTransaction deleteIndexEntityTransaction = new DeleteIndexEntityTransaction
                         {
                             EntityTypeId = item.Entity.TypeId,
                             EntityId = item.Entity.Id
                         };
 
-                        deleteIndexMsgs.Add( deleteEntityTypeIndexMsg );
+                        indexTransactions.Add( deleteIndexEntityTransaction );
                     }
                     else
                     {
-                        var processEntityTypeIndexMsg = new ProcessEntityTypeIndex.Message
-                        {
-                            EntityTypeId = item.Entity.TypeId,
-                            EntityId = item.Entity.Id
-                        };
+                        var indexEntityTransaction = new IndexEntityTransaction(
+                            new EntityIndexInfo
+                            {
+                                EntityTypeId = item.Entity.TypeId,
+                                EntityId = item.Entity.Id
+                            } );
 
-                        processIndexMsgs.Add( processEntityTypeIndexMsg );
+                        indexTransactions.Add( indexEntityTransaction );
                     }
                 }
 
@@ -723,7 +751,7 @@ namespace Rock.Data
                             EntityId = item.Entity.Id
                         };
 
-                        deleteIndexMsgs.Add( msg );
+                        deleteContentCollectionIndexingMsgs.Add( msg );
                     }
                 }
 
@@ -757,15 +785,15 @@ namespace Rock.Data
             }
 
             // check if Indexing is enabled in another thread to avoid deadlock when Snapshot Isolation is turned off when the Index components upload/load attributes
-            if ( processIndexMsgs.Any() || deleteIndexMsgs.Any() )
+            if ( indexTransactions.Any() )
             {
                 System.Threading.Tasks.Task.Run( () =>
                 {
-                    var indexingEnabled = IndexContainer.GetActiveComponent() == null ? false : true;
+                    var indexingEnabled = IndexContainer.GetActiveComponent() != null;
                     if ( indexingEnabled )
                     {
-                        processIndexMsgs.ForEach( t => t.SendWhen( WrappedTransactionCompletedTask ) );
-                        deleteIndexMsgs.ForEach( t => t.SendWhen( WrappedTransactionCompletedTask ) );
+                        indexTransactions.ForEach( t => RockQueue.TransactionQueue.Enqueue( t ) );
+                        deleteContentCollectionIndexingMsgs.ForEach( t => t.SendWhen( WrappedTransactionCompletedTask ) );
                     }
                 } );
             }

@@ -1,11 +1,6 @@
 ﻿<%@ Control Language="C#" AutoEventWireup="true" CodeFile="ReminderLinks.ascx.cs" Inherits="RockWeb.Blocks.Reminders.ReminderLinks" %>
 <%@ Import Namespace="Rock" %>
 
-<style>
-    /* This is a temporary workaround to hide the reminders button - REMOVE THIS when the feature is ready for public deployment. */
-    .js-rock-reminders { display:none; }
-</style>
-
 <script type="text/javascript">
     function clearActiveReminderDialog() {
         $('#<%=hfActiveReminderDialog.ClientID %>').val('');
@@ -59,7 +54,7 @@
 
         if (reminderCount != '' && reminderCount != "0") {
             remindersButton.addClass('active has-reminders');
-            buttonHtml = buttonHtml + '<span class="count-bottom">' + reminderCount + "</span>";
+            buttonHtml = buttonHtml + '<span class="count-bottom">' + new Intl.NumberFormat().format(reminderCount) + "</span>";
         }
 
         remindersButton.html(buttonHtml);
@@ -94,14 +89,14 @@
 <asp:HiddenField ID="hfContextEntityTypeId" runat="server" Value="0" />
 
 <div class="dropdown js-rock-reminders">
-    <%-- LinkButton inner html is set by checkReminders() function. --%>
-    <asp:LinkButton runat="server" ID="lbReminders" Visible="false" CssClass="rock-bookmark" href="#" data-toggle="dropdown" />
+    <%-- LinkButton inner html is updated by checkReminders() function. --%>
+    <asp:LinkButton runat="server" ID="lbReminders" Visible="false" CssClass="rock-bookmark" href="#" data-toggle="dropdown"><i class="fa fa-bell"></i></asp:LinkButton>
     <asp:Panel ID="pnlReminders" runat="server" CssClass="dropdown-menu js-reminders-container">
-        <li>
-            <asp:LinkButton runat="server" ID="lbViewReminders" OnClick="lbViewReminders_Click">View Reminders</asp:LinkButton>
-        </li>
         <li class="js-add-reminder d-none">
             <asp:LinkButton runat="server" ID="lbAddReminder" CssClass="" OnClick="lbAddReminder_Click">Add Reminder</asp:LinkButton>
+        </li>
+        <li>
+            <asp:LinkButton runat="server" ID="lbViewReminders" OnClick="lbViewReminders_Click">View Reminders</asp:LinkButton>
         </li>
     </asp:Panel>
 </div>
@@ -147,7 +142,7 @@
                                                             <span class="note-details">
                                                                 <span class="tag-flair">
                                                                     <asp:Literal ID="lIcon" runat="server" Text='<%# "<span class=\"tag-color\" style=\"background-color: " + Eval("HighlightColor") + "\"></span>" %>' />
-                                                                    <asp:Literal ID="lReminderType" runat="server"  Text='<%# "<span class=\"tag-label\">" + Eval("ReminderType") + "</span>" %>' />
+                                                                    <asp:Literal ID="lReminderType" runat="server"  Text='<%# "<span class=\"tag-label\">" + Eval("ReminderTypeName") + "</span>" %>' />
                                                                 </span>
                                                             </span>
                                                         </div>
@@ -195,7 +190,7 @@
                             </div>
 
                             <div id="reminders-additional-options" class="d-none">
-                                <Rock:PersonPicker ID="rppPerson" runat="server" Label="Send Reminder To" Required="true" ValidationGroup="AddReminder" EnableSelfSelection="true" />
+                                <Rock:PersonPicker ID="rppPerson" runat="server" Label="Assign Reminder To" Required="true" ValidationGroup="AddReminder" EnableSelfSelection="true" />
 
                                 <div class="row">
                                     <div class="col-md-6">
