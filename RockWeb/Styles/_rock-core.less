@@ -182,6 +182,7 @@ a.warning {
 
 .dropdown-menu {
   .box-shadow(@shadow-overlay);
+  max-height: 85vh;
   overflow-y: auto;
 
   &.datepicker-dropdown {
@@ -546,6 +547,10 @@ th[align="right"] {
     }
   }
 
+  .picker-select-none {
+    margin: 1px 0 0 2px;
+  }
+
   .nav-pills {
     margin: 6px 8px;
 
@@ -553,6 +558,12 @@ th[align="right"] {
       margin-top: 6px;
       margin-bottom: 6px;
     }
+  }
+
+  .slidingdaterange-select, 
+  .slidingdaterange-number, 
+  .slidingdaterange-daterange .input-group {
+    margin-bottom: 0;
   }
 
   &.panel-toolbar-right {
@@ -852,7 +863,17 @@ th[align="right"] {
   }
 }
 
+.panel-sub-header {
+  display: flex;
+  min-height: 38px;
+  align-items: center;
+  padding: 4px 24px;
+  border-bottom: 1px solid @panel-border;
+  background-color: @panel-badges-bg;
+}
+
 .panel-badges {
+  --badge-size: 24px;
   display: -ms-flexbox;
   display: flex;
   -ms-flex-align: center;
@@ -870,10 +891,6 @@ th[align="right"] {
 
   .badge {
     background-color: inherit;
-  }
-
-  .badge-icon {
-    font-size: 20px;
   }
 }
 
