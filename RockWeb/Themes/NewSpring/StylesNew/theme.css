@@ -16698,6 +16698,7 @@ h5 a,
 h6 a,
 .h6 a {
   color: inherit;
+  text-decoration: none;
 }
 .display-1,
 .display-2,
@@ -16714,7 +16715,7 @@ h6 a,
 }
 .display-3 {
   font-size: 48px;
-  letter-spacing: -1.4px;
+  letter-spacing: -1.9px;
 }
 h1,
 .h1,
@@ -16746,15 +16747,15 @@ h3,
 }
 h4,
 .h4 {
-  letter-spacing: -1.1px;
+  letter-spacing: -1.4px;
 }
 h5,
 .h5 {
-  letter-spacing: -0.9px;
+  letter-spacing: -1.4px;
 }
 h6,
 .h6 {
-  letter-spacing: -0.7px;
+  letter-spacing: -1.2px;
 }
 h1,
 h2,
@@ -16782,7 +16783,7 @@ blockquote {
   border: none;
   font-style: italic;
   font-weight: 900;
-  letter-spacing: -0.8px;
+  letter-spacing: -0.5px;
   line-height: 1.08;
   font-size: 32px;
 }
@@ -16791,10 +16792,29 @@ blockquote footer {
   letter-spacing: 0;
   font-weight: 500;
 }
+.prose blockquote {
+  position: relative;
+  font-family: "colfax-web", sans-serif;
+  font-style: normal;
+  letter-spacing: -1px;
+  margin: 64px 0;
+  color: black;
+}
+.prose blockquote:after {
+  content: '';
+  position: absolute;
+  top: 5%;
+  left: -5%;
+  width: 110%;
+  height: 90%;
+  background-color: #fff14f;
+  z-index: -1;
+  transform: rotate(-1deg);
+}
 .lead {
   font-size: 24px;
   line-height: 1.32;
-  letter-spacing: -0.5px;
+  letter-spacing: -0.3px;
   font-style: italic;
   color: #a4a4a4;
 }
@@ -16803,7 +16823,7 @@ blockquote footer {
   letter-spacing: -0.5px;
 }
 small {
-  font-size: 75%;
+  font-size: 85%;
 }
 .no-wrap {
   white-space: nowrap;
@@ -16883,6 +16903,9 @@ a {
 .text-decoration-none a {
   text-decoration: none;
 }
+.whitespace-nowrap {
+  white-space: nowrap;
+}
 @media (min-width: 576px) {
   .display-1 {
     font-size: 76px;
@@ -16928,17 +16951,32 @@ a {
   }
 }
 @media (min-width: 768px) {
+  .prose {
+    font-size: 110%;
+  }
+  .prose h1,
+  .prose h2,
+  .prose h3,
+  .prose h4,
+  .prose h5,
+  .prose h6,
+  .prose ul,
+  .prose ol,
+  .prose p,
+  .prose blockquote {
+    margin-bottom: 36px;
+  }
   .display-1 {
     font-size: 92px;
     letter-spacing: -3px;
   }
   .display-2 {
     font-size: 84px;
-    letter-spacing: -2.7px;
+    letter-spacing: -3px;
   }
   .display-3 {
-    font-size: 68px;
-    letter-spacing: -2px;
+    font-size: 72px;
+    letter-spacing: -3px;
   }
   h1,
   .h1 {
@@ -16977,7 +17015,7 @@ a {
   blockquote {
     font-size: 36px;
     line-height: 1.16;
-    letter-spacing: -1.1px;
+    letter-spacing: -0.5px;
   }
   .lead {
     font-size: 28px;
@@ -17940,7 +17978,7 @@ button.swiper-pagination-bullet {
   -ms-perspective: 1200px;
 }
 .drop-shadow-sm {
-  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.05));
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.1));
 }
 .drop-shadow {
   filter: drop-shadow(0 5px 5px rgba(0, 0, 0, 0.18)) drop-shadow(0 1px 1px rgba(0, 0, 0, 0.18));
@@ -18187,7 +18225,7 @@ button.swiper-pagination-bullet {
   position: relative;
 }
 .timeline .timeline--item > div:before {
-  content: '';
+  content: "";
   position: absolute;
   top: 50%;
   left: 0;
@@ -18196,12 +18234,15 @@ button.swiper-pagination-bullet {
   width: 20px;
   height: 20px;
   border-radius: 1000px;
-  background-color: var(--gray-darker);
+  background-color: #fff;
   border: 4px solid var(--gray-light);
   z-index: 1;
 }
+.bg-gray-darker .timeline .timeline--item > div:before {
+  background-color: var(--gray-darker);
+}
 .timeline .timeline--item > div:after {
-  content: '';
+  content: "";
   position: absolute;
   top: 0%;
   left: 0;
@@ -18221,13 +18262,13 @@ button.swiper-pagination-bullet {
   .timeline .timeline--item i {
     font-size: 3em;
   }
-  .timeline .timeline--item:nth-child(2n+1) > div:before {
+  .timeline .timeline--item:nth-child(2n + 1) > div:before {
     left: auto;
     right: 0;
     margin-left: 0;
     margin-right: -10px;
   }
-  .timeline .timeline--item:nth-child(2n+1) > div:after {
+  .timeline .timeline--item:nth-child(2n + 1) > div:after {
     left: auto;
     right: 0;
     margin-left: 0;
@@ -22432,7 +22473,7 @@ html {
   font-size: 18px;
 }
 section {
-  padding: 80px 32px;
+  padding: 96px 32px;
 }
 .fullscreen {
   position: absolute;
@@ -22490,6 +22531,9 @@ section {
 }
 footer a:hover {
   color: #ffffff;
+}
+.wistia_popover_overlay {
+  background-color: rgba(0, 0, 0, 0.85) !important;
 }
 @media (min-width: 576px) {
   section {
