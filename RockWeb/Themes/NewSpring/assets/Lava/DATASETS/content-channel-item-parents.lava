@@ -10,6 +10,7 @@ ON av.EntityId = cci.ContentChannelId
 JOIN PersistedDataset pd
 ON av.Value = pd.Id
 WHERE cci.ContentChannelTypeId = 11
+AND cci.[Status] = 2
 AND av.AttributeId = 107096
 {% endsql %}
 [
@@ -34,6 +35,7 @@ AND av.AttributeId = 107096
     JOIN PersistedDataset pd
     ON av.Value = pd.Id
     WHERE ccia.ChildContentChannelItemId = {{ association.Id }}
+    AND cci.[Status] = 2
     AND av.AttributeId = 107096
     ORDER BY ccia.[Order], cci.StartDateTime
   {% endsql %}

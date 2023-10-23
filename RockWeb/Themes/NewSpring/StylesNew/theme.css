@@ -29,7 +29,7 @@
 */
 .crop-container {
   margin: 0 auto;
-  background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQAQMAAAAlPW0iAAAABlBMVEVmZmZ/f39ERVlDAAAAEUlEQVQIW2P8z8iIFTH8x4oAgXMQCWJFLxgAAAAASUVORK5CYII=');
+  background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQAQMAAAAlPW0iAAAABlBMVEVmZmZ/f39ERVlDAAAAEUlEQVQIW2P8z8iIFTH8x4oAgXMQCWJFLxgAAAAASUVORK5CYII=");
   overflow: hidden;
 }
 .jcrop-holder {
@@ -178,7 +178,7 @@ img.jcrop-preview {
   border: 1px solid #ccc;
   border-bottom-right-radius: 8px;
   border-bottom-left-radius: 8px;
-  box-shadow: 0 4px 8px 0 rgba(0,0,0,0.1);
+  box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.1);
 }
 .chosen-container.chosen-with-drop .chosen-drop {
   right: 0;
@@ -291,7 +291,7 @@ img.jcrop-preview {
   cursor: pointer;
 }
 .chosen-container-single .chosen-single abbr::before {
-  font-family: 'FontAwesome';
+  font-family: "FontAwesome";
   font-size: 20px;
   font-weight: 900;
   color: #a4a4a4;
@@ -340,7 +340,7 @@ img.jcrop-preview {
   position: relative;
   left: -28px;
   display: inline-block;
-  font-family: 'FontAwesome';
+  font-family: "FontAwesome";
   font-size: 20px;
   font-weight: 900;
   color: #a4a4a4;
@@ -425,7 +425,7 @@ img.jcrop-preview {
   display: inline-block;
   width: 16px;
   height: 16px;
-  font-family: 'FontAwesome';
+  font-family: "FontAwesome";
   font-size: 20px;
   font-weight: 900;
   color: #a4a4a4;
@@ -447,8 +447,8 @@ img.jcrop-preview {
 .chosen-container-active .chosen-single {
   border: 1px solid #66afe9;
   box-shadow: 0 0 0 3px rgba(102, 175, 233, 0.6);
-  -webkit-transition: border-color .15s ease-in-out, box-shadow .15s ease-in-out;
-  transition: border-color .15s ease-in-out, box-shadow .15s ease-in-out;
+  -webkit-transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
 }
 .chosen-container-active.chosen-with-drop .chosen-single {
   background-color: #fff;
@@ -456,16 +456,16 @@ img.jcrop-preview {
   border-bottom-right-radius: 0;
   border-bottom-left-radius: 0;
   box-shadow: 0 0 0 3px rgba(102, 175, 233, 0.6);
-  -webkit-transition: border-color .15s ease-in-out, box-shadow .15s ease-in-out;
-  transition: border-color .15s ease-in-out, box-shadow .15s ease-in-out;
+  -webkit-transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
 }
 .chosen-container-active .chosen-choices {
   border: 1px solid #66afe9;
   border-bottom-right-radius: 0;
   border-bottom-left-radius: 0;
   box-shadow: 0 0 0 3px rgba(102, 175, 233, 0.6);
-  -webkit-transition: border-color .15s ease-in-out, box-shadow .15s ease-in-out;
-  transition: border-color .15s ease-in-out, box-shadow .15s ease-in-out;
+  -webkit-transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
 }
 .chosen-container-active .chosen-choices .search-field input[type="text"] {
   color: #111 !important;
@@ -540,27 +540,39 @@ input[type="text"].chosen-focus-input {
   flex: 1 1 auto;
 }
 @font-face {
-  font-family: 'FontAwesome';
+  font-family: "FontAwesome";
   font-style: normal;
   font-weight: 900;
-  src: url('../../../Assets/Fonts/FontAwesome/fa-solid-900.eot?v=free5.15.3');
-  src: url('../../../Assets/Fonts/FontAwesome/fa-solid-900.eot?v=free5.15.3#iefix') format('embedded-opentype'), url('../../../Assets/Fonts/FontAwesome/fa-solid-900.woff2?v=free5.15.3') format('woff2'), url('../../../Assets/Fonts/FontAwesome/fa-solid-900.woff?v=free5.15.3') format('woff'), url('../../../Assets/Fonts/FontAwesome/fa-solid-900.ttf?v=free5.15.3') format('truetype'), url('../../../Assets/Fonts/FontAwesome/fa-solid-900.svg?v=free5.15.3#fontawesome') format('svg');
+  src: url("../../../Assets/Fonts/FontAwesome/fa-solid-900.eot?v=free5.15.3");
+  src: url("../../../Assets/Fonts/FontAwesome/fa-solid-900.eot?v=free5.15.3#iefix") format("embedded-opentype"),
+    url("../../../Assets/Fonts/FontAwesome/fa-solid-900.woff2?v=free5.15.3") format("woff2"),
+    url("../../../Assets/Fonts/FontAwesome/fa-solid-900.woff?v=free5.15.3") format("woff"),
+    url("../../../Assets/Fonts/FontAwesome/fa-solid-900.ttf?v=free5.15.3") format("truetype"),
+    url("../../../Assets/Fonts/FontAwesome/fa-solid-900.svg?v=free5.15.3#fontawesome") format("svg");
   font-display: block;
 }
 @font-face {
-  font-family: 'FontAwesome';
+  font-family: "FontAwesome";
   font-style: normal;
   font-weight: 400;
-  src: url('../../../Assets/Fonts/FontAwesome/fa-regular-400.eot?v=free5.15.3');
-  src: url('../../../Assets/Fonts/FontAwesome/fa-regular-400.eot?v=free5.15.3#iefix') format('embedded-opentype'), url('../../../Assets/Fonts/FontAwesome/fa-regular-400.woff2?v=free5.15.3') format('woff2'), url('../../../Assets/Fonts/FontAwesome/fa-regular-400.woff?v=free5.15.3') format('woff'), url('../../../Assets/Fonts/FontAwesome/fa-regular-400.ttf?v=free5.15.3') format('truetype'), url('../../../Assets/Fonts/FontAwesome/fa-regular-400.svg?v=free5.15.3#fontawesome') format('svg');
+  src: url("../../../Assets/Fonts/FontAwesome/fa-regular-400.eot?v=free5.15.3");
+  src: url("../../../Assets/Fonts/FontAwesome/fa-regular-400.eot?v=free5.15.3#iefix") format("embedded-opentype"),
+    url("../../../Assets/Fonts/FontAwesome/fa-regular-400.woff2?v=free5.15.3") format("woff2"),
+    url("../../../Assets/Fonts/FontAwesome/fa-regular-400.woff?v=free5.15.3") format("woff"),
+    url("../../../Assets/Fonts/FontAwesome/fa-regular-400.ttf?v=free5.15.3") format("truetype"),
+    url("../../../Assets/Fonts/FontAwesome/fa-regular-400.svg?v=free5.15.3#fontawesome") format("svg");
   font-display: block;
 }
 @font-face {
-  font-family: 'FontAwesome Brands';
+  font-family: "FontAwesome Brands";
   font-style: normal;
   font-weight: 400;
-  src: url('../../../Assets/Fonts/FontAwesome/fa-brands-400.eot?v=free5.15.3');
-  src: url('../../../Assets/Fonts/FontAwesome/fa-brands-400.eot?v=free5.15.3#iefix') format('embedded-opentype'), url('../../../Assets/Fonts/FontAwesome/fa-brands-400.woff2?v=free5.15.3') format('woff2'), url('../../../Assets/Fonts/FontAwesome/fa-brands-400.woff?v=free5.15.3') format('woff'), url('../../../Assets/Fonts/FontAwesome/fa-brands-400.ttf?v=free5.15.3') format('truetype'), url('../../../Assets/Fonts/FontAwesome/fa-brands-400.svg?v=free5.15.3#fontawesome') format('svg');
+  src: url("../../../Assets/Fonts/FontAwesome/fa-brands-400.eot?v=free5.15.3");
+  src: url("../../../Assets/Fonts/FontAwesome/fa-brands-400.eot?v=free5.15.3#iefix") format("embedded-opentype"),
+    url("../../../Assets/Fonts/FontAwesome/fa-brands-400.woff2?v=free5.15.3") format("woff2"),
+    url("../../../Assets/Fonts/FontAwesome/fa-brands-400.woff?v=free5.15.3") format("woff"),
+    url("../../../Assets/Fonts/FontAwesome/fa-brands-400.ttf?v=free5.15.3") format("truetype"),
+    url("../../../Assets/Fonts/FontAwesome/fa-brands-400.svg?v=free5.15.3#fontawesome") format("svg");
   font-display: block;
 }
 @font-face {
@@ -568,10 +580,11 @@ input[type="text"].chosen-focus-input {
   font-family: summernote;
   font-style: normal;
   font-weight: 400;
-  src: url(font/summernote.eot?#iefix) format("embedded-opentype"), url(font/summernote.woff2) format("woff2"), url(font/summernote.woff) format("woff"), url(font/summernote.ttf) format("truetype");
+  src: url(font/summernote.eot?#iefix) format("embedded-opentype"), url(font/summernote.woff2) format("woff2"), url(font/summernote.woff) format("woff"),
+    url(font/summernote.ttf) format("truetype");
 }
 [class*=" note-icon"]:before,
-[class^=note-icon]:before {
+[class^="note-icon"]:before {
   text-rendering: auto;
   -moz-osx-font-smoothing: grayscale;
   -webkit-font-smoothing: antialiased;
@@ -837,8 +850,8 @@ input[type="text"].chosen-focus-input {
   overflow: auto;
   padding: 10px;
 }
-.note-editor.note-airframe .note-editing-area .note-editable[contenteditable=false],
-.note-editor.note-frame .note-editing-area .note-editable[contenteditable=false] {
+.note-editor.note-airframe .note-editing-area .note-editable[contenteditable="false"],
+.note-editor.note-frame .note-editing-area .note-editable[contenteditable="false"] {
   background-color: #8080801d;
 }
 .note-editor.note-airframe .note-editing-area .note-codable,
@@ -864,7 +877,7 @@ input[type="text"].chosen-focus-input {
   left: 0;
   position: fixed;
   top: 0;
-  width: 100%!important;
+  width: 100% !important;
   z-index: 1050;
 }
 .note-editor.note-airframe.fullscreen .note-resizebar,
@@ -1028,23 +1041,25 @@ input[type="text"].chosen-focus-input {
 .note-popover .popover-content .note-btn-group .note-table .note-dimension-picker .note-dimension-picker-mousecatcher {
   cursor: pointer;
   height: 10em;
-  position: absolute!important;
+  position: absolute !important;
   width: 10em;
   z-index: 3;
 }
 .note-editor .note-toolbar .note-btn-group .note-table .note-dimension-picker .note-dimension-picker-unhighlighted,
 .note-popover .popover-content .note-btn-group .note-table .note-dimension-picker .note-dimension-picker-unhighlighted {
-  background: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABIAAAASAgMAAAAroGbEAAAACVBMVEUAAIj4+Pjp6ekKlAqjAAAAAXRSTlMAQObYZgAAAAFiS0dEAIgFHUgAAAAJcEhZcwAACxMAAAsTAQCanBgAAAAHdElNRQfYAR0BKhmnaJzPAAAAG0lEQVQI12NgAAOtVatWMTCohoaGUY+EmIkEAEruEzK2J7tvAAAAAElFTkSuQmCC") repeat;
+  background: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABIAAAASAgMAAAAroGbEAAAACVBMVEUAAIj4+Pjp6ekKlAqjAAAAAXRSTlMAQObYZgAAAAFiS0dEAIgFHUgAAAAJcEhZcwAACxMAAAsTAQCanBgAAAAHdElNRQfYAR0BKhmnaJzPAAAAG0lEQVQI12NgAAOtVatWMTCohoaGUY+EmIkEAEruEzK2J7tvAAAAAElFTkSuQmCC")
+    repeat;
   height: 5em;
-  position: relative!important;
+  position: relative !important;
   width: 5em;
   z-index: 1;
 }
 .note-editor .note-toolbar .note-btn-group .note-table .note-dimension-picker .note-dimension-picker-highlighted,
 .note-popover .popover-content .note-btn-group .note-table .note-dimension-picker .note-dimension-picker-highlighted {
-  background: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABIAAAASAgMAAAAroGbEAAAACVBMVEUAAIjd6vvD2f9LKLW+AAAAAXRSTlMAQObYZgAAAAFiS0dEAIgFHUgAAAAJcEhZcwAACxMAAAsTAQCanBgAAAAHdElNRQfYAR0BKwNDEVT0AAAAG0lEQVQI12NgAAOtVatWMTCohoaGUY+EmIkEAEruEzK2J7tvAAAAAElFTkSuQmCC") repeat;
+  background: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABIAAAASAgMAAAAroGbEAAAACVBMVEUAAIjd6vvD2f9LKLW+AAAAAXRSTlMAQObYZgAAAAFiS0dEAIgFHUgAAAAJcEhZcwAACxMAAAsTAQCanBgAAAAHdElNRQfYAR0BKwNDEVT0AAAAG0lEQVQI12NgAAOtVatWMTCohoaGUY+EmIkEAEruEzK2J7tvAAAAAElFTkSuQmCC")
+    repeat;
   height: 1em;
-  position: absolute!important;
+  position: absolute !important;
   width: 1em;
   z-index: 2;
 }
@@ -1147,12 +1162,12 @@ input[type="text"].chosen-focus-input {
 }
 .note-editor .note-toolbar .note-dropdown-menu.right:before,
 .note-popover .popover-content .note-dropdown-menu.right:before {
-  left: auto!important;
+  left: auto !important;
   right: 9px;
 }
 .note-editor .note-toolbar .note-dropdown-menu.right:after,
 .note-popover .popover-content .note-dropdown-menu.right:after {
-  left: auto!important;
+  left: auto !important;
   right: 10px;
 }
 .note-editor .note-toolbar .note-dropdown-menu.note-check a i,
@@ -1300,7 +1315,7 @@ input[type="text"].chosen-focus-input {
   padding: 3px;
 }
 .note-hint-popover .popover-content .note-hint-group .note-hint-item {
-  display: block!important;
+  display: block !important;
   padding: 3px;
 }
 .note-hint-popover .popover-content .note-hint-group .note-hint-item.active,
@@ -2124,7 +2139,7 @@ a.aspNetDisabled.picker-label,
 .form-group.required > .control-label::after,
 .required-indicator::after {
   margin-left: 4px;
-  font-family: 'FontAwesome';
+  font-family: "FontAwesome";
   font-size: 6px;
   font-weight: 900;
   color: #eca9a7;
@@ -2392,7 +2407,7 @@ dl:not(.dl-horizontal) dd {
 /* If th has a required class, render the required field indicator after the column heading */
 .table thead th.required::after {
   margin-left: 4px;
-  font-family: 'FontAwesome';
+  font-family: "FontAwesome";
   font-size: 6px;
   font-weight: 900;
   color: #eca9a7;
@@ -2534,7 +2549,7 @@ td.wrap-contents {
   display: inline-block;
   padding-left: 5px;
   margin-right: -14px;
-  font-family: 'FontAwesome';
+  font-family: "FontAwesome";
   font-weight: 900;
   color: rgba(255, 255, 255, 0.35);
   text-decoration: none;
@@ -2992,7 +3007,7 @@ tr.row-highlight td {
 }
 .socialsharing li .socialicon {
   padding: 8px 6px;
-  font-family: 'FontAwesome';
+  font-family: "FontAwesome";
   font-weight: 900;
   color: #fff;
   border-radius: 20px;
@@ -3615,7 +3630,7 @@ span.data-view-filter-label {
   opacity: 0.75;
 }
 .rock-fullscreen-toggle::before {
-  font-family: 'FontAwesome';
+  font-family: "FontAwesome";
   font-weight: 900;
   text-align: center;
   content: "\f065";
@@ -4138,7 +4153,7 @@ span.data-view-filter-label {
   width: 24px;
   height: 24px;
   margin-right: 12px;
-  font-family: 'FontAwesome';
+  font-family: "FontAwesome";
   font-size: 17px;
   font-weight: 900;
   color: #1698da;
@@ -4188,7 +4203,7 @@ span.data-view-filter-label {
 }
 .workflow-action .workflow-action-name::before {
   margin-right: 8px;
-  font-family: 'FontAwesome';
+  font-family: "FontAwesome";
   font-weight: 900;
   content: "\f1b2";
 }
@@ -4252,7 +4267,7 @@ span.data-view-filter-label {
 }
 .panel-group .panel-workflowitem .panel-heading a i.panel-navigation::before {
   margin-top: 6px;
-  font-family: 'FontAwesome';
+  font-family: "FontAwesome";
   font-size: 20px;
   font-weight: 900;
   content: "\f077";
@@ -4895,7 +4910,7 @@ span.data-view-filter-label {
 }
 .originate-call::before {
   margin-right: 6px;
-  font-family: 'FontAwesome';
+  font-family: "FontAwesome";
   font-weight: 900;
   content: "\f098";
 }
@@ -5098,7 +5113,7 @@ span.data-view-filter-label {
 .rockbadge-slash::before {
   position: absolute;
   display: block;
-  font-family: 'FontAwesome';
+  font-family: "FontAwesome";
   font-size: 0.6em;
   font-weight: 600;
   color: #c64f55;
@@ -5945,7 +5960,7 @@ tr.inactive td {
   cursor: pointer;
 }
 .eventitem-select {
-  font-family: 'FontAwesome';
+  font-family: "FontAwesome";
   font-size: 38px;
   font-weight: 900;
 }
@@ -6288,7 +6303,7 @@ iframe.email-body {
   top: -4px;
   left: 8px;
   z-index: 1;
-  font-family: 'FontAwesome';
+  font-family: "FontAwesome";
   font-size: 36px;
   font-weight: 900;
   color: #3a87ad;
@@ -8591,7 +8606,7 @@ fieldset .actions {
 }
 .imageupload-group .imageupload-dropzone span::before {
   padding-right: 0.25em;
-  font-family: 'FontAwesome';
+  font-family: "FontAwesome";
   font-weight: 900;
   content: "\f093";
 }
@@ -8658,7 +8673,7 @@ fieldset .actions {
 .fileupload-group .fileupload-dropzone span::before,
 .fileupload-group .fileupload-button span::before {
   padding-right: 4px;
-  font-family: 'FontAwesome';
+  font-family: "FontAwesome";
   font-weight: 900;
   content: "\f093";
 }
@@ -8733,7 +8748,7 @@ fieldset .actions {
   left: 0;
   z-index: -1;
   width: 100%;
-  font-family: 'FontAwesome';
+  font-family: "FontAwesome";
   font-size: 28px;
   font-weight: 900;
   line-height: 0;
@@ -9597,10 +9612,10 @@ select[multiple].input-group-sm .slidingdaterange-daterange .input-group-addon {
   cursor: pointer;
   border-left: 1px solid #85c161;
   opacity: 0.4;
-  transition: color .15s ease-in-out,background-color .15s ease-in-out,border-color .15s ease-in-out,box-shadow .15s ease-in-out;
+  transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
 }
 .panel-follow-status::before {
-  font-family: 'FontAwesome';
+  font-family: "FontAwesome";
   content: "\f005";
 }
 .panel-follow-status.following {
@@ -9791,7 +9806,8 @@ select[multiple].input-group-sm .slidingdaterange-daterange .input-group-addon {
   width: 28px;
   height: 28px;
   content: "";
-  background-image: linear-gradient(45deg, #f8f9fa 25%, transparent 25%, transparent 75%, #f8f9fa 75%, #f8f9fa), linear-gradient(45deg, #f8f9fa 25%, transparent 25%, transparent 75%, #f8f9fa 75%, #f8f9fa);
+  background-image: linear-gradient(45deg, #f8f9fa 25%, transparent 25%, transparent 75%, #f8f9fa 75%, #f8f9fa),
+    linear-gradient(45deg, #f8f9fa 25%, transparent 25%, transparent 75%, #f8f9fa 75%, #f8f9fa);
   background-position: 0 0, 30px 30px;
   background-size: 12px 12px;
   box-shadow: rgba(0, 0, 0, 0.15) 0 0 0 1px inset;
@@ -10103,7 +10119,8 @@ iframe.file-browser {
   background: no-repeat 50%/50% 50%;
   background-color: #ccc;
   border-radius: 10px;
-  transition: transform 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out, -webkit-transform 0.15s ease-in-out;
+  transition: transform 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out,
+    -webkit-transform 0.15s ease-in-out;
 }
 .custom-switch .custom-control-input:focus ~ .custom-control-label::before {
   box-shadow: 0 0 0 1px #ffffff, 0 0 0 3px rgba(107, 172, 67, 0.2);
@@ -10560,7 +10577,7 @@ iframe.file-browser {
   flex-wrap: wrap;
   align-content: flex-start;
   min-height: 50px;
-  margin: 0 calc(-.5 * var(--flex-col-gutter)) -10px;
+  margin: 0 calc(-0.5 * var(--flex-col-gutter)) -10px;
 }
 .form-builder-detail .form-layout .form-template-item {
   padding: 16px;
@@ -10569,7 +10586,7 @@ iframe.file-browser {
 }
 .form-builder-detail .form-layout .form-template-item.form-template-item-field {
   flex-basis: calc(100% - var(--flex-col-gutter) - 40px);
-  margin: 0 calc(.5 * var(--flex-col-gutter) + 40px) 12px calc(.5 * var(--flex-col-gutter));
+  margin: 0 calc(0.5 * var(--flex-col-gutter) + 40px) 12px calc(0.5 * var(--flex-col-gutter));
 }
 .form-builder-detail .form-section .configurable-zone {
   --zone-border: var(--zone-configurable-border);
@@ -10600,8 +10617,8 @@ iframe.file-browser {
   transform-origin: 0% 0%;
 }
 .form-builder-detail .flex-col {
-  margin-right: calc(.5 * var(--flex-col-gutter));
-  margin-left: calc(.5 * var(--flex-col-gutter));
+  margin-right: calc(0.5 * var(--flex-col-gutter));
+  margin-left: calc(0.5 * var(--flex-col-gutter));
 }
 .form-builder-detail .flex-col-1 {
   flex-basis: calc(8.3333% - var(--flex-col-gutter));
@@ -10766,16 +10783,16 @@ iframe.file-browser {
   display: flex;
   flex-wrap: wrap;
   margin-top: calc(-1 * var(--gutter));
-  margin-right: calc(-.5 * var(--gutter));
-  margin-left: calc(-.5 * var(--gutter));
+  margin-right: calc(-0.5 * var(--gutter));
+  margin-left: calc(-0.5 * var(--gutter));
 }
 .form-template-item-list .form-template-item {
   flex-shrink: 0;
   width: calc(50% - var(--gutter));
   max-width: 100%;
   margin-top: var(--gutter);
-  margin-right: calc(var(--gutter) * .5);
-  margin-left: calc(var(--gutter) * .5);
+  margin-right: calc(var(--gutter) * 0.5);
+  margin-left: calc(var(--gutter) * 0.5);
 }
 .zone-action {
   z-index: 10;
@@ -16516,7 +16533,7 @@ fieldset[disabled] .btn-danger-solid.focus {
   border: 1px solid #85c161;
   border-radius: 4px;
   font-size: 14px;
-  background-color: #E4E4E4;
+  background-color: #e4e4e4;
   font-weight: 500;
   margin: 0 10px;
 }
@@ -16715,7 +16732,7 @@ h6 a,
 }
 .display-3 {
   font-size: 48px;
-  letter-spacing: -1.9px;
+  letter-spacing: -1.4px;
 }
 h1,
 .h1,
@@ -16739,23 +16756,23 @@ h1,
 }
 h2,
 .h2 {
-  letter-spacing: -1.45px;
+  letter-spacing: -1.8px;
 }
 h3,
 .h3 {
-  letter-spacing: -1.4px;
+  letter-spacing: -1.6px;
 }
 h4,
 .h4 {
-  letter-spacing: -1.4px;
+  letter-spacing: -1.6px;
 }
 h5,
 .h5 {
-  letter-spacing: -1.4px;
+  letter-spacing: -0.9px;
 }
 h6,
 .h6 {
-  letter-spacing: -1.2px;
+  letter-spacing: -0.7px;
 }
 h1,
 h2,
@@ -16801,7 +16818,7 @@ blockquote footer {
   color: black;
 }
 .prose blockquote:after {
-  content: '';
+  content: "";
   position: absolute;
   top: 5%;
   left: -5%;
@@ -16823,7 +16840,9 @@ blockquote footer {
   letter-spacing: -0.5px;
 }
 small {
-  font-size: 85%;
+  display: inline-block;
+  font-size: 90%;
+  line-height: 1.5;
 }
 .no-wrap {
   white-space: nowrap;
@@ -16895,6 +16914,7 @@ mark {
   background-color: #fff14f;
 }
 a {
+  transition: all 0.2s ease-in-out;
   text-decoration: underline;
 }
 .list-none {
@@ -16966,17 +16986,21 @@ a {
   .prose blockquote {
     margin-bottom: 36px;
   }
+  small {
+    font-size: 85%;
+    line-height: 1.2;
+  }
   .display-1 {
     font-size: 92px;
     letter-spacing: -3px;
   }
   .display-2 {
     font-size: 84px;
-    letter-spacing: -3px;
+    letter-spacing: -2.7px;
   }
   .display-3 {
     font-size: 72px;
-    letter-spacing: -3px;
+    letter-spacing: -2px;
   }
   h1,
   .h1 {
@@ -16986,17 +17010,17 @@ a {
   h2,
   .h2 {
     font-size: 52px;
-    letter-spacing: -2.4px;
+    letter-spacing: -2.6px;
   }
   h3,
   .h3 {
     font-size: 44px;
-    letter-spacing: -2.4px;
+    letter-spacing: -2.6px;
   }
   h4,
   .h4 {
     font-size: 40px;
-    letter-spacing: -1.8px;
+    letter-spacing: -2.2px;
   }
   h5,
   .h5 {
@@ -17019,6 +17043,9 @@ a {
   }
   .lead {
     font-size: 28px;
+  }
+  a:not(.btn):hover {
+    opacity: 0.75;
   }
 }
 .btn {
@@ -17978,7 +18005,7 @@ button.swiper-pagination-bullet {
   -ms-perspective: 1200px;
 }
 .drop-shadow-sm {
-  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.1));
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.05));
 }
 .drop-shadow {
   filter: drop-shadow(0 5px 5px rgba(0, 0, 0, 0.18)) drop-shadow(0 1px 1px rgba(0, 0, 0, 0.18));
@@ -22473,7 +22500,7 @@ html {
   font-size: 18px;
 }
 section {
-  padding: 96px 32px;
+  padding: 80px 32px;
 }
 .fullscreen {
   position: absolute;
