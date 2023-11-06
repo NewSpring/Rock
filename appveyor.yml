@@ -1,3 +1,4 @@
+---
 #---------------------------------#
 #            Rock RMS             #
 #---------------------------------#
@@ -12,16 +13,16 @@ pull_requests:
 # branches to build
 branches:
   only:
-  - master
-  - beta
-  - alpha
-  - pre-alpha-release
+    - master
+    - beta
+    - alpha
+    - pre-alpha-release
 
 # Do not build on tags (GitHub only)
 skip_tags: true
 
 # operating system (build VM template)
-image: Visual Studio 2019
+image: Visual Studio 2022
 configuration: Release
 platform: Any CPU
 
@@ -31,21 +32,20 @@ clone_folder: C:\projects\Rock
 
 # scripts that run after cloning repository
 install:
-- ps: >-
-    $fileContent = "-----BEGIN RSA PRIVATE KEY-----`n"
+  - ps: >-
+      $fileContent = "-----BEGIN RSA PRIVATE KEY-----`n"
 
-    $fileContent += $env:priv_key.Replace(' ', "`n")
+      $fileContent += $env:priv_key.Replace(' ', "`n")
 
-    $fileContent += "`n-----END RSA PRIVATE KEY-----`n"
+      $fileContent += "`n-----END RSA PRIVATE KEY-----`n"
 
-    Set-Content c:\users\appveyor\.ssh\id_rsa $fileContent
+      Set-Content c:\users\appveyor\.ssh\id_rsa $fileContent
 
-    git clone -q --depth=1 https://github.com/NewSpring/rock-f1.git c:\projects\rock-f1
+      git clone -q --depth=1 https://github.com/NewSpring/rock-f1.git c:\projects\rock-f1
 
-    git clone -q --depth=1 https://github.com/NewSpring/rock-cache-sync.git c:\projects\rock-cache-sync
+      git clone -q --depth=1 https://github.com/NewSpring/rock-cache-sync.git c:\projects\rock-cache-sync
 
-    git clone -q --depth=1 https://github.com/NewSpring/apollos-onesignal.git c:\projects\apollos-onesignal
-
+      git clone -q --depth=1 https://github.com/NewSpring/apollos-onesignal.git c:\projects\apollos-onesignal
 
 # directories to preserve between builds
 cache:
@@ -55,8 +55,8 @@ cache:
 # scripts to run before build
 # (New-Object Net.WebClient).DownloadFile('https://dist.nuget.org/win-x86-commandline/v3.4.4/nuget.exe', "$nugetDir\NuGet.exe")
 before_build:
-- ps: >-
-    (Get-Content "C:\projects\Rock\RockWeb\web.config").Replace('<compilation debug="true"', '<compilation debug="false"') | Set-Content "C:\projects\Rock\RockWeb\web.config"
+  - ps: >-
+      (Get-Content "C:\projects\Rock\RockWeb\web.config").Replace('<compilation debug="true"', '<compilation debug="false"') | Set-Content "C:\projects\Rock\RockWeb\web.config"
 
 # build configuration
 build:
@@ -66,11 +66,11 @@ build:
   verbosity: minimal
 
 build_script:
-- cmd: >-
-    nuget restore
+  - cmd: >-
+      nuget restore
 
-    "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\Common7\IDE\devenv"
-    "c:\projects\Rock\rock.sln" /build Release
+      "C:\Program Files (x86)\Microsoft Visual Studio\2022\Community\Common7\IDE\devenv"
+      "c:\projects\Rock\rock.sln" /build Release
 
 # flag to stop building if an error throws
 matrix:
@@ -84,12 +84,12 @@ test:
 
 # IIS artifact configuration
 artifacts:
-- path: RockWeb
-  name: NewSpringRockKit
+  - path: RockWeb
+    name: NewSpringRockKit
 
 # deployment configuration
 deploy:
-- provider: Environment
-  name: Alpha (alpha-rock.newspring.cc)
-  on:
-    branch: alpha
+  - provider: Environment
+    name: Alpha (alpha-rock.newspring.cc)
+    on:
+      branch: alpha
