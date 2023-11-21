@@ -35,6 +35,10 @@
         </div>
         <div data-aos="fade-up" class="height-max-content text-md-right">
             <ul class="list-unstyled font-sans font-medium">
+                <li><a href="/internships" class="text-decoration-none">Internships</a>
+                </li>
+                <li><a href="/jobs" class="text-decoration-none">Jobs</a>
+                </li>
                 <li><a href="/privacy" class="text-decoration-none">Privacy Policy</a>
                 </li>
                 <li><a href="/terms" class="text-decoration-none">Terms of Use</a>
@@ -48,11 +52,13 @@
                         <i class="fab fa-lg fa-facebook-f"></i>
                     </a>
                 </li>
+                <!--
                 <li>
                     <a href="{{ 'Global' | Attribute:'OrganizationTwitter','RawValue' }}" class="text-white" target="_blank">
                         <i class="fab fa-lg fa-twitter"></i>
                     </a>
                 </li>
+                 -->
                 <li>
                     <a href="{{ 'Global' | Attribute:'OrganizationInstagram','RawValue' }}" class="text-white" target="_blank">
                         <i class="fab fa-lg fa-instagram"></i>
@@ -78,10 +84,10 @@
     #footer .fa-instagram:hover { color: #FDD362; }
     #footer .fa-youtube:hover { color: #FB0007; }
     </style>
-    
+
     <footer id="footer" class="position-relative soft-double xs-soft-double-ends bg-gray-dark">
         <div class="soft xs-soft-half">
-    
+
             <div class="row">
                 <div class="col-xs-12 xs-text-center">
                     <div class="push-half-bottom">
@@ -93,7 +99,7 @@
                     <p><span class="text-white">{{ orgAddress.Street1 }}<br>
                     {{ orgAddress.City }}, {{ orgAddress.State }} {{ orgAddress.PostalCode | Split:'-' | First }}<br></span>
                     <a href="tel:+1{{ orgPhone | Remove:'(' | Remove:')' | Remove:'-' | Remove:' ' }}">{{ orgPhone }}</a></p>
-    
+
                     <p class="sans-serif strong text-white text-decoration-none flush-bottom xs-text-center"><small><a href="https://www.rockrms.com" class="text-white text-hover-white" target="_blank">Built on
                     <span class="position-relative fa-layers fa-lg fa-fw" style="top:5px;">
                         <i class="fas fa-circle" style="color:white"></i>
@@ -101,23 +107,25 @@
                     </span>
                     Rock RMS</a></small></p>
                 </div><div class="col-md-6 col-sm-12 col-xs-12">
-    
+
                 </div><div class="col-md-3 col-sm-6 col-xs-12 text-right xs-text-center xs-push-top">
                     <p class="sans-serif strong text-decoration-none">
+                        <a href="/internships">Internships</a><br>
+                        <a href="/jobs">Jobs</a><br>
                         <a href="/privacy">Privacy Policy</a><br>
                         <a href="/terms">Terms of Use</a><br>
                         <a href="/reprinting-and-reposting">Reprinting &amp; Reposting</a>
                     </p>
-    
+
                     <p class="text-white flush">
                         <a href="{{ 'Global' | Attribute:'OrganizationFacebook','RawValue' }}" target="_blank"><i class="fab fa-2x fa-facebook"></i></a>&nbsp;&nbsp;
-                        <a href="{{ 'Global' | Attribute:'OrganizationTwitter','RawValue' }}" target="_blank"><i class="fab fa-2x fa-twitter"></i></a>&nbsp;&nbsp;
+                        <!-- <a href="{{ 'Global' | Attribute:'OrganizationTwitter','RawValue' }}" target="_blank"><i class="fab fa-2x fa-twitter"></i></a>&nbsp;&nbsp; -->
                         <a href="{{ 'Global' | Attribute:'OrganizationInstagram','RawValue' }}" target="_blank"><i class="fab fa-2x fa-instagram"></i></a>&nbsp;&nbsp;
                         <a href="{{ 'Global' | Attribute:'OrganizationYouTube','RawValue' }}" target="_blank"><i class="fab fa-2x fa-youtube"></i></a>
                     </p>
                 </div>
             </div>
-    
+
         <div class="row push-top text-uppercase text-gray sans-serif strong">
             <div class="col-md-6 col-xs-12 xs-text-center">
                 <p class="mb-0"> <small><i class="far fa-copyright"></i> {{ 'Now' | Date:'yyyy' }} NewSpring Church</small></p>
@@ -125,5 +133,5 @@
                 <p class="text-sans-serif strong text-uppercase flush"><small><a class="text-decoration-none text-gray" href="https://newspring.cc/thebiblerecap"><i class="fas fa-sm fa-book-open" aria-hidden="true"></i>&nbsp; Read Your Bible</a></small></p>
             </div>
         </div>
-    </footer>    
+    </footer>
 {% endif %}
