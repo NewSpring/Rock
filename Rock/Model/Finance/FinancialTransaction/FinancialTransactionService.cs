@@ -372,9 +372,9 @@ namespace Rock.Model
              - Giving Overview (The Giving Overview block should not show info for Giver Anonymous)
 
             */
-
-            var giverAnonymousPersonGuid = SystemGuid.Person.GIVER_ANONYMOUS.AsGuid();
-            var giverAnonymousPersonAliasIds = new PersonAliasService( this.Context as RockContext ).Queryable().Where( a => a.Person.Guid == giverAnonymousPersonGuid ).Select( a => a.Id );
+            var rockContext = this.Context as RockContext; 
+            var giverAnonymousPersonGuid = Rock.SystemGuid.Person.GIVER_ANONYMOUS.AsGuid();
+            var giverAnonymousPersonAliasIds = new PersonAliasService( rockContext ).Queryable().Where( a => a.Person.Guid == giverAnonymousPersonGuid ).Select( a => a.Id );
             query = query.Where( a => a.AuthorizedPersonAliasId.HasValue && !giverAnonymousPersonAliasIds.Contains( a.AuthorizedPersonAliasId.Value ) );
 
             var settings = GivingAutomationSettings.LoadGivingAutomationSettings();
@@ -399,15 +399,13 @@ namespace Rock.Model
             }
             else
             {
-                accountIds = new List<int>();
+                accountIds = new FinancialAccountService( rockContext ).Queryable()
+                    .Where( a => a.IsTaxDeductible )
+                    .Select( a => a.Id )
+                    .ToList();
             }
 
-            // Filter accounts, defaults to tax deductible only
-            if ( !accountIds.Any() )
-            {
-                query = query.Where( t => t.TransactionDetails.Any( td => td.Account.IsTaxDeductible ) );
-            }
-            else if ( settings.AreChildAccountsIncluded == true )
+            if ( settings.AreChildAccountsIncluded == true )
             {
                 var selectedAccountIds = accountIds.ToList();
                 var childAccountsIds = FinancialAccountCache.GetByIds( accountIds ).SelectMany( a => a.GetDescendentFinancialAccountIds() ).ToList();
@@ -485,7 +483,33 @@ namespace Rock.Model
         /// <returns>List&lt;MonthlyAccountGivingHistory&gt;.</returns>
         public List<MonthlyAccountGivingHistory> GetGivingAutomationMonthlyAccountGivingHistory( string givingId, DateTime? startDateTime )
         {
-            var givingIdPersonAliasIdQuery = new PersonAliasService( this.Context as RockContext )
+            return GetGivingAutomationMonthlyAccountGivingHistory( givingId, startDateTime, false );
+        }
+
+        /// <summary>
+        /// Gets the giving automation monthly account giving history.
+        /// </summary>
+        /// <param name="givingId">The giving identifier.</param>
+        /// <param name="startDateTime">The start date time.</param>
+        /// <param name="includeNegativeTransactions">Whether or not negative transactions should be included in the query.</param>
+        /// <returns>List&lt;MonthlyAccountGivingHistory&gt;.</returns>
+        public List<MonthlyAccountGivingHistory> GetGivingAutomationMonthlyAccountGivingHistory( string givingId, DateTime? startDateTime, bool includeNegativeTransactions )
+        {
+            return GetGivingAutomationMonthlyAccountGivingHistory( GetGivingAutomationSourceTransactionQuery( includeNegativeTransactions ), givingId, startDateTime );
+        }
+
+        /// <summary>
+        /// Gets the giving automation monthly account giving history.
+        /// </summary>
+        /// <param name="sourceQuery">The source query to use.</param>
+        /// <param name="givingId">The giving identifier.</param>
+        /// <param name="startDateTime">The start date time.</param>
+        /// <returns>List&lt;MonthlyAccountGivingHistory&gt;.</returns>
+        private List<MonthlyAccountGivingHistory> GetGivingAutomationMonthlyAccountGivingHistory( IQueryable<FinancialTransaction> sourceQuery, string givingId, DateTime? startDateTime )
+        {
+            var rockContext = this.Context as RockContext;
+
+            var givingIdPersonAliasIdQuery = new PersonAliasService( rockContext )
                 .Queryable()
                 .Where( a => a.Person.GivingId == givingId )
                 .Select( a => a.Id );
@@ -502,8 +526,13 @@ namespace Rock.Model
                 qry = qry.Where( t => t.TransactionDateTime >= startDateTime );
             }
 
-            var views = qry
-                .SelectMany( t => t.TransactionDetails.Where(td => td.Account.IsTaxDeductible == true).Select( td => new
+            var qryTransactionDetails = new FinancialTransactionDetailService( rockContext ).Queryable()
+                .Where( t => t.Account.IsTaxDeductible );
+
+            // Select all Transaction Detail records related to the Transaction.
+            var monthlyAccountGivingHistoryList = qryTransactionDetails
+                .Join( qry, td => td.TransactionId, t => t.Id,
+                ( td, t ) => new
                 {
                     TransactionDateTime = t.TransactionDateTime.Value,
                     td.AccountId,
@@ -514,11 +543,13 @@ namespace Rock.Model
                     AccountRefundAmount = td.Transaction
                         .Refunds.Select( a => a.FinancialTransaction.TransactionDetails.Where( rrr => rrr.AccountId == td.AccountId )
                         .Sum( rrrr => ( decimal? ) rrrr.Amount ) ).Sum() ?? 0.0M
-                } ) )
-                .ToList();
-
-            var monthlyAccountGivingHistoryList = views
-                .GroupBy( a => new { a.TransactionDateTime.Year, a.TransactionDateTime.Month, a.AccountId } )
+                } )
+                .GroupBy( a => new
+                {
+                    a.TransactionDateTime.Year,
+                    a.TransactionDateTime.Month,
+                    a.AccountId
+                } )
                 .Select( t => new MonthlyAccountGivingHistory
                 {
                     Year = t.Key.Year,
@@ -528,7 +559,7 @@ namespace Rock.Model
                 } )
                 .OrderByDescending( a => a.Year )
                 .ThenByDescending( a => a.Month )
-                .ToList();
+            .ToList();
 
             return monthlyAccountGivingHistoryList;
         }
