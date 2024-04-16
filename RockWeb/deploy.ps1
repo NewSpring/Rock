@@ -1,7 +1,7 @@
 # This script is run by AppVeyor's deploy agent after the deploy
 Import-Module WebAdministration
 
-if([string]::IsNullOrWhiteSpace($env:APPLICATION_PATH)) {
+if([string]::IsNullOrWhiteSpace($env:application_path)) {
 	Write-Error "APPLICATION_PATH is not set, aborting!";
 	exit;
 }
@@ -11,8 +11,8 @@ if([string]::IsNullOrWhiteSpace($env:APPVEYOR_JOB_ID)) {
 }
 
 # Get the application (web root), application_path, and tempLocation for use in copying files around
-$webroot = $env:APPLICATION_PATH
-$RootLocation = $env:APPLICATION_PATH;
+$webroot = $env:application_path
+$RootLocation = $env:application_path;
 $TempLocation = Join-Path $env:Temp $env:APPVEYOR_JOB_ID;
 $FileBackupLocation = Join-Path $TempLocation "SavedFiles";
 
