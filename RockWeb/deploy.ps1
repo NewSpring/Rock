@@ -1,55 +1,107 @@
 # This script is run by AppVeyor's deploy agent after the deploy
 Import-Module WebAdministration
 
+if([string]::IsNullOrWhiteSpace($env:APPLICATION_PATH)) {
+	Write-Error "APPLICATION_PATH is not set, aborting!";
+	exit;
+}
+if([string]::IsNullOrWhiteSpace($env:APPVEYOR_JOB_ID)) {
+	Write-Error "APPVEYOR_JOB_ID is not set, aborting!"
+	exit;
+}
 
-$rootfolder = "$env:application_path\..\"
-$webroot = "$env:application_path"
+# Get the application (web root), application_path, and tempLocation for use in copying files around
+$webroot = $env:APPLICATION_PATH
+$RootLocation = $env:APPLICATION_PATH;
+$TempLocation = Join-Path $env:Temp $env:APPVEYOR_JOB_ID;
+$FileBackupLocation = Join-Path $TempLocation "SavedFiles";
 
 Write-Output "Running post-deploy script"
 Write-Output "--------------------------------------------------"
-Write-Output "Root folder: $rootfolder"
+Write-Host "Application: $env:APPVEYOR_PROJECT_NAME";
+Write-Host "Build Number: $env:APPVEYOR_BUILD_VERSION";
+Write-Host "Job ID: $env:APPVEYOR_JOB_ID";
+Write-Host "Deploy Location: $RootLocation";
+Write-Host "Temp Location: $TempLocation";
+Write-Host "File Backup Location: $FileBackupLocation";
+# Write-Output "Root folder: $rootfolder"
 Write-Output "Web root folder: $webroot"
 Write-Output "Running script as: $env:userdomain\$env:username"
+Write-Host "====================================================";
 
-# delete the content directory if it exists as it was added by the deploy
-If (Test-Path "$webroot\Content"){
-	Remove-Item "$webroot\Content" -Force -Confirm:$False -Recurse
+
+# Functions
+function Join-Paths {
+	$path, $parts= $args;
+	foreach ($part in $parts) {
+			$path = Join-Path $path $part;
+	}
+	return $path;
 }
 
-# move content directory back from temp
-If (Test-Path "$rootfolder\temp\Content"){
-	Write-Host "Moving Contents folder back from temp directory"
-	Move-Item "$rootfolder\temp\Content" "$webroot"
+function Get-VersionId([string] $FileName) {
+	$Parts = $FileName -split "-";
+	if($Parts.Length -gt 0) {
+			return $Parts[0] -replace "\D+" -as [Int];
+	}
+	else {
+			return 0;
+	}
 }
 
-If (Test-Path "$rootfolder\temp\checks"){
-	Write-Host "Moving checks folder back from temp directory"
-	Move-Item "$rootfolder\temp\checks" "$webroot"
+function Copy-DirectoryContentsRecursivelyWithSaneLinkHandling([string] $DirectoryToCopy, [string] $Destination) {
+	New-Item -ItemType Directory $Destination -Force | Out-Null;
+	foreach($Child in Get-ChildItem $DirectoryToCopy) {
+			if($Child.LinkType) {
+					$Dest = Join-Path $Destination $Child.Name;
+					if(Test-Path $Dest) {
+							Remove-Item $Dest -Recurse -Force
+					}
+					$LinkTarget, $OtherTargets = $Child.Target;
+					New-Item -ItemType $Child.LinkType $Dest -Target $LinkTarget -Force | Out-Null;
+			}
+			elseif($Child.PSIsContainer) {
+					Copy-DirectoryContentsRecursivelyWithSaneLinkHandling (Join-Path $DirectoryToCopy $Child.Name) (Join-Path $Destination $Child.Name);
+			}
+			else {
+					Copy-Item (Join-Path $DirectoryToCopy $Child.Name) (Join-Path $Destination $Child.Name) -Force;
+			}
+	}
 }
 
-If (Test-Path "$rootfolder\temp\documents"){
-	Write-Host "Moving documents folder back from temp directory"
-	Move-Item "$rootfolder\temp\documents" "$webroot"
-}
+### 1. Restore server-specific files like configs, FontAwesome assets, and built theme files
 
-If (Test-Path "$rootfolder\temp\profiles"){
-	Write-Host "Moving profiles folder back from temp directory"
-	Move-Item "$rootfolder\temp\profiles" "$webroot"
-}
+Write-Host "Restoring server-specific files";
+Copy-DirectoryContentsRecursivelyWithSaneLinkHandling $FileBackupLocation $RootLocation;
 
-# start web publishing service
-#Write-Host "Starting Web Publishing Service"
-#Start-Service -ServiceName w3svc
-#Start-Service -ServiceName w3logsvc
+### 2. Clean up temp folder
+Remove-Item $TempLocation -Recurse -Force;
 
-# create empty migration flag
+### 3. ensure that the compilation debug is false
+(Get-Content "$webroot\web.config").Replace('<compilation debug="true"', '<compilation debug="false"') | Set-Content "$webroot\web.config"
+
+### 4. Create empty migration file and set permissions
 New-Item "$webroot\App_Data\Run.Migration" -type file -force
 
 # set acl on migration flag file so the app has permissions to delete it
+Write-Host "Setting read-write on the Run.Migration file"
 $acl = Get-ACL "$webroot\App_Data\Run.Migration"
 $accessRule= New-Object System.Security.AccessControl.FileSystemAccessRule("Everyone","FullControl","Allow")
 $acl.AddAccessRule($accessRule)
 Set-Acl "$webroot\App_Data\Run.Migration" $acl
+
+### 5. Restart Server and App Pool
+
+# start web publishing service
+Write-Host "Starting Web Publishing Service"
+start-service -servicename w3svc
+
+# start web site and app pool
+Write-Host "Starting ApplicationPool and Website"
+Start-WebAppPool -Name (Get-Website -Name "$env:APPLICATION_SITE_NAME").applicationPool
+Start-Website -Name "$env:APPLICATION_SITE_NAME"
+
+### 6. Cleanup
 
 # delete deploy scripts
 If (Test-Path "$webroot\deploy.ps1"){
@@ -60,45 +112,15 @@ If (Test-Path "$webroot\before-deploy.ps1"){
 	Remove-Item "$webroot\before-deploy.ps1"
 }
 
+# delete the content directory if it exists as it was added by the deploy
+If (Test-Path "$webroot\Content"){
+	Remove-Item "$webroot\Content" -Force -Confirm:$False -Recurse
+}
+
 # delete the appveyor deploy cache
-# If (Test-Path c:\appveyor){
-# 	Remove-Item c:\appveyor -Force -Confirm:$False -Recurse
-# }
-
-# move connection string file back from temp
-If (Test-Path "$rootfolder\temp\web.connectionstrings.config"){
-	Write-Host "Moving web.connectionstrings.config from temp dir"
-	Copy-Item "$rootfolder\temp\web.connectionstrings.config" "$webroot" -force
-}
-
-# move RedirectorRules file back from temp
-If (Test-Path "$rootfolder\temp\RedirectorRules.json"){
-	Write-Host "Moving RedirectorRules.json from temp dir"
-	Copy-Item "$rootfolder\temp\RedirectorRules.json" "$webroot\App_Data\TriumphTech-WebAgility" -force
-}
-
-# move RequestHeaderRules file back from temp
-If (Test-Path "$rootfolder\temp\RequestHeaderRules.json"){
-	Write-Host "Moving RequestHeaderRules.json from temp dir"
-	Copy-Item "$rootfolder\temp\RequestHeaderRules.json" "$webroot\App_Data\TriumphTech-WebAgility" -force
-}
-
-# move ResponseHeaderRules file back from temp
-If (Test-Path "$rootfolder\temp\ResponseHeaderRules.json"){
-	Write-Host "Moving ResponseHeaderRules.json from temp dir"
-	Copy-Item "$rootfolder\temp\ResponseHeaderRules.json" "$webroot\App_Data\TriumphTech-WebAgility" -force
-}
-
-# move core Rock css overrides file back from temp
-If (Test-Path "$rootfolder\temp\_css-overrides.less"){
-	Write-Host "Moving _css-overrides.less from temp dir"
-	Copy-Item "$rootfolder\temp\_css-overrides.less" "$webroot\Themes\Rock\Styles" -force
-}
-
-# move core Rock css overrides file back from temp
-If (Test-Path "$rootfolder\temp\_css-overrides.less"){
-	Write-Host "Moving _css-overrides.less from temp dir"
-	Copy-Item "$rootfolder\temp\RockManager\_css-overrides.less" "$webroot\Themes\RockManager\Styles" -force
+Write-Host "Deleting appveyor deploy cache"
+If (Test-Path c:\appveyor){
+	Remove-Item c:\appveyor -Force -Confirm:$False -Recurse
 }
 
 # remove the app offline flag
@@ -107,8 +129,6 @@ If (Test-Path "$webroot\app_offline.htm"){
 	Remove-Item "$webroot\app_offline.htm"
 }
 
-# move web.config file back from temp (restarts the app pool)
-If (Test-Path "$rootfolder\temp\web.config"){
-	Write-Host "Moving web.config from temp dir"
-	Copy-Item "$rootfolder\temp\web.config" "$webroot" -force
-}
+Write-Output "--------------------------------------------------"
+Write-Output "Post-deploy script complete"
+Write-Output "--------------------------------------------------"
