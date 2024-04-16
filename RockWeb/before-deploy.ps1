@@ -12,8 +12,8 @@ if([string]::IsNullOrWhiteSpace($env:APPVEYOR_JOB_ID)) {
 }
 
 # Get the application (web root), application_path, and tempLocation for use in copying files around
-$webroot = "$env:app_path\..\";
-$RootLocation = "$env:app_path";
+$webroot = "$env:application_path\..\";
+$RootLocation = "$env:application_path";
 $TempLocation = Join-Path $env:Temp $env:APPVEYOR_JOB_ID;
 New-Item $TempLocation -ItemType Directory | Out-Null;
 $FileBackupLocation = Join-Path $TempLocation "SavedFiles";
