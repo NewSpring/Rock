@@ -11,22 +11,22 @@ if([string]::IsNullOrWhiteSpace($env:APPVEYOR_JOB_ID)) {
 }
 
 # Get the application (web root), application_path, and tempLocation for use in copying files around
-$webroot = $env:application_path
-$RootLocation = $env:application_path;
+$webroot = "$env:application_path\..\";
+$RootLocation = "$env:application_path";
 $TempLocation = Join-Path $env:Temp $env:APPVEYOR_JOB_ID;
 $FileBackupLocation = Join-Path $TempLocation "SavedFiles";
 
-Write-Output "Running post-deploy script"
-Write-Output "--------------------------------------------------"
+Write-Output "Running post-deploy script";
+Write-Output "--------------------------------------------------";
 Write-Host "Application: $env:APPVEYOR_PROJECT_NAME";
 Write-Host "Build Number: $env:APPVEYOR_BUILD_VERSION";
 Write-Host "Job ID: $env:APPVEYOR_JOB_ID";
 Write-Host "Deploy Location: $RootLocation";
 Write-Host "Temp Location: $TempLocation";
 Write-Host "File Backup Location: $FileBackupLocation";
-# Write-Output "Root folder: $rootfolder"
-Write-Output "Web root folder: $webroot"
-Write-Output "Running script as: $env:userdomain\$env:username"
+# Write-Output "Root folder: $rootfolder";
+Write-Output "Web root folder: $webroot";
+Write-Output "Running script as: $env:userdomain\$env:username";
 Write-Host "====================================================";
 
 
