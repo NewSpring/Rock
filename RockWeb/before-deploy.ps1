@@ -28,13 +28,13 @@ Write-Output "Web root folder: $webroot";
 Write-Output "Running script as: $env:userdomain\$env:username";
 Write-Host "====================================================";
 
-function Join-Paths {
-    $path, $parts= $args;
-    foreach ($part in $parts) {
-        $path = Join-Path $path $part;
-    }
-    return $path;
-}
+# function Join-Paths {
+#     $path, $parts= $args;
+#     foreach ($part in $parts) {
+#         $path = Join-Path $path $part;
+#     }
+#     return $path;
+# }
 
 function Backup-RockFile([string] $RockWebFile) {
     $RockLocation = Join-Path $webroot $RockWebFile;

@@ -22,30 +22,29 @@ Write-Host "Build Number: $env:APPVEYOR_BUILD_VERSION";
 Write-Host "Job ID: $env:APPVEYOR_JOB_ID";
 Write-Host "Temp Location: $TempLocation";
 Write-Host "File Backup Location: $FileBackupLocation";
-# Write-Output "Root folder: $rootfolder";
 Write-Output "Web root folder: $webroot";
 Write-Output "Running script as: $env:userdomain\$env:username";
 Write-Host "====================================================";
 
 
 # Functions
-function Join-Paths {
-	$path, $parts= $args;
-	foreach ($part in $parts) {
-			$path = Join-Path $path $part;
-	}
-	return $path;
-}
+# function Join-Paths {
+# 	$path, $parts= $args;
+# 	foreach ($part in $parts) {
+# 			$path = Join-Path $path $part;
+# 	}
+# 	return $path;
+# }
 
-function Get-VersionId([string] $FileName) {
-	$Parts = $FileName -split "-";
-	if($Parts.Length -gt 0) {
-			return $Parts[0] -replace "\D+" -as [Int];
-	}
-	else {
-			return 0;
-	}
-}
+# function Get-VersionId([string] $FileName) {
+# 	$Parts = $FileName -split "-";
+# 	if($Parts.Length -gt 0) {
+# 			return $Parts[0] -replace "\D+" -as [Int];
+# 	}
+# 	else {
+# 			return 0;
+# 	}
+# }
 
 function Copy-DirectoryContentsRecursivelyWithSaneLinkHandling([string] $DirectoryToCopy, [string] $Destination) {
 	New-Item -ItemType Directory $Destination -Force | Out-Null;
@@ -75,7 +74,7 @@ Copy-DirectoryContentsRecursivelyWithSaneLinkHandling $FileBackupLocation $webro
 ### 2. Clean up temp folder
 Remove-Item $TempLocation -Recurse -Force;
 
-### 3. ensure that the compilation debug is false
+### 3. Ensure that the compilation debug is false
 (Get-Content "$webroot\web.config").Replace('<compilation debug="true"', '<compilation debug="false"') | Set-Content "$webroot\web.config"
 
 ### 4. Create empty migration file and set permissions
