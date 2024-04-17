@@ -11,8 +11,7 @@ if([string]::IsNullOrWhiteSpace($env:APPVEYOR_JOB_ID)) {
 }
 
 # Get the application (web root), application_path, and tempLocation for use in copying files around
-$webroot = "$env:RockWebRootPath\..\";
-$RootLocation = "$env:RockWebRootPath";
+$webroot = $env:RockWebRootPath;
 $TempLocation = Join-Path $env:Temp $env:APPVEYOR_JOB_ID;
 $FileBackupLocation = Join-Path $TempLocation "SavedFiles";
 
@@ -21,7 +20,6 @@ Write-Output "--------------------------------------------------";
 Write-Host "Application: $env:APPVEYOR_PROJECT_NAME";
 Write-Host "Build Number: $env:APPVEYOR_BUILD_VERSION";
 Write-Host "Job ID: $env:APPVEYOR_JOB_ID";
-Write-Host "Deploy Location: $RootLocation";
 Write-Host "Temp Location: $TempLocation";
 Write-Host "File Backup Location: $FileBackupLocation";
 # Write-Output "Root folder: $rootfolder";
@@ -72,7 +70,7 @@ function Copy-DirectoryContentsRecursivelyWithSaneLinkHandling([string] $Directo
 ### 1. Restore server-specific files like configs, FontAwesome assets, and built theme files
 
 Write-Host "Restoring server-specific files";
-Copy-DirectoryContentsRecursivelyWithSaneLinkHandling $FileBackupLocation $RootLocation;
+Copy-DirectoryContentsRecursivelyWithSaneLinkHandling $FileBackupLocation $webroot;
 
 ### 2. Clean up temp folder
 Remove-Item $TempLocation -Recurse -Force;
