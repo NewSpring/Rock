@@ -60,6 +60,9 @@ export type FamilyPreRegistrationInitializationBox = {
     /** Gets or sets the adult gender field. */
     adultGenderField?: FamilyPreRegistrationFieldBag | null;
 
+    /** The label that should be used when referring to adults on the form. */
+    adultLabel?: string | null;
+
     /** Gets or sets the adult marital status field. */
     adultMaritalStatusField?: FamilyPreRegistrationFieldBag | null;
 
@@ -111,6 +114,9 @@ export type FamilyPreRegistrationInitializationBox = {
     /** Gets or sets the child grade field. */
     childGradeField?: FamilyPreRegistrationFieldBag | null;
 
+    /** The label that should be used when referring to children on the form. */
+    childLabel?: string | null;
+
     /** Gets or sets the child mobile phone field. */
     childMobilePhoneField?: FamilyPreRegistrationFieldBag | null;
 
@@ -157,7 +163,7 @@ export type FamilyPreRegistrationInitializationBox = {
     familyAttributeValues?: Record<string, string> | null;
 
     /** Gets or sets the family unique identifier. */
-    familyGuid?: Guid | null;
+    familyGuid: Guid;
 
     /** Gets or sets the navigation urls. */
     navigationUrls?: Record<string, string> | null;

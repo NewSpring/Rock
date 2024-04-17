@@ -37,7 +37,7 @@
                     label="Build Script"
                     help="Lava Template to use for building JSON that will be used as the cached dataset object."
                     theme="rock"
-                    mode="text"
+                    mode="lava"
                     :editorHeight="200"
                     :disabled="isSystem" />
 
@@ -101,8 +101,7 @@
         </Panel>
 
         <div class="row">
-            <div class="col-md-2">
-
+            <div class="col-md-4">
                 <NumberBox v-model="memoryCacheDuration"
                            label="Memory Cache Duration"
                            help="How long the persisted object should be cached in memory. This is a sliding timeline, so each time the object is read the counter will reset. Leave blank to not cache the object in memory which will mean it will be deserialized into the object on each request (still fast)."
@@ -119,7 +118,7 @@
                             :isCurrentDateOffset="false" />
             </div>
 
-            <div class="col-md-2 col-md-offset-4">
+            <div class="col-md-4 col-md-offset-2">
                 <EntityTypePicker v-model="entityType"
                                   label="Entity Type"
                                   help="Set this to indicate which EntityType the JSON object should be associated with. This will be used by the PersistedDataset Lava Filter when entity related options such as 'AppendFollowing' are specified."
@@ -132,7 +131,6 @@
                           label="Allow Manual Refresh" />
             </div>
         </div>
-
     </fieldset>
 </template>
 
@@ -311,11 +309,16 @@
     watch([...propRefs, selectedNamedSchedule], emitUpdate);
 
     watch(() => isPersistenceEnabled.value, handlePersistenceToggle);
+
     watch(() => intervalMinutes.value, () => {
         if (typeOfPersistence.value === "Interval") {
             refreshIntervalMinutes.value = intervalMinutes.value;
             emitUpdate();
         }
+    });
+
+    watch(() => typeOfInterval.value, () => {
+        emitUpdate();
     });
     // #endregion
 
@@ -326,10 +329,7 @@
 .sliderButtons {
     display: flex;
     justify-content: flex-end;
-    /* Align items to the end of the flex container */
     align-items: center;
-    /* Vertically center items */
     margin-top: 10px;
-    /* Add some space above the buttons */
 }
 </style>

@@ -19,6 +19,7 @@ using System;
 using System.Collections.Generic;
 using System.Data.Entity;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Web;
@@ -32,6 +33,7 @@ using Rock.Communication;
 using Rock.Data;
 using Rock.Enums.Controls;
 using Rock.Extension;
+using Rock.Field;
 using Rock.Field.Types;
 using Rock.Financial;
 using Rock.Lava;
@@ -505,12 +507,16 @@ namespace Rock.Rest.v2
             string errorMessage = null;
             string addressString = null;
 
+            var globalAttributesCache = GlobalAttributesCache.Get();
+            var orgCountryCode = globalAttributesCache.OrganizationCountry;
+            var defaultCountryCode = string.IsNullOrWhiteSpace( orgCountryCode ) ? "US" : orgCountryCode;
+
             editedLocation.Street1 = options.Street1;
             editedLocation.Street2 = options.Street2;
             editedLocation.City = options.City;
             editedLocation.State = options.State;
             editedLocation.PostalCode = options.PostalCode;
-            editedLocation.Country = options.Country.IsNotNullOrWhiteSpace() ? options.Country : "US";
+            editedLocation.Country = options.Country.IsNotNullOrWhiteSpace() ? options.Country : defaultCountryCode;
 
             var locationService = new LocationService( new RockContext() );
 
@@ -543,6 +549,41 @@ namespace Rock.Rest.v2
                     Country = editedLocation.Country
                 }
             } );
+        }
+
+        /// <summary>
+        /// Validates the given address and returns the string representation of the address
+        /// </summary>
+        /// <param name="address">Address details to validate</param>
+        /// <returns>Validation information and a single string representation of the address</returns>
+        [HttpPost]
+        [System.Web.Http.Route( "AddressControlGetStreetAddressString" )]
+        [Rock.SystemGuid.RestActionGuid( "9258BA75-F922-4607-A2C0-036141621F0E" )]
+        public IHttpActionResult AddressControlGetStreetAddressString( [FromBody] AddressControlBag address )
+        {
+            Location editedLocation;
+            var globalAttributesCache = GlobalAttributesCache.Get();
+            var orgCountryCode = globalAttributesCache.OrganizationCountry;
+            var defaultCountryCode = string.IsNullOrWhiteSpace( orgCountryCode ) ? "US" : orgCountryCode;
+
+            var locationService = new LocationService( new RockContext() );
+            editedLocation = locationService.Get( address.Street1, address.Street2, address.City, address.State, address.Locality, address.PostalCode, address.Country.IsNotNullOrWhiteSpace() ? address.Country : defaultCountryCode, null );
+
+            if ( editedLocation == null )
+            {
+                editedLocation = new Location
+                {
+                    Street1 = address.Street1.FixCase(),
+                    Street2 = address.Street2.FixCase(),
+                    City = address.City.FixCase(),
+                    State = address.State,
+                    County = address.Locality,
+                    PostalCode = address.PostalCode,
+                    Country = address.Country
+                };
+            }
+
+            return Ok( editedLocation.GetFullStreetAddress().ConvertCrLfToHtmlBr() );
         }
 
         #endregion
@@ -2572,7 +2613,8 @@ namespace Rock.Rest.v2
                 .Select( f => new ListItemBag
                 {
                     Text = f.Name,
-                    Value = f.Guid.ToString()
+                    Value = f.Guid.ToString(),
+                    Category = f.Field?.GetType().GetCustomAttribute<UniversalFieldTypeGuidAttribute>()?.Guid.ToString()
                 } )
                 .ToList();
 
@@ -2613,12 +2655,16 @@ namespace Rock.Rest.v2
             var configurationProperties = fieldType.GetPublicEditConfigurationProperties( configurationValues );
 
             // Get the public configuration options from the internal options (values).
-            var publicConfigurationValues = fieldType.GetPublicConfigurationValues( configurationValues, Field.ConfigurationValueUsage.Configure, null );
+            var publicAdminConfigurationValues = fieldType.GetPublicConfigurationValues( configurationValues, Field.ConfigurationValueUsage.Configure, null );
+
+            // Get the public configuration options from the internal options (values).
+            var publicEditConfigurationValues = fieldType.GetPublicConfigurationValues( configurationValues, Field.ConfigurationValueUsage.Edit, options.DefaultValue );
 
             return Ok( new FieldTypeEditorUpdateAttributeConfigurationResultBag
             {
                 ConfigurationProperties = configurationProperties,
-                ConfigurationValues = publicConfigurationValues,
+                AdminConfigurationValues = publicAdminConfigurationValues,
+                EditConfigurationValues = publicEditConfigurationValues,
                 DefaultValue = fieldType.GetPublicEditValue( privateDefaultValue, configurationValues )
             } );
         }

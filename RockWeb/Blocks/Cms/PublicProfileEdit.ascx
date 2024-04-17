@@ -75,10 +75,11 @@
                                 <div class="col-md-6">
 
                                     <Rock:RockRadioButtonList ID="rblRole" runat="server" RepeatDirection="Horizontal" Label="Role" Visible="false" AutoPostBack="true" OnSelectedIndexChanged="rblRole_SelectedIndexChanged" />
-                                    <Rock:RockRadioButtonList ID="rblGender" runat="server" RepeatDirection="Horizontal" Label="Gender" FormGroupCssClass="gender-picker" Required="true">
-                                        <asp:ListItem Text="Male" Value="Male" />
-                                        <asp:ListItem Text="Female" Value="Female" />
-                                    </Rock:RockRadioButtonList>
+                                    <Rock:RockDropDownList ID="ddlGender" runat="server" Label="Gender" Required="false">
+                                        <asp:ListItem></asp:ListItem>
+                                        <asp:ListItem Text="Male" Value="Male"></asp:ListItem>
+                                        <asp:ListItem Text="Female" Value="Female"></asp:ListItem>
+                                    </Rock:RockDropDownList>
                                 </div>
                             </div>
 
@@ -166,6 +167,10 @@
                             <div class="actions">
                                 <asp:LinkButton ID="btnSave" runat="server" AccessKey="s" ToolTip="Alt+s" Text="Save" CssClass="btn btn-primary" OnClick="btnSave_Click" />
                                 <asp:LinkButton ID="btnCancel" runat="server" AccessKey="c" ToolTip="Alt+c" Text="Cancel" CssClass="btn btn-link" CausesValidation="false" OnClick="btnCancel_Click" />
+
+                                <div class="pull-right">
+                                    <Rock:HighlightLabel ID="hlblSuccess" runat="server" LabelType="Success" Text="Saved" Visible="false" />
+                                </div>
                             </div>
 
                         </div>
