@@ -48,6 +48,7 @@
 
 import { Component, computed, defineComponent, onMounted, onUnmounted, ref, watch } from "vue";
 import { buildExampleCode, convertComponentName, getControlImportPath, getSfcControlImportPath, getTemplateImportPath, displayStyleItems } from "./ControlGallery/utils.partial";
+import { onConfigurationValuesChanged, useReloadBlock } from "@Obsidian/Utility/block";
 import GalleryAndResult from "./ControlGallery/galleryAndResult.partial.obs";
 import { BtnType } from "@Obsidian/Enums/Controls/btnType";
 import { BtnSize } from "@Obsidian/Enums/Controls/btnSize";
@@ -261,6 +262,7 @@ import SecurityButtonGallery from "./ControlGallery/securityButtonGallery.partia
 import MarkdownEditorGallery from "./ControlGallery/markdownEditorGallery.partial.obs";
 import JsonFieldsBuilderGallery from "./ControlGallery/jsonFieldsBuilderGallery.partial.obs";
 import HtmlEditorGallery from "./ControlGallery/htmlEditorGallery.partial.obs";
+import TextBoxGallery from "./ControlGallery/textBoxGallery.partial.obs";
 
 
 // #region Control Gallery
@@ -1292,36 +1294,6 @@ const datePartsPickerGallery = defineComponent({
 </GalleryAndResult>`
 });
 
-/** Demonstrates a textbox */
-const textBoxGallery = defineComponent({
-    name: "TextBoxGallery",
-    components: {
-        GalleryAndResult,
-        TextBox
-    },
-    data() {
-        return {
-            text: "Some two-way bound text",
-            importCode: getControlImportPath("textBox"),
-            exampleCode: `<TextBox label="Text 1" v-model="text" :maxLength="50" showCountDown />`
-        };
-    },
-    template: `
-<GalleryAndResult
-    :value="text"
-    :importCode="importCode"
-    :exampleCode="exampleCode" >
-    <TextBox label="Text 1" v-model="text" :maxLength="50" showCountDown />
-    <TextBox label="Text 2" v-model="text" />
-    <TextBox label="Memo" v-model="text" textMode="MultiLine" :rows="10" :maxLength="100" showCountDown />
-
-    <template #settings>
-        <p class="text-semibold font-italic">Not all settings are demonstrated in this gallery.</p>
-        <p>Additional props extend and are passed to the underlying <code>Rock Form Field</code>.</p>
-    </template>
-</GalleryAndResult>`
-});
-
 /** Demonstrates a color picker */
 const colorPickerGallery = defineComponent({
     name: "ColorPickerGallery",
@@ -2000,6 +1972,10 @@ const panelGallery = defineComponent({
                     text: "Drawer"
                 },
                 {
+                    value: "sidebar",
+                    text: "Sidebar"
+                },
+                {
                     value: "headerActions",
                     text: "Header Actions"
                 },
@@ -2033,6 +2009,7 @@ const panelGallery = defineComponent({
                 }
             ],
             simulateDrawer: computed((): boolean => simulateValues.value.includes("drawer")),
+            simulateSidebar: computed((): boolean => simulateValues.value.includes("sidebar")),
             simulateHeaderActions: computed((): boolean => simulateValues.value.includes("headerActions")),
             simulateSubheaderLeft: computed((): boolean => simulateValues.value.includes("subheaderLeft")),
             simulateSubheaderRight: computed((): boolean => simulateValues.value.includes("subheaderRight")),
@@ -2045,6 +2022,7 @@ const panelGallery = defineComponent({
             importCode: getSfcControlImportPath("panel"),
             exampleCode: `<Panel v-model="isExanded" v-model:isDrawerOpen="false" title="Panel Title" :hasCollapse="true" :hasFullscreen="false" :isFullscreenPageOnly="true" :headerSecondaryActions="false">
     <template #helpContent>Help Content</template>
+    <template #sidebar>Sidebar Content</template>
     <template #drawer>Drawer Content</template>
     <template #headerActions>Header Actions</template>
     <template #subheaderLeft>Sub Header Left</template>
@@ -2067,6 +2045,10 @@ const panelGallery = defineComponent({
 
         <template v-if="simulateDrawer" #drawer>
             <div style="text-align: center;">Drawer Content</div>
+        </template>
+
+        <template v-if="simulateSidebar" #sidebar>
+            <div style="text-align: center;"><img src="https://placehold.co/280x158" /></div>
         </template>
 
         <template v-if="simulateHeaderActions" #headerActions>
@@ -2124,7 +2106,7 @@ const panelGallery = defineComponent({
             <CheckBox formGroupClasses="col-sm-3" v-model="isFullscreenPageOnly" label="Page Only Fullscreen" />
             <CheckBox formGroupClasses="col-sm-3" v-model="hasZoom" label="Has Zoom" />
         </div>
-        <CheckBoxList v-model="simulateValues" label="Simulate" :items="simulateOptions" />
+        <CheckBoxList v-model="simulateValues" label="Simulate" :items="simulateOptions" horizontal :repeatColumns="4" />
 
         <p class="text-semibold font-italic">Not all settings are demonstrated in this gallery.</p>
     </template>
@@ -4162,11 +4144,11 @@ const lavaCommandPickerGallery = defineComponent({
     },
     setup() {
         return {
-            columnCount: ref(0),
-            displayStyle: ref(PickerDisplayStyle.Auto),
+            columnCount: ref(3),
+            displayStyle: ref(PickerDisplayStyle.List),
             displayStyleItems,
             enhanceForLongLists: ref(false),
-            multiple: ref(false),
+            multiple: ref(true),
             showBlankItem: ref(false),
             value: ref({}),
             importCode: getControlImportPath("lavaCommandPicker"),
@@ -6287,7 +6269,7 @@ const contentDropDownPickerGallery = defineComponent({
             exampleCode: `<ContentDropDownPicker
     label="Your Custom Picker"
     @primaryButtonClicked="selectValue"
-    @clearButtonClicked="clear"S
+    @clearButtonClicked="clear"
     :innerLabel="innerLabel"
     :showClear="!!value"
     iconCssClass="fa fa-cross" >
@@ -6583,25 +6565,62 @@ const locationPickerGallery = defineComponent({
     components: {
         GalleryAndResult,
         CheckBox,
-        LocationPicker
+        LocationPicker,
+        CheckBoxList
     },
     setup() {
+        const options = [{
+            text: "Location",
+            value: "2"
+        }, {
+            text: "Address",
+            value: "1"
+        }, {
+            text: "Point",
+            value: "4"
+        }, {
+            text: "Geo-fence",
+            value: "8"
+        }];
+
+        const selectedOptions = ref(["1","2","4","8"]);
+
+        const selectedAsNumber = computed(() => {
+            if (selectedOptions.value.length === 0) {
+                return undefined;
+            }
+
+            return selectedOptions.value.reduce((total, option) => {
+                return total + parseInt(option, 10);
+            }, 0);
+        });
+
         return {
-            value: ref(null),
+            value: ref(undefined),
+            currentPickerMode: ref(2),
+            options,
+            selectedOptions,
+            selectedAsNumber,
             importCode: getSfcControlImportPath("locationPicker"),
-            exampleCode: `<LocationPicker label="Location" v-model="value" :multiple="false" />`
+            exampleCode: `<LocationPicker label="Location" v-model="value" />`
         };
     },
     template: `
 <GalleryAndResult
-    :value="value"
+    :value="{value, currentPickerMode}"
     :importCode="importCode"
     :exampleCode="exampleCode"
+    hasMultipleValues
     enableReflection >
 
-    <LocationPicker label="Location" v-model="value" :multiple="multiple" />
+    <LocationPicker label="Location" v-model="value" v-model:currentPickerMode="currentPickerMode" :allowedPickerModes="selectedAsNumber" />
 
     <template #settings>
+        <div class="row">
+            <div class="col-md-6">
+                <CheckBoxList v-model="selectedOptions" :items="options" label="Allowed Modes" horizontal />
+            </div>
+        </div>
         <p class="text-semibold font-italic">Not all settings are demonstrated in this gallery.</p>
     </template>
 </GalleryAndResult>`
@@ -7608,7 +7627,7 @@ const noteTextEditorGallery = defineComponent({
     :exampleCode="exampleCode"
     enableReflection>
 
-    <NoteTextEditor v-model="value" :avatar="avatar" />
+    <NoteTextEditor v-model="value" :avatar="avatar" label="Leave a Note" />
 
     <template #settings>
     </template>
@@ -7938,7 +7957,6 @@ const controlGalleryComponents: Record<string, Component> = [
     attributeValuesContainerGallery,
     badgeListGallery,
     fieldFilterEditorGallery,
-    textBoxGallery,
     datePickerGallery,
     dateRangePickerGallery,
     dateTimePickerGallery,
@@ -8111,7 +8129,7 @@ const controlGalleryComponents: Record<string, Component> = [
     MarkdownEditorGallery,
     JsonFieldsBuilderGallery,
     HtmlEditorGallery,
-]
+    TextBoxGallery,]
     // Fix vue 3 SFC putting name in __name.
     .map(a => {
         a.name = upperCaseFirstCharacter((a.__name ?? a.name).replace(/\.partial$/, ""));
@@ -8375,6 +8393,8 @@ export default defineComponent({
     },
 
     setup() {
+        onConfigurationValuesChanged(useReloadBlock());
+
         const currentComponent = ref<Component>(Object.values(controlGalleryComponents)[0]);
 
         function getComponentFromHash(): void {

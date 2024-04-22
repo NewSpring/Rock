@@ -47,10 +47,14 @@ export interface ITreeItemProvider {
     /**
      * Get the root items to be displayed in the tree list.
      *
+     * @param expandToValues The values that should be auto-expanded to. This will contain
+     * the nodes that should be visible when the data is returned, they should not be
+     * expanded themselves, only any ancestor nodes.
+     *
      * @returns A collection of TreeItem objects, optionally wrapped in a Promise
      * if the loading is being performed asynchronously.
      */
-    getRootItems(): Promise<TreeItemBag[]> | TreeItemBag[];
+    getRootItems(expandToValues: string[]): Promise<TreeItemBag[]> | TreeItemBag[];
 
     /**
      * Get the child items of the given tree item.
@@ -61,6 +65,17 @@ export interface ITreeItemProvider {
      * if the loading is being performed asynchronously.
      */
     getChildItems(item: TreeItemBag): Promise<TreeItemBag[]> | TreeItemBag[];
+
+    /**
+     * Checks if the item can be selected by the individual. This function
+     * is optional.
+     *
+     * @param item The item that is about to be selected.
+     * @param isSelectable True if the tree view considers the item selectable.
+     *
+     * @returns A boolean that determines the final selectable state of the item.
+     */
+    canSelectItem?(item: TreeItemBag, isSelectable: boolean): boolean;
 }
 
 /**
@@ -106,13 +121,18 @@ export class CategoryTreeItemProvider implements ITreeItemProvider {
      * @returns A collection of TreeItem objects as an asynchronous operation.
      */
     private async getItems(parentGuid?: Guid | null): Promise<TreeItemBag[]> {
-        const options: Partial<CategoryPickerChildTreeItemsOptionsBag> = {
+        const options: CategoryPickerChildTreeItemsOptionsBag = {
             parentGuid: parentGuid,
             entityTypeGuid: this.entityTypeGuid,
             entityTypeQualifierColumn: this.entityTypeQualifierColumn,
             entityTypeQualifierValue: this.entityTypeQualifierValue,
             lazyLoad: false,
-            securityGrantToken: this.securityGrantToken
+            securityGrantToken: this.securityGrantToken,
+
+            getCategorizedItems: false,
+            includeCategoriesWithoutChildren: false,
+            includeInactiveItems: false,
+            includeUnnamedEntityItems: false,
         };
 
         const response = await post<TreeItemBag[]>("/api/v2/Controls/CategoryPickerChildTreeItems", {}, options);
@@ -160,8 +180,8 @@ export class LocationTreeItemProvider implements ITreeItemProvider {
      * @returns A collection of TreeItem objects as an asynchronous operation.
      */
     private async getItems(parentGuid?: Guid | null): Promise<TreeItemBag[]> {
-        const options: Partial<LocationItemPickerGetActiveChildrenOptionsBag> = {
-            guid: parentGuid ?? emptyGuid,
+        const options: LocationItemPickerGetActiveChildrenOptionsBag = {
+            guid: parentGuid || emptyGuid,
             rootLocationGuid: emptyGuid,
             securityGrantToken: this.securityGrantToken
         };
@@ -222,14 +242,15 @@ export class DataViewTreeItemProvider implements ITreeItemProvider {
      * @returns A collection of TreeItem objects as an asynchronous operation.
      */
     private async getItems(parentGuid?: Guid | null): Promise<TreeItemBag[]> {
-        const options: Partial<DataViewPickerGetDataViewsOptionsBag> = {
+        const options: DataViewPickerGetDataViewsOptionsBag = {
             parentGuid,
             getCategorizedItems: true,
             includeCategoriesWithoutChildren: false,
             entityTypeGuidFilter: this.entityTypeGuid,
             lazyLoad: false,
             securityGrantToken: this.securityGrantToken,
-            displayPersistedOnly: this.displayPersistedOnly
+            displayPersistedOnly: this.displayPersistedOnly,
+            includeUnnamedEntityItems: false,
         };
 
         const response = await post<TreeItemBag[]>("/api/v2/Controls/DataViewPickerGetDataViews", {}, options);
@@ -283,10 +304,15 @@ export class WorkflowTypeTreeItemProvider implements ITreeItemProvider {
      * @returns A collection of TreeItem objects as an asynchronous operation.
      */
     private async getItems(parentGuid?: Guid | null): Promise<TreeItemBag[]> {
-        const options: Partial<WorkflowTypePickerGetWorkflowTypesOptionsBag> = {
+        const options: WorkflowTypePickerGetWorkflowTypesOptionsBag = {
             parentGuid,
             includeInactiveItems: this.includeInactiveItems ?? false,
             securityGrantToken: this.securityGrantToken,
+
+            getCategorizedItems: false,
+            includeCategoriesWithoutChildren: false,
+            includeUnnamedEntityItems: false,
+            lazyLoad: false,
         };
 
         const response = await post<TreeItemBag[]>("/api/v2/Controls/WorkflowTypePickerGetWorkflowTypes", {}, options);
@@ -347,8 +373,8 @@ export class PageTreeItemProvider implements ITreeItemProvider {
     private async getItems(parentGuid?: Guid | null): Promise<TreeItemBag[]> {
         let result: TreeItemBag[];
 
-        const options: Partial<PagePickerGetChildrenOptionsBag> = {
-            guid: parentGuid ?? emptyGuid,
+        const options: PagePickerGetChildrenOptionsBag = {
+            guid: parentGuid || emptyGuid,
             rootPageGuid: null,
             hidePageGuids: this.hidePageGuids ?? [],
             securityGrantToken: this.securityGrantToken
@@ -460,7 +486,7 @@ export class ConnectionRequestTreeItemProvider implements ITreeItemProvider {
      * @returns A collection of TreeItem objects as an asynchronous operation.
      */
     private async getItems(parentGuid?: Guid | null): Promise<TreeItemBag[]> {
-        const options: Partial<ConnectionRequestPickerGetChildrenOptionsBag> = {
+        const options: ConnectionRequestPickerGetChildrenOptionsBag = {
             parentGuid,
             securityGrantToken: this.securityGrantToken
         };
@@ -523,7 +549,7 @@ export class GroupTreeItemProvider implements ITreeItemProvider {
      * @returns A collection of TreeItem objects as an asynchronous operation.
      */
     private async getItems(parentGuid: Guid | null = null): Promise<TreeItemBag[]> {
-        const options: Partial<GroupPickerGetChildrenOptionsBag> = {
+        const options: GroupPickerGetChildrenOptionsBag = {
             guid: parentGuid,
             rootGroupGuid: this.rootGroupGuid,
             includedGroupTypeGuids: this.includedGroupTypeGuids,
@@ -579,9 +605,9 @@ export class MergeTemplateTreeItemProvider implements ITreeItemProvider {
      * @returns A collection of TreeItem objects as an asynchronous operation.
      */
     private async getItems(parentGuid: Guid | null = null): Promise<TreeItemBag[]> {
-        const options: Partial<MergeTemplatePickerGetMergeTemplatesOptionsBag> = {
+        const options: MergeTemplatePickerGetMergeTemplatesOptionsBag = {
             parentGuid,
-            mergeTemplateOwnership: this.mergeTemplateOwnership,
+            mergeTemplateOwnership: (toNumberOrNull(this.mergeTemplateOwnership) ?? 0) as MergeTemplateOwnership,
             securityGrantToken: this.securityGrantToken
         };
         const url = "/api/v2/Controls/MergeTemplatePickerGetMergeTemplates";
@@ -628,7 +654,7 @@ export class MetricCategoryTreeItemProvider implements ITreeItemProvider {
      * @returns A collection of TreeItem objects as an asynchronous operation.
      */
     private async getItems(parentGuid: Guid | null = null): Promise<TreeItemBag[]> {
-        const options: Partial<MetricCategoryPickerGetChildrenOptionsBag> = {
+        const options: MetricCategoryPickerGetChildrenOptionsBag = {
             parentGuid,
             securityGrantToken: this.securityGrantToken
         };
@@ -678,7 +704,7 @@ export class MetricItemTreeItemProvider implements ITreeItemProvider {
      * @returns A collection of TreeItem objects as an asynchronous operation.
      */
     private async getItems(parentGuid: Guid | null = null): Promise<TreeItemBag[]> {
-        const options: Partial<MetricItemPickerGetChildrenOptionsBag> = {
+        const options: MetricItemPickerGetChildrenOptionsBag = {
             parentGuid,
             includeCategoryGuids: this.includeCategoryGuids,
             securityGrantToken: this.securityGrantToken
@@ -727,7 +753,7 @@ export class RegistrationTemplateTreeItemProvider implements ITreeItemProvider {
      * @returns A collection of TreeItem objects as an asynchronous operation.
      */
     private async getItems(parentGuid: Guid | null = null): Promise<TreeItemBag[]> {
-        const options: Partial<RegistrationTemplatePickerGetChildrenOptionsBag> = {
+        const options: RegistrationTemplatePickerGetChildrenOptionsBag = {
             parentGuid,
             securityGrantToken: this.securityGrantToken
         };
@@ -781,7 +807,7 @@ export class ReportTreeItemProvider implements ITreeItemProvider {
      * @returns A collection of TreeItem objects as an asynchronous operation.
      */
     private async getItems(parentGuid: Guid | null = null): Promise<TreeItemBag[]> {
-        const options: Partial<ReportPickerGetChildrenOptionsBag> = {
+        const options: ReportPickerGetChildrenOptionsBag = {
             parentGuid,
             includeCategoryGuids: this.includeCategoryGuids,
             entityTypeGuid: this.entityTypeGuid,
@@ -837,7 +863,7 @@ export class ScheduleTreeItemProvider implements ITreeItemProvider {
      * @returns A collection of TreeItem objects as an asynchronous operation.
      */
     private async getItems(parentGuid: Guid | null = null): Promise<TreeItemBag[]> {
-        const options: Partial<SchedulePickerGetChildrenOptionsBag> = {
+        const options: SchedulePickerGetChildrenOptionsBag = {
             parentGuid,
             includeInactiveItems: this.includeInactive,
             includePublicItemsOnly: this.includePublicOnly,
@@ -890,7 +916,7 @@ export class WorkflowActionTypeTreeItemProvider implements ITreeItemProvider {
      * @returns A collection of TreeItem objects as an asynchronous operation.
      */
     private async getItems(parentId: string | null = null): Promise<TreeItemBag[]> {
-        const options: Partial<WorkflowActionTypePickerGetChildrenOptionsBag> = {
+        const options: WorkflowActionTypePickerGetChildrenOptionsBag = {
             parentId: toNumberOrNull(parentId) ?? 0,
             securityGrantToken: this.securityGrantToken
         };
@@ -952,7 +978,7 @@ export class MergeFieldTreeItemProvider implements ITreeItemProvider {
     private async getItems(parentId?: string | null): Promise<TreeItemBag[]> {
         let result: TreeItemBag[];
 
-        const options: Partial<MergeFieldPickerGetChildrenOptionsBag> = {
+        const options: MergeFieldPickerGetChildrenOptionsBag = {
             id: parentId || "0",
             additionalFields: this.additionalFields
         };

@@ -91,10 +91,20 @@
                     </Rock:PanelWidget>
 
                     <Rock:PanelWidget ID="wpAdvanced" runat="server" Title="Advanced">
+                        <Rock:ValueList ID="vlCustomCategories"
+                            runat="server"
+                            Label="Custom Categories"
+                            Help="Enter any custom categories that should be included in the logged results." />
+
                         <Rock:CodeEditor ID="ceCustomConfiguration"
                             runat="server"
                             Label="Custom Configuration"
-                            Help="This allows custom configuration by way of writing a JSON object that will be passed to the configuration parser."
+                            Help="This allows custom configuration by way of writing a JSON object that will be passed to the configuration parser. Example:<pre><small><small>{
+  &quot;LogLevel&quot;: {
+    &quot;CMS&quot;: &quot;Information&quot;,
+    &quot;org.rsc.MyClass&quot;: &quot;Error&quot;
+  }
+}</small></small></pre>"
                             EditorMode="JavaScript"
                             />
                     </Rock:PanelWidget>
