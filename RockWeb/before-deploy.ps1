@@ -86,6 +86,10 @@ Write-Host "Saving server-specific files";
 
 Backup-RockFile "web.config"
 Backup-RockFile "web.connectionstrings.config"
+Backup-RockFile "App_Data\TriumphTech-WebAgility"
+Backup-RockFile "App_Data\RockShop"
+Backup-RockFile "App_Data\InstalledStorePackages.json"
+Backup-RockFile "Plugins"
 Backup-RockFile "Themes\Rock\Styles\_css-overrides.less"
 Backup-RockFile "Themes\RockManager\Styles\_css-overrides.less"
 
