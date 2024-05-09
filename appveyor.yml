@@ -15,6 +15,7 @@ branches:
   - master
   - beta
   - alpha
+  - appveyor
   - pre-alpha-release
 
 # Do not build on tags (GitHub only)
@@ -39,12 +40,6 @@ install:
     $fileContent += "`n-----END RSA PRIVATE KEY-----`n"
 
     Set-Content c:\users\appveyor\.ssh\id_rsa $fileContent
-
-    git clone -q --depth=1 https://github.com/NewSpring/rock-f1.git c:\projects\rock-f1
-
-    git clone -q --depth=1 https://github.com/NewSpring/rock-cache-sync.git c:\projects\rock-cache-sync
-
-    git clone -q --depth=1 https://github.com/NewSpring/apollos-onesignal.git c:\projects\apollos-onesignal
 
 
 # directories to preserve between builds
@@ -86,10 +81,3 @@ test:
 artifacts:
 - path: RockWeb
   name: NewSpringRockKit
-
-# deployment configuration
-deploy:
-- provider: Environment
-  name: Alpha (alpha-rock.newspring.cc)
-  on:
-    branch: alpha
