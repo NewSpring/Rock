@@ -1,0 +1,156 @@
+{% assign publicRoot = 'Global' | Attribute:'PublicApplicationRoot' %}
+{% assign todayStart = 'Now' | Date %}
+{% assign startDate = '6/23/2024' | Date %}
+{% assign endDate = '6/28/2024' | Date %}
+{% assign isItGauntletYet = todayStart | IsDateBetween:startDate,endDate %}
+
+{% if isItGauntletYet %}{% else %}
+    {% assign todayStart = '06/24/2024' | Date %}
+{% endif %}
+
+{% assign dayCount = todayStart | DateDiff:endDate,'d' %}
+
+{% assign selectedDate = PageParemeter.SelectedDate | Default:todayStart %}
+
+{% assign todayEnd = todayStart | DateAdd:1 | DateAdd:-1,'s' %}
+{% assign schedule = 'gauntlet_schedule' | PersistedDataset %}
+{% assign times = schedule | Select:'PublishDateTime' | Uniq %}
+<StackLayout Spacing="16" Margin="0,0,0,16">
+
+    //- Day Navigation
+    <Rock:ResponsiveLayout ColumnCount="{{ dayCount | Plus:1 }}" ColumnSpacing="24" StyleClass="text-center" Margin="0,0,0,16">
+        {% for i in (0..dayCount) %}
+            {% assign date = todayStart | DateAdd:i | Date %}
+            <Rock:ResponsiveColumn ExtraSmall="1">
+                <StackLayout Spacing="0">
+                    <Label Text="{{ date | Date:'ddd' }}" {% if date != todayStart %}TextColor="#aaa"{% endif %} StyleClass="h4{% if date == selectedDate %},text-primary{% endif %}" />
+                    <Label Text="{{ date | Date:'d' }}" StyleClass="h3{% if date == selectedDate %},text-primary{% endif %}" />
+                    {% if date == selectedDate %}
+                        <Rock:StyledView HeightRequest="4" CornerRadius="2" StyleClass="bg-primary" Margin="0,6,0,0">
+                        </Rock:StyledView>
+                    {% endif %}
+                </StackLayout>
+            </Rock:ResponsiveColumn>
+        {% endfor %}
+    </Rock:ResponsiveLayout>
+
+    //- Schedule List
+    {% for time in times %}
+        {% assign isToday = time | IsDateBetween:todayStart,todayEnd %}
+        {% if isToday %}
+            {% assign events = schedule | Where:'PublishDateTime',time | OrderBy:'Priority' %}
+            <Label Text="{{ time | Date:'h:mmtt' | Replace:':00','' | Replace:'11:59PM','12AM' | Downcase }}" StyleClass="h3,text-secondary" />
+
+            {% for event in events %}
+                {% assign communicator = event.Communicator | PersonByAliasGuid %}
+                <Rock:StyledView Elevation="1" HasShadow="false" CornerRadius="8" Padding="16" StyleClass="bg-white">
+                    <Rock:StyledView.GestureRecognizers>
+                        <TapGestureRecognizer
+                            Command="{Binding ShowCoverSheet}">
+                            <TapGestureRecognizer.CommandParameter>
+
+                                <Rock:ShowCoverSheetParameters SheetTitle="Schedule" DismissButtonText="Dismiss"
+                                    PageGuid="6529361f-48a3-4dd9-8a9c-ad5279dc6a54">
+                                    <Rock:Parameter Name="Id" Value="{{ event.Id | EscapeDataString }}" />
+                                </Rock:ShowCoverSheetParameters>
+
+                            </TapGestureRecognizer.CommandParameter>
+                        </TapGestureRecognizer>
+                    </Rock:StyledView.GestureRecognizers>
+
+                    <StackLayout Spacing="4">
+
+                        <Label Text="{{ event.Title | Split:' - ' | First }}" FontAttributes="Bold" StyleClass="h4" FontSize="19" />
+
+                        {% if communicator != null %}
+                            <FlexLayout AlignItems="Center" Margin="0,4,0,2">
+                                <Rock:Image Source="{{ communicator | Attribute:'StaffImage','RawValue' | ImageUrl:publicRoot, true }}" WidthRequest="20" Ratio="1:1" Aspect="AspectFill" Margin="0,0,6,0">
+                                    <Rock:RoundedTransformation CornerRadius="10" />
+                                </Rock:Image>
+                                <Label Text="{{ communicator.FullName }}" StyleClass="h4" Margin="0,0,0,1" />
+                            </FlexLayout>
+                        {% endif %}
+
+                        {% assign locations = event.Locations | Split:',' | RemoveFromArray:'' | Compact %}
+                        {% assign locationsCount = locations | Size %}
+
+                            <StackLayout Orientation="Horizontal" Spacing="5">
+                                {% if locationsCount > 0 %}
+                                    <Rock:Icon IconClass="map-marker-alt"
+                                        IconFamily="FontAwesomeSolid"
+                                        FontSize="13" TextColor="#aaa" Margin="0,5,0,0" />
+                                    <Label Text="{% if locationsCount > 1 %}Multiple Locations{% else %}{{ locations | First | FromCache:'DefinedValue' | Property:'Value' }}{% endif %}" StyleClass="h4" TextColor="#aaa" Margin="0,0,8,0" />
+                                {% endif %}
+
+                                {% if event.PublishDateTime != event.ExpireDateTime %}
+                                    <Rock:Icon IconClass="clock"
+                                        IconFamily="FontAwesomeSolid"
+                                        FontSize="13" TextColor="#aaa" Margin="0,5,0,0" />
+                                    <Label TextColor="#aaa" FontAttributes="Bold" StyleClass="h4">Until {{ event.ExpireDateTime | Date:'h:mmtt' | Replace:':00','' | Downcase }}</Label>
+                                {% endif %}
+                            </StackLayout>
+
+
+                    </StackLayout>
+                </Rock:StyledView>
+            {% endfor %}
+        {% endif %}
+    {% endfor %}
+
+
+</StackLayout>
+
+
+{% comment %} {% assign currentPersonSegments = CurrentPerson | PersonalizationItems:'Segments' | Select:'Id' %}
+{%- assign items = 'gauntlet_schedule' | PersistedDataset -%}
+<StackLayout Spacing="16" StyleClass="mb-32">
+
+    <Label Text="Today's Schedule" StyleClass="h3" />
+    {% for item in items %}
+        {% assign itemSegments = item.PersonalizationSegments %}
+        {% assign itemContainsSegment = false %}
+        {% assign publishTime = item.PublishDateTime | Date:'HHmm' %}
+        {% assign expireTime = item.ExpireDateTime | Date:'HHmm' %}
+        {% assign publishTT = item.PublishDateTime | Date:'tt' %}
+        {% assign expireTT = item.ExpireDateTime | Date:'tt' %}
+        {% capture times -%}
+            {{ item.PublishDateTime | Date:'h:mm' }}{% if publishTT != expireTT or publishTime == expireTime %}{{ item.PublishDateTime | Date:'tt' }}{% endif %}{% if publishTime != expireTime %}-{{ item.ExpireDateTime | Date:'h:mmtt' }}{% endif %}
+        {%- endcapture %}
+        //- If item has segments, loop through person segments and see if there's a match
+        {% if itemSegments != empty %}
+            {% for segmentId in currentPersonSegments %}
+                {% if itemSegments contains segmentId %}
+                    //- Once we've located a matching segment, set variable and stop looping
+                    {% assign itemContainsSegment = true %}
+                    {% break %}
+                {% endif %}
+            {% endfor %}
+        {% endif %}
+        {% if itemSegments == empty or itemContainsSegment %}
+            <Rock:StyledView HasShadow="false" CornerRadius="8" Padding="16" StyleClass="bg-white">
+                <Rock:StyledView.GestureRecognizers>
+                    <TapGestureRecognizer
+                        Command="{Binding ShowCoverSheet}">
+                        <TapGestureRecognizer.CommandParameter>
+
+                            <Rock:ShowCoverSheetParameters SheetTitle="Schedule" DismissButtonText="Dismiss"
+                                PageGuid="6529361f-48a3-4dd9-8a9c-ad5279dc6a54">
+                                <Rock:Parameter Name="Id" Value="{{ item.Id | EscapeDataString }}" />
+                            </Rock:ShowCoverSheetParameters>
+
+                        </TapGestureRecognizer.CommandParameter>
+                    </TapGestureRecognizer>
+                </Rock:StyledView.GestureRecognizers>
+                <StackLayout Spacing="2">
+                    <Label Text="{{ item.Title }}" FontAttributes="Bold" FontSize="19" />
+                    <Label Text="{{ times | Replace:':00','' | Downcase }}"  FontAttributes="Bold" TextColor="{Rock:PaletteColor App-Info}" StyleClass="h4" />
+                    <Label Text="{{ item.PersonalizationSegments | Join:','}}" TextColor="Silver" FontSize="18"/>
+                    {% if item.Location != '' %}
+                        {% assign location = 'All' | FromCache:'DefinedValue' | Where:'Guid',item.Location | First %}
+                        <Label Text="{{ location.Value }}" FontAttributes="Bold" TextColor="{Rock:PaletteColor App-Success}" FontSize="16"/>
+                    {% endif %}
+                </StackLayout>
+            </Rock:StyledView>
+        {% endif %}
+    {% endfor %}
+</StackLayout> {% endcomment %}

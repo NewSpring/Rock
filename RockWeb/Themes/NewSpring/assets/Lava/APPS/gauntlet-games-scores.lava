@@ -1,0 +1,21 @@
+{% assign teams = 'All' | FromCache:'DefinedValue' | Where:'DefinedTypeId',9052 | OrderBy:'Score desc' %}
+<StackLayout Spacing="8" Margin="0,0,0,24">
+    <FlexLayout JustifyContent="SpaceBetween" AlignItems="End" Margin="0,0,0,8">
+        <Label Text="Gauntlet Games" StyleClass="h3" />
+        <Label Text="Points Guide" FontAttributes="Bold" StyleClass="text-primary">
+            <Label.GestureRecognizers>
+                <TapGestureRecognizer Command="{Binding ShowCoverSheet}" CommandParameter="8000cd60-d278-482f-834a-c37b3fb2161b"/>
+            </Label.GestureRecognizers>
+        </Label>
+    </FlexLayout>
+
+    {% for team in teams %}
+        <Rock:StyledView HasShadow="false" Padding="12" BackgroundColor="{{ team | Attribute:'Color' }}" StyleClass="rounded" WidthRequest="140">
+            <FlexLayout JustifyContent="SpaceBetween" AlignContent="Center" AlignItems="Center">
+                <Label Text="{{ forloop.index | NumberToOrdinal }}" FontAttributes="Bold" StyleClass="h3,text-white" />
+                <Label Text="{{ team.Value }} {{ team | Attribute:'Emoji' }}" StyleClass="h4,text-white" />
+                <Label Text="{{ team | Attribute:'Score' | Format:'###,###,###' | Default:'0' }} points" FontAttributes="Bold" StyleClass="h4,text-white" />
+            </FlexLayout>
+        </Rock:StyledView>
+    {% endfor %}
+</StackLayout>

@@ -1,0 +1,35 @@
+<StackLayout>
+    <Rock:StyledView
+        BackgroundColor="#EA6FC8"
+        HasShadow="true"
+        CornerRadius="8"
+        IsClippedToBounds="false"
+        HorizontalOptions="FillAndExpand"
+        Elevation="1"
+        StyleClass="mb-16">
+
+            <AbsoluteLayout>
+                <Rock:Image Source="https://s3.amazonaws.com/ns.images/apps/gauntlet_2024/gauntlet-playlist-4.png" Aspect="AspectFill"/>
+                <FlexLayout
+                    JustifyContent="Start"
+                    AlignItems="End"
+                    Padding="8">
+                    <Rock:ResponsiveLayout ColumnCount="2">
+                        <Rock:ResponsiveColumn ExtraSmall="1">
+                            <Button Text="Spotify"
+                                Command="{Binding OpenExternalBrowser}"
+                                CommandParameter="https://open.spotify.com/album/4DmXjSSmeo2Q8eoWk5Hqqj?si=rkcacgHcQzmN1t3K5JSqQg"
+                                StyleClass="btn, btn-light" />
+                        </Rock:ResponsiveColumn>
+                        <Rock:ResponsiveColumn ExtraSmall="1">
+                            <Button Text="Apple Music"
+                                Command="{Binding OpenExternalBrowser}"
+                                CommandParameter="https://music.apple.com/us/album/the-prize-single/1724955679"
+                                StyleClass="btn, btn-light" />
+                        </Rock:ResponsiveColumn>
+                    </Rock:ResponsiveLayout>
+                </FlexLayout>
+            </AbsoluteLayout>
+
+    </Rock:StyledView>
+</StackLayout>
