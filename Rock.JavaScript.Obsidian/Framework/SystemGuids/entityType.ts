@@ -349,8 +349,10 @@ export const EntityType = {
     HtmlContent: "FB30EC4C-7DCC-41A4-94AB-E728A8CE537B",
     /** The HTTP module component */
     HttpModuleComponent: "EDE69F48-5E05-4260-B360-DA37DFD1AB83",
-    /** The EntityType Guid for Rock.Web.HttpModules.Observability  */
+    /** The EntityType Guid for Rock.Web.HttpModules.RockGateway  */
     HttpModuleObservability: "FE7A8295-9383-4FD8-9FB2-FF77A8042462",
+    /** The EntityType Guid for Rock.Web.HttpModules.RockGateway  */
+    HttpModuleRockGateway: "FE7A8295-9383-4FD8-9FB2-FF77A8042462",
     /** The EntityType Guid for Rock.Model.IdentityVerification  */
     IdentityVerification: "C76071B0-0C2F-4A3F-88BF-08B2E006C614",
     /** The EntityType Guid for Rock.Model.IdentityVerificationCode  */
@@ -448,7 +450,7 @@ export const EntityType = {
     /** The GUID for the entity Rock.Blocks.Types.Mobile.Core.Search. */
     MobileCoreSearchBlockType: "F81015CD-EBA9-4358-B930-4F1AB29AF879",
     /** The GUID for the entity Rock.Blocks.Types.Mobile.Core.SmartSearch. */
-    MobileCoreSearchV2BlockType: "45BE4816-3F5B-4AD1-BA89-819325D7E8CF",
+    MobileCoreSmartSearchBlockType: "45BE4816-3F5B-4AD1-BA89-819325D7E8CF",
     /** The GUID for the entity Rock.Blocks.Types.Mobile.Crm.GroupMembers. */
     MobileCrmGroupMembers: "592242ED-7536-49EA-94DE-7B4EBA7E87A6",
     /** The GUID for the entity Rock.Blocks.Types.Mobile.Crm.PersonProfile. */
@@ -737,6 +739,8 @@ export const EntityType = {
     Tag: "d34258d0-d366-4efb-aa76-84b059fb5434",
     /** The EntityType Guid for Rock.Model.TaggedItem  */
     TaggedItem: "AB97403A-206E-4E0C-AC42-856A010FA6DD",
+    /** The EntityType Guid for Rock.Model.Theme  */
+    Theme: "D02B63B9-E945-45BC-9D41-2C3E72B85F46",
     /** The EntityType Guid for Rock.Model.UserLogin  */
     UserLogin: "0FA592F1-728C-4885-BE38-60ED6C0D834F",
     /** The EntityType Guid for Rock.Model.WebFarmNode  */

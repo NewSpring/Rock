@@ -17,7 +17,6 @@
 using System;
 using System.Collections.Generic;
 using System.Configuration;
-using System.Data.Entity;
 using System.Data.Entity.Migrations.Infrastructure;
 using System.Data.SqlClient;
 using System.Diagnostics;
@@ -29,9 +28,13 @@ using System.Web;
 
 using DotLiquid;
 
+using Microsoft.Extensions.DependencyInjection;
+
+using Rock.Blocks;
 using Rock.Bus;
 using Rock.Configuration;
 using Rock.Data;
+using Rock.Enums.Configuration;
 using Rock.Lava;
 using Rock.Lava.DotLiquid;
 using Rock.Lava.Fluid;
@@ -41,6 +44,7 @@ using Rock.Model;
 using Rock.Observability;
 using Rock.Utility.Settings;
 using Rock.Web.Cache;
+using Rock.Web.UI;
 using Rock.WebFarm;
 
 namespace Rock.WebStartup
@@ -62,7 +66,15 @@ namespace Rock.WebStartup
         /// <value>
         /// The start date time.
         /// </value>
-        public static DateTime StartDateTime { get; private set; }
+        [RockObsolete( "16.6" )]
+        [Obsolete( "Use RockApp.Current.HostingSettings.ApplicationStartDateTime instead." )]
+        public static DateTime StartDateTime
+        {
+            get
+            {
+                return RockApp.Current.HostingSettings.ApplicationStartDateTime;
+            }
+        }
 
         private static Stopwatch _debugTimingStopwatch = Stopwatch.StartNew();
 
@@ -87,6 +99,8 @@ namespace Rock.WebStartup
         {
             LogStartupMessage( "Application Starting" );
 
+            InitializeRockApp();
+
             AppDomain.CurrentDomain.AssemblyResolve += AppDomain_AssemblyResolve;
 
             // Indicate to always log to file during initialization.
@@ -94,8 +108,12 @@ namespace Rock.WebStartup
 
             InitializeRockOrgTimeZone();
 
-            StartDateTime = RockDateTime.Now;
-            RockInstanceConfig.SetApplicationStartedDateTime( StartDateTime );
+            // Force the hosting settings to initialize so we get a valid
+            // application start date time.
+            _ = RockApp.Current.HostingSettings.ApplicationStartDateTime;
+#pragma warning disable CS0618 // Type or member is obsolete
+            RockInstanceConfig.SetApplicationStartedDateTime( RockDateTime.Now );
+#pragma warning restore CS0618 // Type or member is obsolete
 
             // If there are Task.Runs that don't handle their exceptions, this will catch those
             // so that we can log it. Note that this event won't fire until the Task is disposed.
@@ -135,7 +153,10 @@ namespace Rock.WebStartup
             RockDateTimeHelper.SynchronizeTimeZoneConfiguration( RockDateTime.OrgTimeZoneInfo.Id );
             ShowDebugTimingMessage( $"Initialize Timezone ({RockDateTime.OrgTimeZoneInfo.Id})" );
 
+            ( RockApp.Current.GetDatabaseConfiguration() as DatabaseConfiguration ).IsDatabaseAvailable = true;
+#pragma warning disable CS0618 // Type or member is obsolete
             RockInstanceConfig.SetDatabaseIsAvailable( true );
+#pragma warning restore CS0618 // Type or member is obsolete
 
             // Initialize observability after the database.
             LogStartupMessage( "Initializing Observability" );
@@ -247,6 +268,34 @@ namespace Rock.WebStartup
             LogStartupMessage( "Starting the Rock Fast Queue" );
             Rock.Transactions.RockQueue.StartFastQueue();
             ShowDebugTimingMessage( "Rock Fast Queue" );
+
+            bool anyThemesUpdated = UpdateThemes();
+            if ( anyThemesUpdated )
+            {
+                LogStartupMessage( "Themes are updated" );
+            }
+        }
+
+        /// <summary>
+        /// Initializes the rock application instance so that it is available
+        /// during the lifetime of the application. This provides all
+        /// configuration data to the running application.
+        /// </summary>
+        private static void InitializeRockApp()
+        {
+            var sc = new ServiceCollection();
+
+            sc.AddSingleton<IConnectionStringProvider, WebFormsConnectionStringProvider>();
+            sc.AddSingleton<IInitializationSettings, WebFormsInitializationSettings>();
+            sc.AddSingleton<IDatabaseConfiguration, DatabaseConfiguration>();
+            sc.AddSingleton<IHostingSettings, HostingSettings>();
+
+            // Register the class to initialize for InitializationSettings. This
+            // is transient so that we always get the current values from the
+            // source.
+            sc.AddTransient<InitializationSettings, WebFormsInitializationSettings>();
+
+            RockApp.Current = new RockApp( sc.BuildServiceProvider() );
         }
 
         /// <summary>
@@ -507,19 +556,19 @@ namespace Rock.WebStartup
         {
             try
             {
-                RockInstanceDatabaseConfiguration databaseConfig = RockInstanceConfig.Database;
+                var databaseConfig = RockApp.Current.GetDatabaseConfiguration();
                 migrationLogger.LogSystemInfo( "Rock Version", $"{VersionInfo.VersionInfo.GetRockProductVersionFullName()} ({VersionInfo.VersionInfo.GetRockProductVersionNumber()})" );
                 if ( databaseConfig.Version.IsNotNullOrWhiteSpace() )
                 {
                     migrationLogger.LogSystemInfo( "Database Version", databaseConfig.Version );
-                    migrationLogger.LogSystemInfo( "Database Compatibility Version", databaseConfig.VersionFriendlyName );
-                    if ( databaseConfig.Platform == RockInstanceDatabaseConfiguration.PlatformSpecifier.AzureSql )
+                    migrationLogger.LogSystemInfo( "Database Compatibility Version", databaseConfig.GetVersionFriendlyName() );
+                    if ( databaseConfig.Platform == DatabasePlatform.AzureSql )
                     {
                         migrationLogger.LogSystemInfo( "Azure Service Tier Objective", databaseConfig.ServiceObjective );
                     }
 
-                    migrationLogger.LogSystemInfo( "Allow Snapshot Isolation", databaseConfig.SnapshotIsolationAllowed.ToYesNo() );
-                    migrationLogger.LogSystemInfo( "Is Read Committed Snapshot On", databaseConfig.ReadCommittedSnapshotEnabled.ToYesNo() );
+                    migrationLogger.LogSystemInfo( "Allow Snapshot Isolation", databaseConfig.IsSnapshotIsolationAllowed.ToYesNo() );
+                    migrationLogger.LogSystemInfo( "Is Read Committed Snapshot On", databaseConfig.IsReadCommittedSnapshotEnabled.ToYesNo() );
                     migrationLogger.LogSystemInfo( "Processor Count", Environment.ProcessorCount.ToStringSafe() );
                     migrationLogger.LogSystemInfo( "Working Memory", Environment.WorkingSet.FormatAsMemorySize() ); // 1024*1024*1024
                 }
@@ -584,6 +633,37 @@ namespace Rock.WebStartup
             }
 
             return migrationsWereRun;
+        }
+
+
+        /// <summary>
+        /// Update the themes.
+        /// </summary>
+        /// <returns></returns>
+        private static bool UpdateThemes()
+        {
+            bool anyThemesUpdated = false;
+            var rockContext = new RockContext();
+            var themeService = new ThemeService( rockContext );
+            var themes = RockTheme.GetThemes();
+            if ( themes != null && themes.Any() )
+            {
+                var dbThemes = themeService.Queryable().ToList();
+                var websiteLegacyValueId = DefinedValueCache.GetId( Rock.SystemGuid.DefinedValue.THEME_PURPOSE_WEBSITE_LEGACY.AsGuid() );
+                foreach ( var theme in themes.Where( a => !dbThemes.Any( b => b.Name == a.Name ) ) )
+                {
+                    var dbTheme = new Theme();
+                    dbTheme.Name = theme.Name;
+                    dbTheme.IsSystem = theme.IsSystem;
+                    dbTheme.RootPath = theme.RelativePath;
+                    dbTheme.PurposeValueId = websiteLegacyValueId;
+                    themeService.Add( dbTheme );
+                    rockContext.SaveChanges();
+                    anyThemesUpdated = true;
+                }
+            }
+
+            return anyThemesUpdated;
         }
 
         /// <summary>
@@ -662,7 +742,7 @@ namespace Rock.WebStartup
                 return result;
             }
 
-            var configConnectionString = RockInstanceConfig.Database.ConnectionString;
+            var configConnectionString = RockApp.Current.InitializationSettings.ConnectionString;
 
             try
             {

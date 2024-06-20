@@ -25,12 +25,11 @@
                     width="5%" />
 
         <TextColumn name="timeToBuildMS"
-                    title="Time To Build MS"
+                    title="Time To Build (ms)"
                     field="timeToBuildMS"
                     :filter="textValueFilter"
                     visiblePriority="xs"
                     width="5%" />
-
 
         <NumberColumn name="resultSize"
                       title="Result Size (KB)"
@@ -157,7 +156,12 @@
     async function onRefreshClick(key: string): Promise<void> {
         const result = await invokeBlockAction("RefreshDataset", { datasetId: key });
         if (!result.isSuccess) {
-            await alert(result.errorMessage ?? "Unknown error occurred while refreshing dataset.");
+            previewModalData.value = {
+                jsonData: null,
+                previewMessage: `Error: ${result.errorMessage}` || "Unknown error occurred while refreshing dataset.",
+                previewMessageType: "danger",
+                isDataTruncated: false
+            };
         }
         else {
             // Refresh the grid data after successful refresh
@@ -183,7 +187,12 @@
             };
         }
         else {
-            await alert(result.errorMessage ?? "Unknown error occurred while previewing dataset.");
+            previewModalData.value = {
+                jsonData: null,
+                previewMessage: result.errorMessage || "Unknown error occurred while previewing dataset.",
+                previewMessageType: "danger",
+                isDataTruncated: false
+            };
         }
     }
 

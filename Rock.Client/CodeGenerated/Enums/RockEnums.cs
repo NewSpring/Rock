@@ -886,15 +886,6 @@ namespace Rock.Client.Enums
 
     /// <summary>
     /// </summary>
-    public enum SchedulerResourceListSourceType
-    {
-        Group = 0x0,
-        AlternateGroup = 0x1,
-        DataView = 0x2,
-    }
-
-    /// <summary>
-    /// </summary>
     [Flags]
     public enum ScheduleType
     {
@@ -1117,15 +1108,15 @@ namespace Rock.Client.Enums.Crm
     public enum AgeBracket
     {
         Unknown = 0x0,
-        SixToTwelve = 0x1,
-        ThirteenToSeventeen = 0x2,
-        EighteenToTwentyFour = 0x3,
-        TwentyFiveToThirtyFour = 0x4,
-        ThirtyFiveToFortyFour = 0x5,
-        FortyFiveToFiftyFour = 0x6,
-        FiftyFiveToSixtyFour = 0x7,
-        SixtyFiveOrOlder = 0x8,
-        ZeroToFive = 0x9,
+        ZeroToFive = 0x1,
+        SixToTwelve = 0x2,
+        ThirteenToSeventeen = 0x3,
+        EighteenToTwentyFour = 0x4,
+        TwentyFiveToThirtyFour = 0x5,
+        ThirtyFiveToFortyFour = 0x6,
+        FortyFiveToFiftyFour = 0x7,
+        FiftyFiveToSixtyFour = 0x8,
+        SixtyFiveOrOlder = 0x9,
     }
 
 }
@@ -1369,6 +1360,66 @@ namespace Rock.Client.Enums.Core
 
 }
 
+namespace Rock.Client.Enums.Cms
+{
+    /// <summary>
+    /// </summary>
+    public enum BlockReloadMode
+    {
+        None = 0x0,
+        Block = 0x1,
+        Page = 0x2,
+    }
+
+    /// <summary>
+    /// </summary>
+    public enum BotGuardianLevel
+    {
+        Disable = 0x0,
+        Enable = 0x1,
+        Inherit = -1,
+    }
+
+    /// <summary>
+    /// </summary>
+    public enum ContentCollectionFilterControl
+    {
+        Pills = 0x0,
+        Dropdown = 0x1,
+        Boolean = 0x2,
+    }
+
+    /// <summary>
+    /// </summary>
+    public enum ContentLibraryItemExperienceLevel
+    {
+        Foundational = 0x1,
+        Intermediate = 0x2,
+        Advanced = 0x3,
+    }
+
+    /// <summary>
+    /// </summary>
+    public enum MobilePageType
+    {
+        NativePage = 0x0,
+        InternalWebPage = 0x1,
+        ExternalWebPage = 0x2,
+    }
+
+    /// <summary>
+    /// </summary>
+    [Flags]
+    public enum SiteTypeFlags
+    {
+        None = 0x0,
+        Web = 0x1,
+        Mobile = 0x2,
+        Tv = 0x4,
+    }
+
+}
+
 namespace Rock.Client.Enums.Core.Grid
 {
     /// <summary>
@@ -1443,37 +1494,6 @@ namespace Rock.Client.Enums.Core.Grid
         EndsWith = 0x3,
         Equals = 0x4,
         DoesNotEqual = 0x5,
-    }
-
-}
-
-namespace Rock.Client.Enums.Cms
-{
-    /// <summary>
-    /// </summary>
-    public enum BotGuardianLevel
-    {
-        Disable = 0x0,
-        Enable = 0x1,
-        Inherit = -1,
-    }
-
-    /// <summary>
-    /// </summary>
-    public enum ContentCollectionFilterControl
-    {
-        Pills = 0x0,
-        Dropdown = 0x1,
-        Boolean = 0x2,
-    }
-
-    /// <summary>
-    /// </summary>
-    public enum ContentLibraryItemExperienceLevel
-    {
-        Foundational = 0x1,
-        Intermediate = 0x2,
-        Advanced = 0x3,
     }
 
 }
@@ -1569,6 +1589,20 @@ namespace Rock.Client.Enums.Net
 
 }
 
+namespace Rock.Client.Enums.Configuration
+{
+    /// <summary>
+    /// </summary>
+    public enum DatabasePlatform
+    {
+        Unknown = 0x0,
+        SqlServer = 0x1,
+        AzureSql = 0x2,
+        Other = 0x3,
+    }
+
+}
+
 namespace Rock.Client.Enums.Reporting
 {
     /// <summary>
@@ -1576,6 +1610,7 @@ namespace Rock.Client.Enums.Reporting
     public enum FieldFilterSourceType
     {
         Attribute = 0x0,
+        Property = 0x1,
     }
 
 }
@@ -1645,6 +1680,27 @@ namespace Rock.Client.Enums.Blocks.Engagement.SignUp
 
 }
 
+namespace Rock.Client.Enums.Group
+{
+    /// <summary>
+    /// </summary>
+    public enum RelationshipTrend
+    {
+        Level = 0x0,
+        Down = 0x1,
+        Up = 0x2,
+    }
+
+    /// <summary>
+    /// </summary>
+    public enum ScheduleConfirmationLogic
+    {
+        Ask = 0x0,
+        AutoAccept = 0x1,
+    }
+
+}
+
 namespace Rock.Client.Enums.Blocks.Group.Scheduling
 {
     /// <summary>
@@ -1694,18 +1750,6 @@ namespace Rock.Client.Enums.Blocks.Group.Scheduling
     {
         ReplacePreference = 0x0,
         AddToPreference = 0x1,
-    }
-
-}
-
-namespace Rock.Client.Enums.Group
-{
-    /// <summary>
-    /// </summary>
-    public enum ScheduleConfirmationLogic
-    {
-        Ask = 0x0,
-        AutoAccept = 0x1,
     }
 
 }

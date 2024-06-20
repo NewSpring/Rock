@@ -326,7 +326,7 @@ namespace Rock.Blocks.Engagement
                 .AddTextField( "idKey", a => a.IdKey )
                 .AddPersonField( "person", a => a.PersonAlias.Person )
                 .AddTextField( "fullName", a => a.PersonAlias.Person.FullName )
-                .AddTextField( "personIdKey", a => a.PersonAlias.Person.Id.ToString() )
+                .AddTextField( "personIdKey", a => a.PersonAlias.Person.IdKey )
                 .AddTextField( "stepStatus", a => a.StepStatus?.Name )
                 .AddDateTimeField( "dateStarted", a => a.StartDateTime )
                 .AddDateTimeField( "dateCompleted", a => a.CompletedDateTime )
@@ -430,7 +430,7 @@ namespace Rock.Blocks.Engagement
 
                 if ( !entity.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson ) )
                 {
-                    return ActionBadRequest( $"Not authorized to delete ${Step.FriendlyTypeName}." );
+                    return ActionBadRequest( $"Not authorized to delete {Step.FriendlyTypeName}." );
                 }
 
                 if ( !entityService.CanDelete( entity, out var errorMessage ) )

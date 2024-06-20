@@ -37,6 +37,7 @@ namespace Rock.Web.Cache
     /// </remarks>
     /// <typeparam name="T"></typeparam>
     /// <seealso cref="IRockCacheManager" />
+    [RockLoggingCategory]
     public sealed class RockCacheManager<T> : IRockCacheManager
     {
         private static RockCacheManager<T> instance;
@@ -81,16 +82,6 @@ namespace Rock.Web.Cache
                 return instance;
             }
         }
-
-        /// <summary>
-        /// Gets the cache.
-        /// </summary>
-        /// <value>
-        /// The cache.
-        /// </value>
-        [RockObsolete( "1.12" )]
-        [Obsolete( "Do not access the cache manager directly. Instead use the method available on this class." )]
-        public BaseCacheManager<T> Cache => CacheManager;
 
         /// <summary>
         /// Gets the cache.
@@ -380,12 +371,12 @@ namespace Rock.Web.Cache
 
             if ( item is List<string> )
             {
-                RockCache.StringConcurrentCacheKeyReferences.AddOrIgnore( cacheReferenceItem.ToString(), cacheReferenceItem );
+                RockCache.StringConcurrentCacheKeyReferences.TryAdd( cacheReferenceItem.ToString(), cacheReferenceItem );
             }
 
             if ( item is List<object> )
             {
-                RockCache.ObjectConcurrentCacheKeyReferences.AddOrIgnore( cacheReferenceItem.ToString(), cacheReferenceItem );
+                RockCache.ObjectConcurrentCacheKeyReferences.TryAdd( cacheReferenceItem.ToString(), cacheReferenceItem );
             }
         }
 

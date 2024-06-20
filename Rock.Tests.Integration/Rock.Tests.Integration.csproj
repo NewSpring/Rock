@@ -228,11 +228,17 @@
     <Compile Include="Issues\Issues_v15.cs" />
     <Compile Include="Modules\Core\Field.Types\PhoneNumberFieldTypeTests.cs" />
     <Compile Include="Modules\Core\AttributeMatrixTests.cs" />
+    <Compile Include="Modules\Core\Lava\Commands\WorkflowActivateTests.cs" />
     <Compile Include="Modules\Core\Lava\Engine\TypeConversionTests.cs" />
+    <Compile Include="Modules\Core\Lava\Documentation\IfTagExamples.cs" />
     <Compile Include="Modules\Core\Lava\Filters\PersonalizationFilterTests.cs" />
+    <Compile Include="Modules\Core\Lava\Shortcodes\ScheduledContentTests.cs" />
     <Compile Include="Modules\Core\MergeTemplateTests.cs" />
     <Compile Include="Modules\Core\Jobs\ProcessBiAnalyticsJobTests.cs" />
     <Compile Include="Modules\Core\Lava\Commands\CacheTests.cs" />
+    <Compile Include="Modules\Core\Workflow\BackgroundCheckRequestTests.cs" />
+    <Compile Include="Modules\Core\Model\DataModelEmailFieldValidationTests.cs" />
+    <Compile Include="Modules\Reporting\ExpressionHelperTests.cs" />
     <Compile Include="Modules\Security\RockSigningCredentialsTests.cs" />
     <Compile Include="Modules\Security\SecurityRoleTests.cs" />
     <Compile Include="Modules\Crm\Following\FollowingTests.cs" />
@@ -266,6 +272,7 @@
     <Compile Include="TestData\Communications\TestDataHelper.Communications.cs" />
     <Compile Include="TestData\Core\PersistedDatasetDataManager.cs" />
     <Compile Include="TestData\Core\SecurityDataManager.cs" />
+    <Compile Include="TestData\Core\EntityAttributeDataManager.cs" />
     <Compile Include="TestData\Core\TestDataHelper.Organization.cs" />
     <Compile Include="TestData\Core\TestDataHelper.Core.cs" />
     <Compile Include="TestData\Core\CoreModuleDataFactory.cs" />
@@ -282,7 +289,6 @@
     <Compile Include="Modules\Core\Field.Types\MergeTemplateFieldTypeTests.cs" />
     <Compile Include="Modules\Core\Field.Types\MetricCategoriesFieldTypeTests.cs" />
     <Compile Include="Modules\Core\Field.Types\UrlLinkFieldTypeTests.cs" />
-    <Compile Include="Modules\Engagement\Interactions\PopulateInteractionSessionTests.cs" />
     <Compile Include="Issues\Issues_v14.cs" />
     <Compile Include="Modules\Core\Jobs\GivingAutomationClassificationTests.cs" />
     <Compile Include="Modules\Core\Jobs\GivingJourneyHelperTests.cs" />
@@ -315,9 +321,9 @@
     <Compile Include="Modules\Core\Lava\Filters\NumericFilterTests.cs" />
     <Compile Include="Modules\Core\Lava\FileSystem\LavaFileSystemTests.cs" />
     <Compile Include="Modules\Core\Lava\LavaIntegrationTestBase.cs" />
-    <Compile Include="Modules\Core\Lava\Commands\ShortcodeCodeTests.cs" />
+    <Compile Include="Modules\Core\Lava\Shortcodes\ShortcodeCodeTests.cs" />
     <Compile Include="Modules\Core\Lava\Commands\CommandTests.cs" />
-    <Compile Include="Modules\Core\Lava\Commands\ShortcodeTemplateTests.cs" />
+    <Compile Include="Modules\Core\Lava\Shortcodes\ShortcodeTemplateTests.cs" />
     <Compile Include="Modules\Core\Lava\Commands\SqlTests.cs" />
     <Compile Include="Modules\Core\Jobs\StepsAutomationJobTests.cs" />
     <Compile Include="Modules\Core\Jobs\TestJobDetail.cs" />
@@ -390,7 +396,7 @@
     <Compile Include="TestFramework\PersonLookup.cs" />
     <Compile Include="Modules\Web\Cache\RateLimiterCacheTests.cs" />
     <Compile Include="Modules\Web\Utilities\RockUpdateHelperTests.cs" />
-    <Compile Include="Modules\Core\Workflow\Action\BackgroundCheckRequestTests.cs" />
+    <Compile Include="Modules\Core\Workflow\Action\WorkflowActionReminderAddTests.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />
