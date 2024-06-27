@@ -14,7 +14,6 @@ using DotNet.Testcontainers.Containers;
 using Rock.Model;
 using Rock.Tests.Shared.Lava;
 using Rock.Utility;
-using Rock.Utility.Settings;
 using Rock.Web;
 
 using Testcontainers.MsSql;
@@ -92,8 +91,7 @@ namespace Rock.Tests.Shared.TestFramework
                     MultipleActiveResultSets = true
                 };
 
-                RockInstanceConfig.Database.SetConnectionString( csb.ConnectionString );
-                RockInstanceConfig.SetDatabaseIsAvailable( true );
+                TestHelper.ConfigureRockApp( csb.ConnectionString );
 
                 MigrateDatabase( csb.ConnectionString );
 
@@ -103,8 +101,7 @@ namespace Rock.Tests.Shared.TestFramework
                     AddSampleData( sampleDataUrl );
                 }
 
-                RockInstanceConfig.SetDatabaseIsAvailable( false );
-                RockInstanceConfig.Database.SetConnectionString( string.Empty );
+                TestHelper.ConfigureRockApp( null );
             }
         }
 
@@ -205,8 +202,10 @@ ALTER DATABASE [{dbName}] SET RECOVERY SIMPLE";
 
             // Run Rock Jobs to ensure calculated fields are updated.
 
+            // We can't run the full PostInstallDataMigrations job because it
+            // tries to get to files within the RockWeb folder that we don't
+            // have. So just run the bit we need manually.
             new Rock.Jobs.PostInstallDataMigrations().InsertAnalyticsSourceDateData( 300 );
-            ExecuteRockJob<Rock.Jobs.PostInstallDataMigrations>();
             ExecuteRockJob<Rock.Jobs.RockCleanup>();
             ExecuteRockJob<Rock.Jobs.CalculateFamilyAnalytics>();
             ExecuteRockJob<Rock.Jobs.ProcessBIAnalytics>( new Dictionary<string, string>

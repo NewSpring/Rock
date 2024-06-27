@@ -115,8 +115,17 @@ export const ServiceJob = {
     DataMigrations161SwapFinancialBatchList: "7750ECFD-26E3-49DE-8E90-1B1A6DCCC3FE",
     /** The post update data migration job to chop the Email Preference Entry block. */
     DataMigrations162ChopEmailPreferenceEntry: "AE07C80A-80A4-48FD-908C-56DDB1CAA322",
+    /** The Job to run Post v16.6 Data Migrations to an index to the CreatedDateTime column on the Interaction table. */
+    DataMigrations166AddInteractionCreatedDateTimeIndex: "2B2E2C6F-0184-4797-9D39-E8FC700D9887",
+    /**
+     * The Job to run Post v16.6 Data Migrations to update the newly
+     * created TargetCount column on AchievementType.
+     */
+    DataMigrations166UpdateAchievementtypeTargetcountColumn: "ab4d7fa7-8e07-48d3-8225-bdecc63b71f5",
     /** The post update data migration job to remove the legacy Communication Recipient List Webforms block. */
     DataMigrations170RemoveCommunicationRecipientListBlock: "54CCFFFD-83A8-4BB6-A699-DDE34310BFE6",
+    /** The post update data migration job to remove the legacy Communication Recipient List Webforms block. */
+    DataMigrations170RemoveDiscBlock: "795AE7B0-8B61-4577-B50A-350907CA0C65",
     /** The post update data migration job to remove legacy preference attributes. */
     DataMigrations170RemoveLegacyPreferences: "46d98280-7611-4588-831d-6924e2be9da6",
     /**
@@ -155,8 +164,8 @@ export const ServiceJob = {
     StepsAutomation: "97858941-0447-49D6-9E35-B03665FEE965",
     /** The media synchronize job. */
     SyncMedia: "FB27C6DF-F8DB-41F8-83AF-BBE09E77A0A9",
-    /** The Rock.Jobs.UpdateAnalyticsSourceZipCode job. */
-    UpdateAnalyticsSourceZipcode: "29731D97-699D-4D34-A9F4-50C7C33D5C48",
+    /** The Rock.Jobs.UpdateAnalyticsSourcePostalCode job. */
+    UpdateAnalyticsSourcePostalCode: "29731D97-699D-4D34-A9F4-50C7C33D5C48",
     /** The Update Persisted Attribute Values job. */
     UpdatePersistedAttributeValue: "A7DDA4B0-BA1D-49F1-8749-5E7A9876AE70",
     /** The Rock.Jobs.UpdatePersistedDatasets job. */

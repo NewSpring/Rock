@@ -137,6 +137,7 @@ namespace Rock.Blocks.Core
                 .AddTextField( "campusStatus", a => a.CampusStatusValue?.Value )
                 .AddField( "isActive", a => a.IsActive )
                 .AddField( "isSystem", a => a.IsSystem )
+                .AddField( "Id", a => a.Id)
                 .AddAttributeFields( GetGridAttributes() );
         }
 
@@ -162,7 +163,7 @@ namespace Rock.Blocks.Core
 
             if ( !entity.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson ) )
             {
-                return ActionBadRequest( $"Not authorized to delete ${Campus.FriendlyTypeName}." );
+                return ActionBadRequest( $"Not authorized to delete {Campus.FriendlyTypeName}." );
             }
 
             // Don't allow deleting the last campus.

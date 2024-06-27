@@ -229,6 +229,17 @@ namespace Rock.SystemGuid
         public const string DATA_MIGRATIONS_161_CHOP_ACCOUNTENTRY_AND_LOGIN = "A65D26C1-229E-4198-B388-E269C3534BC0";
 
         /// <summary>
+        /// The Job to run Post v16.6 Data Migrations to update the newly
+        /// created TargetCount column on AchievementType.
+        /// </summary>
+        public const string DATA_MIGRATIONS_166_UPDATE_ACHIEVEMENTTYPE_TARGETCOUNT_COLUMN = "ab4d7fa7-8e07-48d3-8225-bdecc63b71f5";
+
+        /// <summary>
+        /// The Job to run Post v16.6 Data Migrations to an index to the CreatedDateTime column on the Interaction table.
+        /// </summary>
+        public const string DATA_MIGRATIONS_166_ADD_INTERACTION_CREATED_DATE_TIME_INDEX = "2B2E2C6F-0184-4797-9D39-E8FC700D9887";
+
+        /// <summary>
         /// The Job to get NCOA
         /// </summary>
         public const string GET_NCOA = "D2D6EA6C-F94A-39A0-481B-A23D08B887D6";
@@ -302,9 +313,9 @@ namespace Rock.SystemGuid
         public const string UPDATE_PERSISTED_ATTRIBUTE_VALUE = "A7DDA4B0-BA1D-49F1-8749-5E7A9876AE70";
 
         /// <summary>
-        /// The <see cref="Rock.Jobs.UpdateAnalyticsSourceZipCode" /> job.
+        /// The <see cref="Rock.Jobs.UpdateAnalyticsSourcePostalCode" /> job.
         /// </summary>
-        public const string UPDATE_ANALYTICS_SOURCE_ZIPCODE = "29731D97-699D-4D34-A9F4-50C7C33D5C48";
+        public const string UPDATE_ANALYTICS_SOURCE_POSTAL_CODE = "29731D97-699D-4D34-A9F4-50C7C33D5C48";
 
         /// <summary>
         /// The Post Update Data Migration Job to swap the Notes Block
@@ -361,5 +372,10 @@ namespace Rock.SystemGuid
         /// The <see cref="Rock.Jobs.UpdatePersistedDatasets" /> job.
         /// </summary>
         public const string UPDATE_PERSISTED_DATASETS = "B6D3B48A-039A-4A1C-87BE-3FC0152AB5DA";
+
+        /// <summary>
+        /// The post update data migration job to remove the legacy Communication Recipient List Webforms block.
+        /// </summary>
+        public const string DATA_MIGRATIONS_170_REMOVE_DISC_BLOCK = "795AE7B0-8B61-4577-B50A-350907CA0C65";
     }
 }

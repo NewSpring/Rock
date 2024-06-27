@@ -23,8 +23,8 @@
 
                     <div class="col-md-6 col-sm-6 col-xs-6">
                         <a href="{{ item.Permalink | Split:'.cc/' | Last | Prepend:'/' }}" class="text-decoration-none">
-                            <div class="ratio ratio-shuare rounded-lg overflow-hidden push-half-bottom">
-                                <div class="ratio-item background-cover background-center" style="background-image:url('{{ item.ImageSquare | WithFallback:'', item.ImageLandscape }}');"></div>
+                            <div class="position-relative ratio ratio-short-square rounded-lg overflow-hidden push-half-bottom">
+                                <div class="full-screen background-cover background-center" style="background-image:url('{{ item.ImageSquare | WithFallback:'', item.ImageLandscape }}');"></div>
                             </div>
                             <h4 class="h5 xs-h6">{{ item.Title }}</h4>
                         </a>

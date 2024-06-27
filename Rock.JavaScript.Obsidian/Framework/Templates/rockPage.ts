@@ -14,7 +14,7 @@
 // limitations under the License.
 // </copyright>
 //
-import { App, Component, createApp, defineComponent, h, markRaw, onMounted, provide, VNode } from "vue";
+import { App, Component, createApp, defineComponent, Directive, h, markRaw, onMounted, provide, ref, VNode } from "vue";
 import RockBlock from "./rockBlock.partial";
 import { useStore } from "@Obsidian/PageState";
 import "@Obsidian/ValidationRules";
@@ -27,7 +27,8 @@ import { BasicSuspenseProvider, provideSuspense } from "@Obsidian/Utility/suspen
 import { alert } from "@Obsidian/Utility/dialogs";
 import { HttpBodyData, HttpMethod, HttpResult, HttpUrlParams } from "@Obsidian/Types/Utility/http";
 import { doApiCall, provideHttp } from "@Obsidian/Utility/http";
-import { createInvokeBlockAction, provideBlockGuid } from "@Obsidian/Utility/block";
+import { createInvokeBlockAction, provideBlockBrowserBus, provideBlockGuid, provideBlockTypeGuid } from "@Obsidian/Utility/block";
+import { useBrowserBus } from "@Obsidian/Utility/browserBus";
 
 type DebugTimingConfig = {
     elementId: string;
@@ -47,6 +48,43 @@ const developerStyle = defineComponent({
         return h("style", {}, this.$slots.default ? this.$slots.default() : undefined);
     }
 });
+
+/**
+ * This directive (v-content) behaves much like v-html except it also allows
+ * pre-defined HTML nodes to be passed in. This can be used to show and hide
+ * nodes without losing any 3rd party event listeners or other data that would
+ * otherwise be lost when using an HTML string.
+ */
+const contentDirective: Directive<Element, Node[] | Node | string | null | undefined> = {
+    mounted(el, binding) {
+        el.innerHTML = "";
+        if (Array.isArray(binding.value)) {
+            for (const v of binding.value) {
+                el.append(v);
+            }
+        }
+        else if (typeof binding.value === "string") {
+            el.innerHTML = binding.value;
+        }
+        else if (binding.value) {
+            el.append(binding.value);
+        }
+    },
+    updated(el, binding) {
+        el.innerHTML = "";
+        if (Array.isArray(binding.value)) {
+            for (const v of binding.value) {
+                el.append(v);
+            }
+        }
+        else if (typeof binding.value === "string") {
+            el.innerHTML = binding.value;
+        }
+        else if (binding.value) {
+            el.append(binding.value);
+        }
+    }
+};
 
 
 /**
@@ -86,7 +124,13 @@ export async function initializeBlock(config: ObsidianBlockConfigBag): Promise<A
 
     const startTimeMs = RockDateTime.now().toMilliseconds();
     const name = `Root${config.blockFileUrl.replace(/\//g, ".")}`;
-    const staticContent = wrapperElement.innerHTML;
+    const staticContent = ref<Node[]>([]);
+
+    while (wrapperElement.firstChild !== null) {
+        const node = wrapperElement.firstChild;
+        node.remove();
+        staticContent.value.push(node);
+    }
 
     const app = createApp({
         name,
@@ -179,6 +223,7 @@ export async function initializeBlock(config: ObsidianBlockConfigBag): Promise<A
 <RockBlock v-else :config="config" :blockComponent="blockComponent" :startTimeMs="startTimeMs" :staticContent="staticContent" />`
     });
 
+    app.directive("content", contentDirective);
     app.component("v-style", developerStyle);
     app.mount(wrapperElement);
 
@@ -193,8 +238,9 @@ export async function initializeBlock(config: ObsidianBlockConfigBag): Promise<A
  * @param actionFileUrl The component file URL for the action handler.
  * @param pageGuid The unique identifier of the page.
  * @param blockGuid The unique identifier of the block.
+ * @param blockTypeGuid The unique identifier of the block type.
  */
-export async function showCustomBlockAction(actionFileUrl: string, pageGuid: string, blockGuid: string): Promise<void> {
+export async function showCustomBlockAction(actionFileUrl: string, pageGuid: string, blockGuid: string, blockTypeGuid: string): Promise<void> {
     let actionComponent: Component | null = null;
 
     try {
@@ -243,6 +289,8 @@ export async function showCustomBlockAction(actionFileUrl: string, pageGuid: str
             });
             provide("invokeBlockAction", invokeBlockAction);
             provideBlockGuid(blockGuid);
+            provideBlockTypeGuid(blockTypeGuid);
+            provideBlockBrowserBus(useBrowserBus({ block: blockGuid, blockType: blockTypeGuid }));
 
             return {
                 actionComponent,

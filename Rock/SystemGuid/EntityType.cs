@@ -439,9 +439,9 @@ namespace Rock.SystemGuid
         public const string MOBILE_CORE_SEARCH_BLOCK_TYPE = "F81015CD-EBA9-4358-B930-4F1AB29AF879";
 
         /// <summary>
-        /// The GUID for the entity <see cref="Rock.Blocks.Types.Mobile.SmartSearch" />.
+        /// The GUID for the entity <see cref="Rock.Blocks.Types.Mobile.Core.SmartSearch" />.
         /// </summary>
-        public const string MOBILE_CORE_SEARCH_V2_BLOCK_TYPE = "45BE4816-3F5B-4AD1-BA89-819325D7E8CF";
+        public const string MOBILE_CORE_SMART_SEARCH_BLOCK_TYPE = "45BE4816-3F5B-4AD1-BA89-819325D7E8CF";
 
         /// <summary>
         /// The GUID for the entity Rock.Blocks.Types.Mobile.Events.CalendarEventList
@@ -1791,6 +1791,11 @@ namespace Rock.SystemGuid
         public const string TAGGED_ITEM = "AB97403A-206E-4E0C-AC42-856A010FA6DD";
 
         /// <summary>
+        /// The EntityType Guid for <see cref="Rock.Model.Theme"/> 
+        /// </summary>
+        public const string THEME = "D02B63B9-E945-45BC-9D41-2C3E72B85F46";
+
+        /// <summary>
         /// The EntityType Guid for <see cref="Rock.Model.UserLogin"/> 
         /// </summary>
         public const string USER_LOGIN = "0FA592F1-728C-4885-BE38-60ED6C0D834F";
@@ -1871,9 +1876,16 @@ namespace Rock.SystemGuid
         public const string NOTIFICATION_MESSAGE_TYPE = "36FB1038-8836-429F-BAD4-04D32892D6D0";
 
         /// <summary>
-        /// The EntityType Guid for <see cref="Rock.Web.HttpModules.Observability"/> 
+        /// The EntityType Guid for <see cref="Rock.Web.HttpModules.RockGateway"/> 
         /// </summary>
+        [RockObsolete( "1.17" )]
+        [Obsolete( "Use HTTP_MODULE_ROCK_GATEWAY instead." )]
         public const string HTTP_MODULE_OBSERVABILITY = "FE7A8295-9383-4FD8-9FB2-FF77A8042462";
+
+        /// <summary>
+        /// The EntityType Guid for <see cref="Rock.Web.HttpModules.RockGateway"/> 
+        /// </summary>
+        public const string HTTP_MODULE_ROCK_GATEWAY = "FE7A8295-9383-4FD8-9FB2-FF77A8042462";
 
         /// <summary>
         /// The EntityType Guid for <see cref="Rock.Model.AdaptiveMessage"/> 

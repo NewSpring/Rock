@@ -43,16 +43,10 @@ namespace Rock.Financial
     /// 3. Charging a "future payment" that originated from mode 2.
     ///
     /// </summary>
+    [RockLoggingCategory]
     public class AutomatedPaymentProcessor
     {
         #region Keys
-
-        /// <summary>
-        /// Use this key to set metadata that will be used as the description of the transaction in some gateways
-        /// </summary>
-        [Obsolete( "Use the 'MetadataKey' static class constants instead.", true )]
-        [RockObsolete( "1.10" )]
-        public const string DescriptionMetadataKey = "description";
 
         /// <summary>
         /// Commonly used keys within the transaction metadata

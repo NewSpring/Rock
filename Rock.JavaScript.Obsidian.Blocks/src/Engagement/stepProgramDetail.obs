@@ -6,8 +6,9 @@
 
     <RockForm v-if="!blockError" v-model:submit="submitForm" @submit="onSave" :formResetKey="resetKey">
         <Panel type="block" :title="panelName" :headerSecondaryActions="blockLabels">
-            <template v-if="categoryName" #headerActions>
-                <span class="label label-info">{{ categoryName }}</span>
+            <template #headerActions>
+                <span v-if="categoryName" class="label label-info mr-1">{{ categoryName }}</span>
+                <span v-if="!stepProgramViewBag?.isActive" class="label label-danger">Inactive</span>
             </template>
             <template #default>
                 <ViewPanel v-if="panelMode == DetailPanelMode.View"
@@ -93,6 +94,7 @@
     import { StepProgramDetailOptionsBag } from "@Obsidian/ViewModels/Blocks/Engagement/StepProgramDetail/stepProgramDetailOptionsBag";
     import { makeUrlRedirectSafe } from "@Obsidian/Utility/url";
     import { confirmDelete, showSecurity } from "@Obsidian/Utility/dialogs";
+    import { Guid } from "@Obsidian/Types";
 
     const config = useConfigurationValues<DetailBlockBox<StepProgramBag, StepProgramDetailOptionsBag>>();
     const invokeBlockAction = useInvokeBlockAction();
@@ -108,7 +110,7 @@
     const submitForm = ref(false);
     const resetKey = ref("");
     const showAuditDetailsModal = ref(false);
-    const entityTypeGuid = EntityType.StepProgram;
+    const entityTypeGuid: Guid = EntityType.StepProgram;
 
     const panelMode = ref<DetailPanelMode>(DetailPanelMode.View);
 
@@ -122,6 +124,8 @@
         "isActive",
         "name",
         "defaultListView",
+        "statuses",
+        "workflowTriggers"
     ];
 
     const refreshAttributesDebounce = debounce(() => refreshDetailAttributes(stepProgramEditBag, validProperties, invokeBlockAction), undefined, true);

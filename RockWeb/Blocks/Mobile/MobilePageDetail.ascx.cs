@@ -26,6 +26,7 @@ using System.Xml.Linq;
 
 using Rock;
 using Rock.Attribute;
+using Rock.Blocks;
 using Rock.Common.Mobile.Enums;
 using Rock.Data;
 using Rock.Mobile;
@@ -421,7 +422,7 @@ namespace RockWeb.Blocks.Mobile
         /// </summary>
         /// <param name="category">The category.</param>
         /// <returns>System.String.</returns>
-        private string RemoveMobileCategoryPrefix( string category )
+        private string UpdateCategoryForMobile( string category )
         {
             if ( category.IsNullOrWhiteSpace() )
             {
@@ -431,6 +432,11 @@ namespace RockWeb.Blocks.Mobile
             if ( category.StartsWith( "Mobile >" ) )
             {
                 category = category.Replace( "Mobile >", string.Empty ).Trim();
+            }
+
+            if( category == "CMS" )
+            {
+                category = "Cms";
             }
 
             return category;
@@ -447,7 +453,7 @@ namespace RockWeb.Blocks.Mobile
             // Find all mobile block types and build the component repeater.
             //
             var blockTypes = BlockTypeCache.All()
-                .Where( t => RemoveMobileCategoryPrefix( t.Category ) == ddlBlockTypeCategory.SelectedValue )
+                .Where( t => UpdateCategoryForMobile( t.Category ) == ddlBlockTypeCategory.SelectedValue )
                 .OrderBy( t => t.Name );
 
             foreach ( var blockType in blockTypes )
@@ -595,7 +601,7 @@ namespace RockWeb.Blocks.Mobile
                 return;
             }
 
-            var additionalSettings = page.AdditionalSettings.FromJsonOrNull<AdditionalPageSettings>() ?? new AdditionalPageSettings();
+            var additionalSettings = page.GetAdditionalSettings<AdditionalPageSettings>();
 
             //
             // Setup the Details panel information.
@@ -607,7 +613,7 @@ namespace RockWeb.Blocks.Mobile
 
             var fields = new List<KeyValuePair<string, string>>();
 
-            if ( additionalSettings.PageType == MobilePageType.NativePage )
+            if ( additionalSettings.PageType == Rock.Enums.Cms.MobilePageType.NativePage )
             {
                 fields.Add( new KeyValuePair<string, string>( "Layout", page.Layout.Name ) );
             }
@@ -673,8 +679,7 @@ namespace RockWeb.Blocks.Mobile
                         }
                     }
 
-                    var category = RemoveMobileCategoryPrefix( blockType.Category );
-
+                    var category = UpdateCategoryForMobile( blockType.Category );
 
                     if ( !categories.Contains( category ) )
                     {
@@ -689,7 +694,7 @@ namespace RockWeb.Blocks.Mobile
             ddlBlockTypeCategory.Items.Clear();
             foreach ( var c in categories.OrderBy( c => c ) )
             {
-                var text = RemoveMobileCategoryPrefix( c );
+                var text = UpdateCategoryForMobile( c );
                 ddlBlockTypeCategory.Items.Add( new ListItem( text, c ) );
             }
             ddlBlockTypeCategory.SetValue( selectedCategory );
@@ -701,11 +706,11 @@ namespace RockWeb.Blocks.Mobile
             hlExternalWebPage.ToolTip = string.Format( "This page will open {0} in an external browser application.", additionalSettings.WebPageUrl );
 
             // Update the visibility of all controls to match our current state.
-            hlInternalWebPage.Visible = additionalSettings.PageType == MobilePageType.InternalWebPage;
-            hlExternalWebPage.Visible = additionalSettings.PageType == MobilePageType.ExternalWebPage;
+            hlInternalWebPage.Visible = additionalSettings.PageType == Rock.Enums.Cms.MobilePageType.InternalWebPage;
+            hlExternalWebPage.Visible = additionalSettings.PageType == Rock.Enums.Cms.MobilePageType.ExternalWebPage;
             pnlDetails.Visible = true;
             pnlEditPage.Visible = false;
-            pnlBlocks.Visible = additionalSettings.PageType == MobilePageType.NativePage;
+            pnlBlocks.Visible = additionalSettings.PageType == Rock.Enums.Cms.MobilePageType.NativePage;
         }
 
         /// <summary>
@@ -759,7 +764,7 @@ namespace RockWeb.Blocks.Mobile
                 }
             }
 
-            var additionalSettings = page.AdditionalSettings.FromJsonOrNull<Rock.Mobile.AdditionalPageSettings>() ?? new Rock.Mobile.AdditionalPageSettings();
+            var additionalSettings = page.GetAdditionalSettings<AdditionalPageSettings>();
 
             // Set the basic fields of the page.
             tbName.Text = page.PageTitle;
@@ -780,7 +785,7 @@ namespace RockWeb.Blocks.Mobile
             ddlMenuDisplayWhen.BindToEnum<Rock.Model.DisplayInNavWhen>();
             ddlMenuDisplayWhen.SetValue( page.DisplayInNavWhen.ToStringSafe().AsIntegerOrNull() ?? page.DisplayInNavWhen.ConvertToInt() );
 
-            ddlPageType.BindToEnum<MobilePageType>();
+            ddlPageType.BindToEnum<Rock.Enums.Cms.MobilePageType>();
             ddlPageType.SetValue( additionalSettings.PageType.ConvertToInt() );
             tbWebPageUrl.Text = additionalSettings.WebPageUrl;
 
@@ -951,6 +956,33 @@ namespace RockWeb.Blocks.Mobile
         {
             Panel pnlAdminButtons = new Panel { ID = "pnlBlockConfigButtons", CssClass = "pull-right block-config-buttons" };
 
+            var blockCompiledType = block.BlockType.GetCompiledType();
+
+            // Add in any custom actions from next generation blocks.
+            if ( typeof( IHasCustomActions ).IsAssignableFrom( blockCompiledType ) )
+            {
+                var customActionsBlock = ( IHasCustomActions ) Activator.CreateInstance( blockCompiledType );
+                var canEdit = BlockCache.IsAuthorized( Authorization.EDIT, CurrentPerson );
+                var canAdministrate = BlockCache.IsAuthorized( Authorization.ADMINISTRATE, CurrentPerson );
+                var page = PageCache.Get( hfPageId.Value.AsInteger() );
+
+                var configActions = customActionsBlock.GetCustomActions( canEdit, canAdministrate );
+
+                foreach ( var action in configActions )
+                {
+                    var script = $@"Obsidian.onReady(() => {{
+    System.import('@Obsidian/Templates/rockPage.js').then(module => {{
+        module.showCustomBlockAction('{action.ComponentFileUrl}', '{page.Guid}', '{block.Guid}');
+    }});
+}});";
+
+                    pnlAdminButtons.Controls.Add( new Literal
+                    {
+                        Text = $"<a href=\"#\" onclick=\"event.preventDefault(); {script.EncodeXml( true )}\" title=\"{action.Tooltip.EncodeXml( true )}\" class=\"btn btn-sm btn-default btn-square\"><i class=\"{action.IconCssClass}\"></i></a>"
+                    } );
+                }
+            }
+
             // Block Properties
             var btnBlockProperties = new Literal
             {
@@ -980,14 +1012,14 @@ namespace RockWeb.Blocks.Mobile
                 Text = "<i class='fa fa-times'></i>",
                 ToolTip = "Delete Block"
             };
-            btnDeleteBlock.Attributes["onclick"] = string.Format( "javascript: return Rock.dialogs.confirmDelete(event, '{0}');", Block.FriendlyTypeName );
+            btnDeleteBlock.Attributes["onclick"] = string.Format( "javascript: return Rock.dialogs.confirmDelete(event, '\"{0}\" block');", block.Name );
 
             pnlAdminButtons.Controls.Add( btnDeleteBlock );
 
             pnlLayoutItem.Controls.Add( pnlAdminButtons );
 
             RockBlock blockControl = null;
-            IEnumerable<WebControl> customAdminControls = new List<WebControl>();
+            List<Control> customAdminControls = new List<Control>();
             try
             {
                 if ( !string.IsNullOrWhiteSpace( block.BlockType.Path ) )
@@ -1001,8 +1033,9 @@ namespace RockWeb.Blocks.Mobile
                     var wrapper = new RockBlockTypeWrapper
                     {
                         Page = RockPage,
-                        Block = ( Rock.Blocks.IRockBlockType ) blockEntity
+                        Block = ( Rock.Blocks.IRockBlockType ) blockEntity,
                     };
+                    wrapper.Block.RequestContext = RockPage.RequestContext;
 
                     wrapper.InitializeAsUserControl( RockPage );
                     wrapper.AppRelativeTemplateSourceDirectory = "~";
@@ -1013,7 +1046,7 @@ namespace RockWeb.Blocks.Mobile
                 blockControl.SetBlock( block.Page, block, true, true );
                 var adminControls = blockControl.GetAdministrateControls( true, true );
                 string[] baseAdminControlClasses = new string[4] { "properties", "security", "block-move", "block-delete" };
-                customAdminControls = adminControls.OfType<WebControl>().Where( a => !baseAdminControlClasses.Any( b => a.CssClass.Contains( b ) ) );
+                customAdminControls = adminControls.OfType<WebControl>().Where( a => !baseAdminControlClasses.Any( b => a.CssClass.Contains( b ) ) ).Cast<Control>().ToList();
             }
             catch ( Exception ex )
             {
@@ -1059,9 +1092,9 @@ namespace RockWeb.Blocks.Mobile
         /// </summary>
         private void UpdateAdvancedSettingsVisibility()
         {
-            var pageType = ddlPageType.SelectedValueAsEnum<MobilePageType>( MobilePageType.NativePage );
+            var pageType = ddlPageType.SelectedValueAsEnum<Rock.Enums.Cms.MobilePageType>( Rock.Enums.Cms.MobilePageType.NativePage );
 
-            if ( pageType == MobilePageType.NativePage )
+            if ( pageType == Rock.Enums.Cms.MobilePageType.NativePage )
             {
                 tbWebPageUrl.Visible = false;
                 pnlNativePageAdvancedSettings.Visible = true;
@@ -1136,13 +1169,13 @@ namespace RockWeb.Blocks.Mobile
                 page.ParentPageId = parentPageId;
             }
 
-            var additionalSettings = page.AdditionalSettings.FromJsonOrNull<Rock.Mobile.AdditionalPageSettings>() ?? new Rock.Mobile.AdditionalPageSettings();
+            var additionalSettings = page.GetAdditionalSettings<AdditionalPageSettings>();
             additionalSettings.LavaEventHandler = ceEventHandler.Text;
             additionalSettings.CssStyles = ceCssStyles.Text;
             additionalSettings.HideNavigationBar = cbHideNavigationBar.Checked;
             additionalSettings.ShowFullScreen = cbShowFullScreen.Checked;
             additionalSettings.AutoRefresh = cbAutoRefresh.Checked;
-            additionalSettings.PageType = ddlPageType.SelectedValueAsEnum<MobilePageType>( MobilePageType.NativePage );
+            additionalSettings.PageType = ddlPageType.SelectedValueAsEnum<Rock.Enums.Cms.MobilePageType>( Rock.Enums.Cms.MobilePageType.NativePage );
             additionalSettings.WebPageUrl = tbWebPageUrl.Text;
 
             page.InternalName = tbInternalName.Text;
@@ -1152,7 +1185,7 @@ namespace RockWeb.Blocks.Mobile
             page.BodyCssClass = tbCssClass.Text;
             page.LayoutId = ddlLayout.SelectedValueAsId().Value;
             page.DisplayInNavWhen = ddlMenuDisplayWhen.SelectedValue.ConvertToEnumOrNull<Rock.Model.DisplayInNavWhen>() ?? DisplayInNavWhen.Never;
-            page.AdditionalSettings = additionalSettings.ToJson();
+            page.SetAdditionalSettings<AdditionalPageSettings>( additionalSettings );
             int? oldIconId = null;
             if ( page.IconBinaryFileId != imgPageIcon.BinaryFileId )
             {

@@ -28,9 +28,12 @@ overflow-hidden
 d-flex
 justify-content-center
 align-items-{{ contentalignment }}
+
 {% if ratio != null and ratio != '' %}
-    ratio-{{ ratio }} hard xs-soft
-{% endif %} flush-sides" style="{% if backgroundcolor != null and backgroundcolor != '' %}background-color: {{ backgroundcolor }};{% endif %}">
+   ratio-portriat ratio-md-{{ ratio }} hard xs-soft
+{% endif %}
+
+flush-sides" style="{% if backgroundcolor != null and backgroundcolor != '' %}background-color: {{ backgroundcolor }};{% endif %}">
 
     {% if backgroundvideourl != null and backgroundvideourl != '' %}
 
