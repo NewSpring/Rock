@@ -15,8 +15,7 @@
 {% if dateKey == null or campusGuid == null or scheduleId == null or locationId == null
 %}
 
-  <p class="p-3 alert alert-danger text-bold mt-3"><i class="fas fa-exclamation-triangle mr-1"></i> Please select values for
-  all options in the filter bar at the top to continue.</p>
+  <p class="p-3 alert alert-danger text-bold mt-3"><i class="fas fa-exclamation-triangle mr-1"></i> Please select values for all options in the filter bar at the top to continue.</p>
 
 {% else %}
 
