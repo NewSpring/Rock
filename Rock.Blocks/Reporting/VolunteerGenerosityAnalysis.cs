@@ -17,7 +17,7 @@ namespace Rock.Blocks.Reporting
     [Rock.SystemGuid.BlockTypeGuid( "586A26F1-8A9C-4AB4-B788-9B44895B9D40" )]
     [Rock.SystemGuid.EntityTypeGuid( "4C55BFE1-7E97-4CFB-BCB7-2015AA25D9B9" )]
 
-    public class VolunteerGenerosityAnalysis : RockListBlockType<PersonData>
+    public class VolunteerGenerosityAnalysis : RockListBlockType<VolunteerGenerosityDataBag>
     {
         #region Keys
 
@@ -63,25 +63,33 @@ namespace Rock.Blocks.Reporting
                 {
                     try
                     {
-                        var dataBag = dataset.ResultData.FromJsonOrNull<VolunteerGenerosityDataBag>();
+                        var box = dataset.ResultData.FromJsonOrNull<VolunteerGenerosityInitializationBox>();
 
-                        if ( dataBag != null )
+                        if ( box != null && ( box.UniqueCampuses == null || box.UniqueGroups == null ) )
                         {
-                            var uniqueCampuses = dataBag.GroupData.Select( g => g.CampusShortCode ).Distinct().ToList();
-                            var uniqueGroups = dataBag.GroupData.Select( g => g.GroupName ).Distinct().ToList();
-                            var lastUpdated = dataset.LastRefreshDateTime.HasValue ? dataset.LastRefreshDateTime.Value.ToString( "yyyy-MM-dd" ) : "N/A";
-                            var estimatedRefreshTime = dataset.TimeToBuildMS.HasValue ? dataset.TimeToBuildMS : 0;
+                            var peopleData = box.PeopleData;
+                            var uniqueCampuses = peopleData
+                                .Where( p => !string.IsNullOrEmpty( p.CampusShortCode ) )
+                                .Select( p => p.CampusShortCode )
+                                .Distinct()
+                                .ToList();
 
-                            var bag = new
+                            var uniqueGroups = peopleData.Select( p => p.GroupName ).Distinct().ToList();
+                            var hasMultipleCampuses = CampusCache.All().Count( c => ( bool ) c.IsActive ) > 1;
+
+                            box.UniqueCampuses = uniqueCampuses;
+                            box.UniqueGroups = uniqueGroups;
+                            box.LastUpdated = dataset.LastRefreshDateTime.HasValue ? dataset.LastRefreshDateTime.Value.ToRockDateTimeOffset().ToString( "O" ) : null;
+                            box.EstimatedRefreshTime = dataset.TimeToBuildMS.HasValue ? Math.Round( dataset.TimeToBuildMS.Value / 1000.0, 2 ) : 0.0;
+                            box.ShowCampusFilter = hasMultipleCampuses;
+
+                            foreach ( var person in peopleData )
                             {
-                                UniqueCampuses = uniqueCampuses,
-                                UniqueGroups = uniqueGroups,
-                                LastUpdated = lastUpdated,
-                                EstimatedRefreshTime = estimatedRefreshTime
-                            };
-
-                            return bag;
+                                person.DonationMonths = DecodeDonationMonthBitmask( person.DonationMonthYearBitmask );
+                            }
                         }
+
+                        return box;
                     }
                     catch ( Exception ex )
                     {
@@ -93,42 +101,37 @@ namespace Rock.Blocks.Reporting
             }
         }
 
-        protected override IQueryable<PersonData> GetListQueryable( RockContext rockContext )
+        protected override IQueryable<VolunteerGenerosityDataBag> GetListQueryable( RockContext rockContext )
         {
             var datasetGuid = new Guid( VolunteerGenerosityDatasetGuid );
             var dataset = PersistedDatasetCache.Get( datasetGuid );
 
             if ( dataset == null || string.IsNullOrWhiteSpace( dataset.ResultData ) )
             {
-                return Enumerable.Empty<PersonData>().AsQueryable();
+                return Enumerable.Empty<VolunteerGenerosityDataBag>().AsQueryable();
             }
 
-            var dataBag = dataset.ResultData.FromJsonOrNull<VolunteerGenerosityDataBag>();
-            if ( dataBag == null )
+            var dataRoot = dataset.ResultData.FromJsonOrNull<VolunteerGenerosityInitializationBox>();
+            if ( dataRoot == null || dataRoot.PeopleData == null )
             {
-                return Enumerable.Empty<PersonData>().AsQueryable();
+                return Enumerable.Empty<VolunteerGenerosityDataBag>().AsQueryable();
             }
 
-            IEnumerable<PersonData> filteredPeople = dataBag.PeopleData;
+            IEnumerable<VolunteerGenerosityDataBag> filteredPeople = dataRoot.PeopleData.AsEnumerable();
+
+            // Filter out all of the inactive or archived people
+            filteredPeople = filteredPeople.Where( p => p.IsActive );
 
             // Filter by Campus
             if ( !string.IsNullOrWhiteSpace( FilterCampus ) && FilterCampus != "All" )
             {
-                var campusGroupIds = dataBag.GroupData
-                    .Where( g => g.CampusShortCode.Equals( FilterCampus, StringComparison.OrdinalIgnoreCase ) )
-                    .Select( g => g.GroupId.ToString() );
-
-                filteredPeople = filteredPeople.Where( p => p.GroupIds.Intersect( campusGroupIds ).Any() );
+                filteredPeople = filteredPeople.Where( person => person.CampusShortCode == FilterCampus );
             }
 
             // Filter by Team
             if ( !string.IsNullOrWhiteSpace( FilterTeam ) && FilterTeam != "All" )
             {
-                var teamGroupIds = dataBag.GroupData
-                    .Where( g => g.GroupName.Equals( FilterTeam, StringComparison.OrdinalIgnoreCase ) )
-                    .Select( g => g.GroupId.ToString() );
-
-                filteredPeople = filteredPeople.Where( p => p.GroupIds.Intersect( teamGroupIds ).Any() );
+                filteredPeople = filteredPeople.Where( person => person.GroupName == FilterTeam );
             }
 
             // Filter by Date Range
@@ -136,61 +139,32 @@ namespace Rock.Blocks.Reporting
             {
                 var cutoffDate = DateTime.Today.AddDays( -FilterDateRange.Value );
                 filteredPeople = filteredPeople.Where( person =>
-                    dataBag.GivingData.Any( gd => gd.GivingId == person.GivingId &&
-                                                 gd.Donations.Any( d => !string.IsNullOrEmpty( d.Year ) &&
-                                                                       !string.IsNullOrEmpty( d.Month ) &&
-                                                                       int.TryParse( d.Year, out int year ) &&
-                                                                       int.TryParse( d.Month, out int month ) &&
-                                                                       new DateTime( year, month, 1 ) >= cutoffDate ) ) );
+                    person.LastAttendanceDate.HasValue &&
+                    person.LastAttendanceDate.Value >= cutoffDate
+                );
             }
 
             return filteredPeople.AsQueryable();
         }
 
-        protected override GridBuilder<PersonData> GetGridBuilder()
+        protected override GridBuilder<VolunteerGenerosityDataBag> GetGridBuilder()
         {
-            var datasetGuid = new Guid( VolunteerGenerosityDatasetGuid );
-            var dataset = PersistedDatasetCache.Get( datasetGuid );
-            VolunteerGenerosityDataBag dataBag = null;
-
-            if ( dataset != null && !string.IsNullOrWhiteSpace( dataset.ResultData ) )
-            {
-                dataBag = dataset.ResultData.FromJsonOrNull<VolunteerGenerosityDataBag>();
-            }
-
-            return new GridBuilder<PersonData>()
+            return new GridBuilder<VolunteerGenerosityDataBag>()
                 .AddField( "id", d => d.PersonId )
-                .AddTextField( "campus", d =>
+                .AddTextField( "campus", d => d.CampusShortCode )
+                .AddDateTimeField( "lastAttendanceDate", d => d.LastAttendanceDate )
+                .AddTextField( "team", d => d.GroupName )
+                .AddTextField( "givingMonths", d => DecodeDonationMonthBitmask( d.DonationMonthYearBitmask ) )
+                .AddField( "person", d => new VolunteerGenerosityPersonBag
                 {
-                    var firstGroup = d.GroupIds
-                        .Select( groupId => dataBag?.GroupData.FirstOrDefault( g => g.GroupId == groupId ) )
-                        .FirstOrDefault();
-                    return firstGroup?.CampusShortCode ?? string.Empty;
+                    PersonId = d.PersonId,
+                    LastName = d.LastName,
+                    NickName = d.NickName,
+                    PhotoUrl = d.PhotoUrl,
+                    ConnectionStatus = d.ConnectionStatus
                 } )
-                .AddTextField( "lastAttendanceDate", d =>
-                {
-                    DateTime lastAttendanceDate;
-                    if ( DateTime.TryParse( d.LastAttendanceDate, out lastAttendanceDate ) )
-                    {
-                        return lastAttendanceDate.ToString( "M/d/yyyy" );
-                    }
-                    return "N/A"; 
-                } )
-                .AddTextField( "team", d =>
-                {
-                    var firstGroup = d.GroupIds
-                        .Select( groupId => dataBag?.GroupData.FirstOrDefault( g => g.GroupId == groupId ) )
-                        .FirstOrDefault();
-                    return firstGroup?.GroupName ?? string.Empty;
-                } )
-                .AddTextField( "givingMonths", d =>
-                {
-                    var givingDataItem = dataBag?.GivingData.FirstOrDefault( g => g.GivingId == d.GivingId );
-                    return string.Join( ", ", givingDataItem?.Donations.Select( gd => $"{gd.MonthNameAbbreviated} {gd.Year}" ) );
-                } )
-                .AddTextField( "lastUpdated", d => "N/A" ) 
-                .AddTextField( "estimatedRefreshTime", d => "N/A" )
-                .AddField( "person", d => d );
+                .AddField( "givingId", d => d.GivingId )
+                .AddField( "groupName", d => d.GroupName );
         }
 
         [BlockAction]
@@ -213,9 +187,46 @@ namespace Rock.Blocks.Reporting
 
                 PersistedDatasetCache.UpdateCachedEntity( dataset.Id, System.Data.Entity.EntityState.Modified );
 
-                return ActionOk();
+                var lastUpdated = DateTime.Now.ToString( "yyyy-MM-dd HH:mm:ss" );
+                var estimatedRefreshTime = dataset.TimeToBuildMS.HasValue ? Math.Round( dataset.TimeToBuildMS.Value / 1000.0, 2 ) : 0.0; // Convert to seconds and round to 2 decimal places
+
+                return ActionOk( new { LastUpdated = lastUpdated, EstimatedRefreshTime = estimatedRefreshTime } );
             }
         }
+
+        private string DecodeDonationMonthBitmask( string donationMonthYearBitmask )
+        {
+            if ( string.IsNullOrEmpty( donationMonthYearBitmask ) )
+            {
+                return null;
+            }
+
+            var donationMonths = new List<string>();
+            var monthAbbreviations = new string[] {
+                "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+            };
+
+            var yearBitmaskPairs = donationMonthYearBitmask.Split( '|' );
+            foreach ( var yearBitmaskPair in yearBitmaskPairs )
+            {
+                var parts = yearBitmaskPair.Split( '-' );
+                if ( parts.Length == 2 && int.TryParse( parts[0], out int year ) && int.TryParse( parts[1], out int bitmask ) )
+                {
+                    for ( int i = 0; i < 12; i++ )
+                    {
+                        if ( ( bitmask & ( int ) Math.Pow( 2, i ) ) != 0 )
+                        {
+                            donationMonths.Add( $"{monthAbbreviations[i]} {year}" );
+                        }
+                    }
+                }
+            }
+
+            return string.Join( ", ", donationMonths );
+        }
+
+
 
         #endregion
     }

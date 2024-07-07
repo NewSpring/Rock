@@ -14,14 +14,16 @@
 // limitations under the License.
 // </copyright>
 //
+using System;
+using System.Collections.Generic;
+
 using Microsoft.Extensions.Logging;
 
 using Rock.Bus.Queue;
+using Rock.Configuration;
 using Rock.Logging;
 using Rock.Model;
-using Rock.Utility.Settings;
-using System;
-using System.Collections.Generic;
+
 using static Rock.Bus.Message.CreditCardIsExpiringMessage;
 
 namespace Rock.Bus.Message
@@ -141,6 +143,7 @@ namespace Rock.Bus.Message
     /// Credit Card Is Expiring Message.
     /// Sends queues for member credit cards that are close to expiration when running the <see cref="Rock.Jobs.SendCreditCardExpirationNotices"/> job
     /// </summary>
+    [RockLoggingCategory]
     public class CreditCardIsExpiringMessage : ICreditCardIsExpiringMessage
     {
         /// <summary>
@@ -270,7 +273,7 @@ namespace Rock.Bus.Message
                 // Don't publish events until Rock is all the way started
                 const string logMessage = "'Credit Card Is Expiring Message' message was not published because Rock is not fully started yet.";
 
-                var elapsedSinceProcessStarted = RockDateTime.Now - RockInstanceConfig.ApplicationStartedDateTime;
+                var elapsedSinceProcessStarted = RockDateTime.Now - RockApp.Current.HostingSettings.ApplicationStartDateTime;
 
                 if ( elapsedSinceProcessStarted.TotalSeconds > RockMessageBus.MAX_SECONDS_SINCE_STARTTIME_LOG_ERROR )
                 {

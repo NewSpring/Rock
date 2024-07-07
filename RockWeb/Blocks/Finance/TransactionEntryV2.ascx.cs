@@ -2801,6 +2801,7 @@ mission. We are so grateful for your commitment.</p>
             if ( transactionAlreadyExists )
             {
                 ShowTransactionSummary();
+                return;
             }
 
             bool givingAsBusiness = this.GivingAsBusiness();
@@ -3326,7 +3327,7 @@ mission. We are so grateful for your commitment.</p>
                 {
                     feeCoverageACHAmount = feeCoverageGatewayComponent.GetACHFeeCoverageAmount( this.FinancialGateway );
                 }
-                else if ( cbGetPaymentInfoCoverTheFeeCreditCard.Checked )
+                else if ( !isAch && cbGetPaymentInfoCoverTheFeeCreditCard.Checked )
                 {
                     feeCoverageCreditCardPercent = feeCoverageGatewayComponent.GetCreditCardFeeCoveragePercentage( this.FinancialGateway );
                 }

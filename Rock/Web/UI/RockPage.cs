@@ -44,14 +44,10 @@ using Rock.Security;
 using Rock.Tasks;
 using Rock.Transactions;
 using Rock.Utility;
-using Rock.Utility.Settings;
-using Rock.ViewModels;
 using Rock.ViewModels.Crm;
-using Rock.ViewModels.Utility;
 using Rock.Web.Cache;
+using Rock.Web.HttpModules;
 using Rock.Web.UI.Controls;
-
-using static Rock.Security.Authorization;
 
 using Page = System.Web.UI.Page;
 
@@ -115,6 +111,17 @@ namespace Rock.Web.UI
         /// The currently running Rock version.
         /// </summary>
         private static string _rockVersion = "";
+        
+        /// <summary>
+        /// A list of blocks (their paths) that will force the obsidian libraries to be loaded.
+        /// This is particularly useful when a block has a settings dialog that is dependent on
+        /// obsidian, but the block itself is not.
+        /// </summary>
+        private static readonly List<string> _blocksToForceObsidianLoad = new List<string>
+        {
+            "~/Blocks/Cms/PageZoneBlocksEditor.ascx",
+            "~/Blocks/Mobile/MobilePageDetail.ascx"
+        };
 
         #endregion
 
@@ -710,6 +717,51 @@ namespace Rock.Web.UI
             }
         }
 
+        /// <summary>
+        /// Occurs when [page initialized]. This event is for registering any custom event shortkeys for the page.
+        /// </summary>
+        protected virtual void RegisterShortcutKeys()
+        {
+            // Register the shortcut keys with debouncing
+            string script = @"
+                (function() {
+                    var lastDispatchTime = 0;
+                    var lastDispatchedElement = null;
+                    var debounceDelay = 500;
+
+                    document.addEventListener('keydown', function (event) {
+                        if (event.altKey) {
+                            var shortcutKey = event.key.toLowerCase();
+
+                            // Check if a shortcut key is registered for the pressed key
+                            var element = document.querySelector('[data-shortcut-key=""' + shortcutKey + '""]');
+
+                    
+                            if (element) {
+                                var currentTime = performance.now();
+
+                                if (lastDispatchedElement === element && (currentTime - lastDispatchTime) < debounceDelay) {
+                                    return;
+                                }
+
+                                lastDispatchTime = currentTime;
+                                lastDispatchedElement = element;
+
+                                if (shortcutKey === 'arrowright' || shortcutKey === 'arrowleft') {
+                                    event.preventDefault();
+                                }
+
+                                event.preventDefault();
+                                element.click();
+                            }
+                        }
+                    });
+                })();
+            ";
+
+            ScriptManager.RegisterStartupScript( this, typeof( RockPage ), "ShortcutKeys", script, true );
+        }
+
         #endregion
 
         #region Overridden Methods
@@ -750,7 +802,7 @@ namespace Rock.Web.UI
         protected override void OnInit( EventArgs e )
         {
             // Add configuration specific to Rock Page to the observability activity
-            if (Activity.Current != null)
+            if ( Activity.Current != null )
             {
                 Activity.Current.DisplayName = $"PAGE: {Context.Request.HttpMethod} {PageReference.Route}";
 
@@ -789,6 +841,9 @@ namespace Rock.Web.UI
             }
 
             var stopwatchInitEvents = Stopwatch.StartNew();
+
+            // Register shortcut keys
+            RegisterShortcutKeys();
 
 #pragma warning disable 618
             ConvertLegacyContextCookiesToJSON();
@@ -1075,7 +1130,7 @@ namespace Rock.Web.UI
                     SessionStateSection sessionState = ( SessionStateSection ) ConfigurationManager.GetSection( "system.web/sessionState" );
                     string sidCookieName = sessionState.CookieName; // ASP.NET_SessionId
                     var cookie = Response.Cookies[sidCookieName];
-                    cookie.Expires = RockInstanceConfig.SystemDateTime.AddDays( -1 );
+                    cookie.Expires = RockDateTime.SystemDateTime.AddDays( -1 );
                     AddOrUpdateCookie( cookie );
 
                     Response.Redirect( redirectUrl, false );
@@ -1326,10 +1381,8 @@ Rock.settings.initialize({{
                                         control = TemplateControl.LoadControl( block.BlockType.Path );
                                         control.ClientIDMode = ClientIDMode.AutoID;
 
-                                        // This block needs Obsidian so that it can
-                                        // open the custom settings dialogs of Obsidian
-                                        // blocks on the page.
-                                        if ( block.BlockType.Path.Equals( "~/Blocks/Cms/PageZoneBlocksEditor.ascx", StringComparison.OrdinalIgnoreCase ) )
+                                        // These blocks needs Obsidian for their settings dialog to display properly.
+                                        if ( _blocksToForceObsidianLoad.Any( blockTypePath => blockTypePath.Equals( block.BlockType.Path ) ) )
                                         {
                                             _pageNeedsObsidian = true;
                                         }
@@ -1455,11 +1508,14 @@ Rock.settings.initialize({{
                                 currentPersonJson = new CurrentPersonBag
                                 {
                                     IdKey = CurrentPerson.IdKey,
+                                    Guid = CurrentPerson.Guid,
+                                    PrimaryAliasIdKey = CurrentPerson.PrimaryAlias.IdKey,
+                                    PrimaryAliasGuid = CurrentPerson.PrimaryAlias.Guid,
                                     FirstName = CurrentPerson.FirstName,
                                     NickName = CurrentPerson.NickName,
                                     LastName = CurrentPerson.LastName,
                                     FullName = CurrentPerson.FullName,
-                                    Email = CurrentPerson.Email
+                                    Email = CurrentPerson.Email,
                                 }.ToCamelCaseJson( false, false );
                             }
                             else if ( CurrentPerson != null )
@@ -1486,7 +1542,7 @@ Obsidian.onReady(() => {{
             pageGuid: '{_pageCache.Guid}',
             pageParameters: {sanitizedPageParameters.ToJson()},
             currentPerson: {currentPersonJson},
-            isAnonymousVisitor: {(isAnonymousVisitor ? "true" : "false")},
+            isAnonymousVisitor: {( isAnonymousVisitor ? "true" : "false" )},
             loginUrlWithReturnUrl: '{GetLoginUrlWithReturnUrl()}'
         }});
     }});
@@ -1567,7 +1623,7 @@ Obsidian.init({{ debug: true, fingerprint: ""v={_obsidianFingerprint}"" }});
                             //_btnRestoreImpersonatedByUser.CssClass = "btn";
                             _btnRestoreImpersonatedByUser.Visible = impersonatedByUser != null;
                             _btnRestoreImpersonatedByUser.Click += _btnRestoreImpersonatedByUser_Click;
-                            _btnRestoreImpersonatedByUser.Text = $"<i class='fa-fw fa fa-unlock'></i> " + $"Restore { impersonatedByUser?.Person?.ToString()}";
+                            _btnRestoreImpersonatedByUser.Text = $"<i class='fa-fw fa fa-unlock'></i> " + $"Restore {impersonatedByUser?.Person?.ToString()}";
                             impersonatedByUserDiv.Controls.Add( _btnRestoreImpersonatedByUser );
                             adminFooter.Controls.Add( impersonatedByUserDiv );
                         }
@@ -2221,7 +2277,7 @@ Obsidian.onReady(() => {{
     System.import('@Obsidian/Templates/rockPage.js').then(module => {{
         module.initializePageTimings({{
             elementId: '{_obsidianPageTimingControlId}',
-            debugTimingViewModels: { _debugTimingViewModels.ToCamelCaseJson( false, true ) }
+            debugTimingViewModels: {_debugTimingViewModels.ToCamelCaseJson( false, true )}
         }});
     }});
 }});";
@@ -2468,7 +2524,7 @@ Obsidian.onReady(() => {{
                     }
                 }
 
-                phLoadStats.Controls.Add( new LiteralControl( $"<span class='cms-admin-footer-property'><a href='{ showTimingsUrl }'> Page Load Time: {_tsDuration.TotalSeconds:N2}s </a></span><span class='margin-l-md js-view-state-stats cms-admin-footer-property'></span> <span class='margin-l-md js-html-size-stats cms-admin-footer-property'></span>" ) );
+                phLoadStats.Controls.Add( new LiteralControl( $"<span class='cms-admin-footer-property'><a href='{showTimingsUrl}'> Page Load Time: {_tsDuration.TotalSeconds:N2}s </a></span><span class='margin-l-md js-view-state-stats cms-admin-footer-property'></span> <span class='margin-l-md js-html-size-stats cms-admin-footer-property'></span>" ) );
 
                 if ( !ClientScript.IsStartupScriptRegistered( "rock-js-view-state-size" ) )
                 {
@@ -2504,13 +2560,34 @@ Sys.Application.add_load(function () {
                 return;
             }
 
+            // Attempt to retrieve geolocation data.
+            var geolocation = this.RequestContext?.ClientInformation?.Geolocation;
+
             // If we have identified a logged-in user, record the page interaction immediately and return.
             if ( CurrentPerson != null )
             {
+                var info = new InteractionTransactionInfo
+                {
+                    InteractionTimeToServe = _tsDuration.TotalSeconds,
+                    InteractionChannelCustomIndexed1 = Request.UrlReferrerNormalize(),
+                    InteractionChannelCustom2 = Request.UrlReferrerSearchTerms(),
+                    GeolocationIpAddress = geolocation?.IpAddress,
+                    GeolocationLookupDateTime = geolocation?.LookupDateTime,
+                    City = geolocation?.City,
+                    RegionName = geolocation?.RegionName,
+                    RegionCode = geolocation?.RegionCode,
+                    RegionValueId = geolocation?.RegionValueId,
+                    CountryCode = geolocation?.CountryCode,
+                    CountryValueId = geolocation?.CountryValueId,
+                    PostalCode = geolocation?.PostalCode,
+                    Latitude = geolocation?.Latitude,
+                    Longitude = geolocation?.Longitude
+                };
+
                 var pageViewTransaction = new InteractionTransaction( DefinedValueCache.Get( Rock.SystemGuid.DefinedValue.INTERACTIONCHANNELTYPE_WEBSITE ),
                     this.Site,
                     _pageCache,
-                    new InteractionTransactionInfo { InteractionTimeToServe = _tsDuration.TotalSeconds, InteractionChannelCustomIndexed1 = Request.UrlReferrerNormalize(), InteractionChannelCustom2 = Request.UrlReferrerSearchTerms() } );
+                    info );
 
                 pageViewTransaction.Enqueue();
 
@@ -2531,6 +2608,9 @@ Sys.Application.add_load(function () {
 
             var rockSessionGuid = Session["RockSessionId"]?.ToString().AsGuidOrNull() ?? Guid.Empty;
 
+            // Construct the page interaction data object that will be returned to the client.
+            // This object is serialized into the page script, so we must be sure to sanitize values
+            // extracted from the request header to prevent cross-site scripting (XSS) issues.
             var pageInteraction = new PageInteractionInfo
             {
                 ActionName = "View",
@@ -2541,9 +2621,20 @@ Sys.Application.add_load(function () {
                 PageRequestTimeToServe = _tsDuration.TotalSeconds,
                 UrlReferrerHostAddress = Request.UrlReferrerNormalize(),
                 UrlReferrerSearchTerms = Request.UrlReferrerSearchTerms(),
-                UserAgent = Request.UserAgent,
-                UserHostAddress = Request.UserHostAddress,
-                UserIdKey = CurrentPersonAlias?.IdKey
+                UserAgent = Request.UserAgent.SanitizeHtml(),
+                UserHostAddress = GetClientIpAddress().SanitizeHtml(),
+                UserIdKey = CurrentPersonAlias?.IdKey,
+                GeolocationIpAddress = geolocation?.IpAddress,
+                GeolocationLookupDateTime = geolocation?.LookupDateTime,
+                City = geolocation?.City,
+                RegionName = geolocation?.RegionName,
+                RegionCode = geolocation?.RegionCode,
+                RegionValueId = geolocation?.RegionValueId,
+                CountryCode = geolocation?.CountryCode,
+                CountryValueId = geolocation?.CountryValueId,
+                PostalCode = geolocation?.PostalCode,
+                Latitude = geolocation?.Latitude,
+                Longitude = geolocation?.Longitude
             };
 
             // This script adds a callback to record a View interaction for this page.
@@ -2552,24 +2643,26 @@ Sys.Application.add_load(function () {
             // UserIdKey supplied to them. For a first visit, the cookie is set in this response.
             string script = @"
 Sys.Application.add_load(function () {
-const getCookieValue = (name) => {
-    return document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)')?.pop() || '';
-};
-var interactionArgs = <jsonData>;
-if (!interactionArgs.<userIdProperty>) {
-    interactionArgs.<userIdProperty> = getCookieValue('<rockVisitorCookieName>');
-}
-$.ajax({
-    url: '/api/Interactions/RegisterPageInteraction',
-    type: 'POST',
-    data: interactionArgs
-    });
+    const getCookieValue = (name) => {
+        const match = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+
+        return !match ? '' : match.pop();
+    };
+    var interactionArgs = <jsonData>;
+    if (!interactionArgs.<userIdProperty>) {
+        interactionArgs.<userIdProperty> = getCookieValue('<rockVisitorCookieName>');
+    }
+    $.ajax({
+        url: '/api/Interactions/RegisterPageInteraction',
+        type: 'POST',
+        data: interactionArgs
+        });
 });
 ";
 
             script = script.Replace( "<rockVisitorCookieName>", Rock.Personalization.RequestCookieKey.ROCK_VISITOR_KEY );
             script = script.Replace( "<jsonData>", pageInteraction.ToJson() );
-            script = script.Replace( "<userIdProperty>", nameof(pageInteraction.UserIdKey) );
+            script = script.Replace( "<userIdProperty>", nameof( pageInteraction.UserIdKey ) );
 
             ClientScript.RegisterStartupScript( this.Page.GetType(), "rock-js-register-interaction", script, true );
         }
@@ -3140,6 +3233,11 @@ $.ajax({
         /// <returns>An object that implements the <see cref="Rock.Data.IEntity"/> interface referencing the context object. </returns>
         internal Rock.Data.IEntity GetCurrentContext( EntityTypeCache entity, Dictionary<string, KeyEntity> keyEntityDictionary )
         {
+            if ( entity == null || keyEntityDictionary == null )
+            {
+                return null;
+            }
+
             if ( keyEntityDictionary.ContainsKey( entity.Name ) )
             {
                 var keyModel = keyEntityDictionary[entity.Name];
@@ -3547,7 +3645,7 @@ $.ajax({
                 if ( LinkPersonAliasToDevice( ( int ) personAliasId, httpCookie.Values["ROCK_PERSONALDEVICE_ADDRESS"] ) )
                 {
                     var wiFiCookie = Response.Cookies["rock_wifi"];
-                    wiFiCookie.Expires = RockInstanceConfig.SystemDateTime.AddDays( -1 );
+                    wiFiCookie.Expires = RockDateTime.SystemDateTime.AddDays( -1 );
                     AddOrUpdateCookie( wiFiCookie );
                 }
             }
@@ -3994,7 +4092,7 @@ $.ajax({
                         and ignore the value stored in the QueryString list (the value is the same). In any case if there is contention between a
                         Route Key and QueryString Key the Route will take precedence.
                     */
-                    parameters.AddOrIgnore( param, Request.QueryString[param] );
+                    parameters.TryAdd( param, Request.QueryString[param] );
                 }
             }
 
@@ -4722,7 +4820,7 @@ $.ajax({
 
             foreach ( var key in preferences.GetKeys().Where( k => k.StartsWith( keyPrefix ) ) )
             {
-                selectedValues.AddOrIgnore( key, preferences.GetValue( key ) );
+                selectedValues.TryAdd( key, preferences.GetValue( key ) );
             }
 
             return selectedValues;
@@ -4787,7 +4885,7 @@ $.ajax({
 
             foreach ( var key in preferences.GetKeys() )
             {
-                userPreferences.AddOrIgnore( key, preferences.GetValue( key ) );
+                userPreferences.TryAdd( key, preferences.GetValue( key ) );
             }
 
             return userPreferences;

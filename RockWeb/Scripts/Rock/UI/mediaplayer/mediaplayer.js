@@ -20,6 +20,15 @@ var Rock;
             debug: false
         };
         class MediaPlayer {
+            get map() {
+                return MediaPlayer.toRle(this.watchBits);
+            }
+            get percentWatched() {
+                return this.percentWatchedInternal;
+            }
+            get duration() {
+                return this.player.duration;
+            }
             constructor(elementSelector, options = {}) {
                 this.timerId = null;
                 this.watchBits = Array();
@@ -48,15 +57,6 @@ var Rock;
                     this.element.removeChild(this.element.firstChild);
                 }
                 this.setupPlayer();
-            }
-            get map() {
-                return MediaPlayer.toRle(this.watchBits);
-            }
-            get percentWatched() {
-                return this.percentWatchedInternal;
-            }
-            get duration() {
-                return this.player.duration;
             }
             seek(positionInSeconds) {
                 this.player.currentTime = positionInSeconds;
@@ -125,6 +125,12 @@ var Rock;
                 hls.attachMedia(mediaElement);
             }
             initializePlayer(mediaElement, plyrOptions) {
+                if (this.isYouTubeEmbed(this.options.mediaUrl) || this.isVimeoEmbed(this.options.mediaUrl) || this.isHls(this.options.mediaUrl)) {
+                    var control = plyrOptions.controls;
+                    let index = control.findIndex(d => d === "download");
+                    control.splice(index, 1);
+                    plyrOptions.controls = control;
+                }
                 this.player = new Plyr(mediaElement, plyrOptions);
                 if (this.isYouTubeEmbed(this.options.mediaUrl)) {
                     let listenrsready = false;
