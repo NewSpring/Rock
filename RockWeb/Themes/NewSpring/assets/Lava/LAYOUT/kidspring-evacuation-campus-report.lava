@@ -1,6 +1,6 @@
 //- Set these page parameters up to pass through to SQL
 {% assign dateKey = 'Now' | Date:'yyyyMMdd' %}
-//- {% assign dateKey = '20240310' %}
+//- {% assign dateKey = '20240623' %}
 {% assign campusGuid = Context.Campus.Guid %}
 {% assign scheduleId = Context.Schedule.Id %}
 
@@ -24,22 +24,21 @@
                 ao.[Id] AS [OccrrenceId]
                 ,   l.[Id] AS [LocationId]
                 ,   l.[Name] AS [Location]
-                , (
-                    SELECT COUNT(*)
-                    FROM [Attendance] a
-                    WHERE a.[OccurrenceId] = ao.[Id]
-                    AND a.[DidAttend] = 1
-                ) AS [CheckedIn]
                 ,   (
                     SELECT COUNT(*)
-                    FROM [Attendance] a1
-                    WHERE a1.[OccurrenceId] = ao.[Id]
-                    AND a1.[DidAttend] = 1
+                    FROM [Attendance] a2
+                    LEFT JOIN [AttributeValue] av2 ON av2.[EntityId] = a2.[Id] AND av2.[AttributeId] = 157200
+                    WHERE a2.[OccurrenceId] = ao.[Id]
+                    AND a2.[DidAttend] = 1
                     AND (
-                        a1.[EndDateTime] IS NULL
-                        OR a1.[EndDateTime] = ''
+                        a2.[EndDateTime] IS NULL
+                        OR a2.[EndDateTime] = ''
                     )
-                ) AS [Remaining]
+                    AND (
+                        av2.[Value] IS NULL
+                        OR av2.[Value] = ''
+                    )
+                ) AS [Unmarked]
                 ,   (
                     SELECT COUNT(*)
                     FROM [Attendance] a2
@@ -52,7 +51,18 @@
                     )
                     AND av2.[Value] IS NOT NULL
                     AND av2.[Value] != ''
-                ) AS [MarkedSafe]
+                ) AS [Marked]
+                ,   (
+                    SELECT COUNT(*)
+                    FROM [Attendance] a2
+                    LEFT JOIN [AttributeValue] av2 ON av2.[EntityId] = a2.[Id] AND av2.[AttributeId] = 157200
+                    WHERE a2.[OccurrenceId] = ao.[Id]
+                    AND a2.[DidAttend] = 1
+                    AND (
+                        a2.[EndDateTime] IS NOT NULL
+                        AND a2.[EndDateTime] != ''
+                    )
+                ) AS [CheckedOut]
                 ,   (
                     SELECT COUNT(*)
                     FROM [Attendance] a3
@@ -88,6 +98,29 @@
 
         {% if results != empty %}
             <div class="d-grid grid-cols-md-2 grid-cols-xl-3 gap-3">
+
+                <div class="py-2 col-span-md-2">
+                    <div class="d-grid grid-cols-2 grid-cols-md-4 gap-2">
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="p-2 bg-warning rounded-sm" title="En Route"></div>
+                            <h6 class="m-0">En Route</h6>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="p-2 bg-danger rounded-sm" title="Not Marked Safe"></div>
+                            <h6 class="m-0">Not Marked Safe</h6>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="p-2 bg-info rounded-sm" title="Marked Safe"></div>
+                            <h6 class="m-0">Marked Safe</h6>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="p-2 bg-success rounded-sm" title="Checked Out"></div>
+                            <h6 class="m-0">Checked Out</h6>
+                        </div>
+
+                    </div>
+                </div>
+
                 {% for result in results %}
                     <div class="p-0 card rounded-lg overflow-hidden">
 
@@ -107,24 +140,19 @@
                                 <i class="fas fa-list"></i> View Roster
                             </a>
                         </div>
-
-                        <div class="d-flex flex-column flex-md-row gap-3 ">
-                            <div class="progress flex-grow-1 mb-0 rounded-0 bg-white">
-                                <div class="px-2 progress-bar text-sans-serif font-weight-semibold progress-bar-{% if result.Remaining == 0 or markedSafePercentage == 100 %}success{% else %}info{% endif %} {% if markedSafePercentage < 100 %}progress-bar-striped active{% endif %}" style="min-width: 35%; width: {{ markedSafePercentage }}%">
-                                    {% if result.Remaining == 0 %}
-                                        <span>All Checked Out</span>
-                                    {% else %}
-                                        <span>{{ result.MarkedSafe }} of {{ result.Remaining }} Safe</span>
-                                    {% endif %}
-                                </div>
-
-                                {% if result.EnRoute >= 1 %}
-                                    <div class="px-1 progress-bar progress-bar-warning progress-bar-striped active text-sans-serif font-weight-semibold" style="min-width: 20%; width: {{ result.EnRoute |  DividedBy:result.Remaining | Times:100 | AtMost:100 | Format:'###' }}%">
-                                        {{ result.EnRoute }} En Route
-                                    </div>
-                                {% endif %}
-                            </div>
-
+                        <div class="d-flex flex-wrap p-2 gap-1" style="border-top: 1px solid #e5e5e5;">
+                            {% for i in (1..result.EnRoute) %}
+                                <div class="p-2 bg-warning rounded-sm" title="En Route"></div>
+                            {% endfor %}
+                            {% for i in (1..result.Unmarked) %}
+                                <div class="p-2 bg-danger rounded-sm" title="Not Marked Safe"></div>
+                            {% endfor %}
+                            {% for i in (1..result.Marked) %}
+                                <div class="p-2 bg-info rounded-sm" title="Marked Safe"></div>
+                            {% endfor %}
+                            {% for i in (1..result.CheckedOut) %}
+                                <div class="p-2 bg-success rounded-sm" title="Checked Out"></div>
+                            {% endfor %}
                         </div>
                     </div>
 

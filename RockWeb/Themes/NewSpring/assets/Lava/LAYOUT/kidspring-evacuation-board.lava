@@ -6,7 +6,7 @@
 //- Set these page parameters up to pass through to SQL
 {% assign date = 'Now' | Date %}
 {% assign dateKey = 'Now' | Date:'yyyyMMdd' %}
-//- {% assign dateKey = '20240310' %}
+//- {% assign dateKey = '20240623' %}
 
 {% assign campusGuid = Context.Campus.Guid %}
 {% assign scheduleId = Context.Schedule.Id %}
@@ -45,7 +45,6 @@
     AND ao.[LocationId] = @locationid
     AND a.[DidAttend] = 1
   {% endsql %}
-
 
   //- This looks terrible, but because the Where lava filter doesn't let you check against datetime columns, it's the only way I know how to break the results apart into separate arrays
   {% assign notMarked = null %}
