@@ -35,6 +35,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 using Rock.Attribute;
 using Rock.Blocks;
+using Rock.Cms.Utm;
 using Rock.Data;
 using Rock.Lava;
 using Rock.Model;
@@ -1246,6 +1247,12 @@ namespace Rock.Web.UI
 
                     Page.Trace.Warn( "Checking if user can administer" );
                     canAdministratePage = _pageCache.IsAuthorized( Authorization.ADMINISTRATE, CurrentPerson );
+
+                    // The Short Link Modal in the System Dialogs need the page to have obsidian.
+                    if ( canAdministratePage )
+                    {
+                        _pageNeedsObsidian = true;
+                    }
                     canEditPage = _pageCache.IsAuthorized( Authorization.EDIT, CurrentPerson );
 
                     // If the current person isn't allowed to edit or administrate the page, check to see if they are being impersonated by someone who
@@ -1698,14 +1705,18 @@ Obsidian.init({{ debug: true, fingerprint: ""v={_obsidianFingerprint}"" }});
                             iPageSecurity.Attributes.Add( "class", "fa fa-lock" );
 
                             // ShortLink Properties
+                            var administratorShortlinkScript = $@"Obsidian.onReady(() => {{
+    System.import('@Obsidian/Templates/rockPage.js').then(module => {{
+        module.showShortLink('{ResolveUrl( string.Format( "~/ShortLink/{0}?t=Shortened Link&Url={1}", _pageCache.Id, Server.UrlEncode( HttpContext.Current.Request.UrlProxySafe().AbsoluteUri.ToString() ) ) )}');
+    }});
+}});";
                             HtmlGenericControl aShortLink = new HtmlGenericControl( "a" );
                             buttonBar.Controls.Add( aShortLink );
                             aShortLink.ID = "aShortLink";
                             aShortLink.ClientIDMode = System.Web.UI.ClientIDMode.Static;
                             aShortLink.Attributes.Add( "class", "btn properties" );
-                            aShortLink.Attributes.Add( "href", "javascript: Rock.controls.modal.show($(this), '" +
-                                ResolveUrl( string.Format( "~/ShortLink/{0}?t=Shortened Link&Url={1}", _pageCache.Id, Server.UrlEncode( HttpContext.Current.Request.UrlProxySafe().AbsoluteUri.ToString() ) ) )
-                                + "')" );
+                            aShortLink.Attributes.Add( "href", "#" );
+                            aShortLink.Attributes.Add( "onclick", $"event.preventDefault(); {administratorShortlinkScript}" );
                             aShortLink.Attributes.Add( "Title", "Add Short Link" );
                             HtmlGenericControl iShortLink = new HtmlGenericControl( "i" );
                             aShortLink.Controls.Add( iShortLink );
@@ -2566,7 +2577,7 @@ Sys.Application.add_load(function () {
             // If we have identified a logged-in user, record the page interaction immediately and return.
             if ( CurrentPerson != null )
             {
-                var info = new InteractionTransactionInfo
+                var interactionInfo = new InteractionTransactionInfo
                 {
                     InteractionTimeToServe = _tsDuration.TotalSeconds,
                     InteractionChannelCustomIndexed1 = Request.UrlReferrerNormalize(),
@@ -2584,15 +2595,18 @@ Sys.Application.add_load(function () {
                     Longitude = geolocation?.Longitude
                 };
 
+                // If we have a UTM cookie, add the information to the interaction.
+                var utmInfo = UtmHelper.GetUtmCookieDataFromRequest( this.Request );
+                UtmHelper.AddUtmInfoToInteractionTransactionInfo( interactionInfo, utmInfo );
+
                 var pageViewTransaction = new InteractionTransaction( DefinedValueCache.Get( Rock.SystemGuid.DefinedValue.INTERACTIONCHANNELTYPE_WEBSITE ),
                     this.Site,
                     _pageCache,
-                    info );
+                    interactionInfo );
 
                 pageViewTransaction.Enqueue();
 
-                var intentSettings = _pageCache.GetAdditionalSettings<PageService.IntentSettings>();
-                InteractionService.RegisterIntentInteractions( intentSettings.InteractionIntentValueIds );
+                InteractionService.RegisterIntentInteractions( _pageCache.InteractionIntentValueIds );
 
                 return;
             }
@@ -2949,9 +2963,10 @@ Sys.Application.add_load(function () {
         {
             Literal favIcon = new Literal();
             favIcon.Mode = LiteralMode.PassThrough;
-            var url = ResolveRockUrl( $"~/GetImage.ashx?id={binaryFileId}&width={size}&height={size}&mode=crop&format=png" );
+            var baseUrl = FileUrlHelper.GetImageUrl( binaryFileId );
+            var url = ResolveRockUrl( $"{baseUrl}&width={size}&height={size}&mode=crop&format=png" );
             favIcon.Text = $"<link rel=\"{rel}\" sizes=\"{size}x{size}\" href=\"{url}\" />";
-
+             
             AddHtmlLink( favIcon );
         }
 
@@ -4544,7 +4559,15 @@ Sys.Application.add_load(function () {
 
                     StringBuilder sbScriptTagHTML = new StringBuilder();
                     sbScriptTagHTML.Append( $"<script id='{scriptId}' src='{src}'" );
-                    string additionalAttributesHtml = additionalAttributes?.Select( a => $"{a.Key}='{a.Value}'" ).ToList().AsDelimited( " " );
+                    string additionalAttributesHtml = additionalAttributes?
+                        .Select( a =>
+                            a.Value == null
+                                ? $"{a.Key}"
+                                : $"{a.Key}='{a.Value}'"
+                        )
+                        .ToList()
+                        .AsDelimited( " " );
+
                     if ( additionalAttributesHtml.IsNotNullOrWhiteSpace() )
                     {
                         sbScriptTagHTML.Append( $" {additionalAttributesHtml}" );

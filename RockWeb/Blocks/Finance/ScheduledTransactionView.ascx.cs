@@ -264,7 +264,7 @@ namespace RockWeb.Blocks.Finance
             var financialScheduledTransactionId = PageParameter( PageParameterKey.ScheduledTransactionId ).AsIntegerOrNull();
 #pragma warning restore CS0618
 
-            if ( financialScheduledTransactionGuid.HasValue  )
+            if ( financialScheduledTransactionGuid.HasValue )
             {
                 return financialScheduledTransactionGuid.Value;
             }
@@ -312,8 +312,11 @@ namespace RockWeb.Blocks.Finance
                 {
                     if ( financialScheduledTransaction.IsActive == false )
                     {
-                        // if GetStatus failed, but the scheduled transaction is inactive, just show Schedule is Inactive
-                        // This takes care of dealing with gateways that delete the scheduled payment vs inactivating them on the gateway side
+                        // Save changes to the database, because financialScheduledTransactionService.GetStatus() may have deactivated this transaction.
+                        rockContext.SaveChanges();
+
+                        // If GetStatus failed, but the scheduled transaction is inactive, just show Schedule is Inactive.
+                        // This takes care of dealing with gateways that delete the scheduled payment vs inactivating them on the gateway side.
                         ShowErrorMessage( "Schedule is inactive" );
                     }
                     else
@@ -631,13 +634,9 @@ namespace RockWeb.Blocks.Finance
         /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
         protected void btnChangeAccounts_Click( object sender, EventArgs e )
         {
-            using ( var rockContext = new RockContext() )
-            {
-                var financialScheduledTransaction = GetTransaction( rockContext );
-                {
-                    ShowAccountEdit( financialScheduledTransaction );
-                }
-            }
+            var rockContext = new RockContext();
+            var financialScheduledTransaction = GetTransaction( rockContext );
+            ShowAccountEdit( financialScheduledTransaction );
         }
 
         /// <summary>
@@ -751,8 +750,10 @@ namespace RockWeb.Blocks.Finance
                 var financialScheduledTransactionService = new FinancialScheduledTransactionService( rockContext );
                 return financialScheduledTransactionService
                     .Queryable()
+                    .Include( a => a.ScheduledTransactionDetails )
                     .Include( a => a.AuthorizedPersonAlias.Person )
                     .Include( a => a.FinancialGateway )
+                    .AsNoTracking()
                     .FirstOrDefault( t => t.Guid == scheduledTransactionGuid.Value );
             }
 

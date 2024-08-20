@@ -18,6 +18,7 @@
 import { Guid } from "@Obsidian/Types";
 import { emptyGuid, toGuidOrNull } from "./guid";
 import { post } from "./http";
+import { SiteType } from "@Obsidian/Enums/Cms/siteType";
 import { TreeItemBag } from "@Obsidian/ViewModels/Utility/treeItemBag";
 import { CategoryPickerChildTreeItemsOptionsBag } from "@Obsidian/ViewModels/Rest/Controls/categoryPickerChildTreeItemsOptionsBag";
 import { LocationItemPickerGetActiveChildrenOptionsBag } from "@Obsidian/ViewModels/Rest/Controls/locationItemPickerGetActiveChildrenOptionsBag";
@@ -36,6 +37,8 @@ import { ReportPickerGetChildrenOptionsBag } from "@Obsidian/ViewModels/Rest/Con
 import { SchedulePickerGetChildrenOptionsBag } from "@Obsidian/ViewModels/Rest/Controls/schedulePickerGetChildrenOptionsBag";
 import { WorkflowActionTypePickerGetChildrenOptionsBag } from "@Obsidian/ViewModels/Rest/Controls/workflowActionTypePickerGetChildrenOptionsBag";
 import { MergeFieldPickerGetChildrenOptionsBag } from "@Obsidian/ViewModels/Rest/Controls/mergeFieldPickerGetChildrenOptionsBag";
+import { AssetManagerGetRootFoldersOptionsBag } from "@Obsidian/ViewModels/Rest/Controls/assetManagerGetRootFoldersOptionsBag";
+import { AssetManagerBaseOptionsBag } from "@Obsidian/ViewModels/Rest/Controls/assetManagerBaseOptionsBag";
 import { flatten } from "./arrayUtils";
 import { toNumberOrNull } from "./numberUtils";
 
@@ -364,6 +367,11 @@ export class PageTreeItemProvider implements ITreeItemProvider {
     public selectedPageGuids?: Guid[] | null;
 
     /**
+     * The site type to limit the results.
+     */
+    public siteType?: SiteType | null;
+
+    /**
      * Gets the child items of the given parent (or root if no parent given) from the server.
      *
      * @param parentGuid The parent item whose children are retrieved.
@@ -377,7 +385,8 @@ export class PageTreeItemProvider implements ITreeItemProvider {
             guid: toGuidOrNull(parentGuid) ?? emptyGuid,
             rootPageGuid: null,
             hidePageGuids: this.hidePageGuids ?? [],
-            securityGrantToken: this.securityGrantToken
+            securityGrantToken: this.securityGrantToken,
+            siteType: this.siteType
         };
         const url = "/api/v2/Controls/PagePickerGetChildren";
         const response = await post<TreeItemBag[]>(url, undefined, options);
@@ -1087,5 +1096,66 @@ export class MergeFieldTreeItemProvider implements ITreeItemProvider {
      */
     async getChildItems(item: TreeItemBag): Promise<TreeItemBag[]> {
         return this.getItems(item.value);
+    }
+}
+
+
+/**
+ * Tree Item Provider for Asset Storage Provider folders from the server and displaying
+ * them inside a tree list.
+ */
+export class AssetManagerTreeItemProvider implements ITreeItemProvider {
+
+    /** List of folders that are currently expanded in the tree list. */
+    public openFolders: Set<string> = new Set();
+    public selectedFolder: string | null = "";
+    public enableAssetManager = false;
+    public enableFileManager = false;
+    public encryptedRootFolder = "";
+    public securityGrantToken = "";
+
+    /**
+     * @inheritdoc
+     */
+    async getRootItems(): Promise<TreeItemBag[]> {
+        const options: AssetManagerGetRootFoldersOptionsBag = {
+            expandedFolders: this.openFolders.size > 0 ? Array.from(this.openFolders) : null,
+            selectedFolder: this.selectedFolder,
+            enableAssetManager: this.enableAssetManager,
+            enableFileManager: this.enableFileManager,
+            rootFolder: this.encryptedRootFolder,
+            securityGrantToken: this.securityGrantToken
+        };
+        const url = "/api/v2/Controls/AssetManagerGetRootFolders";
+        const response = await post<{tree:TreeItemBag[], updatedExpandedFolders: string[]}>(url, undefined, options);
+
+        if (response.isSuccess && response.data) {
+            this.openFolders = new Set(response.data.updatedExpandedFolders);
+            return response.data.tree;
+        }
+        else {
+            console.error("Error Fetching Root Asset Manager Items", response.errorMessage);
+            return [];
+        }
+    }
+
+    /**
+     * @inheritdoc
+     */
+    async getChildItems(item: TreeItemBag): Promise<TreeItemBag[]> {
+        const options: AssetManagerBaseOptionsBag = {
+            assetFolderId: item.value,
+            securityGrantToken: this.securityGrantToken
+        };
+        const url = "/api/v2/Controls/AssetManagerGetChildren";
+        const response = await post<TreeItemBag[]>(url, undefined, options);
+
+        if (response.isSuccess && response.data) {
+            return response.data;
+        }
+        else {
+            console.error("Error Fetching Asset Manager Children", response.errorMessage);
+            return [];
+        }
     }
 }

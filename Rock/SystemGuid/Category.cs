@@ -23,6 +23,24 @@ namespace Rock.SystemGuid
     /// </summary>
     public class Category
     {
+        #region AI Categories
+
+        /// <summary>
+        /// AI Automation Guid
+        /// </summary>
+        public const string AI_AUTOMATION = "571B1191-7F6A-4C9F-8953-1C5B14274F3F";
+
+        #endregion
+
+        #region CMS Categories
+
+        /// <summary>
+        /// Marketing Category Guid
+        /// </summary>
+        public const string MARKETING = "FE0AE3EB-B648-4264-A222-96CEA3A25E20";
+
+        #endregion
+
         #region Dataview Categories
 
         /// <summary>
@@ -143,6 +161,11 @@ namespace Rock.SystemGuid
         /// </summary>
         public const string HISTORY_LOCATION = "67E8F6D1-2F20-43FD-BAEC-144E70428AC3";
 
+        /// <summary>
+        /// History of learning activity completion changes.
+        /// </summary>
+        public const string HISTORY_LEARNING_ACTIVITY_COMPLETION = "40A49BFF-5AE5-487B-B4AA-95DE435209FE";
+
         #endregion
 
         #region Schedule Categories
@@ -161,6 +184,11 @@ namespace Rock.SystemGuid
         /// Gets the DataView Persisted Schedule category guid
         /// </summary>
         public const string SCHEDULE_PERSISTED_DATAVIEWS = "EEC7A935-BEF2-4450-9CBF-B85CEC6F7FEA";
+
+        /// <summary>
+        /// Gets the DataView Persisted Schedule category guid
+        /// </summary>
+        public const string SCHEDULE_PERSISTED_DATASETS = "7D152006-C47D-47E6-BF0B-09C3C2D0AE84";
 
         #endregion
 
@@ -293,6 +321,11 @@ namespace Rock.SystemGuid
         /// The tithing overview Category Guid
         /// </summary>
         public const string TITHING_OVERVIEW = "914E7A39-EA2D-469B-95B5-B6518DBE5F52";
+
+        /// <summary>
+        /// The metric Category Guid
+        /// </summary>
+        public const string METRIC = "67DA5B5A-E5CF-4F1A-B76A-D8460BAF5F8C";
 
         #endregion
 

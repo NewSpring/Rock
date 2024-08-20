@@ -168,7 +168,7 @@ namespace Rock.Communication.Transport
             };
         }
 
-        private MailMessage GetMailMessageFromRockEmailMessage( RockEmailMessage rockEmailMessage )
+        internal MailMessage GetMailMessageFromRockEmailMessage( RockEmailMessage rockEmailMessage )
         {
             var mailMessage = new MailMessage
             {
@@ -186,7 +186,10 @@ namespace Rock.Communication.Transport
             {
                 if ( rockEmailMessage.ReplyToEmail.IsNotNullOrWhiteSpace() )
                 {
-                    mailMessage.ReplyToList.Add( new MailAddress( rockEmailMessage.ReplyToEmail ) );
+                    foreach ( var replyToEmail in rockEmailMessage.ReplyToEmail.Split( ',' ).Where( e => e.IsNotNullOrWhiteSpace() ) )
+                    {
+                        mailMessage.ReplyToList.Add( new MailAddress( replyToEmail ) );
+                    }
                 }
             }
             catch

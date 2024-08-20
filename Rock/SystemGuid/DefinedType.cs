@@ -24,6 +24,11 @@ namespace Rock.SystemGuid
     public class DefinedType
     {
         /// <summary>
+        /// AI Models.
+        /// </summary>
+        public const string AI_PROVIDER_MODELS = "0829EF1C-028C-44D6-AB8D-90F0905E030E";
+
+        /// <summary>
         /// Background check package types
         /// </summary>
         public const string BACKGROUND_CHECK_TYPES = "BC2FDF9A-93B8-4325-8DE9-2F7B1943BFDF";
@@ -510,6 +515,31 @@ namespace Rock.SystemGuid
         /// List of different types of relationships and individual could have in their Peer Network.
         /// </summary>
         public const string PEER_NETWORK_RELATIONSHIP_TYPE = "F2E8E639-F16D-489D-AAFB-BE0133531E41";
+
+        /// <summary>
+        /// Clarifies what the metrics are measuring, enabling the system to utilize these metrics for analytics.
+        /// </summary>
+        public const string MEASUREMENT_CLASSIFICATION = "A9897479-110E-4E50-8F60-160CEFE4CF7B";
+
+        /// <summary>
+        /// List of different sources from which website traffic may originate.
+        /// </summary>
+        public const string UTM_SOURCE = "3CFE43A9-5D0C-4BE4-B1EC-AFA06BBB7C32";
+
+        /// <summary>
+        /// List of different marketing or advertising mediums that may initiate website traffic.
+        /// </summary>
+        public const string UTM_MEDIUM = "31693856-8553-4321-A302-B84CF1D22BAB";
+
+        /// <summary>
+        /// List of different campaigns that may generate website traffic.
+        /// </summary>
+        public const string UTM_CAMPAIGN = "A2F452BB-39E8-40F8-9DAD-74DBD920FD2F";
+
+        /// <summary>
+        /// List of possible sentiments for classification.
+        /// </summary>
+        public const string SENTIMENT_EMOTIONS = "C9751C20-DA81-4521-81DE-0099D6F598BA";
 
         /// <summary>
         /// The statement generator lava template (Legacy)

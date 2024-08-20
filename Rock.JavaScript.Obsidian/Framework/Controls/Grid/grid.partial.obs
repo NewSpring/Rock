@@ -2,7 +2,7 @@
 <template>
     <div class="grid-obsidian" :class="{ 'grid-sticky': isStickyHeader, 'grid-light': light, 'grid-bordered': !light, 'grid-striped': !light, 'grid-hover': !light }">
         <div class="grid-heading">
-            <FilterHeaderRow v-if="!light"
+            <FilterHeaderRow v-if="!light && !hideFilterHeaderRow"
                              v-model:quickFilterValue="quickFilterValue"
                              :grid="gridState"
                              :title="title"
@@ -45,6 +45,7 @@
                       :itemTerm="gridState.itemTerm"
                       :markInactiveRows="markInactiveRows"
                       :rowClass="rowClass"
+                      :emptyDataText="emptyDataText"
                       @click="onRowClick" />
         </div>
 
@@ -58,6 +59,7 @@
                       :itemTerm="gridState.itemTerm"
                       :markInactiveRows="markInactiveRows"
                       :rowClass="rowClass"
+                      :emptyDataText="emptyDataText"
                       @click="onRowClick" />
         </div>
 
@@ -70,6 +72,7 @@
                          :itemTerm="gridState.itemTerm"
                          :markInactiveRows="markInactiveRows"
                          :rowClass="rowClass"
+                         :emptyDataText="emptyDataText"
                          @click="onRowClick" />
 
         <div class="grid-footing">
@@ -633,6 +636,15 @@
             required: false
         },
 
+        /**
+         * If true, the filter header row containing the row counts,
+         * quick filters and other grid data will be hidden. Defaults to false.
+         * */
+        hideFilterHeaderRow: {
+            type: Boolean as PropType<boolean>,
+            default: false
+        },
+
         /** If enabled then the grid will have a sticky header. */
         stickyHeader: {
             type: Boolean as PropType<boolean>,
@@ -766,6 +778,15 @@
         rowClass: {
             type: [String, Function] as PropType<string | ((row: Record<string, unknown>) => string)>,
             default: undefined
+        },
+
+        /**
+         * The text to display in the empty data row. The default is an empty string (""), which indicates that this property is not set.
+         */
+        emptyDataText: {
+            type: String,
+            default: "",
+            required: false,
         },
 
         /**
@@ -2116,6 +2137,7 @@
 
     watch([currentPage, pageSize], () => {
         updateVisibleRows();
+        updatePageCount();
     });
 
     watch(() => props.keyField, () => {

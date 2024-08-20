@@ -18,9 +18,12 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-
+using Rock.Data;
 using Rock.Lava;
 using Rock.Lava.RockLiquid;
+
+using Rock.Tests.Integration.Shortcode;
+
 using Rock.Tests.Shared.Lava;
 
 namespace Rock.Tests.Integration.Modules.Core.Lava.Shortcodes
@@ -29,6 +32,7 @@ namespace Rock.Tests.Integration.Modules.Core.Lava.Shortcodes
     /// Test for shortcodes that are defined and implemented as parameterized Lava templates rather than code components.
     /// </summary>
     [TestClass]
+    [TestCategory( "Core.Lava.Shortcodes" )]
     public class ShortcodeTemplateTests : LavaIntegrationTestBase
     {
         [TestMethod]
@@ -297,7 +301,7 @@ Font Bold: true
             TestHelper.ExecuteForActiveEngines( ( engine ) =>
             {
                 // The RockLiquid engine does not support dynamic shortcode definitions.
-                if ( engine.GetType() == typeof ( RockLiquidEngine ) )
+                if ( engine.GetType() == typeof( RockLiquidEngine ) )
                 {
                     return;
                 }
@@ -380,6 +384,78 @@ This is some literal text containing an invalid shortcode: {[ panel title:'Examp
             expectedOutput = expectedOutput.Replace( "`", @"""" );
 
             TestHelper.AssertTemplateOutput( expectedOutput, input );
+        }
+
+        private const string _testShortcodeGuid = "AD29F25D-8E7E-45DF-AC93-6CD0D0058401";
+
+        /// <summary>
+        /// A shortcode that enables a specific command should not cause that command to be enabled outside the scope of the shortcode.
+        /// </summary>
+        [DataTestMethod]
+        [DataRow( "execute", true )]
+        [DataRow( "entity,execute,sql", true )]
+        [DataRow( "all", true )]
+        [DataRow( null, false )]
+        [DataRow( "entity", false )]
+        public void ShortcodeBlock_WithEnabledCommand_EnforcesSecurityForTemplateContext( string templateEnabledCommands, bool shouldPassSecurityCheck )
+        {
+            var shortcodeTemplate = @"
+<h1>Shortcode Content</h1>
+{% execute %}
+    return ""Shortcode content."";
+{% endexecute %}
+<h1>User Content</h1>
+{{ blockContent }}
+";
+
+            // Create a new test shortcode with the "execute" command permission.
+            var shortCodeDataManager = new ShortcodeDataManager();
+            var shortcodeDefinition = shortCodeDataManager
+                .NewDynamicShortcode( _testShortcodeGuid.AsGuid(),
+                    $"Test ({_testShortcodeGuid})",
+                    "shortcode_execute",
+                     Rock.Model.TagType.Block,
+                     shortcodeTemplate )
+                .WithEnabledCommands( "execute" );
+
+            var rockContext = new RockContext();
+            shortCodeDataManager.SaveDynamicShortcode( shortcodeDefinition, rockContext );
+
+            var input = @"
+{[ shortcode_execute ]}
+{% execute %}
+    return ""** Injected execute result! **"";
+{% endexecute %}
+{[ endshortcode_execute ]}
+";
+
+            string expectedOutput;
+
+            if ( shouldPassSecurityCheck )
+            {
+                expectedOutput = @"
+<h1>Shortcode Content</h1>
+Shortcode content.
+<h1>User Content</h1>
+** Injected execute result! **
+";
+            }
+            else
+            {
+                expectedOutput = @"The Lava command 'execute' is not configured for this template.";
+            }
+
+            // Render the template with no enabled commands.
+            // The shortcode should render correctly using the enabled commands defined by its definition,
+            // but the content should show a permission error.
+            var options = new LavaTestRenderOptions { EnabledCommands = templateEnabledCommands };
+
+            TestHelper.ExecuteForActiveEngines( ( engine ) =>
+            {
+                shortCodeDataManager.RegisterDynamicShortcodeForLavaEngine( engine, shortcodeDefinition );
+
+                TestHelper.AssertTemplateOutput( engine, expectedOutput, input, options );
+            } );
         }
 
         #region Accordion
@@ -867,307 +943,6 @@ $( document ).ready(function() {
             var options = new LavaTestRenderOptions() { Wildcards = new List<string> { "<<guid>>" } };
 
             TestHelper.AssertTemplateOutput( expectedOutput, input, options );
-        }
-
-        #endregion
-
-        #region GoogleMap
-
-        [TestMethod]
-        public void GoogleStaticMapShortcode_SinglePoint_EmitsCorrectHtml()
-        {
-            var input = @"
-{[ googlemap ]}
-    [[ marker location:'33.640705,-112.280198' ]] [[ endmarker ]]
-{[ endgooglemap ]}
-";
-
-            var expectedOutput = @"
-<div class=``alert alert-warning``>
-        There is no Google API key defined. Please add your key under: 'Admin Tools > General Settings > Global Attributes > Google API Key'.
-    </div>
-
-<script src='https://maps.googleapis.com/maps/api/js?key=' type='text/javascript'></script>
-
-<style>
-
-.id<<guid>> {
-    width: 100%;
-}
-
-#map-container-id<<guid>> {
-    position: relative;
-}
-
-#id<<guid>> {
-    height: 600px;
-    overflow: hidden;
-    padding-bottom: 22.25%;
-    padding-top: 30px;
-    position: relative;
-}
-
-</style>
-
-
-<div class=``map-container id<<guid>>``>
-    <div id=``map-container-id<<guid>>``></div>
-	<div id=``id<<guid>>``></div>
-</div>	
-
-
-<script>
-    // create javascript array of marker info
-    var markersid<<guid>> = [
-                                                                                                        [33.640705, -112.280198,'','',''],
-            ];
-
-	//Set Map
-	function initializeid<<guid>>() {
-        var bounds = new google.maps.LatLngBounds();
-        
-            	var centerLatlng = new google.maps.LatLng( 33.640705,-112.280198 );
-    	    	
-    	var mapOptions = {
-    		    		    zoom: 11,
-    		    		scrollwheel: true,
-    		draggable: true,
-    		    		    center: centerLatlng,
-    		    		mapTypeId: 'roadmap',
-    		zoomControl: true,
-            mapTypeControl: false,
-            gestureHandling: 'cooperative',
-            streetViewControl: false,
-            fullscreenControl: true
-    		
-	    }
-
-		var map = new google.maps.Map(document.getElementById('id<<guid>>'), mapOptions);
-		var infoWindow = new google.maps.InfoWindow(), marker, i;
-		
-		// place each marker on the map  
-        for( i = 0; i < markersid<<guid>>.length; i++ ) {
-            var position = new google.maps.LatLng(markersid<<guid>>[i][0], markersid<<guid>>[i][1]);
-            bounds.extend(position);
-            marker = new google.maps.Marker({
-                position: position,
-                map: map,
-                animation: null,
-                title: markersid<<guid>>[i][2],
-                icon: markersid<<guid>>[i][4]
-            });
-
-            // Add info window to marker    
-            google.maps.event.addListener(marker, 'click', (function(marker, i) {
-                return function() {
-                    if (markersid<<guid>>[i][3] != ''){
-                        infoWindow.setContent(markersid<<guid>>[i][3]);
-                        infoWindow.open(map, marker);
-                    }
-                }
-            })(marker, i));
-           
-        }
-		
-        // Center the map to fit all markers on the screen
-                
-		//Resize Function
-		google.maps.event.addDomListener(window, ``resize``, function() {
-			var center = map.getCenter();
-			google.maps.event.trigger(map, ``resize``);
-			map.setCenter(center);
-		});
-	}
-
-    google.maps.event.addDomListener(window, 'load', initializeid<<guid>>);
-
-</script>
-";
-
-            expectedOutput = expectedOutput.Replace( "``", @"""" );
-
-            var options = new LavaTestRenderOptions() { Wildcards = new List<string> { "<<guid>>" } };
-
-            TestHelper.AssertTemplateOutput( expectedOutput, input, options );
-        }
-
-        #endregion
-
-        #region GoogleStaticMap
-
-        [TestMethod]
-        public void GoogleStaticMapShortcode_DefaultOptions_EmitsCorrectHtml()
-        {
-
-            // TODO: This causes a problem because it contains the string literal: '//', which truncates the line.
-
-
-            var input = @"
-{[ googlemap ]}
-    [[ marker location:'33.640705,-112.280198' ]] [[ endmarker ]]
-{[ endgooglemap ]}
-";
-
-            var expectedOutput = @"
-<div class=``alert alert-warning``>
-        There is no Google API key defined. Please add your key under: 'Admin Tools > General Settings > Global Attributes > Google API Key'.
-    </div>
-
-<script src='https://maps.googleapis.com/maps/api/js?key=' type='text/javascript'></script>
-
-<style>
-
-.id<<guid>> {
-    width: 100%;
-}
-
-#map-container-id<<guid>> {
-    position: relative;
-}
-
-#id<<guid>> {
-    height: 600px;
-    overflow: hidden;
-    padding-bottom: 22.25%;
-    padding-top: 30px;
-    position: relative;
-}
-
-</style>
-
-
-<div class=``map-container id<<guid>>``>
-    <div id=``map-container-id<<guid>>``></div>
-	<div id=``id<<guid>>``></div>
-</div>	
-
-
-<script>
-    // create javascript array of marker info
-    var markersid<<guid>> = [
-                                                                                                        [33.640705, -112.280198,'','',''],
-            ];
-
-	//Set Map
-	function initializeid<<guid>>() {
-        var bounds = new google.maps.LatLngBounds();
-        
-            	var centerLatlng = new google.maps.LatLng( 33.640705,-112.280198 );
-    	    	
-    	var mapOptions = {
-    		    		    zoom: 11,
-    		    		scrollwheel: true,
-    		draggable: true,
-    		    		    center: centerLatlng,
-    		    		mapTypeId: 'roadmap',
-    		zoomControl: true,
-            mapTypeControl: false,
-            gestureHandling: 'cooperative',
-            streetViewControl: false,
-            fullscreenControl: true
-    		
-	    }
-
-		var map = new google.maps.Map(document.getElementById('id<<guid>>'), mapOptions);
-		var infoWindow = new google.maps.InfoWindow(), marker, i;
-		
-		// place each marker on the map  
-        for( i = 0; i < markersid<<guid>>.length; i++ ) {
-            var position = new google.maps.LatLng(markersid<<guid>>[i][0], markersid<<guid>>[i][1]);
-            bounds.extend(position);
-            marker = new google.maps.Marker({
-                position: position,
-                map: map,
-                animation: null,
-                title: markersid<<guid>>[i][2],
-                icon: markersid<<guid>>[i][4]
-            });
-
-            // Add info window to marker    
-            google.maps.event.addListener(marker, 'click', (function(marker, i) {
-                return function() {
-                    if (markersid<<guid>>[i][3] != ''){
-                        infoWindow.setContent(markersid<<guid>>[i][3]);
-                        infoWindow.open(map, marker);
-                    }
-                }
-            }) (marker, i));
-           
-        }
-		
-        // Center the map to fit all markers on the screen                
-
-		//Resize Function
-		google.maps.event.addDomListener(window, ``resize``, function() {
-			var center = map.getCenter();
-			google.maps.event.trigger(map, ``resize``);
-			map.setCenter(center);
-		});
-	}
-
-    google.maps.event.addDomListener(window, 'load', initializeid<<guid>>);
-
-</script>
-";
-
-            expectedOutput = expectedOutput.Replace( "``", @"""" );
-
-            var options = new LavaTestRenderOptions() { Wildcards = new List<string> { "<<guid>>" } };
-
-            TestHelper.AssertTemplateOutput( expectedOutput, input, options );
-        }
-
-        #endregion
-
-        #region KPI
-
-        [TestMethod]
-        public void KpiShortcode_DocumentationExample_EmitsCorrectHtml()
-        {
-            var input = @"
-{[kpis]}
-  [[ kpi icon:'fa-highlighter' value:'4' label:'Highlighters' color:'yellow-700']][[ endkpi ]]
-  [[ kpi icon:'fa-pen-fancy' value:'8' label:'Pens' color:'indigo-700']][[ endkpi ]]
-  [[ kpi icon:'fa-pencil-alt' value:'15' label:'Pencils' color:'green-600']][[ endkpi ]]
-{[endkpis]}
-";
-
-            var expectedOutput = @"
-<div class=``kpi - container``>
-    <div class=``kpi  kpi-card has-icon-bg text-yellow-700 border-yellow-500``>
-        <div class=``kpi-icon``>
-            <img class=``svg-placeholder`` src=``data:image/svg+xml;utf8,&lt;svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'&gt;&lt;/svg&gt;``>
-            <div class=``kpi-content``><i class=``fa fa-fw fa-highlighter``></i></div>
-        </div>
-        <div class=``kpi-stat ``>
-            <span class=``kpi-value text-color``>4</span>
-            <span class=``kpi-label``>Highlighters</span>
-        </div>
-    </div>
-    <div class=``kpi  kpi-card has-icon-bg text-indigo-700 border-indigo-500``>
-        <div class=``kpi-icon``>
-            <img class=``svg-placeholder`` src=``data:image/svg+xml;utf8,&lt;svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'&gt;&lt;/svg&gt;``>
-            <div class=``kpi-content``><i class=``fa fa-fw fa-pen-fancy``></i></div>
-        </div><div class=``kpi-stat ``>
-            <span class=``kpi-value text-color``>8</span>
-            <span class=``kpi-label``>Pens</span>
-        </div>
-    </div>
-    <div class=``kpi  kpi-card has-icon-bg text-green-600 border-green-400``>
-        <div class=``kpi-icon``>
-            <img class=``svg-placeholder`` src=``data:image/svg+xml;utf8,&lt;svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'&gt;&lt;/svg&gt;``>
-            <div class=``kpi-content``><i class=``fa fa-fw fa-pencil-alt``></i></div>
-        </div><div class=``kpi-stat ``>
-            <span class=``kpi-value text-color``>15</span>
-            <span class=``kpi-label``>Pencils</span>
-        </div>
-    </div>
-</div>
-";
-
-            expectedOutput = expectedOutput.Replace( "``", @"""" );
-
-            TestHelper.AssertTemplateOutput( expectedOutput, input );
         }
 
         #endregion

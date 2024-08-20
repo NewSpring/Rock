@@ -25,6 +25,7 @@ using Rock.Attribute;
 using Rock.Chart;
 using Rock.Data;
 using Rock.Model;
+using Rock.Utility;
 using Rock.ViewModels.Blocks.Reporting.TithingOverview;
 using Rock.Web.Cache;
 
@@ -39,12 +40,43 @@ namespace Rock.Blocks.Reporting
     [IconCssClass( "fa fa-question" )]
     //[SupportedSiteTypes( SiteType.Web )]
 
+    #region Block Attributes
+
+    [DefinedValueField(
+        "Campus Types",
+        Key = AttributeKey.CampusTypes,
+        Description = "This setting filters the list of campuses by type that are displayed in the chart.",
+        IsRequired = false,
+        DefinedTypeGuid = Rock.SystemGuid.DefinedType.CAMPUS_TYPE,
+        AllowMultiple = true,
+        Order = 0 )]
+
+    [DefinedValueField(
+        "Campus Statuses",
+        Key = AttributeKey.CampusStatuses,
+        Description = "This setting filters the list of campuses by statuses that are displayed in the chart.",
+        IsRequired = false,
+        DefinedTypeGuid = Rock.SystemGuid.DefinedType.CAMPUS_STATUS,
+        AllowMultiple = true,
+        Order = 1 )]
+
+    #endregion
+
     [SystemGuid.EntityTypeGuid( "1e44b061-7767-487d-a98f-16912e8c7de7" )]
     [SystemGuid.BlockTypeGuid( "db756565-8a35-42e2-bc79-8d11f57e4004" )]
     public class TithingOverview : RockBlockType
     {
         #region Fields
 
+        /*
+           6/25/2024 - KA
+
+           Ideally the colors should be identified by their css classes but the Chart.js
+           prefers the colors be either hex or string, and since the Chart.js data is generated
+           server-side replacing the css class with their hex components client-side will be difficult.           
+
+           #techdebt: Use hex from the Theme's AdditionalSettingsJson when they become available in a upcoming version of Rock.
+        */
         /// <summary>
         /// The available colors for the charts
         /// </summary>
@@ -67,6 +99,12 @@ namespace Rock.Blocks.Reporting
         #endregion
 
         #region Keys
+
+        private static class AttributeKey
+        {
+            public const string CampusTypes = "CampusTypes";
+            public const string CampusStatuses = "CampusStatuses";
+        }
 
         private static class ChartTypeKey
         {
@@ -94,7 +132,6 @@ namespace Rock.Blocks.Reporting
         private TithingOverviewInitializationBox GetInitializationBox( RockContext rockContext, string chartType )
         {
             var json = GetChartData( rockContext, chartType );
-            var toolTipData = GetToolTipData( rockContext, chartType );
             var metricValues = GetTithingOverviewMetricValues( rockContext, chartType );
 
             var box = new TithingOverviewInitializationBox
@@ -102,7 +139,7 @@ namespace Rock.Blocks.Reporting
                 ChartDataJson = json,
                 ChartType = chartType,
                 ToolTipData = GetToolTipData( rockContext, chartType ),
-                LegendData = GetLegendLabelColors( toolTipData ),
+                LegendData = GetLegendLabelColors(),
                 HasData = metricValues.Count > 0,
             };
 
@@ -161,7 +198,7 @@ namespace Rock.Blocks.Reporting
                 .Distinct();
 
             var seriesNameKeyValue = new Dictionary<string, string>();
-            foreach ( var dataSeriesDataset in dataSeriesDatasets )
+            foreach ( var dataSeriesDataset in dataSeriesDatasets.Where( x => !string.IsNullOrWhiteSpace( x ) ) )
             {
                 var seriesNameValue = GetSeriesPartitionName( dataSeriesDataset );
                 seriesNameKeyValue.Add( dataSeriesDataset, seriesNameValue );
@@ -196,35 +233,6 @@ namespace Rock.Blocks.Reporting
         #endregion
 
         #region Bar Chart
-
-        /// <summary>
-        /// Gets the bar chart data arguments.
-        /// </summary>
-        /// <returns></returns>
-        private static ChartJsCategorySeriesDataFactory.GetJsonArgs GetBarChartDataArgs()
-        {
-            return new ChartJsCategorySeriesDataFactory.GetJsonArgs
-            {
-                DisplayLegend = true,
-                LineTension = 0.4m,
-                MaintainAspectRatio = false,
-                SizeToFitContainerWidth = true
-            };
-        }
-
-        /// <summary>
-        /// Gets a configured factory that creates the data required for the bar chart.
-        /// </summary>
-        public ChartJsCategorySeriesDataFactory<ChartJsCategorySeriesDataPoint> GetBarChartDataFactory( RockContext rockContext )
-        {
-            var chartFactory = new ChartJsCategorySeriesDataFactory<ChartJsCategorySeriesDataPoint>
-            {
-                Datasets = GetCategorySeriesDataset( rockContext ),
-                ChartStyle = ChartJsCategorySeriesChartStyleSpecifier.Bar,
-            };
-
-            return chartFactory;
-        }
 
         /// <summary>
         /// Gets the dataset for the bar chart.
@@ -272,6 +280,27 @@ namespace Rock.Blocks.Reporting
             }
 
             return datasets;
+        }
+
+        private string GetChartDataJson( List<ChartJsCategorySeriesDataset> datasets )
+        {
+            var jsDataset = new
+            {
+                labels = datasets.SelectMany( ds => ds.DataPoints ).Select( x => x.Category ).ToList(),
+                datasets = new List<dynamic>
+                {
+                    new
+                    {
+                        data = datasets.SelectMany( ds => ds.DataPoints.Select( dp => dp.Value ) ),
+                        backgroundColor = datasets.Select( ds => ds.FillColor ),
+                        borderColor = datasets.Select( ds => ds.BorderColor ),
+                        borderWidth = 2,
+                        lineTension = 0.4m,
+                    }
+                }
+            };
+
+            return jsDataset.ToJson();
         }
 
         #endregion
@@ -374,6 +403,30 @@ namespace Rock.Blocks.Reporting
                     .ToList();
             }
 
+            var campusTypeIds = GetAttributeValues( AttributeKey.CampusTypes )
+                .AsGuidOrNullList()
+                .Where( g => g.HasValue )
+                .Select( g => DefinedValueCache.GetId( g.Value ) )
+                .Where( id => id.HasValue )
+                .Select( id => id.Value )
+                .ToList();
+
+            var campusStatusIds = GetAttributeValues( AttributeKey.CampusStatuses )
+                .AsGuidOrNullList()
+                .Where( g => g.HasValue )
+                .Select( g => DefinedValueCache.GetId( g.Value ) )
+                .Where( id => id.HasValue )
+                .Select( id => id.Value )
+                .ToList();
+
+            var filteredCampusIds = CampusCache.All( false )
+                .Where( c => ( !campusTypeIds.Any() || ( c.CampusTypeValueId.HasValue && campusTypeIds.Contains( c.CampusTypeValueId.Value ) ) )
+                    && ( !campusStatusIds.Any() || ( c.CampusStatusValueId.HasValue && campusStatusIds.Contains( c.CampusStatusValueId.Value ) ) ) )
+                .Select( c => c.Id )
+                .ToList();
+
+            _tithingOverviewMetricValues = _tithingOverviewMetricValues.Where( m => !m.CampusId.HasValue || filteredCampusIds.Contains( m.CampusId.Value ) ).ToList();
+
             return _tithingOverviewMetricValues;
         }
 
@@ -397,7 +450,7 @@ namespace Rock.Blocks.Reporting
             else
             {
                 var lastRunDate = new MetricValueService( RockContext ).Queryable()
-                    .Where( m => m.Metric.Guid == metricGuid )
+                    .Where( m => m.Metric.Guid == metricGuid && m.MetricValueType == MetricValueType.Measure )
                     .OrderByDescending( m => m.MetricValueDateTime )
                     .Select( m => m.MetricValueDateTime )
                     .FirstOrDefault();
@@ -409,7 +462,7 @@ namespace Rock.Blocks.Reporting
                 }
             }
 
-            return metricValuesQry;
+            return metricValuesQry.OrderByDescending( m => m.MetricValueDateTime );
         }
 
         /// <summary>
@@ -423,7 +476,7 @@ namespace Rock.Blocks.Reporting
             var metricValuesQry = new MetricValueService( rockContext )
                 .Queryable()
                 .Include( a => a.MetricValuePartitions.Select( b => b.MetricPartition ) )
-                .Where( a => a.Metric.Guid == metricGuid );
+                .Where( a => a.Metric.Guid == metricGuid && a.MetricValueType == MetricValueType.Measure );
 
             return metricValuesQry.OrderBy( a => a.MetricValueDateTime );
         }
@@ -443,7 +496,7 @@ namespace Rock.Blocks.Reporting
             switch ( chartType )
             {
                 case ChartTypeKey.BarChart:
-                    return GetBarChartDataFactory( rockContext ).GetChartDataJson( GetBarChartDataArgs() );
+                    return GetChartDataJson( GetCategorySeriesDataset( rockContext ) );
                 default:
                     return GetLineChartDataFactory( rockContext ).GetChartDataJson( GetLineChartDataArgs() );
             }
@@ -498,42 +551,46 @@ namespace Rock.Blocks.Reporting
         {
             var campusAge = GetCampusAge( campus );
 
-            var campusColorAttribute = campus.GetAttributeTextValue( "core_CampusColor" );
-
-            if ( !string.IsNullOrWhiteSpace( campusColorAttribute ) )
-            {
-                return campusColorAttribute;
-            }
-
             if ( chartType == ChartTypeKey.LineChart )
             {
-                return FillColorSource().Skip( campus.Id ).FirstOrDefault();
-            }
+                var campusColorAttribute = campus.GetAttributeTextValue( "core_CampusColor" );
 
-            if ( !campusAge.HasValue )
-            {
-                return "#A3A3A3";
-            }
-
-            if ( campusAge >= 0 && campusAge <= 2 )
-            {
-                return "#BAE6FD";
-            }
-            else if ( campusAge >= 3 && campusAge <= 6 )
-            {
-                return "#38BDF8";
-            }
-            else if ( campusAge >= 7 && campusAge <= 11 )
-            {
-                return "#0284C7";
-            }
-            else if ( campusAge >= 11 )
-            {
-                return "#075985";
+                if ( !string.IsNullOrWhiteSpace( campusColorAttribute ) )
+                {
+                    return campusColorAttribute;
+                }
+                else
+                {
+                    return FillColorSource().Skip( campus.Id ).FirstOrDefault();
+                }
             }
             else
             {
-                return "A3A3A3";
+                if ( !campusAge.HasValue )
+                {
+                    return "#A3A3A3";
+                }
+
+                if ( campusAge >= 0 && campusAge <= 2 )
+                {
+                    return "#BAE6FD";
+                }
+                else if ( campusAge >= 3 && campusAge <= 6 )
+                {
+                    return "#38BDF8";
+                }
+                else if ( campusAge >= 7 && campusAge <= 11 )
+                {
+                    return "#0284C7";
+                }
+                else if ( campusAge >= 11 )
+                {
+                    return "#075985";
+                }
+                else
+                {
+                    return "A3A3A3";
+                }
             }
         }
 
@@ -559,9 +616,10 @@ namespace Rock.Blocks.Reporting
         {
             var givingHouseHoldsDatasets = GetGivingHouseholdsMetricValues( rockContext, chartType );
             var tithingHouseHoldsDatasets = GetTithingHouseholdsMetricValues( rockContext, chartType );
-            var tithingOverviewDataset = GetTithingOverviewMetricValues( rockContext, ChartTypeKey.BarChart );
+            var tithingOverviewDataset = GetTithingOverviewMetricValues( rockContext, chartType );
 
             var toolTipData = new Dictionary<string, TithingOverviewToolTipBag>();
+            var currencyInfo = new RockCurrencyCodeInfo();
 
             foreach ( var dataset in tithingOverviewDataset )
             {
@@ -586,7 +644,13 @@ namespace Rock.Blocks.Reporting
                         Value = dataset.Value,
                         CampusClosedDate = campus.ClosedDate,
                         CampusOpenedDate = campus.OpenedDate,
-                        CampusShortCode = campus.ShortCode
+                        CampusShortCode = campus.ShortCode,
+                        CurrencyInfo = new ViewModels.Utility.CurrencyInfoBag
+                        {
+                            Symbol = currencyInfo.Symbol,
+                            DecimalPlaces = currencyInfo.DecimalPlaces,
+                            SymbolLocation = currencyInfo.SymbolLocation
+                        }
                     };
 
                     toolTipData.AddOrReplace( campusKey, toolTipInfo );
@@ -620,36 +684,17 @@ namespace Rock.Blocks.Reporting
         /// <summary>
         /// Gets the legend label colors.
         /// </summary>
-        /// <param name="toolTipData">The tool tip data.</param>
         /// <returns></returns>
-        private Dictionary<string, string> GetLegendLabelColors( Dictionary<string, TithingOverviewToolTipBag> toolTipData )
+        private Dictionary<string, string> GetLegendLabelColors()
         {
-            var campusIds = toolTipData.Select( d => d.Value.CampusId ).ToList();
-            var includeDefaultLegend = false;
-            var legendLabelColorMap = new Dictionary<string, string>();
-
-            foreach ( var campus in CampusCache.GetMany( campusIds ).ToList() )
+            var legendLabelColorMap = new Dictionary<string, string>
             {
-                var color = campus.GetAttributeTextValue( "core_CampusColor" );
-                if ( !string.IsNullOrWhiteSpace( color ) )
-                {
-                    var campusKey = string.IsNullOrWhiteSpace( campus.ShortCode ) ? campus.Name : campus.ShortCode;
-                    legendLabelColorMap.AddOrReplace( campusKey, color );
-                }
-                else
-                {
-                    includeDefaultLegend = true;
-                }
-            }
-
-            if ( includeDefaultLegend )
-            {
-                legendLabelColorMap.Add( "0-2 yrs", "#BAE6FD" );
-                legendLabelColorMap.Add( "3-6 yrs", "#38BDF8" );
-                legendLabelColorMap.Add( "7-11 yrs", "#0284C7" );
-                legendLabelColorMap.Add( "11+", "#075985" );
-                legendLabelColorMap.Add( "Unknown", "#A3A3A3" );
-            }
+                { "0-2 yrs", "#BAE6FD" },
+                { "3-6 yrs", "#38BDF8" },
+                { "7-11 yrs", "#0284C7" },
+                { "11+", "#075985" },
+                { "Unknown", "#A3A3A3" }
+            };
 
             return legendLabelColorMap;
         }

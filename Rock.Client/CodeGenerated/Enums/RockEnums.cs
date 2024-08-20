@@ -25,6 +25,63 @@ using System.Collections.Generic;
 
 #pragma warning disable CS1591
 
+namespace Rock.Client.Enums.CheckIn
+{
+    /// <summary>
+    /// </summary>
+    public enum AbilityLevelDeterminationMode
+    {
+        Ask = 0x0,
+        DoNotAsk = 0x1,
+        DoNotAskIfThereIsNoAbilityLevel = 0x2,
+    }
+
+    /// <summary>
+    /// </summary>
+    public enum AutoSelectMode
+    {
+        PeopleOnly = 0x0,
+        PeopleAndAreaGroupLocation = 0x1,
+    }
+
+    /// <summary>
+    /// </summary>
+    public enum FamilySearchMode
+    {
+        PhoneNumber = 0x0,
+        Name = 0x1,
+        NameAndPhone = 0x2,
+        ScannedId = 0x3,
+        FamilyId = 0x4,
+    }
+
+    /// <summary>
+    /// </summary>
+    public enum KioskCheckInMode
+    {
+        Individual = 0x0,
+        Family = 0x1,
+    }
+
+    /// <summary>
+    /// </summary>
+    public enum PhoneSearchMode
+    {
+        Contains = 0x0,
+        EndsWith = 0x1,
+    }
+
+    /// <summary>
+    /// </summary>
+    public enum SuccessLavaTemplateDisplayMode
+    {
+        Never = 0x0,
+        Replace = 0x1,
+        Append = 0x2,
+    }
+
+}
+
 namespace Rock.Client.Enums.Blocks.Security.AccountEntry
 {
     /// <summary>
@@ -1121,6 +1178,83 @@ namespace Rock.Client.Enums.Crm
 
 }
 
+namespace Rock.Client.Enums.Lms
+{
+    /// <summary>
+    /// </summary>
+    public enum AssignTo
+    {
+        Student = 0x0,
+        Facilitator = 0x1,
+    }
+
+    /// <summary>
+    /// </summary>
+    public enum AvailableDateCalculationMethod
+    {
+        Specific = 0x0,
+        ClassStartOffset = 0x1,
+        EnrollmentOffset = 0x2,
+        AlwaysAvailable = 0x3,
+        AfterPreviousCompleted = 0x4,
+    }
+
+    /// <summary>
+    /// </summary>
+    public enum CommunicationMode
+    {
+        None = 0x0,
+        Email = 0x1,
+        SMS = 0x2,
+    }
+
+    /// <summary>
+    /// </summary>
+    public enum CompletionStatus
+    {
+        Pending = 0x0,
+        Completed = 0x1,
+        Expired = 0x2,
+    }
+
+    /// <summary>
+    /// </summary>
+    public enum ConfigurationMode
+    {
+        AcademicCalendar = 0x0,
+        OnDemandLearning = 0x1,
+    }
+
+    /// <summary>
+    /// </summary>
+    public enum DueDateCalculationMethod
+    {
+        Specific = 0x0,
+        ClassStartOffset = 0x1,
+        EnrollmentOffset = 0x2,
+        NoDate = 0x3,
+    }
+
+    /// <summary>
+    /// </summary>
+    public enum LearningCompletionStatus
+    {
+        Incomplete = 0x0,
+        Fail = 0x1,
+        Pass = 0x2,
+    }
+
+    /// <summary>
+    /// </summary>
+    public enum RequirementType
+    {
+        Prerequisite = 0x0,
+        Corequisite = 0x1,
+        Equivalent = 0x2,
+    }
+
+}
+
 namespace Rock.Client.Enums.Event
 {
     /// <summary>
@@ -1292,6 +1426,88 @@ namespace Rock.Client.Enums.Controls
         Auto = 0x0,
         List = 0x1,
         Condensed = 0x2,
+    }
+
+}
+
+namespace Rock.Client.Enums.CheckIn.Labels
+{
+    /// <summary>
+    /// </summary>
+    public enum BarcodeFormat
+    {
+        QRCode = 0x0,
+        Code128 = 0x1,
+    }
+
+    /// <summary>
+    /// </summary>
+    public enum DitherMode
+    {
+        None = 0x0,
+        Fast = 0x1,
+        Quality = 0x2,
+    }
+
+    /// <summary>
+    /// </summary>
+    public enum HorizontalTextAlignment
+    {
+        Left = 0x0,
+        Center = 0x1,
+        Right = 0x2,
+    }
+
+    /// <summary>
+    /// </summary>
+    public enum LabelFieldType
+    {
+        Text = 0x0,
+        Line = 0x1,
+        Rectangle = 0x2,
+        Ellipse = 0x3,
+        Icon = 0x4,
+        Image = 0x5,
+        AttendeePhoto = 0x6,
+        Barcode = 0x7,
+    }
+
+    /// <summary>
+    /// </summary>
+    public enum LabelFormat
+    {
+        Designed = 0x0,
+        Zpl = 0x1,
+    }
+
+    /// <summary>
+    /// </summary>
+    public enum LabelType
+    {
+        Family = 0x0,
+        Person = 0x1,
+        Attendance = 0x2,
+        Checkout = 0x3,
+    }
+
+    /// <summary>
+    /// </summary>
+    public enum TextCollectionFormat
+    {
+        FirstItemOnly = 0x0,
+        CommaDelimited = 0x1,
+        OnePerLine = 0x2,
+        TwoColumn = 0x3,
+    }
+
+    /// <summary>
+    /// </summary>
+    public enum TextFieldSubType
+    {
+        Custom = 0x0,
+        AttendeeInfo = 0x1,
+        CheckInInfo = 0x2,
+        AchievementInfo = 0x3,
     }
 
 }
@@ -1663,6 +1879,63 @@ namespace Rock.Client.Enums.Blocks.Security.Login
     {
         Start = 0x0,
         Verify = 0x1,
+    }
+
+}
+
+namespace Rock.Client.Enums.WebFarm
+{
+    /// <summary>
+    /// </summary>
+    public enum LogSeverity
+    {
+        Info = 0x0,
+        Warning = 0x1,
+        Critical = 0x2,
+    }
+
+    /// <summary>
+    /// </summary>
+    public enum LogType
+    {
+        Availability = 0x0,
+        Ping = 0x1,
+        Pong = 0x2,
+        Startup = 0x3,
+        Shutdown = 0x4,
+        Error = 0x5,
+    }
+
+}
+
+namespace Rock.Client.Enums.Blocks.Communication.CommunicationEntry
+{
+    /// <summary>
+    /// </summary>
+    public enum MediumType
+    {
+        Unknown = 0x0,
+        Email = 0x1,
+        Sms = 0x2,
+        Push = 0x3,
+    }
+
+    /// <summary>
+    /// </summary>
+    public enum Mode
+    {
+        Full = 0x0,
+        Simple = 0x1,
+    }
+
+    /// <summary>
+    /// </summary>
+    public enum PushOpenActionType
+    {
+        NoAction = 0x0,
+        ShowDetails = 0x1,
+        LinkToMobilePage = 0x2,
+        LinkToUrl = 0x3,
     }
 
 }

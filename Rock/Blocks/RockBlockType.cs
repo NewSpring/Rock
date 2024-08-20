@@ -97,7 +97,7 @@ namespace Rock.Blocks
         /// <value>
         /// The block cache.
         /// </value>
-        public BlockCache BlockCache { get; set ; }
+        public BlockCache BlockCache { get; set; }
 
         /// <summary>
         /// Gets or sets the page cache.
@@ -405,7 +405,7 @@ namespace Rock.Blocks
             // Filename convention is camelCase.
             var fileName = $"{type.Name.Substring( 0, 1 ).ToLower()}{type.Name.Substring( 1 )}";
 
-            return $"/Obsidian/Blocks/{namespaces.AsDelimited( "/" )}/{fileName}.obs";
+            return $"~/Obsidian/Blocks/{namespaces.AsDelimited( "/" )}/{fileName}.obs";
         }
 
         /// <summary>
@@ -534,7 +534,7 @@ Obsidian.onReady(() => {{
 
             return new ObsidianBlockConfigBag
             {
-                BlockFileUrl = ObsidianFileUrl,
+                BlockFileUrl = RequestContext.ResolveRockUrl( ObsidianFileUrl ),
                 RootElementId = rootElementId,
                 BlockGuid = BlockCache.Guid,
                 BlockTypeGuid = BlockCache.BlockType.Guid,
@@ -819,7 +819,7 @@ Obsidian.onReady(() => {{
         /// </summary>
         /// <param name="message">The message.</param>
         /// <returns>A BlockActionResult instance.</returns>
-        protected virtual BlockActionResult ActionInternalServerError( string message = null)
+        protected virtual BlockActionResult ActionInternalServerError( string message = null )
         {
             return new BlockActionResult( System.Net.HttpStatusCode.InternalServerError )
             {

@@ -277,8 +277,6 @@ namespace Rock.Blocks.Engagement
                 bag.PersonAlias = new PersonAliasService( rockContext ).GetPrimaryAlias( presetPersonId ).ToListItemBag();
             }
 
-            bag.LoadAttributesAndValuesForPublicEdit( entity, RequestContext.CurrentPerson );
-
             return bag;
         }
 
@@ -304,15 +302,6 @@ namespace Rock.Blocks.Engagement
 
             box.IfValidProperty( nameof( box.Entity.PersonAlias ),
                 () => entity.PersonAliasId = box.Entity.PersonAlias.GetEntityId<PersonAlias>( rockContext ).Value );
-
-
-            box.IfValidProperty( nameof( box.Entity.AttributeValues ),
-                () =>
-                {
-                    entity.LoadAttributes( rockContext );
-
-                    entity.SetPublicAttributeValues( box.Entity.AttributeValues, RequestContext.CurrentPerson );
-                } );
 
             return true;
         }
@@ -471,25 +460,11 @@ namespace Rock.Blocks.Engagement
                     var personId = new PersonAliasService( rockContext ).GetPersonId( box.Entity.PersonAlias.Value.AsGuid() ).ToIntSafe();
                     var streakTypeCache = StreakTypeCache.Get( box.Entity.StreakType.Value.AsGuid() );
                     var streakTypeService = new StreakTypeService( rockContext );
-                    entity = streakTypeService.Enroll( streakTypeCache, personId, out errorMessage, entity.EnrollmentDate, entity.LocationId );
-                    if ( entity == null )
+                    var locationId = box.Entity.Location.GetEntityId<Location>( rockContext );
+                    entity = streakTypeService.Enroll( streakTypeCache, personId, out errorMessage, box.Entity.EnrollmentDate, locationId );
+                    if ( !string.IsNullOrEmpty( errorMessage ) )
                     {
                         return ActionBadRequest( errorMessage );
-                    }
-
-                    if ( !entity.IsAuthorized( Authorization.VIEW, RequestContext.CurrentPerson ) )
-                    {
-                        entity.AllowPerson( Authorization.VIEW, RequestContext.CurrentPerson, rockContext );
-                    }
-
-                    if ( !entity.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson ) )
-                    {
-                        entity.AllowPerson( Authorization.EDIT, RequestContext.CurrentPerson, rockContext );
-                    }
-
-                    if ( !entity.IsAuthorized( Authorization.ADMINISTRATE, RequestContext.CurrentPerson ) )
-                    {
-                        entity.AllowPerson( Authorization.ADMINISTRATE, RequestContext.CurrentPerson, rockContext );
                     }
                 }
                 else
@@ -508,11 +483,23 @@ namespace Rock.Blocks.Engagement
                     return ActionBadRequest( validationMessage );
                 }
 
-                rockContext.WrapTransaction( () =>
+                rockContext.SaveChanges();
+
+                // Copied over the authorization logic from webforms block.
+                if ( !entity.IsAuthorized( Authorization.VIEW, RequestContext.CurrentPerson ) )
                 {
-                    rockContext.SaveChanges();
-                    entity.SaveAttributeValues( rockContext );
-                } );
+                    entity.AllowPerson( Authorization.VIEW, RequestContext.CurrentPerson, rockContext );
+                }
+
+                if ( !entity.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson ) )
+                {
+                    entity.AllowPerson( Authorization.EDIT, RequestContext.CurrentPerson, rockContext );
+                }
+
+                if ( !entity.IsAuthorized( Authorization.ADMINISTRATE, RequestContext.CurrentPerson ) )
+                {
+                    entity.AllowPerson( Authorization.ADMINISTRATE, RequestContext.CurrentPerson, rockContext );
+                }
 
                 if ( isNew )
                 {
@@ -560,60 +547,6 @@ namespace Rock.Blocks.Engagement
                 return ActionOk( this.GetParentPageUrl( new Dictionary<string, string> {
                     { PageParameterKey.StreakTypeId, streakTypeId.ToString() }
                 } ) );
-            }
-        }
-
-        /// <summary>
-        /// Refreshes the list of attributes that can be displayed for editing
-        /// purposes based on any modified values on the entity.
-        /// </summary>
-        /// <param name="box">The box that contains all the information about the entity being edited.</param>
-        /// <returns>A box that contains the entity and attribute information.</returns>
-        [BlockAction]
-        public BlockActionResult RefreshAttributes( DetailBlockBox<StreakBag, StreakDetailOptionsBag> box )
-        {
-            using ( var rockContext = new RockContext() )
-            {
-                if ( !TryGetEntityForEditAction( box.Entity.IdKey, rockContext, out var entity, out var actionError ) )
-                {
-                    return actionError;
-                }
-
-                // Update the entity instance from the information in the bag.
-                if ( !UpdateEntityFromBox( entity, box, rockContext ) )
-                {
-                    return ActionBadRequest( "Invalid data." );
-                }
-
-                // Reload attributes based on the new property values.
-                entity.LoadAttributes( rockContext );
-
-                var refreshedBox = new DetailBlockBox<StreakBag, StreakDetailOptionsBag>
-                {
-                    Entity = GetEntityBagForEdit( entity, rockContext )
-                };
-
-                var oldAttributeGuids = box.Entity.Attributes.Values.Select( a => a.AttributeGuid ).ToList();
-                var newAttributeGuids = refreshedBox.Entity.Attributes.Values.Select( a => a.AttributeGuid );
-
-                // If the attributes haven't changed then return a 204 status code.
-                if ( oldAttributeGuids.SequenceEqual( newAttributeGuids ) )
-                {
-                    return ActionStatusCode( System.Net.HttpStatusCode.NoContent );
-                }
-
-                // Replace any values for attributes that haven't changed with
-                // the value sent by the client. This ensures any unsaved attribute
-                // value changes are not lost.
-                foreach ( var kvp in refreshedBox.Entity.Attributes )
-                {
-                    if ( oldAttributeGuids.Contains( kvp.Value.AttributeGuid ) )
-                    {
-                        refreshedBox.Entity.AttributeValues[kvp.Key] = box.Entity.AttributeValues[kvp.Key];
-                    }
-                }
-
-                return ActionOk( refreshedBox );
             }
         }
 

@@ -11,13 +11,14 @@
                  :labels="blockLabels"
                  :entityKey="entityKey"
                  :entityTypeGuid="EntityType.Location"
-                 entityTypeName="Location"
+                 :entityTypeName="entityTypeName"
                  :isAuditHidden="false"
                  :isBadgesVisible="true"
                  :isDeleteVisible="isEditable"
                  :isEditVisible="isEditable"
                  :isFollowVisible="false"
                  :isSecurityHidden="isSecurityHidden"
+                 :isFullScreenVisible="false"
                  @cancelEdit="onCancelEdit"
                  @delete="onDelete"
                  @edit="onEdit"
@@ -102,6 +103,14 @@
     });
 
     /**
+    * The entity type name.
+    */
+    const entityTypeName = computed((): string => {
+        return locationViewBag.value?.name ? `"${locationViewBag.value?.name}" Location` : "Location";
+    });
+
+
+    /**
      * The identifier key value for this entity.
      */
     const entityKey = computed((): string => {
@@ -149,7 +158,13 @@
     });
 
     const options = computed((): LocationDetailOptionsBag => {
-        return config.options ?? {} as LocationDetailOptionsBag;
+        return config.options ?? {
+            canAdministrate: false,
+            hasParentLocationId: false,
+            hasPersonId: false,
+            isPersonIdAvailable: false,
+            mapStyleGuid: ""
+        };
     });
 
     /**

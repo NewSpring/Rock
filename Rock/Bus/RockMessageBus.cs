@@ -206,6 +206,31 @@ namespace Rock.Bus
         }
 
         /// <summary>
+        /// Start bus with the specified component.
+        /// </summary>
+        /// <remarks>This is meant to be used by unit tests.</remarks>
+        /// <param name="component">The component to initialize the bus with.</param>
+        /// <returns>A Task representing the asynchronous operation.</returns>
+        internal static async Task StartBusInternalAsync( TransportComponent component )
+        {
+            _transportComponent = component;
+
+            await ConfigureAndStartBusAsync();
+        }
+
+        /// <summary>
+        /// Stops the bus.
+        /// </summary>
+        /// <remarks>This is meant to be used by unit tests.</remarks>
+        internal static void StopBusInternal()
+        {
+            _transportComponent = null;
+            _bus = null;
+            _isBusStarted = false;
+            _busStartupCompleted = new TaskCompletionSource<bool>();
+        }
+
+        /// <summary>
         /// Determines whether the message was sent by this Rock instance.
         /// </summary>
         /// <typeparam name="TQueue">The type of the queue.</typeparam>
@@ -309,6 +334,65 @@ namespace Rock.Bus
                     context.TimeToLive = RockQueue.GetTimeToLive( queue );
                 } );
             } );
+        }
+
+        /// <summary>
+        /// Posts a message to the bus and waits for one to respond. The message
+        /// is published to all nodes so the consumer should have logic to
+        /// determine if it is the one that needs to process it.
+        /// </summary>
+        /// <typeparam name="TQueue">The queue to publish the message into.</typeparam>
+        /// <typeparam name="TMessage">The type of message to be published.</typeparam>
+        /// <typeparam name="TResponse">The expected response type.</typeparam>
+        /// <param name="message">The message to publish.</param>
+        /// <param name="cancellationToken">A token that can be set to a cancelled state in order to abort waiting for a response.</param>
+        /// <returns>A task that completes with the response received from a node.</returns>
+        internal static Task<TResponse> RequestAsync<TQueue, TMessage, TResponse>( TMessage message, CancellationToken cancellationToken = default )
+            where TQueue : ISendCommandQueue, new()
+            where TMessage : class, ICommandMessage<TQueue>
+            where TResponse: class, new()
+        {
+            message.SenderNodeName = NodeName;
+
+            // NOTE: Use Task.Run to wrap an async instead of directly using
+            // async, otherwise async will get an exception if it isn't done
+            // before the HttpContext is disposed.
+            return Task.Run( async () =>
+            {
+                if ( !IsReady() && _busStartupCompleted != null )
+                {
+                    /* 06/21/2022 MP
+                      
+                    If the bus is still in the process of starting, we'll wait
+                    for the bus to be started, and then do the publish. This can
+                    happen since CacheUpdateMessages can be published prior to
+                    the MessageBus getting started.
+                     
+                    */
+
+                    // Wait for up to 45 seconds.
+                    await Task.WhenAny( _busStartupCompleted.Task, Task.Delay( maxStartupWaitTimeSeconds * 1000 ) );
+                }
+
+                if ( !IsReady() )
+                {
+                    var ex = new BusException( $"A message request attempt could not be published before the message bus was able to be ready: {RockMessage.GetLogString( message )}" );
+
+                    // Even though we are throwing, log the message for now
+                    // because it is pretty important and might not be logged
+                    // by the caller.
+                    ExceptionLogService.LogException( ex );
+
+                    throw ex;
+                }
+
+                var response = await _bus.Request<TMessage, TResponse>( message, cancellationToken, callback: context =>
+                {
+                    context.TimeToLive = RockQueue.GetTimeToLive<TQueue>();
+                } );
+
+                return response.Message;
+            }, cancellationToken );
         }
 
         private const int maxStartupWaitTimeSeconds = 45;
