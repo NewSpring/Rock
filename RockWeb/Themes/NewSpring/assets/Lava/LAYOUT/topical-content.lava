@@ -1,5 +1,5 @@
 {% assign siteName = 'Global' | Page:'SiteName' %}
-{% assign slug = 'Global' | PageParameter:'Tag' %}
+{% assign slug = 'Global' | PageParameter:'asdf' %}
 {% assign pageNumber = 'Global' | PageParameter:'Page' %}
 {% assign tag = 'tags' | PersistedDataset | Where:'Slug', slug | First %}
 
