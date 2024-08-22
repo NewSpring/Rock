@@ -42,17 +42,19 @@
 {% assign linktext = 'View Resources' %}
 {% assign hideforegroundelements = '' %}
 
+<div class="push-top xs-push-half-top">
 {[ sideBySide id:'{{ id }}' title:'{{ title }}' content:'{{ content }}' textalignment:'{{ textalignment }}' label:'{{ label }}' subtitle:'{{ subtitle }}' imageurl:'{{ imageurl }}' imageoverlayurl:'{{ imageoverlayurl }}' imagealignment:'{{ imagealignment }}' imageopacity:'{{ imageopacity }}' imageflip:'{{ imageflip }}' imageblur:'{{ imageblur }}' grayscale:'{{ grayscale }}' backgroundvideourl:'{{ backgroundvideourl }}' lava:'{{ lava }}' video:'{{ video }}' ratio:'{{ ratio }}' trimcopy:'{{ trimcopy }}' linkcolor:'{{ linkcolor }}' backgroundcolor:'{{ backgroundcolor }}' linktext:'{{ linktext }}' linkurl:'{{ linkurl }}' hideforegroundelements:'{{ hideforegroundelements }}' linkedpageid:'{{ linkedpageid }}' linkedpageroute:'{{ linkedpageroute }}' ]}
+</div>
 
 <div id="resources">
 {% assign downloadCount = Item.Downloads | Size %}
 {% if downloadCount > 0 %}
-<section class="bg-white soft-double xs-soft rounded shadowed push-bottom xs-push-half-bottom">
+<section class="bg-white soft-double xs-soft rounded-lg push-bottom xs-push-half-bottom">
 
     <h2 class="text-center push-top push-double-bottom">Series Resources</h2>
 
     <div class="row">
-        {% for download in Item.Downloads %}<div class="col-md-6 col-xs-12">
+        {% for download in Item.Downloads %}{% if download.Link != '' or download.File != '' %}<div class="col-md-6 col-xs-12">
 
                 <h3 class="h4 push-half-bottom">{{ download.Title }}</h3>
                 <p class="push-half-bottom">{{ download.Summary }}</p>
@@ -64,7 +66,7 @@
                 {% endif %}
                 </p>
 
-        </div>{% endfor %}
+        </div>{% endif %}{% endfor %}
     </div>
 </section>
 {% endif %}
