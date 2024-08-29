@@ -39,7 +39,7 @@
     LEFT JOIN [Attribute] attr ON attr.[Id] = av.[AttributeId]
     JOIN [PersonAlias] pa ON a.[PersonAliasId] = pa.[Id]
     JOIN [Person] p ON pa.[PersonId] = p.[Id]
-    JOIN [AttendanceCode] ac ON a.[AttendanceCodeId] = ac.[Id]
+    LEFT JOIN [AttendanceCode] ac ON a.[AttendanceCodeId] = ac.[Id]
     WHERE ao.[OccurrenceDateKey] = @datekey
     AND ao.[ScheduleId] = @scheduleid
     AND ao.[LocationId] = @locationid
