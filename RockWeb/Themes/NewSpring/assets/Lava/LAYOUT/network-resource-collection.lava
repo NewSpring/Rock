@@ -87,7 +87,7 @@
     {% assign childChannelId = Item.ChildChannelId | AsInteger %}
     {% assign childType = Item.Children | Where:'ChannelId', childChannelId | First | Property:'Dataset' | PersistedDataset | First | Property:'ChannelName' | Split:' - ' | Last | Singularize %}
 
-    <section class="shell bg-gray-lighter hard-sides rounded-lg">
+    <section id="swiper" class="shell bg-gray-lighter hard-sides rounded-lg">
         {% if childChannelId == '25' %}<h2 class="text-center flush-top push-double-bottom">Weekly Lessons & Videos</h2>{% endif %}
         {[ swiper title:'{{ childType | Pluralize }} From This {{ parentType | Singularize }}' ]}
             {% for child in Item.Children %}[[ item ]]
