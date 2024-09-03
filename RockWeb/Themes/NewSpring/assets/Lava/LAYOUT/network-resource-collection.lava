@@ -66,7 +66,16 @@
                 {% endif %}
                 </p>
 
-        </div>{% endif %}{% endfor %}
+        </div>{% if forloop.last and Item.ChannelId == '26' %}<div class="col-md-6 col-xs-12"><h3 class="h4 push-half-bottom">Weekly Lessons & Videos</h3>
+        <p class="push-half-bottom">Click below to browse weekly lessons and videos.</p>
+                <p>
+                {% if CurrentPerson and CurrentPerson != empty %}
+                    <a href="#swiper" data-scroll class="btn btn-primary" target="">View Resources</a>
+                {% else %}
+                    <a href="/sign-in?returnurl={{ currentUrl }}" class="btn btn-primary">Sign In to Download</a>
+                {% endif %}
+                </p>
+        </div>{% endif %}{% endif %}{% endfor %}
     </div>
 </section>
 {% endif %}
@@ -79,7 +88,7 @@
     {% assign childType = Item.Children | Where:'ChannelId', childChannelId | First | Property:'Dataset' | PersistedDataset | First | Property:'ChannelName' | Split:' - ' | Last | Singularize %}
 
     <section class="shell bg-gray-lighter hard-sides rounded-lg">
-
+        {% if childChannelId == '25' %}<h2 class="text-center flush-top push-double-bottom">Weekly Lessons & Videos</h2>{% endif %}
         {[ swiper title:'{{ childType | Pluralize }} From This {{ parentType | Singularize }}' ]}
             {% for child in Item.Children %}[[ item ]]
                 {% assign childId = child.Id | AsInteger %}
