@@ -66,8 +66,8 @@
                 {% endif %}
                 </p>
 
-        </div>{% if forloop.last and Item.ChannelId == '26' %}<div class="col-md-6 col-xs-12"><h3 class="h4 push-half-bottom">Weekly Lessons & Videos</h3>
-        <p class="push-half-bottom">Click below to browse weekly lessons and videos.</p>
+        </div>{% if forloop.last and Item.ChannelId == '26' and Item.Children != null %}<div class="col-md-6 col-xs-12"><h3 class="h4 push-half-bottom">Weekly Lessons & Videos</h3>
+        <p class="push-half-bottom">Click below to browse weekly lessons and videos</p>
                 <p>
                 {% if CurrentPerson and CurrentPerson != empty %}
                     <a href="#swiper" data-scroll class="btn btn-primary" target="">View Resources</a>
@@ -81,7 +81,7 @@
 {% endif %}
 
 
-{% if showchildren == 'true' and Item.Children != empty %}
+{% if showchildren == 'true' and Item.Children != null %}
 
     {% assign parentType = Item.ChannelName | Split:' - ' | Last | Singularize %}
     {% assign childChannelId = Item.ChildChannelId | AsInteger %}
