@@ -26,10 +26,22 @@
                 ,   l.[Name] AS [Location]
                 ,   (
                     SELECT COUNT(*)
+                    FROM [Attendance] a3
+                    WHERE a3.[OccurrenceId] = ao.[Id]
+                    AND a3.[DidAttend] = 1
+                    AND (
+                        a3.[EndDateTime] IS NULL
+                        OR a3.[EndDateTime] = ''
+                    )
+                    AND a3.[PresentDateTime] IS NULL
+                ) AS [EnRoute]
+                ,   (
+                    SELECT COUNT(*)
                     FROM [Attendance] a2
                     LEFT JOIN [AttributeValue] av2 ON av2.[EntityId] = a2.[Id] AND av2.[AttributeId] = 157200
                     WHERE a2.[OccurrenceId] = ao.[Id]
                     AND a2.[DidAttend] = 1
+                    AND a2.[PresentDateTime] IS NOT NULL
                     AND (
                         a2.[EndDateTime] IS NULL
                         OR a2.[EndDateTime] = ''
@@ -63,17 +75,6 @@
                         AND a2.[EndDateTime] != ''
                     )
                 ) AS [CheckedOut]
-                ,   (
-                    SELECT COUNT(*)
-                    FROM [Attendance] a3
-                    WHERE a3.[OccurrenceId] = ao.[Id]
-                    AND a3.[DidAttend] = 1
-                    AND (
-                        a3.[EndDateTime] IS NULL
-                        OR a3.[EndDateTime] = ''
-                    )
-                    AND a3.[PresentDateTime] IS NULL
-                ) AS [EnRoute]
             FROM [AttendanceOccurrence] ao
             JOIN [Location] l ON ao.[LocationId] = l.[Id]
             JOIN [Group] g ON ao.[GroupId] = g.[Id]
