@@ -150,13 +150,19 @@ namespace Rock.Blocks.Communication
         DefaultBooleanValue = false,
         Order = 14 )]
 
+    [BooleanField( "Show Additional Email Recipients",
+        Key = AttributeKey.ShowAdditionalEmailRecipients,
+        Description = "Allow additional email recipients to be entered for email communications?",
+        DefaultBooleanValue = false,
+        Order = 15 )]
+
     [TextField( "Document Root Folder",
         Key = AttributeKey.DocumentRootFolder,
         Description = "The folder to use as the root when browsing or uploading documents.",
         IsRequired = false,
         DefaultValue = "~/Content",
         Category = AttributeCategory.HtmlEditorSettings,
-        Order = 15 )]
+        Order = 16 )]
 
     [TextField( "Image Root Folder",
         Key = AttributeKey.ImageRootFolder,
@@ -164,14 +170,14 @@ namespace Rock.Blocks.Communication
         IsRequired = false,
         DefaultValue = "~/Content",
         Category = AttributeCategory.HtmlEditorSettings,
-        Order = 16 )]
+        Order = 17 )]
 
     [BooleanField( "User Specific Folders",
         Key = AttributeKey.UserSpecificFolders,
         Description = "Should the root folders be specific to current user?",
         DefaultBooleanValue = false,
         Category = AttributeCategory.HtmlEditorSettings,
-        Order = 17 )]
+        Order = 18 )]
 
     #endregion Block Attributes
 
@@ -213,6 +219,7 @@ namespace Rock.Blocks.Communication
             public const string EnableLava = "EnableLava";
             public const string EnablePersonParameter = "EnablePersonParameter";
             public const string ShowEmailMetricsReminderOptions = "ShowEmailMetricsReminderOptions";
+            public const string ShowAdditionalEmailRecipients = "ShowAdditionalEmailRecipients";
         }
 
         /// <summary>
@@ -353,6 +360,11 @@ namespace Rock.Blocks.Communication
         private bool AreEmailMetricsReminderOptionsShown => GetAttributeValue( AttributeKey.ShowEmailMetricsReminderOptions ).AsBoolean();
 
         /// <summary>
+        /// Allow additional email recipients to be entered for email communications?
+        /// </summary>
+        private bool AreAdditionalEmailRecipientsAllowed => GetAttributeValue( AttributeKey.ShowAdditionalEmailRecipients ).AsBoolean();
+
+        /// <summary>
         /// Gets the Edit page parameter indicating whether the block should be in edit mode.
         /// </summary>
         private bool EditPageParameter => PageParameter( PageParameterKey.Edit ).AsBoolean();
@@ -396,6 +408,7 @@ namespace Rock.Blocks.Communication
                 {
                     // Communication is either new or can be editted.
 
+                    box.AreAdditionalEmailRecipientsAllowed = this.AreAdditionalEmailRecipientsAllowed;
                     box.AreEmailMetricsReminderOptionsShown = this.AreEmailMetricsReminderOptionsShown;
                     box.Authorization = authorization;
                     box.IsCcBccEntryAllowed = this.IsCcBccEntryAllowed;
@@ -532,7 +545,7 @@ namespace Rock.Blocks.Communication
         [BlockAction( "Save" )]
         public BlockActionResult Save( CommunicationEntrySaveRequestBag bag )
         {
-            if ( !IsSaveRequestValid( bag, out var validationResult ) )
+            if ( !IsValid( bag, out var validationResult ) )
             {
                 return ActionBadRequest( validationResult.ErrorMessage );
             }
@@ -578,7 +591,7 @@ namespace Rock.Blocks.Communication
         [BlockAction( "Test" )]
         public BlockActionResult Test( CommunicationEntryTestRequestBag bag )
         {
-            if ( !IsTestRequestValid( bag, out var validationResult ) )
+            if ( !IsValid( bag, out var validationResult ) )
             {
                 return ActionBadRequest( validationResult.ErrorMessage );
             }
@@ -693,7 +706,7 @@ namespace Rock.Blocks.Communication
         [BlockAction( "Send" )]
         public BlockActionResult Send( CommunicationEntrySendRequestBag bag )
         {
-            if ( !IsSendRequestValid( bag, out var validationResult ) )
+            if ( !IsValid( bag, out var validationResult ) )
             {
                 return ActionBadRequest( validationResult.ErrorMessage );
             }
@@ -801,7 +814,7 @@ namespace Rock.Blocks.Communication
         [BlockAction( "SaveMetricsReminder" )]
         public BlockActionResult SaveMetricsReminder( CommunicationEntrySaveMetricsReminderRequestBag bag )
         {
-            if ( !IsSaveMetricsReminderRequestValid( bag, out var validationResult ) )
+            if ( !IsValid( bag, out var validationResult ) )
             {
                 return ActionBadRequest( validationResult.ErrorMessage );
             }
@@ -837,7 +850,7 @@ namespace Rock.Blocks.Communication
         [BlockAction( "CancelMetricsReminder" )]
         public BlockActionResult CancelMetricsReminder( Guid communicationGuid )
         {
-            if ( !IsCancelMetricsReminderRequestValid( communicationGuid, out var validationResult ) )
+            if ( !IsValid( communicationGuid, out var validationResult ) )
             {
                 return ActionBadRequest( validationResult.ErrorMessage );
             }
@@ -1116,7 +1129,19 @@ namespace Rock.Blocks.Communication
                 // Get the person aliases from existing communication recipients.
                 personAliasQuery = new CommunicationRecipientService( rockContext ).Queryable().AsNoTracking()
                    .Where( communicationRecipient => communicationRecipient.CommunicationId == options.CommunicationId.Value )
-                   .Select( communicationRecipient => communicationRecipient.PersonAlias );
+                   .Select( communicationRecipient => communicationRecipient.PersonAlias )
+                   .AsNoTracking();
+            }
+            else if ( options?.CommunicationListRecipientQueryOptions?.CommunicationListGroupId.HasValue == true )
+            {
+                // Get the person aliases by communication list.
+                var communicationListRecipientQueryOptions = options.CommunicationListRecipientQueryOptions;
+                personAliasQuery = Model.Communication.GetCommunicationListMembers(
+                    rockContext,
+                    communicationListRecipientQueryOptions.CommunicationListGroupId,
+                    communicationListRecipientQueryOptions.SegmentCriteria,
+                    communicationListRecipientQueryOptions.SegmentDataViewIds
+                ).Select( gm => gm.Person.Aliases.FirstOrDefault( a => a.AliasPersonId == a.PersonId ) ).AsNoTracking();
             }
             else
             {
@@ -1124,16 +1149,29 @@ namespace Rock.Blocks.Communication
                 personAliasQuery = new PersonAliasService( rockContext ).GetPrimaryAliasQuery().AsNoTracking();
             }
 
-            // Filter person aliases.
+            // Filter person aliases by Guid.
             if ( options?.PersonAliasGuids?.Any() == true )
             {
                 personAliasQuery = personAliasQuery.Where( personAlias => options.PersonAliasGuids.Contains( personAlias.Guid ) );
             }
 
-            // Limit the results.
+            // Filter person aliases by Id.
+            if ( options?.PersonAliasIds?.Any() == true )
+            {
+                personAliasQuery = personAliasQuery.Where( personAlias => options.PersonAliasIds.Contains( personAlias.Id ) );
+            }
+
+            // Limit the number of results.
             if ( options?.Limit.HasValue == true )
             {
                 personAliasQuery = personAliasQuery.Take( options.Limit.Value );
+            }
+
+            // Only include nameless people.
+            if ( options?.IsNamelessOnly == true )
+            {
+                var recordTypeValueIdNameless = DefinedValueCache.Get( SystemGuid.DefinedValue.PERSON_RECORD_TYPE_NAMELESS.AsGuid() ).Id;
+                personAliasQuery = personAliasQuery.Where( p => p.Person.RecordTypeValueId == recordTypeValueIdNameless );
             }
 
             return personAliasQuery
@@ -1185,6 +1223,7 @@ namespace Rock.Blocks.Communication
                 recipient.IsEmailAllowed = person.CanReceiveEmail( isBulk: false );
                 recipient.IsBulkEmailAllowed = person.CanReceiveEmail( isBulk: true );
                 recipient.IsSmsAllowed = mobilePhone?.Number.IsNotNullOrWhiteSpace() == true && mobilePhone.IsMessagingEnabled;
+                recipient.IsNameless = person.IsNameless();
 
                 return recipient;
             }
@@ -1258,7 +1297,7 @@ namespace Rock.Blocks.Communication
             communicationBag.Status = communication.Status;
 
             // Get the recipients.
-            communicationBag.Recipients = new List<CommunicationEntryRecipientBag>();
+            var recipientBags = new List<CommunicationEntryRecipientBag>();
             if ( communication.Id == 0 )
             {
                 if ( this.IsPersonPageParameterEnabled )
@@ -1278,7 +1317,7 @@ namespace Rock.Blocks.Communication
 
                         if ( personAlias != null )
                         {
-                            communicationBag.Recipients = GetRecipientBags(
+                            recipientBags = GetRecipientBags(
                                 rockContext,
                                 new RecipientQueryOptions
                                 {
@@ -1295,12 +1334,56 @@ namespace Rock.Blocks.Communication
             else
             {
                 // This is an existing communication so load the current recipients list.
-                communicationBag.Recipients = GetRecipientBags(
+                recipientBags = GetRecipientBags(
                     rockContext,
                     new RecipientQueryOptions
                     {
                         CommunicationId = communication.Id
                     } );
+            }
+
+            // Split up the known recipients and the "nameless" recipients.
+            communicationBag.Recipients = recipientBags.Where( r => !r.IsNameless ).ToList();
+            communicationBag.AdditionalEmailAddresses = recipientBags.Where( r => r.IsNameless ).Select( r => r.Email ).ToList();
+
+            // Get the communication list information.
+            if ( communication.ListGroupId.HasValue )
+            {
+                var listGroup = communication.ListGroup;
+                communicationBag.CommunicationListGroupGuid = listGroup.Guid;
+
+                if ( listGroup.Attributes == null )
+                {
+                    listGroup.LoadAttributes();
+                }
+
+                var name = listGroup.GetAttributeValue( "PublicName" );
+
+                if ( name.IsNullOrWhiteSpace() )
+                {
+                    name = listGroup.Name;
+                }
+
+                communicationBag.CommunicationListName = name;
+
+                var segmentDataViewGuids = communication.Segments
+                    .SplitDelimitedValues()
+                    .AsGuidList();
+                var segmentDataViewIds = new DataViewService( rockContext )
+                    .GetByGuids( segmentDataViewGuids )
+                    .Select( a => a.Id )
+                    .ToList();
+                communicationBag.CommunicationListRecipientCount = GetRecipientQuery( rockContext,
+                    new RecipientQueryOptions
+                    {
+                        CommunicationListRecipientQueryOptions = new CommunicationListRecipientQueryOptions
+                        {
+                            CommunicationListGroupId = listGroup.Id,
+                            SegmentCriteria = communication.SegmentCriteria,
+                            SegmentDataViewIds = segmentDataViewIds
+                        }
+                    } )
+                    .Count();
             }
 
             // Get the medium.
@@ -1457,9 +1540,37 @@ namespace Rock.Blocks.Communication
             var communicationRecipientService = new CommunicationRecipientService( rockContext );
             var communicationTemplateService = new CommunicationTemplateService( rockContext );
             var primaryPersonAliasQuery = new PersonAliasService( rockContext ).GetPrimaryAliasQuery();
+            var personService = new PersonService( rockContext );
 
             var currentPersonAliasId = GetCurrentPerson().PrimaryAliasId;
-            var newRecipientPersonAliasGuids = new HashSet<Guid>( bag.Recipients.Select( a => a.PersonAliasGuid ) );
+            var ( _, medium ) = GetMediumComponent( bag.MediumEntityTypeGuid );
+            var newRecipients = new List<CommunicationEntryRecipientBag>( bag.Recipients );
+
+            // Include additional email recipients.
+            if ( medium.CommunicationType == CommunicationType.Email && bag.AdditionalEmailAddresses?.Any() == true )
+            {
+                var additionalEmailRecipientPersonAliasIds = new List<int>();
+
+                foreach ( var additionalEmailAddress in bag.AdditionalEmailAddresses )
+                {
+                    var additionalRecipientPerson = personService.GetPersonFromEmailAddress( additionalEmailAddress, createNamelessPersonIfNotFound: true );
+
+                    if ( additionalRecipientPerson?.PrimaryAliasId.HasValue == true )
+                    {
+                        additionalEmailRecipientPersonAliasIds.Add( additionalRecipientPerson.PrimaryAliasId.Value );
+                    }
+                }
+
+                if ( additionalEmailRecipientPersonAliasIds.Any() )
+                {
+                    var additionalEmailRecipients = GetRecipientBags( rockContext, new RecipientQueryOptions
+                    {
+                        PersonAliasIds = additionalEmailRecipientPersonAliasIds
+                    } );
+
+                    newRecipients.AddRange( additionalEmailRecipients );
+                }
+            }
 
             Rock.Model.Communication communication = null;
 
@@ -1471,7 +1582,8 @@ namespace Rock.Blocks.Communication
                         .Select( r => new
                         {
                             Recipient = r,
-                            PersonAliasGuid = r.PersonAlias.Guid
+                            PersonAliasGuid = r.PersonAlias.Guid,
+                            Person = r.PersonAlias.Person
                         } )
                         .ToList();
                 } );
@@ -1495,7 +1607,8 @@ namespace Rock.Blocks.Communication
             {
                 communication.GetAttachments( communication.CommunicationType );
 
-                // Remove any deleted recipients.                
+                // Remove any deleted recipients.
+                var newRecipientPersonAliasGuids = newRecipients.Select( r => r.PersonAliasGuid ).Distinct().ToList();
                 foreach ( var currentRecipient in currentRecipients.Value )
                 {
                     if ( !newRecipientPersonAliasGuids.Contains( currentRecipient.PersonAliasGuid ) )
@@ -1506,10 +1619,19 @@ namespace Rock.Blocks.Communication
                 }
             }
 
-            // Add any new recipients.
-            foreach ( var newRecipient in bag.Recipients )
+            if ( !bag.CommunicationListGroupGuid.HasValue || bag.CommunicationListGroupGuid.Value.IsEmpty() )
             {
-                if ( !currentRecipients.Value.Any( currentRecipient => currentRecipient.PersonAliasGuid != newRecipient.PersonAliasGuid ) )
+                // Remove the communication list from the communication.
+                // The communication will no longer be linked to the
+                // communication list. This allows individuals to start from
+                // a list and remove certain recipients.
+                communication.ListGroupId = null;
+            }
+
+            // Add any new recipients.
+            foreach ( var newRecipient in newRecipients )
+            {
+                if ( !currentRecipients.Value.Any( currentRecipient => currentRecipient.PersonAliasGuid == newRecipient.PersonAliasGuid ) )
                 {
                     var primaryPersonAlias = primaryPersonAliasQuery.FirstOrDefault( p => p.Guid == newRecipient.PersonAliasGuid );
                     if ( primaryPersonAlias != null )
@@ -1526,7 +1648,6 @@ namespace Rock.Blocks.Communication
             communication.EnabledLavaCommands = this.EnabledLavaCommands;
             communication.IsBulkCommunication = bag.IsBulkCommunication;
 
-            var ( _, medium ) = GetMediumComponent( bag.MediumEntityTypeGuid );
             if ( medium != null )
             {
                 communication.CommunicationType = medium.CommunicationType;
@@ -1625,11 +1746,17 @@ namespace Rock.Blocks.Communication
         /// <summary>
         /// Validates a save request.
         /// </summary>
-        private static bool IsSaveRequestValid( CommunicationEntrySaveRequestBag bag, out ValidationResult validationResult )
+        private static bool IsValid( CommunicationEntrySaveRequestBag bag, out ValidationResult validationResult )
         {
             // Validation for all medium types.
-            if ( !bag.Validate( "Communication Information" ).IsNotNull( out validationResult )
-                    || !bag.MediumEntityTypeGuid.Validate( "Medium Type" ).IsNotEmpty( out validationResult ) )
+            var isBasicInfoValid = bag.Validate( "Communication Information" ).IsNotNull( out validationResult )
+                && bag.MediumEntityTypeGuid.Validate( "Medium Type" ).IsNotEmpty( out validationResult )
+                && (
+                    bag.FutureSendDateTime.Validate( "Schedule Send" ).IsNull( out validationResult )
+                    || bag.FutureSendDateTime.Value.Validate( "Schedule Send" ).IsNowOrFuture( out validationResult )
+                );
+
+            if ( !isBasicInfoValid )
             {
                 return false;
             }
@@ -1640,19 +1767,26 @@ namespace Rock.Blocks.Communication
                 // Email
                 return bag.FromName.Validate( "From Name" ).IsNotNullOrWhiteSpace( out validationResult )
                     && bag.FromAddress.Validate( "From Address" ).IsNotNullOrWhiteSpace( out validationResult )
-                    && ( !bag.FutureSendDateTime.HasValue || bag.FutureSendDateTime.Value.Validate( "Schedule Send" ).IsNowOrFutureDateTime( out validationResult ) );
+                    && (
+                        bag.AdditionalEmailAddresses.Validate( "Additional Email Recipients" ).IsNullOrEmpty( out validationResult )
+                        || bag.AdditionalEmailAddresses
+                            .ValidateEach( "Additional Email Recipient" )
+                            .WithErrorMessage( ( invalidEmailAddress, _ ) => $"{invalidEmailAddress} is an invalid email address." )
+                            .IsEmailAddress( out validationResult )
+                    );
             }
             else if ( bag.MediumEntityTypeGuid == SystemGuid.EntityType.COMMUNICATION_MEDIUM_SMS.AsGuid() )
             {
                 // SMS
-                return bag.SmsFromSystemPhoneNumberGuid.Validate( "From Phone" ).IsNotNull( out validationResult )
-                    && bag.SmsMessage.Validate( "Message" ).IsNotNullOrWhiteSpace( out validationResult )
-                    && ( !bag.FutureSendDateTime.HasValue || bag.FutureSendDateTime.Value.Validate( "Schedule Send" ).IsNowOrFutureDateTime( out validationResult ) );
+                return bag.SmsFromSystemPhoneNumberGuid.Validate( "From Phone" ).IsNotNullOrEmpty( out validationResult )
+                    && bag.SmsMessage.Validate( "Message" ).IsNotNullOrWhiteSpace( out validationResult );
             }
             else if ( bag.MediumEntityTypeGuid == SystemGuid.EntityType.COMMUNICATION_MEDIUM_PUSH_NOTIFICATION.AsGuid() )
             {
                 // Push
-                return !bag.FutureSendDateTime.HasValue || bag.FutureSendDateTime.Value.Validate( "Schedule Send" ).IsNowOrFutureDateTime( out validationResult );
+                // No additional validation to save a push notification.
+                validationResult = ValidationResult.Success;
+                return true;
             }
             else
             {
@@ -1665,11 +1799,22 @@ namespace Rock.Blocks.Communication
         /// <summary>
         /// Validates a send request.
         /// </summary>
-        private static bool IsSendRequestValid( CommunicationEntrySendRequestBag bag, out ValidationResult validationResult )
+        private static bool IsValid( CommunicationEntrySendRequestBag bag, out ValidationResult validationResult )
         {
             // Validation for all medium types.
-            if ( !bag.Validate( "Communication Information" ).IsNotNull( out validationResult )
-                    || !bag.MediumEntityTypeGuid.Validate( "Medium Type" ).IsNotEmpty( out validationResult ) )
+            var isBasicInfoValid = bag.Validate( "Communication Information" ).IsNotNull( out validationResult )
+                && bag.MediumEntityTypeGuid.Validate( "Medium Type" ).IsNotEmpty( out validationResult )
+                && (
+                    bag.FutureSendDateTime.Validate( "Schedule Send" ).IsNull( out validationResult )
+                    || bag.FutureSendDateTime.Value.Validate( "Schedule Send" ).IsNowOrFuture( out validationResult )
+                )
+                && (
+                    bag.CommunicationListGroupGuid.Validate().IsNotNullOrEmpty( out validationResult )
+                    || bag.Recipients.Validate( "Recipients" ).IsNotEmpty( out validationResult )
+                );
+
+
+            if ( !isBasicInfoValid )
             {
                 return false;
             }
@@ -1680,24 +1825,25 @@ namespace Rock.Blocks.Communication
                 // Email
                 return bag.FromName.Validate( "From Name" ).IsNotNullOrWhiteSpace( out validationResult )
                     && bag.FromAddress.Validate( "From Address" ).IsNotNullOrWhiteSpace( out validationResult )
-                    && bag.Recipients.Validate( "Recipients" ).IsNotEmpty( out validationResult )
-                    && ( !bag.FutureSendDateTime.HasValue || bag.FutureSendDateTime.Value.Validate( "Schedule Send" ).IsNowOrFutureDateTime( out validationResult ) );
+                    && (
+                        bag.AdditionalEmailAddresses.Validate( "Additional Email Recipients" ).IsNullOrEmpty( out validationResult )
+                        || bag.AdditionalEmailAddresses
+                            .ValidateEach( "Additional Email Recipient" )
+                            .WithErrorMessage( ( invalidEmailAddress, _ ) => $"{invalidEmailAddress} is an invalid email address." )
+                            .IsEmailAddress( out validationResult )
+                    );
             }
             else if ( bag.MediumEntityTypeGuid == SystemGuid.EntityType.COMMUNICATION_MEDIUM_SMS.AsGuid() )
             {
                 // SMS
-                return bag.SmsFromSystemPhoneNumberGuid.Validate( "From Phone" ).IsNotNull( out validationResult )
-                    && bag.SmsMessage.Validate( "Message" ).IsNotNullOrWhiteSpace( out validationResult )
-                    && bag.Recipients.Validate( "Recipients" ).IsNotEmpty( out validationResult )
-                    && ( !bag.FutureSendDateTime.HasValue || bag.FutureSendDateTime.Value.Validate( "Schedule Send" ).IsNowOrFutureDateTime( out validationResult ) );
+                return bag.SmsFromSystemPhoneNumberGuid.Validate( "From Phone" ).IsNotNullOrEmpty( out validationResult )
+                    && bag.SmsMessage.Validate( "Message" ).IsNotNullOrWhiteSpace( out validationResult );
             }
             else if ( bag.MediumEntityTypeGuid == SystemGuid.EntityType.COMMUNICATION_MEDIUM_PUSH_NOTIFICATION.AsGuid() )
             {
                 // Push
                 return bag.PushTitle.Validate( "Title" ).HasMaxLength( 100, out validationResult )
-                    && bag.PushMessage.Validate( "Message" ).HasMaxLength( 1024, out validationResult )
-                    && bag.Recipients.Validate( "Recipients" ).IsNotEmpty( out validationResult )
-                    && ( !bag.FutureSendDateTime.HasValue || bag.FutureSendDateTime.Value.Validate( "Schedule Send" ).IsNowOrFutureDateTime( out validationResult ) );
+                    && bag.PushMessage.Validate( "Message" ).HasMaxLength( 1024, out validationResult );
             }
             else
             {
@@ -1710,11 +1856,21 @@ namespace Rock.Blocks.Communication
         /// <summary>
         /// Validates a test request.
         /// </summary>
-        private static bool IsTestRequestValid( CommunicationEntryTestRequestBag bag, out ValidationResult validationResult )
+        private static bool IsValid( CommunicationEntryTestRequestBag bag, out ValidationResult validationResult )
         {
             // Validation for all medium types.
-            if ( !bag.Validate( "Communication Information" ).IsNotNull( out validationResult )
-                    || !bag.MediumEntityTypeGuid.Validate( "Medium Type" ).IsNotEmpty( out validationResult ) )
+            var isBasicInfoValid = bag.Validate( "Communication Information" ).IsNotNull( out validationResult )
+                && bag.MediumEntityTypeGuid.Validate( "Medium Type" ).IsNotEmpty( out validationResult )
+                && (
+                    bag.FutureSendDateTime.Validate( "Schedule Send" ).IsNull( out validationResult )
+                    || bag.FutureSendDateTime.Value.Validate( "Schedule Send" ).IsNowOrFuture( out validationResult )
+                )
+                && (
+                    bag.CommunicationListGroupGuid.Validate().IsNotNullOrEmpty( out validationResult )
+                    || bag.Recipients.Validate( "Recipients" ).IsNotEmpty( out validationResult )
+                );
+
+            if ( !isBasicInfoValid )
             {
                 return false;
             }
@@ -1725,24 +1881,25 @@ namespace Rock.Blocks.Communication
                 // Email
                 return bag.FromName.Validate( "From Name" ).IsNotNullOrWhiteSpace( out validationResult )
                     && bag.FromAddress.Validate( "From Address" ).IsNotNullOrWhiteSpace( out validationResult )
-                    && bag.Recipients.Validate( "Recipients" ).IsNotEmpty( out validationResult )
-                    && ( !bag.FutureSendDateTime.HasValue || bag.FutureSendDateTime.Value.Validate( "Schedule Send" ).IsNowOrFutureDateTime( out validationResult ) );
+                    && (
+                        bag.AdditionalEmailAddresses.Validate( "Additional Email Recipients" ).IsNullOrEmpty( out validationResult )
+                        || bag.AdditionalEmailAddresses
+                            .ValidateEach( "Additional Email Recipient" )
+                            .WithErrorMessage( ( invalidEmailAddress, _ ) => $"{invalidEmailAddress} is an invalid email address." )
+                            .IsEmailAddress( out validationResult )
+                    );
             }
             else if ( bag.MediumEntityTypeGuid == SystemGuid.EntityType.COMMUNICATION_MEDIUM_SMS.AsGuid() )
             {
                 // SMS
-                return bag.SmsFromSystemPhoneNumberGuid.Validate( "From Phone" ).IsNotNull( out validationResult )
-                    && bag.SmsMessage.Validate( "Message" ).IsNotNullOrWhiteSpace( out validationResult )
-                    && bag.Recipients.Validate( "Recipients" ).IsNotEmpty( out validationResult )
-                    && ( !bag.FutureSendDateTime.HasValue || bag.FutureSendDateTime.Value.Validate( "Schedule Send" ).IsNowOrFutureDateTime( out validationResult ) );
+                return bag.SmsFromSystemPhoneNumberGuid.Validate( "From Phone" ).IsNotNullOrEmpty( out validationResult )
+                    && bag.SmsMessage.Validate( "Message" ).IsNotNullOrWhiteSpace( out validationResult );
             }
             else if ( bag.MediumEntityTypeGuid == SystemGuid.EntityType.COMMUNICATION_MEDIUM_PUSH_NOTIFICATION.AsGuid() )
             {
                 // Push
                 return bag.PushTitle.Validate( "Title" ).HasMaxLength( 100, out validationResult )
-                    && bag.PushMessage.Validate( "Message" ).HasMaxLength( 1024, out validationResult )
-                    && bag.Recipients.Validate( "Recipients" ).IsNotEmpty( out validationResult )
-                    && ( !bag.FutureSendDateTime.HasValue || bag.FutureSendDateTime.Value.Validate( "Schedule Send" ).IsNowOrFutureDateTime( out validationResult ) );
+                    && bag.PushMessage.Validate( "Message" ).HasMaxLength( 1024, out validationResult );
             }
             else
             {
@@ -1755,9 +1912,11 @@ namespace Rock.Blocks.Communication
         /// <summary>
         /// Validates a save metrics reminder request.
         /// </summary>
-        private bool IsSaveMetricsReminderRequestValid( CommunicationEntrySaveMetricsReminderRequestBag bag, out ValidationResult validationResult )
+        private bool IsValid( CommunicationEntrySaveMetricsReminderRequestBag bag, out ValidationResult validationResult )
         {
-            return this.AreEmailMetricsReminderOptionsShown.Validate( "Email Metrics Reminder Feature" ).WithErrorMessage( v => $"{v.FriendlyName} is not enabled." ).IsTrue( out validationResult )
+            return this.AreEmailMetricsReminderOptionsShown.Validate()
+                    .WithErrorMessage( ( _value, _friendlyName ) => "Email Metrics Reminder Feature is not enabled." )
+                    .IsTrue( out validationResult )
                 && bag.Validate( "Save Metrics Reminder Information" ).IsNotNull( out validationResult )
                 && bag.CommunicationGuid.Validate( "Communication" ).IsNotEmpty( out validationResult )
                 && bag.DaysUntilReminder.Validate( "Days Until Reminder" ).IsGreaterThanOrEqualTo( 1, out validationResult );
@@ -1766,7 +1925,7 @@ namespace Rock.Blocks.Communication
         /// <summary>
         /// Validates a cancel metrics reminder request.
         /// </summary>
-        private bool IsCancelMetricsReminderRequestValid( Guid communicationGuid, out ValidationResult validationResult )
+        private static bool IsValid( Guid communicationGuid, out ValidationResult validationResult )
         {
             // The Email Metrics Reminder feature does not need to be enabled to cancel an email reminder.
             return communicationGuid.Validate( "Communication" ).IsNotEmpty( out validationResult );
@@ -1778,11 +1937,53 @@ namespace Rock.Blocks.Communication
 
         private class RecipientQueryOptions
         {
+            /// <summary>
+            /// When set, gets recipients from specific person alias unique identifiers.
+            /// </summary>
             public IEnumerable<Guid> PersonAliasGuids { get; set; }
 
+            /// <summary>
+            /// When set, gets recipients from specific person alias identifiers.
+            /// </summary>
+            public IEnumerable<int> PersonAliasIds { get; set; }
+
+            /// <summary>
+            /// When set, gets recipients from a specific communication.
+            /// </summary>
             public int? CommunicationId { get; set; }
 
+            /// <summary>
+            /// When set, gets recipients from a specific communication list.
+            /// </summary>
+            public CommunicationListRecipientQueryOptions CommunicationListRecipientQueryOptions { get; set; }
+
             public int? Limit { get; set; }
+
+            /// <summary>
+            /// When <see langword="true"/>, only nameless recipients will be returned from the query.
+            /// <para>
+            ///     This is useful when retrieving only the "Additional Email Recipients".
+            /// </para>
+            /// </summary>
+            public bool? IsNamelessOnly { get; set; }
+        }
+        
+        private class CommunicationListRecipientQueryOptions
+        {
+            /// <summary>
+            /// Gets or sets the communication list group identifier.
+            /// </summary>
+            public int? CommunicationListGroupId { get; set; }
+
+            /// <summary>
+            /// Gets or sets the data view segments identifiers.
+            /// </summary>
+            public List<int> SegmentDataViewIds { get; set; }
+
+            /// <summary>
+            /// Gets or sets the data view segment criteria.
+            /// </summary>
+            public SegmentCriteria SegmentCriteria { get; set; }
         }
 
         private interface IMediumDataService

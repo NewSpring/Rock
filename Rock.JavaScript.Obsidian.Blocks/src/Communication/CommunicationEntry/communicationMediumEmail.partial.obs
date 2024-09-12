@@ -34,13 +34,34 @@
                   @submit="onFormSubmitted">
             <div class="row">
                 <div class="col-sm-12">
-                    <RecipientPicker v-model="internalRecipients"
+                    <RecipientPicker v-if="!config.communication || !internalCommunicationListGroupGuid"
+                                     v-model="internalRecipients"
                                      v-model:disabled="internalDisabled"
                                      :isAddHidden="config.mode !== Mode.Full"
                                      :isForBulkCommunication="isBulkCommunication"
                                      label="Recipients"
                                      mediumType="email"
                                      :minimumRecipientCount="minimumRecipientCount" />
+                    <template v-else>
+                        <RockLabel>Recipients</RockLabel>
+                        <StaticFormControl :modelValue="`Communication List: ${config.communication.communicationListName} (${config.communication.communicationListRecipientCount} individuals)`">
+                            <template #default="{ value }">
+                                {{ value }} <RockButton btnType="link" btnSize="sm" @click="onConvertListToRecipients">Convert List to Recipients</RockButton>
+                            </template>
+                        </StaticFormControl>
+                    </template>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-sm-12">
+                    <EmailBox v-if="config.areAdditionalEmailRecipientsAllowed"
+                              v-model="additionalEmailAddresses"
+                              :allowLava="false"
+                              :allowMultiple="true"
+                              :disabled="internalDisabled"
+                              help="Enter additional email addresses to receive this communication. Addresses can be separated by either a space or a comma. Please note that Lava-merging with Person fields is not available when entering email addresses."
+                              label="Additional Email Recipients" />
                 </div>
             </div>
 
@@ -220,6 +241,7 @@
     import NotificationBox from "@Obsidian/Controls/notificationBox.obs";
     import RockButton from "@Obsidian/Controls/rockButton.obs";
     import RockForm from "@Obsidian/Controls/rockForm.obs";
+    import RockLabel from "@Obsidian/Controls/rockLabel.obs";
     import StaticFormControl from "@Obsidian/Controls/staticFormControl.obs";
     import Switch from "@Obsidian/Controls/switch.obs";
     import TextBox from "@Obsidian/Controls/textBox.obs";
@@ -267,6 +289,11 @@
         scheduleSendIsoString: {
             type: String as PropType<string>,
             required: true
+        },
+
+        communicationListGroupGuid: {
+            type: String as PropType<Guid | null | undefined>,
+            required: true
         }
     });
 
@@ -287,6 +314,8 @@
         (e: "update:scheduleSendIsoString", value: string): void;
         /** Emits an event indicating the isBulkCommunication state should be updated. */
         (e: "update:isBulkCommunication", value: boolean): void;
+        /** Emits an event indicating the communication list unique identifier should be updated. */
+        (e: "update:communicationListGroupGuid", value: Guid | null | undefined): void;
     }>();
 
     const config = useConfigurationValues<CommunicationEntryInitializationBox>();
@@ -299,6 +328,7 @@
     const internalDisabled = useVModelPassthrough(props, "disabled", emit);
     const internalIsBulkCommunication = useVModelPassthrough(props, "isBulkCommunication", emit);
     const internalScheduleSendIsoString = useVModelPassthrough(props, "scheduleSendIsoString", emit);
+    const internalCommunicationListGroupGuid = useVModelPassthrough(props, "communicationListGroupGuid", emit);
     const disabledMessage = ref<string | null | undefined>();
     const testResultElement = ref<HTMLElement | undefined>();
     const attachments = ref<ListItemBag[]>(template.value?.emailAttachmentBinaryFiles ?? []);
@@ -323,6 +353,7 @@
     const errorMessage = ref<string | null | undefined>();
     const isInvalidTransportNotificationDismissed = ref<boolean>(false);
     const isLoadingMediumOptions = ref<boolean>(true);
+    const additionalEmailAddresses = ref<string>(template.value?.additionalEmailAddresses?.join(", ") ?? "");
 
     //#endregion
 
@@ -444,12 +475,14 @@
         return options?.mediumType === MediumType.Email;
     }
 
-    //#endregion
+    function splitDelimitedValues(delimitedValues: string): string[] | null {
+        if (!delimitedValues) {
+            return null;
+        }
 
-    //#region Event Handlers
+        const regex = /[\s|,;]+/g;
 
-    function onDismissInvalidTransportNotification(): void {
-        isInvalidTransportNotificationDismissed.value = true;
+        return delimitedValues.replace(regex, ",").split(",").filter(s => !!s);
     }
 
     async function setRecipientsRequired(): Promise<void> {
@@ -473,14 +506,24 @@
         }
     }
 
+    //#endregion
+
+    //#region Event Handlers
+
     /**
-     * Saves the communication.
+     * Converts the communication list to a regular list of recipients.
      */
-    async function onClickSave(): Promise<void> {
-        // Recipients are not required when saving.
-        await setRecipientsNotRequired();
-        actionToExecuteOnSubmit.value = save;
-        await submitForm();
+    function onConvertListToRecipients(): void {
+        // We already have the communication list recipients in memory.
+        // Just remove the unique identifier link and trigger a UI update.
+        internalCommunicationListGroupGuid.value = null;
+    }
+
+    /**
+     * Dismisses the invalid transport notification message.
+     */
+    function onDismissInvalidTransportNotification(): void {
+        isInvalidTransportNotificationDismissed.value = true;
     }
 
     /**
@@ -496,11 +539,26 @@
     }
 
     /**
+     * Saves the communication.
+     */
+    async function onClickSave(): Promise<void> {
+        // Recipients are not required when saving.
+        await setRecipientsNotRequired();
+        actionToExecuteOnSubmit.value = save;
+        await submitForm();
+    }
+
+    /**
      * Sends the communication.
      */
     async function onClickSend(): Promise<void> {
-        // Recipients are required when sending.
-        await setRecipientsRequired();
+        // Recipients are required when sending if not using a communication list.
+        if (internalCommunicationListGroupGuid.value) {
+            await setRecipientsNotRequired();
+        }
+        else {
+            await setRecipientsRequired();
+        }
         actionToExecuteOnSubmit.value = send;
         await submitForm();
     }
@@ -509,8 +567,13 @@
      * Sends the communication.
      */
     async function onClickTest(): Promise<void> {
-        // Recipients are required when sending a test.
-        await setRecipientsRequired();
+        // Recipients are required when sending a test if not using a communication list.
+        if (internalCommunicationListGroupGuid.value) {
+            await setRecipientsNotRequired();
+        }
+        else {
+            await setRecipientsRequired();
+        }
         actionToExecuteOnSubmit.value = test;
         await submitForm();
     }
@@ -587,6 +650,7 @@
                 bccAddresses: bccAddresses.value,
                 ccAddresses: ccAddresses.value,
                 status: CommunicationStatus.Transient,
+                communicationListGroupGuid: internalCommunicationListGroupGuid.value,
                 communicationTemplateGuid: templateGuid.value,
                 emailAttachmentBinaryFiles: attachments.value ?? [],
                 fromAddress: fromAddress.value,
@@ -597,7 +661,8 @@
                 recipients: props.recipients,
                 replyAddress: replyToAddress.value,
                 subject: subject.value,
-                communicationGuid: communicationGuid.value
+                communicationGuid: communicationGuid.value,
+                additionalEmailAddresses: splitDelimitedValues(additionalEmailAddresses.value)
             };
 
             const result = await invokeBlockAction<CommunicationEntrySaveResponseBag>("Save", { bag });
@@ -627,6 +692,7 @@
                 bccAddresses: bccAddresses.value,
                 ccAddresses: ccAddresses.value,
                 status: CommunicationStatus.Transient,
+                communicationListGroupGuid: internalCommunicationListGroupGuid.value,
                 communicationTemplateGuid: templateGuid.value,
                 emailAttachmentBinaryFiles: attachments.value,
                 fromAddress: fromAddress.value,
@@ -638,6 +704,7 @@
                 replyAddress: replyToAddress.value,
                 subject: subject.value,
                 communicationGuid: communicationGuid.value,
+                additionalEmailAddresses: splitDelimitedValues(additionalEmailAddresses.value)
             };
 
             const result = await invokeBlockAction<CommunicationEntrySendResponseBag>("Send", { bag });
@@ -669,6 +736,7 @@
                 bccAddresses: bccAddresses.value,
                 ccAddresses: ccAddresses.value,
                 status: CommunicationStatus.Transient,
+                communicationListGroupGuid: internalCommunicationListGroupGuid.value,
                 communicationTemplateGuid: templateGuid.value,
                 emailAttachmentBinaryFiles: attachments.value ?? [],
                 fromAddress: fromAddress.value,
@@ -679,7 +747,8 @@
                 recipients: props.recipients,
                 replyAddress: replyToAddress.value,
                 subject: subject.value,
-                communicationGuid: communicationGuid.value
+                communicationGuid: communicationGuid.value,
+                additionalEmailAddresses: splitDelimitedValues(additionalEmailAddresses.value)
             };
 
             const result = await invokeBlockAction<CommunicationEntryTestResponseBag>("Test", { bag });

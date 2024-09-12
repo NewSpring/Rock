@@ -43,11 +43,12 @@ import { SaveAttendanceResponseBag } from "@Obsidian/ViewModels/Rest/CheckIn/sav
 import { SearchForFamiliesOptionsBag } from "@Obsidian/ViewModels/Rest/CheckIn/searchForFamiliesOptionsBag";
 import { SearchForFamiliesResponseBag } from "@Obsidian/ViewModels/Rest/CheckIn/searchForFamiliesResponseBag";
 import { Screen } from "./types.partial";
-import { InvalidCheckInStateError, UnexpectedErrorMessage, clone, isAnyIdInList } from "./utils.partial";
+import { InvalidCheckInStateError, UnexpectedErrorMessage, clone, isAnyIdInList, printLabels } from "./utils.partial";
 import { AttendanceRequestBag } from "@Obsidian/ViewModels/CheckIn/attendanceRequestBag";
 import { RecordedAttendanceBag } from "@Obsidian/ViewModels/CheckIn/recordedAttendanceBag";
 import { OpportunitySelectionBag } from "@Obsidian/ViewModels/CheckIn/opportunitySelectionBag";
 import { CheckInItemBag } from "@Obsidian/ViewModels/CheckIn/checkInItemBag";
+import { ClientLabelBag } from "@Obsidian/ViewModels/CheckIn/Labels/clientLabelBag";
 
 type Mutable<T> = { -readonly [P in keyof T]: T[P] };
 
@@ -144,6 +145,9 @@ export class CheckInSession {
     /** The attendance records that have been sent to the server and saved. */
     public readonly attendances: RecordedAttendanceBag[] = [];
 
+    /** The labels that need to be printed by this device. */
+    public readonly labels: ClientLabelBag[] = [];
+
     /**
      * Any messages that should be displayed. This is currently only used
      * by the check-in and check-out success screens.
@@ -224,6 +228,7 @@ export class CheckInSession {
             this.possibleSchedules = configurationOrSession.possibleSchedules;
             this.allAttendeeSelections = clone(configurationOrSession.allAttendeeSelections);
             this.attendances = clone(configurationOrSession.attendances);
+            this.labels = clone(configurationOrSession.labels);
             this.messages = clone(configurationOrSession.messages);
             this.isCheckoutAction = configurationOrSession.isCheckoutAction;
             this.checkedOutAttendances = configurationOrSession.checkedOutAttendances;
@@ -342,9 +347,20 @@ export class CheckInSession {
             throw new Error(response.errorMessage || UnexpectedErrorMessage);
         }
 
+        const messages = response.data.messages ?? [];
+
+        if (response.data.labels) {
+            const printErrors = await printLabels(response.data.labels);
+
+            if (printErrors.length > 0) {
+                messages.push(...printErrors);
+            }
+        }
+
         return new CheckInSession(this, {
             attendances: [...this.attendances, ...response.data.attendances],
-            allAttendeeSelections: []
+            allAttendeeSelections: [],
+            messages: [...this.messages, ...messages]
         });
     }
 
@@ -389,10 +405,21 @@ export class CheckInSession {
             }
         }
 
+        const messages = response.data.messages ?? [];
+
+        if (response.data.labels) {
+            const printErrors = await printLabels(response.data.labels);
+
+            if (printErrors.length > 0) {
+                messages.push(...printErrors);
+            }
+        }
+
         return new CheckInSession(this, {
             attendances,
+            labels: [...this.labels, ...response.data.labels ?? []],
             allAttendeeSelections: [],
-            messages: response.data.messages ?? []
+            messages: messages
         });
     }
 
@@ -1328,7 +1355,7 @@ export class CheckInSession {
             return Promise.resolve(this.withScreen(Screen.Search));
         }
         else if (this.families.length === 1) {
-            return Promise.resolve(this.withScreen(Screen.PersonSelect));
+            return this.withNextScreenFromFamilySelect();
         }
 
         return Promise.resolve(this.withScreen(Screen.FamilySelect));
@@ -1356,16 +1383,16 @@ export class CheckInSession {
      *
      * @returns A new CheckInSession object.
      */
-    private withNextScreenFromFamilySelect(forceCheckin: boolean = false): Promise<CheckInSession> {
+    private async withNextScreenFromFamilySelect(forceCheckin: boolean = false): Promise<CheckInSession> {
         const canCheckout = this.configuration.template?.isCheckoutAtKioskAllowed === true
             && this.currentlyCheckedIn
             && this.currentlyCheckedIn.length > 0;
 
         if (!this.getCurrentFamily() || !this.attendees) {
-            return Promise.resolve(this.withScreen(Screen.Welcome));
+            return this.withScreen(Screen.Welcome);
         }
         else if (!forceCheckin && canCheckout) {
-            return Promise.resolve(this.withScreen(Screen.ActionSelect));
+            return this.withScreen(Screen.ActionSelect);
         }
 
         const isFamilyAutoMode = this.configuration.template?.kioskCheckInType === KioskCheckInMode.Family
@@ -1389,10 +1416,29 @@ export class CheckInSession {
                 allAttendeeSelections: newAttendeeSelections
             });
 
-            return Promise.resolve(copy.withScreen(Screen.PersonSelect));
+            return copy.withScreen(Screen.PersonSelect);
         }
 
-        return Promise.resolve(this.withScreen(Screen.PersonSelect));
+        if (this.configuration.template?.kioskCheckInType === KioskCheckInMode.Individual) {
+            const validAttendees = this.attendees
+                ?.filter(a => !a.isUnavailable)
+                ?? [];
+
+            // If there is only 1 person available for check-in and we are
+            // in individual mode, and registration is not allowed (meaning no
+            // chance to fix an incorrect family anyway) then automatically
+            // select this person and move on.
+            if (validAttendees.length === 1 && !this.configuration.kiosk?.isRegistrationModeEnabled) {
+                if (validAttendees[0].person?.id) {
+                    let newSession = this.withSelectedAttendees([validAttendees[0].person.id]);
+                    newSession = await newSession.withAttendee(validAttendees[0].person.id);
+
+                    return await newSession.withNextScreenFromPersonSelect();
+                }
+            }
+        }
+
+        return this.withScreen(Screen.PersonSelect);
     }
 
     /**

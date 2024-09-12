@@ -30,6 +30,9 @@ import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
 
 /** Bag containing the communication information for the Communication Entry block. */
 export type CommunicationEntryCommunicationBag = {
+    /** Gets or sets the additional email addresses to receive the communication. */
+    additionalEmailAddresses?: string[] | null;
+
     /** Gets or sets the BCC email addresses. */
     bccAddresses?: string | null;
 
@@ -38,6 +41,15 @@ export type CommunicationEntryCommunicationBag = {
 
     /** Gets or sets the communication unique identifier. */
     communicationGuid: Guid;
+
+    /** Gets or sets the communication list group unique identifier. */
+    communicationListGroupGuid?: Guid | null;
+
+    /** Gets or sets the communication list name. */
+    communicationListName?: string | null;
+
+    /** Gets or sets the number of recipients in the communication list. */
+    communicationListRecipientCount?: number | null;
 
     /** Gets or sets the communication template unique identifier. */
     communicationTemplateGuid?: Guid | null;

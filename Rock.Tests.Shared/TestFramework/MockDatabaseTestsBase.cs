@@ -2,8 +2,6 @@
 using System.Threading;
 using System.Threading.Tasks;
 
-using GreenPipes;
-
 using MassTransit;
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -50,6 +48,8 @@ namespace Rock.Tests.Shared.TestFramework
 
             // Start the bus.
             await RockMessageBus.StartBusInternalAsync( busComponentMock.Object );
+
+            RockDateTime.Initialize();
         }
 
         /// <summary>

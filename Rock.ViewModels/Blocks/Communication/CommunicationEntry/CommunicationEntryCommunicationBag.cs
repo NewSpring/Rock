@@ -34,6 +34,21 @@ namespace Rock.ViewModels.Blocks.Communication.CommunicationEntry
         internal int CommunicationId { get; set; }
 
         /// <summary>
+        /// Gets or sets the communication list group unique identifier.
+        /// </summary>
+        public Guid? CommunicationListGroupGuid { get; set; }
+
+        /// <summary>
+        /// Gets or sets the communication list name.
+        /// </summary>
+        public string CommunicationListName { get; set; }
+
+        /// <summary>
+        /// Gets or sets the number of recipients in the communication list.
+        /// </summary>
+        public int? CommunicationListRecipientCount { get; set; }
+
+        /// <summary>
         /// Gets or sets the communication unique identifier.
         /// </summary>
         /// <value>
@@ -240,5 +255,10 @@ namespace Rock.ViewModels.Blocks.Communication.CommunicationEntry
         /// The status.
         /// </value>
         public CommunicationStatus Status { get; set; }
+
+        /// <summary>
+        /// Gets or sets the additional email addresses to receive the communication.
+        /// </summary>
+        public List<string> AdditionalEmailAddresses { get; set; }
     }
 }
