@@ -1,7 +1,24 @@
+{% assign useNewStyles = CurrentPage | Attribute:'UseNewStyles' %}
+
 {%- if dataset and dataset != empty and cciid and cciid != empty -%}
     {%- assign cciid = cciid | AsInteger -%}
     {%- assign tags = dataset | PersistedDataset | Where:'Id',cciid | First | Property:'Tags' -%}
 {%- endif -%}
-{%- if tags and tags != empty %}<p class="tag-list sans-serif push-half-bottom"><small>
-{%- for tag in tags -%}<a href="/topics/{{ tag.Name | Replace:"'","" | Replace:' ','-' | Downcase }}" class="stronger text-decoration-none letter-spacing-condensed no-breaks"><i class="fas fa-sm fa-tag"></i> {{ tag.Name | Downcase }}</a>{%- endfor -%}
-</small></p>{%- endif -%}
+
+{%- if tags and tags != empty %}
+    {% if useNewStyles == 'Yes' %}
+        <div class="d-flex flex-wrap gap-x-3">
+            {%- for tag in tags -%}
+                <a href="/topics/{{ tag.Name | Replace:"'","" | Replace:' ','-' | Downcase }}" class="d-flex align-items-center gap-x-2 font-sans font-weight-bold tracking-tighter text-decoration-none"><i class="fas fa-xs fa-tag"></i> {{ tag.Name | Downcase }}</a>
+            {%- endfor -%}
+        </div>
+    {% else %}
+        <p class="tag-list sans-serif push-half-bottom">
+            <small>
+            {%- for tag in tags -%}
+                <a href="/topics/{{ tag.Name | Replace:"'","" | Replace:' ','-' | Downcase }}" class="stronger text-decoration-none letter-spacing-condensed no-breaks"><i class="fas fa-sm fa-tag"></i> {{ tag.Name | Downcase }}</a>
+            {%- endfor -%}
+            </small>
+        </p>
+    {% endif %}
+{%- endif -%}

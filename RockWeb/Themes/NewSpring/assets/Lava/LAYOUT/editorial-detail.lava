@@ -1,3 +1,6 @@
+{% assign useNewStyles = CurrentPage | Attribute:'UseNewStyles' %}
+
+
 {% comment %}
     Redirect if item is expired
 {% endcomment %}
@@ -130,127 +133,264 @@
     {% assign defaultTranslation = 'Global' | Attribute:'BibleTranslation','Value' %}
     {[ scripturize defaulttranslation:'{{ defaultTranslation }}' landingsite:'BibleGateway' cssclass:'scripture' openintab:'true' ]}
 
-        <div class="md-text-constrained md-mx-auto panel overflow-hidden">
-            <div class="editorial-content position-relative panel-body bg-white xs-soft xs-soft-half-bottom hard-bottom">
 
-                {% if label and label != empty %}
-                    <p><small class="label bg-gray-light sans-serif letter-spacing-condensed circular">{{ label }}</small></p>
-                {% endif %}
+        {% if useNewStyles == 'Yes' %}
+            <style>
+                .editorial-content img {
+                    max-width: 100%;
+                    border-radius: 16px;
+                }
+                .editorial-content blockquote {
+                    position: relative;
+                    color: #858585;
+                    padding: 30px 0;
+                }
 
-                <h1 class="h2 xs-h3 push-half-bottom xs-push-half-bottom">{{ Item.Title }}</h1>
+                .editorial-content blockquote:before {
+                    content: '\f10d';
+                    position: absolute;
+                    top: 0;
+                    left: -30px;
+                    font-family: "Font Awesome 5 Pro";
+                    font-size: 128px;
+                    font-weight: 900;
+                    color: #eee;
+                    z-index: -1;
+                }
+            </style>
 
-                {% if parentItem and parentItem != empty %}
-                    <small class="display-inline-block sans-serif stronger letter-spacing-condensed push-bottom">From {% if parentPermalink != empty %}<a href="{{ parentPermalink }}">{% endif %}{{ parentItem.Title }}{% if parentPermalink != empty %}</a>{% endif %}</small>
-                {% endif %}
+            <section class="bg-white py-6 py-md-8 px-4 px-md-0" data-aos="fade-up">
+                <div class="editorial-content text-constrained mx-auto">
+                    <div class="text-center">
+                        {% if label and label != empty %}
+                            <p><span class="d-inline-block label label-info px-3 py-2 rounded-lg font-sans">{{ label }}</span></p>
+                        {% endif %}
 
-                {% if Item.Subtitle != empty %}
-                    <p class="lead text-gray-light"><i>{{ Item.Subtitle }}</i></p>
-                {% endif %}
+                        <h1 class="h2 font-weight-bold tracking-tighter">{{ Item.Title }}</h1>
 
-                {% if communicators and communicators != '' %}
-                    <p class="stronger">{{ communicators }}</p>
-                {% endif %}
+                        {% if parentItem and parentItem != empty %}
+                            <p class="h6">From {% if parentPermalink != empty %}<a href="{{ parentPermalink }}" class="text-primary">{% endif %}{{ parentItem.Title }}{% if parentPermalink != empty %}</a>{% endif %}</p>
+                        {% endif %}
 
-                {% if Item.ImageLandscape and Item.ImageLandscape != empty %}
-                    <div class="ratio-landscape background-cover push-bottom rounded" style="background-image:url('{{ Item.ImageLandscape }}');"></div>
-                {% endif %}
+                        {% if Item.Subtitle != empty %}
+                            <p class="lead text-gray"><i>{{ Item.Subtitle }}</i></p>
+                        {% endif %}
 
-                {%  if scripturereferences and scripturereferences != empty %}
-                    <div class="text-center soft-ends">
-                        <h2 class="h3 flush">Read</h2>
-                        <p class="lead">{{ scripturereferences }}</p>
+                        {% if communicators and communicators != '' %}
+                            <p class="h5 text-gray mb-5">{{ communicators }}</p>
+                        {% endif %}
                     </div>
-                {% endif %}
 
-                {% if Item.Video != empty %}
-                    <p id="video" class="text-center">
-                        {[ wistiaButton id:'{{ Item.Video }}' buttontext:'' buttonclasses:'' contentchannelitemid:'{{ Item.Id }}' entitytypeid:'' entityid:'' ]}
-                    </p>
-                {% endif %}
+                    {% if Item.ImageLandscape and Item.ImageLandscape != empty %}
+                        <div class="ratio-landscape background-cover mb-5 rounded" style="background-image:url('{{ Item.ImageLandscape }}');"></div>
+                    {% endif %}
 
-                {{ Item.Content | HtmlDecode }}
-
-                <div class="push-bottom">
-                    <div class="row row-condensed">
-                        <div class="col-md-12 col-sm-12 col-xs-12">
-                            <a href="#" data-toggle="modal" data-target="#share-modal" class="btn btn-block btn-default text-gray-dark text-decoration-none xs-push-half-bottom" data-share=""><i class="fas fa-fw fa-share"></i> Share</a>
+                    {%  if scripturereferences and scripturereferences != empty %}
+                        <div class="well text-center py-5 my-5">
+                            <h2 class="h5">Read</h2>
+                            <p class="lead mb-0">{{ scripturereferences }}</p>
                         </div>
+                    {% endif %}
+
+                    {% if Item.Video != empty %}
+                        <p id="video" class="text-center">
+                            {[ wistiaButton id:'{{ Item.Video }}' buttontext:'' buttonclasses:'' contentchannelitemid:'{{ Item.Id }}' entitytypeid:'' entityid:'' ]}
+                        </p>
+                    {% endif %}
+
+                    {{ Item.Content | HtmlDecode }}
+
+                    {% if subscribeLinkUrl and subscribeLinkUrl != empty %}
+                        <div class="well soft-ends text-center mb-5">
+                            <h3>{{ subscribeHeading }}</h3>
+                            <p>{{ subscribeText }}</p>
+                            <a href="{{ subscribeLinkUrl }}" class="btn btn-default shadowed text-gray-dark text-decoration-none" target="_blank"><i class="fas fa-fw fa-bell"></i> {{ subscribeLinkText }}</a>
+                        </div>
+                    {% endif %}
+
+                    {%- comment -%}
+                        Entry navigation
+                    {%- endcomment -%}
+                    {% if itemsManuallyOrdered == 'true' %}
+                        <div class="row flush-sides mb-5 xs-push-half-bottom">
+                            <div class="col-xs-4 col-sm-4 col-md-4 hard">
+                                {% if itemIndex and itemIndex != 0 %}<a href="{{ parentItem.Children | Index:prevIndex | Property:'Slug' }}" class="btn xs-btn-sm btn-primary xs-push-half-bottom"><i class="fas fa-angle-left"></i> Prev</a>{% endif %}
+                            </div><div class="col-xs-4 col-sm-4 col-md-4 text-center hard">
+                                <p class="text-gray-light flush"><i>{{ itemIndex }} of {{ totalChildren }}</i></p>
+                            </div><div class="col-xs-4 col-sm-4 col-md-4 text-right hard">
+                                {% if itemIndex and itemIndex != totalChildren %}<a href="{{ parentItem.Children | Index:nextIndex | Property:'Slug' }}" class="btn xs-btn-sm btn-primary xs-push-half-bottom">Next <i class="fas fa-angle-right"></i></a>{% endif %}
+                            </div>
+                        </div>
+                    {% endif %}
+
+                    {% comment %}
+                        Define data for social sharing modal
+                    {% endcomment %}
+                    {% assign itemToken = 'cci' | Append:Item.ChannelId | Append:Item.Id %}
+                    {% assign shareurl = 'Global' | Page:'Url' | CreateShortLink:itemToken, 18, true, 7 %}
+                    {% assign shareimageurl = Item.ImageLandscape %}
+                    {% assign shareauthor = 'newspring' %}
+                    {% assign sharetitle = Item.Title %}
+                    {%- capture sharesummary -%}
+                        {% if Item.Summary and Item.Summary != empty %}
+                            {{ Item.Summary | StripHtml | HtmlDecode | Truncate:150,'...' }}
+                        {% else %}
+                            {{ Item.Content | StripHtml | HtmlDecode | Truncate:150,'...' }}
+                        {% endif %}
+                    {%- endcapture -%}
+                    {% assign sharehashtag = '' %}
+
+                    {[ modalShare ]}
+
+                    {% comment %}
+                        Display date/tags if they should be visible
+                    {% endcomment %}
+
+
+                    {% if Item.IsDateVisible == 'Yes' or tags != empty %}
+                        <div class="my-5 d-flex flex-column gap-5">
+                            {% if Item.IsDateVisible == 'Yes' %}
+                                <p class="text-center font-sans font-weight-bold tracking-tighter mb-0">{{ date }}</p>
+                            {% endif %}
+                            {% if Item.Tags and Item.Tags != empty %}
+                                <div class="d-flex flex-wrap justify-content-center gap-x-3 gap-y-md-2">
+                                    {%- for tag in Item.Tags -%}
+                                        <a href="/topics/{{ tag.Name | Replace:"'","" | Replace:' ','-' | Downcase }}" class="d-flex align-items-center gap-x-2 font-sans font-weight-bold tracking-tighter text-decoration-none"><i class="fas fa-xs fa-tag"></i> {{ tag.Name | Downcase }}</a>
+                                    {%- endfor -%}
+                                </div>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+
+                    <div class="text-center">
+                        <a href="#" data-toggle="modal" data-target="#share-modal" class="d-inline-block btn btn-default" data-share="">Share This</a>
                     </div>
+
                 </div>
+            </section>
+        {% else %}
+            <div class="md-text-constrained md-mx-auto panel overflow-hidden">
+                <div class="editorial-content position-relative panel-body bg-white xs-soft xs-soft-half-bottom hard-bottom">
 
-                {% if subscribeLinkUrl and subscribeLinkUrl != empty %}
-                    <div class="well soft-ends text-center push-bottom">
-                        <h3>{{ subscribeHeading }}</h3>
-                        <p>{{ subscribeText }}</p>
-                        <a href="{{ subscribeLinkUrl }}" class="btn btn-default shadowed text-gray-dark text-decoration-none" target="_blank"><i class="fas fa-fw fa-bell"></i> {{ subscribeLinkText }}</a>
+                    {% if label and label != empty %}
+                        <p><small class="label bg-gray-light sans-serif letter-spacing-condensed circular">{{ label }}</small></p>
+                    {% endif %}
+
+                    <h1 class="h2 xs-h3 push-half-bottom xs-push-half-bottom">{{ Item.Title }}</h1>
+
+                    {% if parentItem and parentItem != empty %}
+                        <small class="display-inline-block sans-serif stronger letter-spacing-condensed push-bottom">From {% if parentPermalink != empty %}<a href="{{ parentPermalink }}">{% endif %}{{ parentItem.Title }}{% if parentPermalink != empty %}</a>{% endif %}</small>
+                    {% endif %}
+
+                    {% if Item.Subtitle != empty %}
+                        <p class="lead text-gray-light"><i>{{ Item.Subtitle }}</i></p>
+                    {% endif %}
+
+                    {% if communicators and communicators != '' %}
+                        <p class="stronger">{{ communicators }}</p>
+                    {% endif %}
+
+                    {% if Item.ImageLandscape and Item.ImageLandscape != empty %}
+                        <div class="ratio-landscape background-cover push-bottom rounded" style="background-image:url('{{ Item.ImageLandscape }}');"></div>
+                    {% endif %}
+
+                    {%  if scripturereferences and scripturereferences != empty %}
+                        <div class="text-center soft-ends">
+                            <h2 class="h3 flush">Read</h2>
+                            <p class="lead">{{ scripturereferences }}</p>
+                        </div>
+                    {% endif %}
+
+                    {% if Item.Video != empty %}
+                        <p id="video" class="text-center">
+                            {[ wistiaButton id:'{{ Item.Video }}' buttontext:'' buttonclasses:'' contentchannelitemid:'{{ Item.Id }}' entitytypeid:'' entityid:'' ]}
+                        </p>
+                    {% endif %}
+
+                    {{ Item.Content | HtmlDecode }}
+
+                    <div class="push-bottom">
+                        <div class="row row-condensed">
+                            <div class="col-md-12 col-sm-12 col-xs-12">
+                                <a href="#" data-toggle="modal" data-target="#share-modal" class="btn btn-block btn-default text-gray-dark text-decoration-none xs-push-half-bottom" data-share=""><i class="fas fa-fw fa-share"></i> Share</a>
+                            </div>
+                        </div>
                     </div>
-                {% endif %}
 
-                {%- comment -%}
-                    Entry navigation
-                {%- endcomment -%}
-                {% if itemsManuallyOrdered == 'true' %}
-                    <div class="row flush-sides push-bottom xs-push-half-bottom">
-                        <div class="col-xs-4 col-sm-4 col-md-4 hard">
-                            {% if itemIndex and itemIndex != 0 %}<a href="{{ parentItem.Children | Index:prevIndex | Property:'Slug' }}" class="btn xs-btn-sm btn-primary xs-push-half-bottom"><i class="fas fa-angle-left"></i> Prev</a>{% endif %}
-                        </div><div class="col-xs-4 col-sm-4 col-md-4 text-center hard">
-                            <p class="text-gray-light flush"><i>{{ itemIndex }} of {{ totalChildren }}</i></p>
-                        </div><div class="col-xs-4 col-sm-4 col-md-4 text-right hard">
-                            {% if itemIndex and itemIndex != totalChildren %}<a href="{{ parentItem.Children | Index:nextIndex | Property:'Slug' }}" class="btn xs-btn-sm btn-primary xs-push-half-bottom">Next <i class="fas fa-angle-right"></i></a>{% endif %}
+                    {% if subscribeLinkUrl and subscribeLinkUrl != empty %}
+                        <div class="well soft-ends text-center push-bottom">
+                            <h3>{{ subscribeHeading }}</h3>
+                            <p>{{ subscribeText }}</p>
+                            <a href="{{ subscribeLinkUrl }}" class="btn btn-default shadowed text-gray-dark text-decoration-none" target="_blank"><i class="fas fa-fw fa-bell"></i> {{ subscribeLinkText }}</a>
                         </div>
-                    </div>
-                {% endif %}
+                    {% endif %}
 
-                {% comment %}
-                    Define data for social sharing modal
-                {% endcomment %}
-                {% assign itemToken = 'cci' | Append:Item.ChannelId | Append:Item.Id %}
-                {% assign shareurl = 'Global' | Page:'Url' | CreateShortLink:itemToken, 18, true, 7 %}
-                {% assign shareimageurl = Item.ImageLandscape %}
-                {% assign shareauthor = 'newspring' %}
-                {% assign sharetitle = Item.Title %}
-                {%- capture sharesummary -%}
-                    {% if Item.Summary and Item.Summary != empty %}
-                        {{ Item.Summary | StripHtml | HtmlDecode | Truncate:150,'...' }}
+                    {%- comment -%}
+                        Entry navigation
+                    {%- endcomment -%}
+                    {% if itemsManuallyOrdered == 'true' %}
+                        <div class="row flush-sides push-bottom xs-push-half-bottom">
+                            <div class="col-xs-4 col-sm-4 col-md-4 hard">
+                                {% if itemIndex and itemIndex != 0 %}<a href="{{ parentItem.Children | Index:prevIndex | Property:'Slug' }}" class="btn xs-btn-sm btn-primary xs-push-half-bottom"><i class="fas fa-angle-left"></i> Prev</a>{% endif %}
+                            </div><div class="col-xs-4 col-sm-4 col-md-4 text-center hard">
+                                <p class="text-gray-light flush"><i>{{ itemIndex }} of {{ totalChildren }}</i></p>
+                            </div><div class="col-xs-4 col-sm-4 col-md-4 text-right hard">
+                                {% if itemIndex and itemIndex != totalChildren %}<a href="{{ parentItem.Children | Index:nextIndex | Property:'Slug' }}" class="btn xs-btn-sm btn-primary xs-push-half-bottom">Next <i class="fas fa-angle-right"></i></a>{% endif %}
+                            </div>
+                        </div>
+                    {% endif %}
+
+                    {% comment %}
+                        Define data for social sharing modal
+                    {% endcomment %}
+                    {% assign itemToken = 'cci' | Append:Item.ChannelId | Append:Item.Id %}
+                    {% assign shareurl = 'Global' | Page:'Url' | CreateShortLink:itemToken, 18, true, 7 %}
+                    {% assign shareimageurl = Item.ImageLandscape %}
+                    {% assign shareauthor = 'newspring' %}
+                    {% assign sharetitle = Item.Title %}
+                    {%- capture sharesummary -%}
+                        {% if Item.Summary and Item.Summary != empty %}
+                            {{ Item.Summary | StripHtml | HtmlDecode | Truncate:150,'...' }}
+                        {% else %}
+                            {{ Item.Content | StripHtml | HtmlDecode | Truncate:150,'...' }}
+                        {% endif %}
+                    {%- endcapture -%}
+                    {% assign sharehashtag = '' %}
+
+                    {[ modalShare ]}
+
+                    {% comment %}
+                        Display date/tags if they should be visible
+                    {% endcomment %}
+                    {% if Item.IsDateVisible == 'Yes' %}
+                        {% if tags and tags != empty %}
+                            <div class="row push-bottom xs-push-half-bottom">
+                                <div class="col-md-6 col-sm-6 col-xs-12 xs-text-center">
+                                    {{ tags }}
+                                </div><div class="col-md-6 col-sm-6 col-xs-12 text-right xs-text-center">
+                                    <p class="flush"><small><b>{{ date }}</b></small></p>
+                                </div>
+                            </div>
+                        {% else %}
+                            <div class="row push-bottom xs-push-half-bottom">
+                                <div class="col-md-12 col-sm-12 col-xs-12 text-center xs-text-center">
+                                    <p class="flush"><small><b>{{ date }}</b></small></p>
+                                </div>
+                            </div>
+                        {% endif %}
                     {% else %}
-                        {{ Item.Content | StripHtml | HtmlDecode | Truncate:150,'...' }}
-                    {% endif %}
-                {%- endcapture -%}
-                {% assign sharehashtag = '' %}
-
-                {[ modalShare ]}
-
-                {% comment %}
-                    Display date/tags if they should be visible
-                {% endcomment %}
-                {% if Item.IsDateVisible == 'Yes' %}
-                    {% if tags and tags != empty %}
-                        <div class="row push-bottom xs-push-half-bottom">
-                            <div class="col-md-6 col-sm-6 col-xs-12 xs-text-center">
-                                {{ tags }}
-                            </div><div class="col-md-6 col-sm-6 col-xs-12 text-right xs-text-center">
-                                <p class="flush"><small><b>{{ date }}</b></small></p>
+                        {% if tags and tags != empty and tags != '' %}
+                            <div class="row push-bottom xs-push-half-bottom">
+                                <div class="col-xs-12 text-center">
+                                    {{ tags }}
+                                </div>
                             </div>
-                        </div>
-                    {% else %}
-                        <div class="row push-bottom xs-push-half-bottom">
-                            <div class="col-md-12 col-sm-12 col-xs-12 text-center xs-text-center">
-                                <p class="flush"><small><b>{{ date }}</b></small></p>
-                            </div>
-                        </div>
+                        {% endif %}
                     {% endif %}
-                {% else %}
-                    {% if tags and tags != empty and tags != '' %}
-                        <div class="row push-bottom xs-push-half-bottom">
-                            <div class="col-xs-12 text-center">
-                                {{ tags }}
-                            </div>
-                        </div>
-                    {% endif %}
-                {% endif %}
 
+                </div>
             </div>
-        </div>
+        {% endif %}
 
     {[ endscripturize ]}
 

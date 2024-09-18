@@ -1,3 +1,12 @@
+{% assign useNewStyles = CurrentPage | Attribute:'UseNewStyles' %}
+{% if useNewStyles == 'Yes' %}
+    <section class="p-0 bg-gray-dark text-white text-center md-text-left">
+        <div class="px-4 py-3 p-md-4 page-constrained mx-auto">
+            <h1 class="h5 mb-0">{{ title | Replace:"'","’" }}</h1>
+        </div>
+    </section>
+{% else %}
 <section class="shell bg-gray-dark text-white soft xs-soft-half flush text-left sm-text-center xs-text-center">
     <h1 class="h4 xs-h6 stronger flush">{{ title | Replace:"'","’" }}</h1>
 </section>
+{% endif %}
