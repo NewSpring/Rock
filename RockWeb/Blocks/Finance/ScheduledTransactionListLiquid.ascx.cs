@@ -172,8 +172,6 @@ namespace RockWeb.Blocks.Finance
         /// <param name="e">The <see cref="T:System.EventArgs" /> object that contains the event data.</param>
         protected override void OnLoad( EventArgs e )
         {
-            base.OnLoad( e );
-
             lbAddScheduledTransaction.Text = string.Format( "Create New {0}", GetAttributeValue( AttributeKey.TransactionLabel ) );
             _transferToGatewayGuid = GetAttributeValue( AttributeKey.TransferToGateway ).AsGuidOrNull();
             lbAddScheduledTransaction.Visible = GetAttributeValue( AttributeKey.ScheduledTransactionEntryPage ).IsNotNullOrWhiteSpace();
@@ -183,6 +181,8 @@ namespace RockWeb.Blocks.Finance
             {
                 ShowContent();
             }
+
+            base.OnLoad( e );
         }
 
         #endregion
@@ -495,15 +495,17 @@ namespace RockWeb.Blocks.Finance
                 }
 
                 // Filter by transaction type.
-                schedules = schedules.Where( s => s.TransactionTypeValueId.HasValue && TransactionTypesFilter.Contains( s.TransactionTypeValue.Guid ) );
+                schedules = schedules.Where( s => !s.TransactionTypeValueId.HasValue || TransactionTypesFilter.Contains( s.TransactionTypeValue.Guid ) );
 
                 // Refresh the active transactions
                 transactionService.GetStatus( schedules, true );
 
-                rptScheduledTransactions.DataSource = schedules.ToList();
+                var scheduleList = schedules.ToList();
+
+                rptScheduledTransactions.DataSource = scheduleList;
                 rptScheduledTransactions.DataBind();
 
-                if ( schedules.Count() == 0 )
+                if ( scheduleList.Count() == 0 )
                 {
                     pnlNoScheduledTransactions.Visible = true;
                     lNoScheduledTransactionsMessage.Text = string.Format( "No {0} currently exist.", GetAttributeValue( AttributeKey.TransactionLabel ).Pluralize().ToLower() );

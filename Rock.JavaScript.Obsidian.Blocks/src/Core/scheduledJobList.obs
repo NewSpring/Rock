@@ -10,9 +10,6 @@
           stickyHeader
           liveUpdates
           :showLaunchWorkflow="false"
-          gridSettings
-          :gridSettingsActive="hasSettingsFilters"
-          @gridSettingsClick="onGridSettingsClick"
           :onAddItem="config.isAddEnabled ? onAddItem : undefined"
           @selectItem="onSelectItem">
 
@@ -43,8 +40,9 @@
 
         <Column name="lastStatus"
                 title="Last Status"
+                field="lastStatus"
                 visiblePriority="md"
-                :filter="textValueFilter"
+                :filter="pickExistingValueFilter"
                 :filterValue="getlastStatusFilterValue">
             <template #format="{ row }">
                 <span :class='getStatusClass(row)'>{{ row.lastStatus === "Exception" ? "Failed" : row.lastStatus }}</span>
@@ -55,8 +53,9 @@
             </template>
         </Column>
 
-        <Column name="lastStatusMessage"
+        <Column name="lastStatusMessageAsHtml"
                 title="Last Status Message"
+                field="lastStatusMessageAsHtml"
                 width="20%"
                 :filter="textValueFilter"
                 :filterValue="getlastStatusMessageFilterValue"
@@ -71,17 +70,20 @@
                        title="System"
                        field="isSystem"
                        visiblePriority="md"
+                       :filter="booleanValueFilter"
                        width="5%" />
 
         <BooleanColumn name="isActive"
                        title="Active"
                        field="isActive"
                        visiblePriority="md"
+                       :filter="booleanValueFilter"
                        width="5%" />
 
         <Column name="history"
                 width="52px"
                 title="History"
+                disableSort
                 itemClass="grid-columncommand">
             <template #format="{ row }">
                 <button v-if="row.guid !== ServiceJob.JobPulse"
@@ -96,6 +98,7 @@
         <Column name="runJob"
                 width="52px"
                 title="Run Now"
+                disableSort
                 itemClass="grid-columncommand">
             <template #format="{ row }">
                 <button v-if="row.guid !== ServiceJob.JobPulse"
@@ -109,48 +112,27 @@
 
         <DeleteColumn v-if="config.isDeleteEnabled" @click="onDeleteClick" />
     </Grid>
-
-    <GridSettingsModal v-model="gridSettings"
-                       v-model:visible="isGridSettingsVisible" />
 </template>
 
 <script setup lang="ts">
-    import { useConfigurationValues, useInvokeBlockAction, usePersonPreferences } from "@Obsidian/Utility/block";
+    import { useConfigurationValues, useInvokeBlockAction } from "@Obsidian/Utility/block";
     import { EntityType } from "@Obsidian/SystemGuids/entityType";
     import { ServiceJob } from "@Obsidian/SystemGuids/serviceJob";
-    import Grid, { BooleanColumn, dateValueFilter, TextColumn, textValueFilter, DeleteColumn, DateTimeColumn, Column } from "@Obsidian/Controls/grid";
+    import Grid, { BooleanColumn, dateValueFilter, TextColumn, textValueFilter, pickExistingValueFilter, booleanValueFilter, DeleteColumn, DateTimeColumn, Column } from "@Obsidian/Controls/grid";
     import { alert } from "@Obsidian/Utility/dialogs";
     import { ListBlockBox } from "@Obsidian/ViewModels/Blocks/listBlockBox";
     import { ScheduledJobListOptionsBag } from "@Obsidian/ViewModels/Blocks/Core/ScheduledJobList/scheduledJobListOptionsBag";
     import { GridDataBag } from "@Obsidian/ViewModels/Core/Grid/gridDataBag";
-    import { NavigationUrlKey, PreferenceKey, GridSettingsOptions } from "./ScheduledJobList/types.partial";
-    import { computed, reactive, ref, watch } from "vue";
-    import GridSettingsModal from "./ScheduledJobList/gridSettingsModal.partial.obs";
+    import { NavigationUrlKey } from "./ScheduledJobList/types.partial";
+    import { reactive, ref } from "vue";
 
     const config = useConfigurationValues<ListBlockBox<ScheduledJobListOptionsBag>>();
     const invokeBlockAction = useInvokeBlockAction();
-    const preferences = usePersonPreferences().blockPreferences;
 
     // #region Values
 
     const gridDataSource = ref<Promise<GridDataBag>>();
     let gridData: GridDataBag | undefined;
-
-    const isGridSettingsVisible = ref(false);
-    const gridSettings = ref<GridSettingsOptions>({
-        name: preferences.getValue(PreferenceKey.FilterName),
-        isActive: preferences.getValue(PreferenceKey.FilterIsActive),
-    });
-
-    // #endregion
-
-    // #region Computed Values
-
-    /** `true` if the grid settings is performing any filtering. */
-    const hasSettingsFilters = computed((): boolean => {
-        return !!gridSettings.value.name
-            || !!gridSettings.value.isActive;
-    });
 
     // #endregion
 
@@ -208,7 +190,8 @@
      * @param row The row to be filtered.
      */
      function getlastStatusFilterValue(row: Record<string, unknown>): string {
-        return row.lastStatus as string;
+        const status = row.lastStatus as string ?? "";
+        return status === "Exception" ? "Failed" : status;
     }
 
     // #endregion
@@ -294,24 +277,6 @@
             }
         }
     }
-
-    /**
-    * Called when the grid setting icon is clicked, displays the block filters.
-    */
-    function onGridSettingsClick(): void {
-        isGridSettingsVisible.value = true;
-    }
-
-    // #endregion
-
-    watch(gridSettings, async () => {
-        preferences.setValue(PreferenceKey.FilterName, gridSettings.value.name ?? "");
-        preferences.setValue(PreferenceKey.FilterIsActive, gridSettings.value.isActive ?? "");
-
-        await preferences.save();
-
-        gridDataSource.value = loadGridData();
-    });
 
     gridDataSource.value = loadGridData();
 </script>

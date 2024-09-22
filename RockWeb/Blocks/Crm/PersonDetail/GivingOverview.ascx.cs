@@ -120,8 +120,6 @@ namespace RockWeb.Blocks.Crm.PersonDetail
         /// <param name="e">The <see cref="T:System.EventArgs" /> object that contains the event data.</param>
         protected override void OnLoad( EventArgs e )
         {
-            base.OnLoad( e );
-
             var isVisible = Person != null && Person.Id != 0;
 
             pnlContent.Visible = isVisible;
@@ -130,6 +128,8 @@ namespace RockWeb.Blocks.Crm.PersonDetail
                 RockPage.AddCSSLink( "~/Styles/Blocks/Crm/GivingOverview.css", true );
                 ShowDetail();
             }
+
+            base.OnLoad( e );
         }
 
         #endregion Base Control Methods
@@ -378,7 +378,11 @@ namespace RockWeb.Blocks.Crm.PersonDetail
 
             decimal growthPercent = 0;
 
-            if ( baseGrowthContribution == 0 )
+            if ( last90DaysContribution == 0 )
+            {
+                growthPercent = 0;
+            }
+            else if ( baseGrowthContribution == 0 )
             {
                 growthPercent = 100;
             }
@@ -410,10 +414,28 @@ namespace RockWeb.Blocks.Crm.PersonDetail
 
             var last90DayCount = twelveMonthTransactions.Count( t => t.TransactionDateTime >= ninetyDaysAgo );
             var last90DayCountText = $"{last90DayCount} {"gift".PluralizeIf( last90DayCount != 1 )}";
+            var growthPercentClass = string.Empty;
+            var growthPercentIcon = string.Empty;
+
+            if ( last90DaysContribution == 0 )
+            {
+                growthPercentClass = "default";
+                growthPercentIcon = "fa-minus";
+            }
+            else if ( isGrowthPositive )
+            {
+                growthPercentClass = "success";
+                growthPercentIcon = "fa-arrow-up";
+            }
+            else
+            {
+                growthPercentClass = "danger";
+                growthPercentIcon = "fa-arrow-down";
+            }
 
             var last90DaysSubValue =
-$@"<span title=""{growthPercentText}"" class=""small text-{( isGrowthPositive ? "success" : "danger" )}"">
-    <i class=""fa {( isGrowthPositive ? "fa-arrow-up" : "fa-arrow-down" )}""></i>
+$@"<span title=""{growthPercentText}"" class=""small text-{growthPercentClass}"">
+    <i class=""fa {growthPercentIcon}""></i>
     {growthPercentDisplay}
 </span>
 <div class=""small"">{last90DayCountText}</div>";

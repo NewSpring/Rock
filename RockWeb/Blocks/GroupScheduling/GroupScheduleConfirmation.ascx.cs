@@ -199,8 +199,6 @@ namespace RockWeb.Blocks.GroupScheduling
         /// <param name="e">The <see cref="T:System.EventArgs" /> object that contains the event data.</param>
         protected override void OnLoad( EventArgs e )
         {
-            base.OnLoad( e );
-
             nbError.Visible = false;
 
             if ( !Page.IsPostBack )
@@ -218,6 +216,8 @@ namespace RockWeb.Blocks.GroupScheduling
                     GetAttendanceByAttendanceIdAndSelectedPersonId();
                 }
             }
+
+            base.OnLoad( e );
         }
 
         #endregion Base Control Methods
@@ -778,7 +778,7 @@ namespace RockWeb.Blocks.GroupScheduling
                     }
 
                     // if attendance is decline (no) also send email to Schedule Cancellation Person
-                    if ( attendance.RSVP == RSVP.No )
+                    if ( attendance.RSVP == RSVP.No && attendance.Occurrence?.Group?.ScheduleCancellationPersonAlias?.Person?.Id != attendance.ScheduledByPersonAlias.Person.Id )
                     {
                         attendanceService.SendScheduledPersonDeclineEmail( attendance.Id, GetAttributeValue( AttributeKey.SchedulingResponseEmail ).AsGuid() );
                     }

@@ -29,8 +29,7 @@ using Rock.Utility;
 using Rock.ViewModels.Blocks;
 using Rock.ViewModels.Blocks.Tv.AppleTvAppDetail;
 using Rock.ViewModels.Blocks.Tv.AppleTvPageDetail;
-using Rock.ViewModels.Controls;
-using Rock.ViewModels.Utility;
+using Rock.Web;
 using Rock.Web.Cache;
 
 namespace Rock.Blocks.Tv
@@ -51,7 +50,7 @@ namespace Rock.Blocks.Tv
 
     [Rock.SystemGuid.EntityTypeGuid( "d8419b3c-eda1-46fc-9810-b1d81fb37cb3" )]
     [Rock.SystemGuid.BlockTypeGuid( "adbf3377-a491-4016-9375-346496a25fb4" )]
-    public class AppleTvPageDetail : RockDetailBlockType
+    public class AppleTvPageDetail : RockDetailBlockType, IBreadCrumbBlock
     {
         #region Keys
 
@@ -67,8 +66,6 @@ namespace Rock.Blocks.Tv
         }
 
         #endregion Keys
-
-        public override string ObsidianFileUrl => $"{base.ObsidianFileUrl}";
 
         #region Methods
 
@@ -348,6 +345,38 @@ namespace Rock.Blocks.Tv
             return true;
         }
 
+        /// <inheritdoc
+        public BreadCrumbResult GetBreadCrumbs( PageReference pageReference )
+        {
+            using ( var rockContext = new RockContext() )
+            {
+                var key = pageReference.GetPageParameter( PageParameterKey.SitePageId );
+                var breadCrumbs = new List<IBreadCrumb>();
+
+                if ( key.IsNotNullOrWhiteSpace() )
+                {
+                    var pageParameters = new Dictionary<string, string>();
+                    var detailBreadCrumb = pageReference.BreadCrumbs.Find( x => x.Name == "Application Screen Detail" );
+                    if ( detailBreadCrumb != null )
+                    {
+                        pageReference.BreadCrumbs.Remove( detailBreadCrumb );
+                    }
+
+                    var page = PageCache.Get( key, true );
+
+                    var breadCrumbPageRef = new PageReference( pageReference.PageId, 0, pageParameters );
+                    var breadCrumb = new BreadCrumbLink( page?.InternalName ?? "New Page", breadCrumbPageRef );
+
+                    breadCrumbs.Add( breadCrumb );
+                }
+
+                return new BreadCrumbResult
+                {
+                    BreadCrumbs = breadCrumbs
+                };
+            }
+        }
+
         #endregion
 
         #region Block Actions
@@ -362,9 +391,9 @@ namespace Rock.Blocks.Tv
         {
             using ( var rockContext = new RockContext() )
             {
-                var applicationId = PageParameter( PageParameterKey.SiteId ).AsInteger();
+                var applicationId = PageParameter( PageParameterKey.SiteId );
                 var entityService = new PageService( rockContext );
-                var site = SiteCache.Get( applicationId );
+                var site = SiteCache.Get( applicationId, !PageCache.Layout.Site.DisablePredictableIds );
 
                 if ( site == null )
                 {
@@ -413,10 +442,7 @@ namespace Rock.Blocks.Tv
 
                 rockContext.SaveChanges();
 
-                return ActionContent( System.Net.HttpStatusCode.Created, this.GetParentPageUrl( new Dictionary<string, string>
-                {
-                    [PageParameterKey.SiteId] = PageParameter( PageParameterKey.SiteId ),
-                } ) );
+                return ActionOk( GetEntityBagForEdit( entity ) );
             }
         }
 

@@ -23,6 +23,7 @@ using System.Web.UI.WebControls;
 using Rock;
 using Rock.Attribute;
 using Rock.Data;
+using Rock.Lava;
 using Rock.Model;
 using Rock.Security;
 using Rock.Web.Cache;
@@ -145,8 +146,6 @@ namespace RockWeb.Blocks.Groups
         /// <param name="e">The <see cref="T:System.EventArgs" /> object that contains the event data.</param>
         protected override void OnLoad( EventArgs e )
         {
-            base.OnLoad( e );
-
             pnlContent.Visible = _canView;
 
             if ( !Page.IsPostBack && _canView )
@@ -164,6 +163,8 @@ namespace RockWeb.Blocks.Groups
                 BindFilter();
                 BindGrid();
             }
+
+            base.OnLoad( e );
         }
 
         #endregion
@@ -658,7 +659,7 @@ namespace RockWeb.Blocks.Groups
         #endregion
     }
 
-    public class AttendanceListOccurrence
+    public class AttendanceListOccurrence : LavaDataObject
     {
         public int Id { get; set; }
         public DateTime OccurrenceDate { get; set; }

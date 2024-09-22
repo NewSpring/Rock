@@ -28,6 +28,7 @@ using Rock.Model;
 using Rock.Security;
 using Rock.SystemGuid;
 using Rock.Tasks;
+using Rock.Utility;
 using Rock.Web.Cache;
 
 namespace Rock.Blocks.Types.Mobile.Communication
@@ -108,6 +109,12 @@ namespace Rock.Blocks.Types.Mobile.Communication
         Key = AttributeKey.PersonProfilePage,
         Order = 10 )]
 
+    [BooleanField( "Show Additional Email Recipients",
+        Key = AttributeKey.ShowAdditionalEmailRecipients,
+        Description = "Allow additional email recipients to be entered for email communications?",
+        DefaultBooleanValue = false,
+        Order = 11 )]
+
     #endregion
 
     [DisplayName( "Communication Entry" )]
@@ -124,7 +131,6 @@ namespace Rock.Blocks.Types.Mobile.Communication
     [Rock.SystemGuid.BlockTypeGuid( "B0182DA2-82F7-4798-A48E-88EBE61F2109" )]
     public class CommunicationEntry : RockBlockType
     {
-
         #region Attribute Keys
 
         /// <summary>
@@ -186,6 +192,11 @@ namespace Rock.Blocks.Types.Mobile.Communication
             /// The person profile page attribute key.
             /// </summary>
             public const string PersonProfilePage = "PersonProfilePage";
+
+            /// <summary>
+            /// Whether to show additional email recipients.
+            /// </summary>
+            public const string ShowAdditionalEmailRecipients = "ShowAdditionalEmailRecipients";
         }
 
         #endregion
@@ -241,6 +252,11 @@ namespace Rock.Blocks.Types.Mobile.Communication
         /// </value>
         protected Guid? PersonProfilePageGuid => GetAttributeValue( AttributeKey.PersonProfilePage ).AsGuidOrNull();
 
+        /// <summary>
+        /// Whether or not to allow additional email recipients to be entered for email communications.
+        /// </summary>
+        protected bool ShowAdditionalEmailRecipients => GetAttributeValue( AttributeKey.ShowAdditionalEmailRecipients ).AsBoolean();
+
         #endregion
 
         #region IRockMobileBlockType Implementation
@@ -264,6 +280,7 @@ namespace Rock.Blocks.Types.Mobile.Communication
                 ShowReplyTo = ShowReplyTo,
                 SmsCharacterLimit = SmsCharacterLimit,
                 PersonProfilePageGuid = PersonProfilePageGuid,
+                AreAdditionalEmailRecipientsAllowed = ShowAdditionalEmailRecipients
             };
         }
 
@@ -340,7 +357,7 @@ namespace Rock.Blocks.Types.Mobile.Communication
                     Email = a.Email,
                     PersonGuid = a.PersonGuid,
                     EntitySetItemGuid = a.EntitySetItemGuid,
-                    PhotoUrl = a.PhotoId != null ? MobileHelper.BuildPublicApplicationRootUrl( $"GetImage.ashx?Id={a.PhotoId}&maxwidth=256&maxheight=256" ) : string.Empty,
+                    PhotoUrl = a.PhotoId != null ? FileUrlHelper.GetImageUrl( a.PhotoId.Value, new GetImageUrlOptions { Width = 256, Height = 256 } ) : string.Empty,
                     SmsNumber = a.PhoneNumbers.GetFirstSmsNumber(),
                 } ).ToList();
 
@@ -476,7 +493,7 @@ namespace Rock.Blocks.Types.Mobile.Communication
                 // Structure the communication based on the communication type.
                 if ( communicationType == CommunicationType.Email )
                 {
-                    StructureEmailCommunication( communication, bag.Subject, bag.Message, bag.FromEmail, bag.FromName, bag.ReplyTo, true, bag.FileAttachmentGuid, binaryFileService );
+                    StructureEmailCommunication( communication, bag.Subject, bag.Message, bag.FromEmail, bag.FromName, bag.ReplyTo, true, bag.FileAttachmentGuid, bag.AdditionalEmailRecipients, personService, binaryFileService );
                 }
                 else if ( communicationType == CommunicationType.SMS )
                 {
@@ -691,14 +708,38 @@ namespace Rock.Blocks.Types.Mobile.Communication
         /// <param name="fromName"></param>
         /// <param name="replyTo"></param>
         /// <param name="sanitize"></param>
+        /// <param name="additionalRecipients"></param>
         /// <param name="fileAttachmentGuid"></param>
+        /// <param name="personService"></param>
         /// <param name="binaryFileService"></param>
-        private void StructureEmailCommunication( Rock.Model.Communication communication, string subject, string body, string fromEmail, string fromName, string replyTo, bool sanitize, Guid? fileAttachmentGuid, BinaryFileService binaryFileService )
+        private void StructureEmailCommunication( Rock.Model.Communication communication, string subject, string body, string fromEmail, string fromName, string replyTo, bool sanitize, Guid? fileAttachmentGuid, List<string> additionalRecipients, PersonService personService, BinaryFileService binaryFileService )
         {
             var emailMediumEntityTypeId = EntityTypeCache.Get<Rock.Communication.Medium.Email>().Id;
             foreach ( var recipient in communication.Recipients )
             {
                 recipient.MediumEntityTypeId = emailMediumEntityTypeId;
+            }
+
+            // Add the additional email recipients as "nameless" recipients.
+            foreach( var emailRecipient in additionalRecipients )
+            {
+                var emailPerson = personService.GetPersonFromEmailAddress( emailRecipient, true );
+                if ( emailPerson != null )
+                {
+                    var newRecipient = new CommunicationRecipient
+                    {
+                        PersonAliasId = emailPerson.PrimaryAliasId,
+                        MediumEntityTypeId = emailMediumEntityTypeId
+                    };
+
+                    // Checking for duplicates.
+                    if ( communication.Recipients.Any( cr => cr.PersonAliasId == newRecipient.PersonAliasId ) )
+                    {
+                        continue;
+                    };
+
+                    communication.Recipients.Add( newRecipient );
+                }
             }
 
             // Structuring the communication.

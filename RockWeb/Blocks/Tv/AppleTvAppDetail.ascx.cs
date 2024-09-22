@@ -88,13 +88,12 @@ namespace RockWeb.Blocks.Tv
         /// <param name="e">The <see cref="T:System.EventArgs" /> object that contains the event data.</param>
         protected override void OnLoad( EventArgs e )
         {
-            base.OnLoad( e );
-
-
             if ( !Page.IsPostBack )
             {
                 ShowView();
             }
+
+            base.OnLoad( e );
         }
 
         #endregion
@@ -223,8 +222,6 @@ namespace RockWeb.Blocks.Tv
             interactionChannelForSite.Name = site.Name;
             interactionChannelForSite.RetentionDuration = nbPageViewRetentionPeriodDays.Text.AsIntegerOrNull();
             interactionChannelForSite.ComponentEntityTypeId = EntityTypeCache.Get<Rock.Model.Page>().Id;
-
-            site.EnablePageViewGeoTracking = cbEnablePageViewGeoTracking.Checked;
 
             rockContext.SaveChanges();
 
@@ -408,7 +405,6 @@ namespace RockWeb.Blocks.Tv
                 tbDescription.Text = site.Description;
 
                 cbIsActive.Checked = site.IsActive;
-                cbEnablePageViewGeoTracking.Checked = site.EnablePageViewGeoTracking;
 
                 var additionalSettings = JsonConvert.DeserializeObject<AppleTvApplicationSettings>( site.AdditionalSettings );
 
@@ -450,7 +446,7 @@ namespace RockWeb.Blocks.Tv
             }
             else
             {
-                var stream = typeof( Rock.Blocks.RockBlockType ).Assembly.GetManifestResourceStream( "Rock.Blocks.DefaultTvApplication.js" );
+                var stream = typeof( Rock.Blocks.Tv.AppleTvAppDetail ).Assembly.GetManifestResourceStream( "Rock.Blocks.DefaultTvApplication.js" );
                 
                 if ( stream != null )
                 {

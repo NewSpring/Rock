@@ -6,7 +6,8 @@
                     :editorHeight="editorHeight > 0 ? editorHeight : undefined"
                     :mergeFields="mergeFields"
                     toolbar="full"
-                    :startInCodeEditorMode="false" />
+                    :startInCodeEditorMode="false"
+                    label="HTML Editor" />
 
         <template #settings>
             <div class="row">
@@ -37,6 +38,7 @@
     const editorHeight = ref(600);
     const mergeFields = ref([
         "GlobalAttribute",
+        "Rock.Model.Person",
         "Rock.Model.Person|Custom Person Label",
         "MergeField1",
         "MergeFieldWithCustomLabel|Custom Label"

@@ -19,7 +19,6 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 
 using Rock.Field;
 using Rock.ViewModels.Utility;
@@ -57,7 +56,6 @@ namespace Rock.Attribute
         internal static PublicEditableAttributeBag GetPublicEditableAttributeViewModel( Rock.Model.Attribute attribute )
         {
             var fieldTypeCache = FieldTypeCache.Get( attribute.FieldTypeId );
-            var universalFieldTypeGuidAttribute = fieldTypeCache.Field?.GetType().GetCustomAttribute<UniversalFieldTypeGuidAttribute>();
             var configurationValues = attribute.AttributeQualifiers.ToDictionary( q => q.Key, q => q.Value );
 
             return new PublicEditableAttributeBag
@@ -80,8 +78,11 @@ namespace Rock.Attribute
                 IsSystem = attribute.IsSystem,
                 IsShowInGrid = attribute.IsGridColumn,
                 IsShowOnBulk = attribute.ShowOnBulk,
-                FieldTypeGuid = universalFieldTypeGuidAttribute?.Guid ?? fieldTypeCache.Guid,
+                IsSuppressHistoryLogging = attribute.IsSuppressHistoryLogging,
+                FieldTypeGuid = fieldTypeCache.ControlFieldTypeGuid,
                 RealFieldTypeGuid = fieldTypeCache.Guid,
+                IconCssClass = attribute.IconCssClass,
+                AttributeColor = attribute.AttributeColor,
                 Categories = attribute.Categories
                     .Select( c => new ListItemBag
                     {
@@ -117,11 +118,10 @@ namespace Rock.Attribute
         internal static PublicAttributeBag GetPublicAttributeForView( AttributeCache attribute, string value )
         {
             var fieldType = _fieldTypes.GetOrAdd( attribute.FieldType.Guid, GetFieldType );
-            var universalFieldTypeGuidAttribute = fieldType.GetType().GetCustomAttribute<UniversalFieldTypeGuidAttribute>();
 
             return new PublicAttributeBag
             {
-                FieldTypeGuid = universalFieldTypeGuidAttribute?.Guid ?? attribute.FieldType.Guid,
+                FieldTypeGuid = attribute.FieldType.ControlFieldTypeGuid,
                 AttributeGuid = attribute.Guid,
                 Name = attribute.Name,
                 Categories = attribute.Categories.OrderBy( c => c.Order ).Select( c => new PublicAttributeCategoryBag
@@ -160,11 +160,10 @@ namespace Rock.Attribute
         internal static PublicAttributeBag GetPublicAttributeForEdit( AttributeCache attribute )
         {
             var fieldType = _fieldTypes.GetOrAdd( attribute.FieldType.Guid, GetFieldType );
-            var universalFieldTypeGuidAttribute = fieldType.GetType().GetCustomAttribute<UniversalFieldTypeGuidAttribute>();
 
             return new PublicAttributeBag
             {
-                FieldTypeGuid = universalFieldTypeGuidAttribute?.Guid ?? attribute.FieldType.Guid,
+                FieldTypeGuid = attribute.FieldType.ControlFieldTypeGuid,
                 AttributeGuid = attribute.Guid,
                 Name = attribute.Name,
                 Categories = attribute.Categories.OrderBy( c => c.Order ).Select( c => new PublicAttributeCategoryBag

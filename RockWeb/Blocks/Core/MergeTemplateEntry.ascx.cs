@@ -27,6 +27,7 @@ using Rock.Attribute;
 using Rock.Data;
 using Rock.MergeTemplates;
 using Rock.Model;
+using Rock.Utility;
 using Rock.Web.Cache;
 using Rock.Web.UI;
 using Rock.Web.UI.Controls;
@@ -85,8 +86,6 @@ namespace RockWeb.Blocks.Core
         /// <param name="e">The <see cref="T:System.EventArgs" /> object that contains the event data.</param>
         protected override void OnLoad( EventArgs e )
         {
-            base.OnLoad( e );
-
             if ( !Page.IsPostBack )
             {
                 int? entitySetId = this.PageParameter( "Set" ).AsIntegerOrNull();
@@ -98,6 +97,8 @@ namespace RockWeb.Blocks.Core
                     ShowMergeForEntitySetId( entitySetId.Value );
                 }
             }
+
+            base.OnLoad( e );
         }
 
         #endregion
@@ -214,7 +215,7 @@ namespace RockWeb.Blocks.Core
                     }
                 }
 
-                string getFileUrl = string.Format( "{0}?Guid={1}&attachment=true", ResolveRockUrl( "~/GetFile.ashx" ), outputBinaryFileDoc.Guid );
+                string getFileUrl = FileUrlHelper.GetFileUrl( outputBinaryFileDoc.Guid ) + "&attachment=true";
                 Response.Redirect( getFileUrl, false );
                 Context.ApplicationInstance.CompleteRequest();
             }

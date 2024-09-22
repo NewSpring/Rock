@@ -24,9 +24,10 @@
 import { NcoaProcessPersonAddressBag } from "@Obsidian/ViewModels/Blocks/Communication/NcoaProcess/ncoaProcessPersonAddressBag";
 import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
 
+/** The Process data used to pass to NCOA */
 export type NcoaProcessBag = {
-    /** Gets or sets the addresses that will be exported into the file used in the NCOA process. */
-    addresses?: Record<number, NcoaProcessPersonAddressBag> | null;
+    /** Gets or sets the list of addresses that will be exported into the file used in the NCOA process. */
+    addresses?: NcoaProcessPersonAddressBag[] | null;
 
     /** Gets or sets the Id of the Inactive Record Reason to use when inactivating people due to moving beyond the configured number of miles. */
     inactiveReason?: ListItemBag | null;

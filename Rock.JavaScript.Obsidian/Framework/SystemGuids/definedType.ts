@@ -29,6 +29,8 @@ export const DefinedType = {
     AppleDeviceModels: "DAE31F78-7AB9-4ACE-9EE1-C1E6A734562C",
     /** Guid for the Conflict Profile assessment. */
     AssessmentConflictProfile: "EE7E089E-DF81-4407-8BFA-AD865FA5427A",
+    /** Guid for Attendance record SourceValueId. */
+    AttendanceSource: "A27BF9DD-7AF0-47B4-8FE4-0B5E510381DB",
     /** Background check package types */
     BackgroundCheckTypes: "BC2FDF9A-93B8-4325-8DE9-2F7B1943BFDF",
     /** Guid for the types of Benevolence Request status (e.g. pending, active, answered, etc.) */
@@ -148,6 +150,8 @@ export const DefinedType = {
     MapStyles: "4EF89471-C049-49ED-AB50-677F689A4E4E",
     /** Guid for Content Channel Audience Type (formally called Marketing Campaign) */
     MarketingCampaignAudienceType: "799301A3-2026-4977-994E-45DC68502559",
+    /** Clarifies what the metrics are measuring, enabling the system to utilize these metrics for analytics. */
+    MeasurementClassification: "A9897479-110E-4E50-8F60-160CEFE4CF7B",
     /** Metric Source Type */
     MetricSourceType: "D6F323FF-6EF2-4DA7-A82C-61399AC1D798",
     /** Motivator Theme Type */
@@ -205,6 +209,8 @@ export const DefinedType = {
     SchoolGrades: "24E5A79F-1E62-467A-AD5D-0D10A2328B4D",
     /** The section types defined type, which has values that determine the CSS class to apply to the section div. */
     SectionType: "A72D940B-2A69-44B8-931C-7FE99824D84C",
+    /** List of possible sentiments for classification. */
+    SentimentEmotions: "C9751C20-DA81-4521-81DE-0099D6F598BA",
     /** Used to manage the topic options for small groups. */
     SmallGroupTopic: "D4111631-6B42-1CBD-4019-427D6BC6F475",
     /** The Spiritual Gifts */
@@ -223,6 +229,12 @@ export const DefinedType = {
     ThemePurpose: "99FF0317-9B21-4E56-9F83-EA89A3C8C789",
     /** Campus Topic Type */
     TopicType: "41141100-8fc6-44bb-aa36-9778eeda7f62",
+    /** List of different campaigns that may generate website traffic. */
+    UtmCampaign: "A2F452BB-39E8-40F8-9DAD-74DBD920FD2F",
+    /** List of different marketing or advertising mediums that may initiate website traffic. */
+    UtmMedium: "31693856-8553-4321-A302-B84CF1D22BAB",
+    /** List of different sources from which website traffic may originate. */
+    UtmSource: "3CFE43A9-5D0C-4BE4-B1EC-AFA06BBB7C32",
     /** Used to manage the lava code that can be launched via webhook. */
     WebhookToLava: "7BCF6434-8B15-49C3-8EF3-BAB9A63B545D",
     /** Used to manage the workflows that can be launched via webhook. */

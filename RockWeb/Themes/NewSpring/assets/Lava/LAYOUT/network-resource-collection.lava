@@ -42,17 +42,19 @@
 {% assign linktext = 'View Resources' %}
 {% assign hideforegroundelements = '' %}
 
+<div class="push-top xs-push-half-top">
 {[ sideBySide id:'{{ id }}' title:'{{ title }}' content:'{{ content }}' textalignment:'{{ textalignment }}' label:'{{ label }}' subtitle:'{{ subtitle }}' imageurl:'{{ imageurl }}' imageoverlayurl:'{{ imageoverlayurl }}' imagealignment:'{{ imagealignment }}' imageopacity:'{{ imageopacity }}' imageflip:'{{ imageflip }}' imageblur:'{{ imageblur }}' grayscale:'{{ grayscale }}' backgroundvideourl:'{{ backgroundvideourl }}' lava:'{{ lava }}' video:'{{ video }}' ratio:'{{ ratio }}' trimcopy:'{{ trimcopy }}' linkcolor:'{{ linkcolor }}' backgroundcolor:'{{ backgroundcolor }}' linktext:'{{ linktext }}' linkurl:'{{ linkurl }}' hideforegroundelements:'{{ hideforegroundelements }}' linkedpageid:'{{ linkedpageid }}' linkedpageroute:'{{ linkedpageroute }}' ]}
+</div>
 
 <div id="resources">
 {% assign downloadCount = Item.Downloads | Size %}
 {% if downloadCount > 0 %}
-<section class="bg-white soft-double xs-soft rounded shadowed push-bottom xs-push-half-bottom">
+<section class="bg-white soft-double xs-soft rounded-lg push-bottom xs-push-half-bottom">
 
     <h2 class="text-center push-top push-double-bottom">Series Resources</h2>
 
     <div class="row">
-        {% for download in Item.Downloads %}<div class="col-md-6 col-xs-12">
+        {% for download in Item.Downloads %}{% if download.Link != '' or download.File != '' %}<div class="col-md-6 col-xs-12">
 
                 <h3 class="h4 push-half-bottom">{{ download.Title }}</h3>
                 <p class="push-half-bottom">{{ download.Summary }}</p>
@@ -64,20 +66,29 @@
                 {% endif %}
                 </p>
 
-        </div>{% endfor %}
+        </div>{% if forloop.last and Item.ChannelId == '26' and Item.Children != null %}<div class="col-md-6 col-xs-12"><h3 class="h4 push-half-bottom">Weekly Lessons & Videos</h3>
+        <p class="push-half-bottom">Click below to browse weekly lessons and videos</p>
+                <p>
+                {% if CurrentPerson and CurrentPerson != empty %}
+                    <a href="#swiper" data-scroll class="btn btn-primary" target="">View Resources</a>
+                {% else %}
+                    <a href="/sign-in?returnurl={{ currentUrl }}" class="btn btn-primary">Sign In to Download</a>
+                {% endif %}
+                </p>
+        </div>{% endif %}{% endif %}{% endfor %}
     </div>
 </section>
 {% endif %}
 
 
-{% if showchildren == 'true' and Item.Children != empty %}
+{% if showchildren == 'true' and Item.Children != null %}
 
     {% assign parentType = Item.ChannelName | Split:' - ' | Last | Singularize %}
     {% assign childChannelId = Item.ChildChannelId | AsInteger %}
     {% assign childType = Item.Children | Where:'ChannelId', childChannelId | First | Property:'Dataset' | PersistedDataset | First | Property:'ChannelName' | Split:' - ' | Last | Singularize %}
 
-    <section class="shell bg-gray-lighter hard-sides rounded-lg">
-
+    <section id="swiper" class="shell bg-gray-lighter hard-sides rounded-lg">
+        {% if childChannelId == '25' %}<h2 class="text-center flush-top push-double-bottom">Weekly Lessons & Videos</h2>{% endif %}
         {[ swiper title:'{{ childType | Pluralize }} From This {{ parentType | Singularize }}' ]}
             {% for child in Item.Children %}[[ item ]]
                 {% assign childId = child.Id | AsInteger %}
