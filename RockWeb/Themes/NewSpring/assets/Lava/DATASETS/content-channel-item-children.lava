@@ -9,6 +9,7 @@
   JOIN [AttributeValue] av ON av.[EntityId] = cci.[ContentChannelId]
   JOIN [PersistedDataset] pd ON av.[Value] = pd.[Id]
   WHERE cci.[ContentChannelTypeId] = 11
+  AND cci.[Status] = 2
   AND av.[AttributeId] = 107096
   {% endsql %}
   [
@@ -29,6 +30,7 @@
       JOIN [AttributeValue] av ON av.[EntityId] = cci.[ContentChannelId]
       JOIN [PersistedDataset] pd ON av.[Value] = pd.[Id]
       WHERE ccia.[ContentChannelItemId] = {{ association.Id }}
+      AND cci.[Status] = 2
       AND av.[AttributeId] = 107096 -- Persisted Dataset Attribute Id
     {% endsql %}
     "Id": {{ association.Id | ToJSON }},

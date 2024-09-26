@@ -7,6 +7,7 @@ ON ti.EntityGuid = cci.Guid
 JOIN Tag t
 ON ti.TagId = t.Id
 WHERE t.CategoryId = 979
+AND cci.[Status] = 2
 {% endsql %}
 [
 {% for item in items %}{
@@ -33,6 +34,7 @@ WHERE t.CategoryId = 979
     JOIN PersistedDataset pd
     ON av.Value = pd.Id
     WHERE cci.Id = {{ item.Id }}
+    AND cci2.[Status] = 2
     AND cci2.Id != {{ item.Id }}
     AND av.AttributeId = 107096
     GROUP BY cci2.Id, cci2.ContentChannelId, cci2.Status, cci2.StartDateTime, cci2.ExpireDateTime, ccis.Slug, pd.AccessKey, cci2.ModifiedDateTime

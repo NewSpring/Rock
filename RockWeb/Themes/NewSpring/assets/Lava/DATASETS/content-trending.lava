@@ -1,0 +1,25 @@
+{%- sql -%}
+    DECLARE @StartDateTime AS DATETIME = DATEADD(DD,-7,GETDATE());
+
+    SELECT
+        cci.[Id]
+        , cc.[Id] AS [ContentChannelId]
+        , pd.[AccessKey] AS [Dataset]
+        , cci.[Title]
+        , (
+            SELECT COUNT(*)
+            FROM [Interaction] i
+            JOIN [InteractionComponent] ic ON i.[InteractionComponentId] = ic.[Id]
+            JOIN [InteractionChannel] ich ON ic.[InteractionChannelId] = ich.[Id]
+            WHERE ich.[ComponentEntityTypeId] = 209
+            AND ic.[EntityId] = cci.[Id]
+            AND i.[InteractionDateTime] >= @StartDateTime
+        ) AS [InteractionCount]
+    FROM [ContentChannel] cc
+    JOIN [ContentChannelItem] cci ON cci.[ContentChannelId] = cc.[Id]
+    LEFT JOIN [AttributeValue] av ON av.[EntityId] = cc.[Id] AND av.[AttributeId] = 107096
+    LEFT JOIN [PersistedDataset] pd ON pd.[Id] = av.[Value]
+    WHERE cc.[ContentChannelTypeId] = 11
+    AND cci.[Status] = 2
+    ORDER BY cc.[Id], [InteractionCount] DESC
+{%- endsql -%}{{ results | ToJSON }}
