@@ -61,11 +61,11 @@
 
             {% if childGroups and childGroups != empty %}
                 <div class="pull-right sm-pull-none xs-pull-none">
-                    {[ dropdown defaulttext:'{{ dropdowndefaulttext }}' ]}
+                    {[ nsDropdown defaulttext:'{{ dropdowndefaulttext }}' ]}
                         {% for group in childGroups %}
                             [[ item linktext:'{{ group.Name | Replace:" Team","" }}' linkurl:'{{ dropdownlinkpath | Append:'/' }}{{ group.Name | Replace:" Team","" | Replace:" ","-" | Downcase }}' ]][[ enditem ]]
                         {% endfor %}
-                    {[ enddropdown ]}
+                    {[ endnsDropdown ]}
                 </div>
             {% endif %}
 
@@ -101,7 +101,7 @@
 
                 {% assign person = item.PersonId | PersonById %}
 
-                {[ user imageurl:'{{ person | Attribute:"StaffImage","Url" }}' title:'{{ person.NickName }}<br>{{ person.LastName }}' subtitle:'{{ person | Attribute:'StaffTitle' }}' linkurl:'https://newspring.cc/workflows/712?StaffMember={{ person | Property:'PrimaryAlias' | Property:'Guid' }}' linktext:'Contact {{ person.NickName }}' ]}{[ enduser ]}
+                {[ user imageurl:'/GetImage.ashx?id={{ person | Attribute:"StaffImage","Id" }}' title:'{{ person.NickName }}<br>{{ person.LastName }}' subtitle:'{{ person | Attribute:'StaffTitle' }}' linkurl:'https://newspring.cc/workflows/712?StaffMember={{ person | Property:'PrimaryAlias' | Property:'Guid' }}' linktext:'Contact {{ person.NickName }}' ]}{[ enduser ]}
 
             </div>{% endfor %}
             <div class="col-md-12">
@@ -121,7 +121,7 @@
 
             {% assign person = id | PersonById %}
 
-            {[ user imageurl:'{{ person | Attribute:"StaffImage","Url" | Split:"?" | First }}' title:'{{ person.NickName }}<br>{{ person.LastName }}' subtitle:'{{ person | Attribute:'StaffTitle' }}' linkurl:'https://newspring.cc/workflows/712?StaffMember={{ person | Property:'PrimaryAlias' | Property:'Guid' }}' linktext:'Contact {{ person.NickName }}' ]}{[ enduser ]}
+            {[ user imageurl:'/GetImage.ashx?id={{ person | Attribute:"StaffImage","Id" }}' title:'{{ person.NickName }}<br>{{ person.LastName }}' subtitle:'{{ person | Attribute:'StaffTitle' }}' linkurl:'https://newspring.cc/workflows/712?StaffMember={{ person | Property:'PrimaryAlias' | Property:'Guid' }}' linktext:'Contact {{ person.NickName }}' ]}{[ enduser ]}
 
         </div>{% endfor %}
     </div>
