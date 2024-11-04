@@ -1,8 +1,7 @@
 <!-- Copyright by the Spark Development Network; Licensed under the Rock Community License -->
 <template>
     <div class="check-in-page">
-        <PageHeader title="Rock Solid"
-                    :hasBack="false"
+        <PageHeader :hasBack="false"
                     :hideNavigation="true" />
 
         <section class="page-body">
@@ -39,7 +38,7 @@
                                 </RockButton>
                             </div>
 
-                            <div class="button-list">
+                            <div v-if="savedConfigurations.length > 0" class="button-list">
                                 <RockButton v-for="cfg in savedConfigurations"
                                             btnType="primary"
                                             class="saved-configuration-button"
@@ -47,6 +46,10 @@
                                     <span class="title">{{ cfg.name }}</span>
                                     <span class="subtitle">{{ cfg.description }}</span>
                                 </RockButton>
+                            </div>
+
+                            <div v-else>
+                                No saved configurations currently exist.
                             </div>
                         </div>
 
@@ -546,6 +549,33 @@
     }
 
     /**
+     * Sets the initial UI selection values based on the saved data.
+     */
+    function setInitialValues(): void {
+        try {
+            const json = localStorage.getItem("Rock.CheckIn.CheckInKiosk.Configuration");
+
+            if (!json) {
+                return;
+            }
+
+            const savedConfig = JSON.parse(json) as SavedKioskConfigurationBag;
+
+            if (savedConfig.campusId) {
+                campusId.value = savedConfig.campusId;
+            }
+
+            if (savedConfig.kioskId) {
+                kioskId.value = savedConfig.kioskId;
+            }
+        }
+        catch {
+            // If we can't load the saved config, just move on.
+            return;
+        }
+    }
+
+    /**
      * Attempts to restore the temporary configuration from a theme selection
      * redirect. If the temporary configuration was found then the UI state is
      * restored.
@@ -711,7 +741,12 @@
 
     onMounted(() => updateActions());
 
-    if (blockConfiguration.isConfigureByLocationEnabled) {
+    setInitialValues();
+
+    if (blockConfiguration.kioskConfiguration) {
+        configureKiosk(blockConfiguration.kioskConfiguration, blockConfiguration.currentTheme ?? "");
+    }
+    else if (blockConfiguration.isConfigureByLocationEnabled) {
         attemptConfigureByGeoLocation();
     }
     else if (blockConfiguration.isManualSetupAllowed) {

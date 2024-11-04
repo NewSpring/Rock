@@ -18,6 +18,7 @@
                  :isFullScreenVisible="false"
                  :isSecurityHidden="true"
                  @cancelEdit="onCancelEdit"
+                 @edit="onEdit"
                  @save="onSave">
         <template #view>
             <ViewPanel :modelValue="learningActivityCompletionViewBag" :options="options" />
@@ -67,7 +68,9 @@
         entity: learningActivityCompletionEditBag
     });
 
-    const gradingScales = ref(config.options?.gradingScales?.sort((a,b) => b.thresholdPercentage - a.thresholdPercentage) ?? []);
+    const gradingScales = ref(config.options?.gradingScales?.sort((a, b) => b.thresholdPercentage - a.thresholdPercentage) ?? []);
+    const requiresScoring = ref(learningActivityCompletionViewBag.value?.requiresScoring);
+    const isLate = ref(learningActivityCompletionViewBag.value?.isLate);
 
     // #endregion
 
@@ -106,7 +109,9 @@
         const percentEarned = pointsPossible > 0 ? pointsEarned / pointsPossible * 100 : 0;
         const grade = gradingScales.value?.find(s => percentEarned >= s.thresholdPercentage);
         const hasGradeScale = grade != null;
-        const isGradePassing = hasGradeScale ? grade.isPassing : false;
+
+        // If there's a grade scale then use the grade otherwise assume it's incomplete.
+        const isGradePassing = hasGradeScale ? grade.isPassing : true;
 
         const gradeText = hasGradeScale ? `${grade.name} (${percentEarned}%)` : `${percentEarned}%`;
 
@@ -117,14 +122,14 @@
             });
         }
 
-        if (!learningActivityCompletionViewBag.value?.wasCompletedOnTime) {
+        if (isLate.value) {
             labels.push({
                 title: "Late",
                 type: "warning"
             });
         }
 
-        if (!learningActivityCompletionViewBag.value?.isFacilitatorCompleted) {
+        if (requiresScoring.value) {
             labels.push({
                 title: "Requires Scoring",
                 type: "warning"
@@ -165,6 +170,27 @@
     }
 
     /**
+     * Event handler for the Edit button being clicked. Request the edit
+     * details from the server and then enter edit mode.
+     *
+     * @returns true if the panel should enter edit mode; otherwise false.
+     */
+    async function onEdit(): Promise<boolean> {
+        const result = await invokeBlockAction<ValidPropertiesBox<LearningActivityCompletionBag>>("Edit", {
+            key: learningActivityCompletionViewBag.value?.idKey
+        });
+
+        if (result.isSuccess && result.data && result.data.bag) {
+            learningActivityCompletionEditBag.value = result.data;
+
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
+
+    /**
      * Event handler for the panel's Save event. Send the data to the server
      * to be saved and then leave edit mode or redirect to target page.
      *
@@ -173,6 +199,11 @@
     async function onSave(): Promise<boolean | string> {
         errorMessage.value = "";
 
+        if (!learningActivityCompletionEditBag.value || !learningActivityCompletionEditBag.value.bag) {
+            return false;
+        }
+
+        learningActivityCompletionEditBag.value.bag.isFacilitatorCompleted = true;
         const result = await invokeBlockAction<string>("Save", {
             box: learningActivityCompletionEditBag.value
         });
@@ -196,9 +227,5 @@
     }
     else if (!config.entity) {
         blockError.value = "The specified learning activity completion could not be viewed.";
-    }
-    else if (!config.entity.idKey) {
-        learningActivityCompletionEditBag.value = { bag: config.entity };
-        panelMode.value = DetailPanelMode.Add;
     }
 </script>

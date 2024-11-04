@@ -24,6 +24,7 @@ using Rock.Attribute;
 using Rock.Cms.StructuredContent;
 using Rock.Constants;
 using Rock.Data;
+using Rock.Lms;
 using Rock.Model;
 using Rock.Security;
 using Rock.SystemGuid;
@@ -46,7 +47,7 @@ namespace Rock.Blocks.Lms
     [Category( "LMS" )]
     [Description( "Displays the details of a particular learning activity completion." )]
     [IconCssClass( "fa fa-question" )]
-    // [SupportedSiteTypes( Model.SiteType.Web )]
+    [SupportedSiteTypes( Model.SiteType.Web )]
 
     #region Block Attributes
 
@@ -191,7 +192,12 @@ namespace Rock.Blocks.Lms
                 return null;
             }
 
-            var activityComponentBag = GetLearningActivityComponentBag( entity.LearningActivity?.ActivityComponentId );
+            var activityComponentId = entity?.LearningActivity?.ActivityComponentId.ToIntSafe() ?? 0;
+
+            var componentEntityType = EntityTypeCache.Get( activityComponentId );
+            var activityComponent = LearningActivityContainer.GetComponent( componentEntityType.Name );
+
+            var activityComponentBag = GetLearningActivityComponentBag( activityComponent );
 
             var binaryFile = entity.BinaryFileId > 0 ?
                 new BinaryFileService( RockContext ).GetNoTracking( entity.BinaryFileId.Value ) :
@@ -200,13 +206,73 @@ namespace Rock.Blocks.Lms
             // Get the student and current persons bags.
             var currentPerson = GetCurrentPerson();
 
+            var participantService = new LearningParticipantService( RockContext );
+
+            // Get the student and current user participants for the current class.
             var studentAndCurrentPersonIds = new[] { currentPerson.Id, entity.Student.PersonId };
 
-            var bags = new LearningParticipantService( RockContext )
-                .GetParticipantBags( entity.LearningActivity.LearningClassId, false, studentAndCurrentPersonIds );
+            // Get the data necessary for the participant bags.
+            var classParticipants = participantService.Queryable()
+                .AsNoTracking()
+                .Include( a => a.Person )
+                .Include( a => a.GroupRole )
+                .Where( a => a.LearningClassId == entity.LearningActivity.LearningClassId )
+                .Where( gm => studentAndCurrentPersonIds.Contains( gm.PersonId ) )
+                .Select( p => new
+                {
+                    p.Id,
+                    p.Person.Email,
+                    IsFacilitator = p.GroupRole.IsLeader,
+                    p.Person.NickName,
+                    p.Person.LastName,
+                    p.Person.SuffixValueId,
+                    RoleName = p.GroupRole.Name,
+                    p.Guid,
+                    p.PersonId
+                } )
+                .ToList();
 
-            var currentPersonBag = bags.FirstOrDefault( p => p.IdKey == currentPerson.IdKey );
-            var studentBag = bags.FirstOrDefault( p => p.IdKey != currentPerson.IdKey );
+            // Create the participant bags
+            var bags = classParticipants.Select( p => new LearningActivityParticipantBag
+            {
+                Email = p.Email,
+                Guid = p.Guid,
+                IdKey = Rock.Utility.IdHasher.Instance.GetHash( p.Id ),
+                IsFacilitator = p.IsFacilitator,
+                Name = Rock.Model.Person.FormatFullName( p.NickName, p.LastName, p.SuffixValueId ),
+                RoleName = p.RoleName
+            } );
+
+            // Get the Guid of each participant type.
+            var currentPersonPartipicantGuid = classParticipants.FirstOrDefault( gm => gm.PersonId == currentPerson.Id )?.Guid;
+            var studentPartipicantGuid = classParticipants.FirstOrDefault( gm => gm.PersonId == entity.Student.PersonId )?.Guid;
+
+            // Now get the participant bags.
+            var currentPersonBag = bags.FirstOrDefault( p => p.Guid == currentPersonPartipicantGuid );
+            var studentBag = bags.FirstOrDefault( p => p.Guid == studentPartipicantGuid );
+
+            ListItemBag gradedByPersonAliasBag = null;
+            if ( entity.GradedByPersonAliasId.HasValue )
+            {
+                var gradedByPersonData = new PersonAliasService( RockContext )
+                    .GetSelect( entity.GradedByPersonAliasId.Value,
+                     p => new {p.Person.NickName,
+                    p.Person.LastName,
+                    p.Person.SuffixValueId,
+                    p.Person.Guid});
+
+                if ( gradedByPersonData != null )
+                {
+                    gradedByPersonAliasBag = new ListItemBag
+                    {
+                        Text = Rock.Model.Person.FormatFullName(
+                            gradedByPersonData.NickName,
+                            gradedByPersonData.LastName,
+                            gradedByPersonData.SuffixValueId ),
+                        Value = gradedByPersonData.Guid.ToStringSafe()
+                    };
+                }
+            }
 
             var scales = new LearningClassService( RockContext )
                 .GetClassScales( entity.LearningActivity.LearningClassId );
@@ -215,6 +281,17 @@ namespace Rock.Blocks.Lms
             var activityDescriptionAsHtml = entity.LearningActivity.Description.IsNotNullOrWhiteSpace() ?
                 new StructuredContentHelper( entity.LearningActivity.Description ).Render() :
                 string.Empty;
+
+            // If the current person is a facilitator include a security grant for viewing the uploaded file.
+            var binaryFileSecurityGrant = string.Empty;
+            if ( binaryFile != null && currentPersonBag.IsFacilitator )
+            {
+                var binaryFileEntityTypeId = EntityTypeCache.GetId( typeof( Rock.Model.BinaryFile ) ).ToIntSafe();
+                binaryFileSecurityGrant = new Rock.Security.SecurityGrant()
+                        .AddRule( new Rock.Security.SecurityGrantRules.EntitySecurityGrantRule( binaryFileEntityTypeId, entity.BinaryFileId.Value ) )
+                        .ToToken( true )
+                        .UrlEncode();
+            }
 
             var activityBag = new LearningActivityBag
             {
@@ -236,43 +313,36 @@ namespace Rock.Blocks.Lms
                 ActivityBag = activityBag,
                 ActivityComponentCompletionJson = entity.ActivityComponentCompletionJson,
                 BinaryFile = binaryFile?.ToListItemBag(),
+                BinaryFileSecurityGrant = binaryFileSecurityGrant,
                 CompletedDate = entity.CompletedDateTime,
                 DueDate = entity.DueDate,
                 FacilitatorComment = entity.FacilitatorComment,
-                GradeText = entity.GradeText( scales ),
-                IsGradePassing = entity.Grade().IsPassing,
-
+                GradeText = entity.GetGradeText( scales ),
+                GradedByPersonAlias = gradedByPersonAliasBag,
                 IsFacilitatorCompleted = entity.IsFacilitatorCompleted,
+                IsGradePassing = entity.GetGrade().IsPassing,
+                IsLate = entity.IsLate,
                 IsStudentCompleted = entity.IsStudentCompleted,
                 PointsEarned = entity.PointsEarned,
+                RequiresScoring = entity.RequiresGrading,
+                RequiresFacilitatorCompletion = entity.RequiresFaciltatorCompletion,
                 Student = studentBag,
                 StudentComment = entity.StudentComment,
                 WasCompletedOnTime = entity.WasCompletedOnTime
             };
         }
 
-        private LearningActivityComponentBag GetLearningActivityComponentBag( int? activityComponentId )
+        private LearningActivityComponentBag GetLearningActivityComponentBag( LearningActivityComponent activityComponent )
         {
-            var componentId = activityComponentId.ToIntSafe();
-            if ( componentId == 0 )
+            return new LearningActivityComponentBag
             {
-                return new LearningActivityComponentBag();
-            }
-            else
-            {
-                var componentEntityType = EntityTypeCache.Get( componentId );
-                var activityComponent = Rock.Lms.LearningActivityContainer.GetComponent( componentEntityType.Name );
-
-                return new LearningActivityComponentBag
-                {
-                    Name = activityComponent?.Name,
-                    ComponentUrl = activityComponent?.ComponentUrl,
-                    HighlightColor = activityComponent?.HighlightColor,
-                    IconCssClass = activityComponent?.IconCssClass,
-                    IdKey = activityComponent?.EntityType.IdKey,
-                    Guid = activityComponent?.EntityType.Guid.ToString()
-                };
-            }
+                Name = activityComponent?.Name,
+                ComponentUrl = activityComponent?.ComponentUrl,
+                HighlightColor = activityComponent?.HighlightColor,
+                IconCssClass = activityComponent?.IconCssClass,
+                IdKey = activityComponent?.EntityType.IdKey,
+                Guid = activityComponent?.EntityType.Guid.ToString()
+            };
         }
 
         /// <inheritdoc/>
@@ -321,8 +391,20 @@ namespace Rock.Blocks.Lms
             box.IfValidProperty( nameof( box.Bag.IsFacilitatorCompleted ),
                 () => entity.IsFacilitatorCompleted = box.Bag.IsFacilitatorCompleted );
 
+            if ( !entity.GradedByPersonAliasId.HasValue || box.Bag.PointsEarned != entity.PointsEarned )
+            {
+                entity.GradedByPersonAliasId = GetCurrentPerson()?.PrimaryAliasId;
+
+                // The activity has been graded so there's no need to check with
+                // the activity component whether it requires grading.
+                entity.RequiresGrading = false;
+            }
+
             box.IfValidProperty( nameof( box.Bag.PointsEarned ),
                 () => entity.PointsEarned = box.Bag.PointsEarned );
+
+            box.IfValidProperty( nameof( box.Bag.WasCompletedOnTime ),
+                () => entity.WasCompletedOnTime = box.Bag.WasCompletedOnTime );
 
             return true;
         }
@@ -409,37 +491,33 @@ namespace Rock.Blocks.Lms
         /// <inheritdoc/>
         public BreadCrumbResult GetBreadCrumbs( PageReference pageReference )
         {
-            // Note that we need to use our own RockContext here since the RockEntityDetailBlockType base will not have initialized it yet.
-            using ( var rockContext = new RockContext() )
+            var entityKey = pageReference.GetPageParameter( PageParameterKey.LearningActivityCompletionId ) ?? "";
+            var entityDetail =
+                    entityKey.IsNullOrWhiteSpace() ?
+                    null :
+                    new Service<LearningActivityCompletion>( RockContext )
+                        .GetSelect( entityKey, p => new { p.Student.Person.NickName, p.Student.Person.LastName, p.Student.Person.SuffixValueId } );
+
+            // This page doesn't support adding records so if there's no valid key then we should return early.
+            if ( entityDetail == null )
             {
-                var entityKey = pageReference.GetPageParameter( PageParameterKey.LearningActivityCompletionId ) ?? "";
-                var entityDetail =
-                        entityKey.IsNullOrWhiteSpace() ?
-                        null :
-                        new Service<LearningActivityCompletion>( rockContext )
-                            .GetSelect( entityKey, p => new { p.Student.Person.NickName, p.Student.Person.LastName, p.Student.Person.SuffixValueId } );
-
-                // This page doesn't support adding records so if there's no valid key then we should return early.
-                if ( entityDetail == null )
-                {
-                    return new BreadCrumbResult
-                    {
-                        BreadCrumbs = new List<IBreadCrumb>()
-                    };
-                }
-
-                var entityName = Rock.Model.Person.FormatFullName( entityDetail.NickName, entityDetail.LastName, entityDetail.SuffixValueId );
-                var breadCrumbPageRef = new PageReference( pageReference.PageId, pageReference.RouteId, pageReference.Parameters );
-                var breadCrumb = new BreadCrumbLink( entityName, breadCrumbPageRef );
-
                 return new BreadCrumbResult
                 {
-                    BreadCrumbs = new List<IBreadCrumb>
-                    {
-                        breadCrumb
-                    }
+                    BreadCrumbs = new List<IBreadCrumb>()
                 };
             }
+
+            var entityName = Rock.Model.Person.FormatFullName( entityDetail.NickName, entityDetail.LastName, entityDetail.SuffixValueId );
+            var breadCrumbPageRef = new PageReference( pageReference.PageId, pageReference.RouteId, pageReference.Parameters );
+            var breadCrumb = new BreadCrumbLink( entityName, breadCrumbPageRef );
+
+            return new BreadCrumbResult
+            {
+                BreadCrumbs = new List<IBreadCrumb>
+                {
+                    breadCrumb
+                }
+            };
         }
 
         #endregion
@@ -477,8 +555,6 @@ namespace Rock.Blocks.Lms
         [BlockAction]
         public BlockActionResult Save( ValidPropertiesBox<LearningActivityCompletionBag> box )
         {
-            var entityService = new LearningActivityCompletionService( RockContext );
-
             if ( !TryGetEntityForEditAction( box.Bag.IdKey, out var entity, out var actionError ) )
             {
                 return actionError;

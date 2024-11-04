@@ -595,6 +595,32 @@ namespace Rock.Rest.v2
 
         #endregion
 
+        #region AI Provider Picker
+
+        /// <summary>
+        /// Gets the AI providers that can be displayed in the AI provider picker.
+        /// </summary>
+        /// <param name="options">The options that describe which items to load.</param>
+        /// <returns>A List of <see cref="ListItemBag"/> objects that represent the AI providers.</returns>
+        [HttpPost]
+        [System.Web.Http.Route( "AIProviderPickerGetAIProviders" )]
+        [Authenticate]
+        [Rock.SystemGuid.RestActionGuid( "A9403C3A-E66F-4051-B857-30B89C3A65B3" )]
+        public IHttpActionResult AIProviderPickerGetAIProviders( [FromBody] AIProviderPickerGetAIProviderOptionsBag options )
+        {
+            using ( var rockContext = new RockContext() )
+            {
+                var items = AIProviderCache.All()
+                    .Where( a => a.EntityTypeId.HasValue && a.IsActive )
+                    .OrderBy( a => a.Name )
+                    .ToListItemBagList();
+
+                return Ok( items );
+            }
+        }
+
+        #endregion
+
         #region Assessment Type Picker
 
         /// <summary>
@@ -4221,6 +4247,7 @@ namespace Rock.Rest.v2
 
             // Google API Key
             string googleApiKey = GlobalAttributesCache.Get().GetValue( "GoogleAPIKey" );
+            var mapId = GlobalAttributesCache.Get().GetValue( "core_GoogleMapId" );
 
             // Default map location
             double? centerLatitude = null;
@@ -4243,7 +4270,8 @@ namespace Rock.Rest.v2
                 MarkerColor = markerColor,
                 GoogleApiKey = googleApiKey,
                 CenterLatitude = centerLatitude,
-                CenterLongitude = centerLongitude
+                CenterLongitude = centerLongitude,
+                GoogleMapId = mapId.IsNullOrWhiteSpace() ? "DEFAULT_MAP_ID" : mapId
             } );
         }
 

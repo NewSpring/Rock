@@ -25,6 +25,7 @@ using Rock.Attribute;
 using Rock.Cms.StructuredContent;
 using Rock.Constants;
 using Rock.Data;
+using Rock.Enums.Lms;
 using Rock.Lms;
 using Rock.Model;
 using Rock.Security;
@@ -45,7 +46,7 @@ namespace Rock.Blocks.Lms
     [Category( "LMS" )]
     [Description( "Displays the details of a particular learning activity." )]
     [IconCssClass( "fa fa-question" )]
-    // [SupportedSiteTypes( Model.SiteType.Web )]
+    [SupportedSiteTypes( Model.SiteType.Web )]
 
     #region Block Attributes
 
@@ -111,7 +112,9 @@ namespace Rock.Blocks.Lms
                 IconCssClass = component.Value.Value.IconCssClass,
                 IdKey = component.Value.Value.EntityType.IdKey,
                 Guid = component.Value.Value.EntityType.Guid.ToString()
-            } ).ToList();
+            } )
+                .OrderBy( a => a.Name )
+                .ToList();
 
             // Get a list of Activity Types for the user to select from.
             options.ActivityTypeListItems = options.ActivityTypes.Select( a => new ListItemBag
@@ -121,6 +124,12 @@ namespace Rock.Blocks.Lms
             } ).ToList();
 
             options.HasCompletions = ActivityHasCompletions();
+
+            var configurationMode = new LearningProgramService( RockContext ).GetSelect( PageParameter( PageParameterKey.LearningProgramId ), p => p.ConfigurationMode );
+            var activityService = new LearningActivityService( RockContext );
+
+            options.AvailabilityCriteriaOptions = activityService.GetAvailabilityCriteria( configurationMode );
+            options.DueDateCriteriaOptions = activityService.GetDueDateCriteria( configurationMode );
 
             return options;
         }
@@ -214,7 +223,8 @@ namespace Rock.Blocks.Lms
                 return null;
             }
 
-            var completionStatistics = new LearningActivityService( RockContext ).GetCompletionStatistics( entity );
+            var learningActivityService = new LearningActivityService( RockContext );
+            var completionStatistics = learningActivityService.GetCompletionStatistics( entity );
 
             // Get the current persons info.
             var currentPerson = GetCurrentPerson();
@@ -243,13 +253,26 @@ namespace Rock.Blocks.Lms
                 };
             }
 
+            var classId = RequestContext.PageParameterAsId( PageParameterKey.LearningClassId );
+            var isFirstClassActivity = !learningActivityService.Queryable().Any( a => a.LearningClassId == classId );
+            var isNew = entity.Id == 0;
+
+            // If this is an existing record use it's availability criteria
+            // If new - use "Always Available" for the first activity in a class
+            // and "After Previous Completed" for all subsequent activities.
+            var availabilityCriteria =
+                !isNew ?
+                entity.AvailabilityCriteria :
+                isFirstClassActivity ? AvailabilityCriteria.AlwaysAvailable :
+                AvailabilityCriteria.AfterPreviousCompleted;
+
             return new LearningActivityBag
             {
                 IdKey = entity.IdKey,
                 ActivityComponent = activityComponentBag,
                 ActivityComponentSettingsJson = entity.ActivityComponentSettingsJson,
                 AssignTo = entity.AssignTo,
-                AvailableDateCalculationMethod = entity.AvailableDateCalculationMethod,
+                AvailabilityCriteria = availabilityCriteria,
                 AvailableDateCalculated = entity.AvailableDateCalculated,
                 AvailableDateDefault = entity.AvailableDateDefault,
                 AvailableDateDescription = entity.AvailableDateDescription,
@@ -262,7 +285,7 @@ namespace Rock.Blocks.Lms
                 CurrentPerson = currentPersonBag,
                 Description = entity.Description,
                 DescriptionAsHtml = entity.Description.IsNotNullOrWhiteSpace() ? new StructuredContentHelper( entity.Description ).Render() : string.Empty,
-                DueDateCalculationMethod = entity.DueDateCalculationMethod,
+                DueDateCriteria = entity.DueDateCriteria,
                 DueDateCalculated = entity.DueDateCalculated,
                 DueDateDefault = entity.DueDateDefault,
                 DueDateDescription = entity.DueDateDescription,
@@ -275,6 +298,17 @@ namespace Rock.Blocks.Lms
                 PercentComplete = completionStatistics.PercentComplete,
                 Points = entity.Points,
                 SendNotificationCommunication = entity.SendNotificationCommunication
+            };
+        }
+
+        private LearningActivity GetDefaultEntity()
+        {
+            return new LearningActivity
+            {
+                Id = 0,
+                Guid = Guid.Empty,
+                AvailabilityCriteria = Enums.Lms.AvailabilityCriteria.AfterPreviousCompleted,
+                DueDateCriteria = Enums.Lms.DueDateCriteria.NoDate
             };
         }
 
@@ -322,11 +356,7 @@ namespace Rock.Blocks.Lms
             box.IfValidProperty( nameof( box.Bag.Description ),
                 () => entity.Description = box.Bag.Description );
 
-            // Don't allow edits to these properties once an activity has been completed.
-            // Doing so could cause unexpected behavior because configuration is done in JSON.
-            if ( !ActivityHasCompletions() )
-            {
-                box.IfValidProperty( nameof( box.Bag.ActivityComponent ),
+            box.IfValidProperty( nameof( box.Bag.ActivityComponent ),
                 () =>
                 {
                     var componentEntityTypeId = Rock.Utility.IdHasher.Instance.GetId( box.Bag?.ActivityComponent?.IdKey );
@@ -334,57 +364,60 @@ namespace Rock.Blocks.Lms
                         entity.ActivityComponentId = componentEntityTypeId.Value;
                 } );
 
-                box.IfValidProperty( nameof( box.Bag.ActivityComponentSettingsJson ),
-                    () => entity.ActivityComponentSettingsJson = box.Bag.ActivityComponentSettingsJson );
+            box.IfValidProperty( nameof( box.Bag.ActivityComponentSettingsJson ),
+                () => entity.ActivityComponentSettingsJson = box.Bag.ActivityComponentSettingsJson );
 
-                box.IfValidProperty( nameof( box.Bag.AssignTo ),
-                    () => entity.AssignTo = box.Bag.AssignTo );
+            box.IfValidProperty( nameof( box.Bag.AssignTo ),
+                () => entity.AssignTo = box.Bag.AssignTo );
 
-                box.IfValidProperty( nameof( box.Bag.AvailableDateCalculationMethod ),
-                    () => entity.AvailableDateCalculationMethod = box.Bag.AvailableDateCalculationMethod );
+            box.IfValidProperty( nameof( box.Bag.AvailabilityCriteria ),
+                () => entity.AvailabilityCriteria = box.Bag.AvailabilityCriteria );
 
-                box.IfValidProperty( nameof( box.Bag.AvailableDateDefault ),
-                    () => entity.AvailableDateDefault = box.Bag.AvailableDateDefault );
+            box.IfValidProperty( nameof( box.Bag.AvailableDateDefault ),
+                () => entity.AvailableDateDefault = box.Bag.AvailableDateDefault );
 
-                box.IfValidProperty( nameof( box.Bag.AvailableDateOffset ),
-                    () => entity.AvailableDateOffset = box.Bag.AvailableDateOffset );
+            box.IfValidProperty( nameof( box.Bag.AvailableDateOffset ),
+                () => entity.AvailableDateOffset = box.Bag.AvailableDateOffset );
 
-                box.IfValidProperty( nameof( box.Bag.DueDateCalculationMethod ),
-                    () => entity.DueDateCalculationMethod = box.Bag.DueDateCalculationMethod );
+            var canUpdateDueDates = entity.Id == 0 || box.Bag.DueDateChangeType.HasValue;
+
+            if ( canUpdateDueDates )
+            {
+                box.IfValidProperty( nameof( box.Bag.DueDateCriteria ),
+                () => entity.DueDateCriteria = box.Bag.DueDateCriteria );
 
                 box.IfValidProperty( nameof( box.Bag.DueDateDefault ),
                     () => entity.DueDateDefault = box.Bag.DueDateDefault );
 
                 box.IfValidProperty( nameof( box.Bag.DueDateOffset ),
                     () => entity.DueDateOffset = box.Bag.DueDateOffset );
-
-                box.IfValidProperty( nameof( box.Bag.IsStudentCommentingEnabled ),
-                    () => entity.IsStudentCommentingEnabled = box.Bag.IsStudentCommentingEnabled );
-
-                box.IfValidProperty( nameof( box.Bag.Order ),
-                    () => entity.Order = box.Bag.Order );
-
-                box.IfValidProperty( nameof( box.Bag.Points ),
-                    () => entity.Points = box.Bag.Points );
-
-                box.IfValidProperty( nameof( box.Bag.SendNotificationCommunication ),
-                    () => entity.SendNotificationCommunication = box.Bag.SendNotificationCommunication );
-
-                box.IfValidProperty( nameof( box.Bag.CompletionWorkflowType ),
-                    () => entity.CompletionWorkflowTypeId = box.Bag.CompletionWorkflowType.GetEntityId<WorkflowType>( RockContext ) );
-
-                box.IfValidProperty( nameof( box.Bag.TaskBinaryFile ),
-                    () => entity.TaskBinaryFileId = box.Bag.TaskBinaryFile.GetEntityId<BinaryFile>( RockContext ) );
-
-                box.IfValidProperty( nameof( box.Bag.AttributeValues ),
-                    () =>
-                    {
-                        entity.LoadAttributes( RockContext );
-
-                        entity.SetPublicAttributeValues( box.Bag.AttributeValues, RequestContext.CurrentPerson );
-                    } );
-
             }
+
+            box.IfValidProperty( nameof( box.Bag.IsStudentCommentingEnabled ),
+                () => entity.IsStudentCommentingEnabled = box.Bag.IsStudentCommentingEnabled );
+
+            box.IfValidProperty( nameof( box.Bag.Order ),
+                () => entity.Order = box.Bag.Order );
+
+            box.IfValidProperty( nameof( box.Bag.Points ),
+                () => entity.Points = box.Bag.Points );
+
+            box.IfValidProperty( nameof( box.Bag.SendNotificationCommunication ),
+                () => entity.SendNotificationCommunication = box.Bag.SendNotificationCommunication );
+
+            box.IfValidProperty( nameof( box.Bag.CompletionWorkflowType ),
+                () => entity.CompletionWorkflowTypeId = box.Bag.CompletionWorkflowType.GetEntityId<WorkflowType>( RockContext ) );
+
+            box.IfValidProperty( nameof( box.Bag.TaskBinaryFile ),
+                () => entity.TaskBinaryFileId = box.Bag.TaskBinaryFile.GetEntityId<BinaryFile>( RockContext ) );
+
+            box.IfValidProperty( nameof( box.Bag.AttributeValues ),
+                () =>
+                {
+                    entity.LoadAttributes( RockContext );
+
+                    entity.SetPublicAttributeValues( box.Bag.AttributeValues, RequestContext.CurrentPerson );
+                } );
 
             return true;
         }
@@ -397,16 +430,15 @@ namespace Rock.Blocks.Lms
             // If a zero identifier is specified then create a new entity.
             if ( entityId == 0 )
             {
-                return new LearningActivity
-                {
-                    Id = 0,
-                    Guid = Guid.Empty
-                };
+                return GetDefaultEntity();
             }
 
             var entityService = new LearningActivityService( RockContext );
 
-            return entityService.Queryable().AsNoTracking().Include( a => a.CompletionWorkflowType ).FirstOrDefault( a => a.Id == entityId );
+            return entityService.Queryable()
+                .AsNoTracking()
+                .Include( a => a.CompletionWorkflowType )
+                .FirstOrDefault( a => a.Id == entityId );
         }
 
         /// <summary>
@@ -444,7 +476,7 @@ namespace Rock.Blocks.Lms
             else
             {
                 // Create a new entity.
-                entity = new LearningActivity();
+                entity = GetDefaultEntity();
                 entityService.Add( entity );
 
                 var maxOrder = entityService.Queryable()
@@ -472,22 +504,23 @@ namespace Rock.Blocks.Lms
         /// <inheritdoc/>
         public BreadCrumbResult GetBreadCrumbs( PageReference pageReference )
         {
-            using ( var rockContext = new RockContext() )
+            var entityKey = pageReference.GetPageParameter( PageParameterKey.LearningActivityId ) ?? "";
+
+            // Exclude the auto edit and return URL parameters from the page reference parameters (if any).
+            var excludedParamKeys = new[] { PageParameterKey.AutoEdit.ToLower(), PageParameterKey.ReturnUrl.ToLower() };
+            var paramsToInclude = pageReference.Parameters.Where( kv => !excludedParamKeys.Contains( kv.Key.ToLower() ) ).ToDictionary( kv => kv.Key, kv => kv.Value );
+
+            var entityName = entityKey.Length > 0 ? new Service<LearningActivity>( RockContext ).GetSelect( entityKey, p => p.Name ) : "New Activity";
+            var breadCrumbPageRef = new PageReference( pageReference.PageId, pageReference.RouteId, paramsToInclude );
+            var breadCrumb = new BreadCrumbLink( entityName ?? "New Activity", breadCrumbPageRef );
+
+            return new BreadCrumbResult
             {
-                var entityKey = pageReference.GetPageParameter( PageParameterKey.LearningActivityId ) ?? "";
-
-                var entityName = entityKey.Length > 0 ? new Service<LearningActivity>( rockContext ).GetSelect( entityKey, p => p.Name ) : "New Activity";
-                var breadCrumbPageRef = new PageReference( pageReference.PageId, pageReference.RouteId, pageReference.Parameters );
-                var breadCrumb = new BreadCrumbLink( entityName ?? "New Activity", breadCrumbPageRef );
-
-                return new BreadCrumbResult
+                BreadCrumbs = new List<IBreadCrumb>
                 {
-                    BreadCrumbs = new List<IBreadCrumb>
-                    {
-                        breadCrumb
-                    }
-                };
-            }
+                    breadCrumb
+                }
+            };
         }
 
         #endregion
@@ -534,11 +567,25 @@ namespace Rock.Blocks.Lms
                 return actionError;
             }
 
+            // Get the previous Available & DueDates in case we need it for
+            // updating existing LearningActivityCompletion records.
+            var previousAvailableDate = entity.AvailableDateCalculated;
+            var previousDueDate = entity.DueDateCalculated;
+
             // Update the entity instance from the information in the bag.
             if ( !UpdateEntityFromBox( entity, box ) )
             {
                 return ActionBadRequest( "Invalid data." );
             }
+
+            var newAvailableDate = entity.AvailableDateCalculated;
+            var newDueDate = entity.DueDateCalculated;
+
+            // Check to see if we should also update LearningActivityCompletion records.
+            // If the available dates changes
+            // or if the due date changed and we have a due date change type.
+            var updateAvailableDates = previousAvailableDate != newAvailableDate;
+            var updateDueDates = previousDueDate != newDueDate && box.Bag.DueDateChangeType.HasValue;
 
             // Ensure everything is valid before saving.
             if ( !ValidateLearningActivity( entity, out var validationMessage ) )
@@ -550,6 +597,34 @@ namespace Rock.Blocks.Lms
             if ( isNew )
             {
                 entity.LearningClassId = RequestContext.PageParameterAsId( PageParameterKey.LearningClassId );
+            }
+            else if ( updateAvailableDates || updateDueDates )
+            {
+                // If there is a change to the available or due date for an
+                // existing LearningActivity we need to update any those completions
+                // to use the new date.
+                var allCompletions = new LearningActivityCompletionService( RockContext )
+                    .Queryable()
+                    .Where( c => c.LearningActivityId == entity.Id );
+
+                foreach ( var c in allCompletions )
+                {
+                    if ( updateAvailableDates )
+                    {
+                        c.AvailableDateTime = newAvailableDate;
+                    }
+
+                    if ( updateDueDates )
+                    {
+                        // Update the DueDate if we're updating all records
+                        // or if this record matches the previous value -
+                        // per the user provided DueDateChangeType.
+                        if ( box.Bag.DueDateChangeType == DueDateChangeType.UpdateAll || c.DueDate.Value.Date == previousDueDate.Value.Date )
+                        {
+                            c.DueDate = newDueDate;
+                        }
+                    }
+                }
             }
 
             RockContext.SaveChanges();
@@ -630,7 +705,6 @@ namespace Rock.Blocks.Lms
 
             return ActionContent( System.Net.HttpStatusCode.Created, this.GetCurrentPageUrl( queryParams ) );
         }
-
 
         #endregion
     }

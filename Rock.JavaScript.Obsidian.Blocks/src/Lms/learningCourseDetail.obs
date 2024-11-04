@@ -21,11 +21,6 @@
                  @cancelEdit="onCancelEdit"
                  @edit="onEdit"
                  @save="onSave">
-        <template #sidebar v-if="panelMode === DetailPanelMode.View">
-            <ImageWithIcon :imageFileGuid="imageGuid"
-                           :highlightColor="highlightColor"
-                           :iconCssClass="iconCssClass" />
-        </template>
         <template #view>
             <ViewPanel :modelValue="learningCourseViewBag" :options="options" />
         </template>
@@ -34,11 +29,6 @@
             <EditPanel v-model="learningCourseEditBag" :options="options" @propertyChanged="baseBlock.onPropertyChanged" />
         </template>
     </DetailBlock>
-
-    <LearningClassSecondaryLists v-if="isOnDemandMode && panelMode === DetailPanelMode.View"
-                                 :isEditable="isEditable"
-                                 :navigationUrls="config.navigationUrls"
-                                 v-model="learningCourseViewBag" />
 </template>
 
 <script setup lang="ts">
@@ -50,8 +40,6 @@
     import { PanelAction } from "@Obsidian/Types/Controls/panelAction";
     import EditPanel from "./LearningCourseDetail/editPanel.partial.obs";
     import ViewPanel from "./LearningCourseDetail/viewPanel.partial.obs";
-    import ImageWithIcon from "@Obsidian/Controls/imageWithIcon.obs";
-    import LearningClassSecondaryLists from "./LearningClassSecondaryLists/learningClassSecondaryLists.partial.obs";
     import { onConfigurationValuesChanged, useConfigurationValues, useEntityDetailBlock, useInvokeBlockAction, useReloadBlock } from "@Obsidian/Utility/block";
     import { NavigationUrlKey } from "./LearningCourseDetail/types.partial";
     import { DetailBlockBox } from "@Obsidian/ViewModels/Blocks/detailBlockBox";
@@ -82,11 +70,6 @@
     const entityTypeGuid = EntityType.LearningCourse;
 
     const panelMode = ref<DetailPanelMode>(DetailPanelMode.View);
-    const isOnDemandMode = ref(config.options?.configurationMode === ConfigurationMode.OnDemandLearning);
-
-    const imageGuid = ref<string>(learningCourseViewBag.value?.imageBinaryFile?.value ?? "");
-    const iconCssClass = ref<string>(learningCourseViewBag.value?.programIconCssClass ?? "");
-    const highlightColor = ref<string>(learningCourseViewBag.value?.programHighlightColor ?? "");
 
     // #endregion
 
@@ -139,7 +122,7 @@
         }
         else {
             labels.push({
-                title: "Private",
+                title: "Internal",
                 type: "warning"
             });
         }
@@ -188,12 +171,12 @@
      * @returns true if the panel should enter edit mode; otherwise false.
      */
     async function onEdit(): Promise<boolean> {
-        const result = await invokeBlockAction<DetailBlockBox<LearningCourseBag, LearningCourseDetailOptionsBag>>("Edit", {
+        const result = await invokeBlockAction<ValidPropertiesBox<LearningCourseBag>>("Edit", {
             key: learningCourseViewBag.value?.idKey
         });
 
-        if (result.isSuccess && result.data && result.data.entity) {
-            learningCourseEditBag.value.bag = result.data.entity;
+        if (result.isSuccess && result.data && result.data) {
+            learningCourseEditBag.value = result.data;
 
             return true;
         }

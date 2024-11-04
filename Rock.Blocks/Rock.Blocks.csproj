@@ -56,6 +56,7 @@
     </Reference>
     <Reference Include="System.ComponentModel.Composition" />
     <Reference Include="System.ComponentModel.DataAnnotations" />
+    <Reference Include="System.Configuration" />
     <Reference Include="System.Core" />
     <Reference Include="System.Memory, Version=4.0.1.2, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
       <HintPath>..\packages\System.Memory.4.5.5\lib\net461\System.Memory.dll</HintPath>
@@ -71,6 +72,7 @@
       <HintPath>..\packages\System.Threading.Tasks.Extensions.4.5.4\lib\net461\System.Threading.Tasks.Extensions.dll</HintPath>
     </Reference>
     <Reference Include="System.Web" />
+    <Reference Include="System.IO.Compression" />
     <Reference Include="System.Web.Http, Version=5.2.3.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
@@ -86,11 +88,13 @@
     <Compile Include="..\Rock.Version\AssemblySharedInfo.cs">
       <Link>Properties\AssemblySharedInfo.cs</Link>
     </Compile>
+    <Compile Include="Administration\SystemConfiguration.cs" />
     <Compile Include="Bus\BusStatus.cs" />
     <Compile Include="Bus\ConsumerList.cs" />
     <Compile Include="Bus\QueueList.cs" />
     <Compile Include="CheckIn\CheckInKiosk.cs" />
     <Compile Include="CheckIn\CheckInKioskSetup.cs" />
+    <Compile Include="CheckIn\CheckInScheduleBuilder.cs" />
     <Compile Include="CheckIn\CloudPrintMonitor.cs" />
     <Compile Include="CheckIn\Configuration\CheckInSimulator.cs" />
     <Compile Include="CheckIn\Configuration\LabelDesigner.cs" />
@@ -104,16 +108,20 @@
     <Compile Include="Cms\ContentChannelList.cs" />
     <Compile Include="Cms\ContentChannelTypeList.cs" />
     <Compile Include="Cms\ContentChannelTypeDetail.cs" />
+    <Compile Include="Cms\LavaShortcodeList.cs" />
     <Compile Include="Cms\MediaAccountList.cs" />
     <Compile Include="Cms\MediaFolderList.cs" />
+    <Compile Include="Cms\ThemeDetail.cs" />
     <Compile Include="Communication\CommunicationEntry\ValidationContext.cs" />
     <Compile Include="Communication\CommunicationEntry\ValidationContextExtensions.cs" />
     <Compile Include="Cms\LogSettings.cs" />
     <Compile Include="Core\PersonSuggestionList.cs" />
     <Compile Include="Cms\PageSearch.cs" />
     <Compile Include="Core\DocumentTypeList.cs" />
+    <Compile Include="Crm\Disc.cs" />
     <Compile Include="Crm\PhotoUpload.cs" />
     <Compile Include="Event\RegistrationInstanceActiveList.cs" />
+    <Compile Include="Core\ScheduleCategoryExclusionList.cs" />
     <Compile Include="Core\ScheduledJobHistoryList.cs" />
     <Compile Include="Lms\LearningActivityCompletionDetail.cs" />
     <Compile Include="Lms\LearningActivityCompletionList.cs" />
@@ -135,30 +143,37 @@
     <Compile Include="Lms\Public\PublicLearningProgramList.cs" />
     <Compile Include="Mobile\CheckIn\CheckIn.cs" />
     <Compile Include="Tv\AppleTvPageList.cs" />
+    <Compile Include="Cms\PageList.cs" />
     <Compile Include="Cms\PageShortLinkClickList.cs" />
     <Compile Include="Cms\PageShortLinkList.cs" />
     <Compile Include="Cms\BlockList.cs" />
     <Compile Include="Cms\PageShortLinkDialog.cs" />
     <Compile Include="Administration\PageProperties.cs" />
+    <Compile Include="Tv\RokuApplicationDetail.cs" />
     <Compile Include="Cms\LayoutList.cs" />
     <Compile Include="Cms\PersistedDatasetList.cs" />
     <Compile Include="Cms\PersonalLinkList.cs" />
     <Compile Include="Cms\PersonalLinkSectionList.cs" />
     <Compile Include="Cms\PageRouteList.cs" />
     <Compile Include="Core\PersonFollowingList.cs" />
+    <Compile Include="Tv\RokuPageDetail.cs" />
+    <Compile Include="Tv\TvPageList.cs" />
     <Compile Include="Communication\NcoaProcess.cs" />
     <Compile Include="Core\AuthClientDetail.cs" />
+    <Compile Include="Core\LogViewer.cs" />
     <Compile Include="Crm\PhotoVerify.cs" />
     <Compile Include="Finance\FundraisingList.cs" />
     <Compile Include="Core\TagReport.cs" />
     <Compile Include="Engagement\StreakTypeExclusionList.cs" />
     <Compile Include="Engagement\StreakMapEditor.cs" />
+    <Compile Include="Reporting\PageParameterFilter.cs" />
     <Compile Include="Security\AuthScopeList.cs" />
     <Compile Include="Security\AuthClientList.cs" />
     <Compile Include="Security\SecurityChangeAuditList.cs" />
     <Compile Include="Core\PersonSignalList.cs" />
     <Compile Include="CheckIn\Configuration\CheckInLabelDetail.cs" />
     <Compile Include="CheckIn\Configuration\CheckInLabelList.cs" />
+    <Compile Include="Engagement\StreakList.cs" />
     <Compile Include="Engagement\CampaignList.cs" />
     <Compile Include="Security\UserLoginList.cs" />
     <Compile Include="Security\RestKeyList.cs" />
@@ -171,6 +186,7 @@
     <Compile Include="Communication\CommunicationList.cs" />
     <Compile Include="Communication\SmsPipelineList.cs" />
     <Compile Include="Communication\SystemCommunicationPreview.cs" />
+    <Compile Include="Tv\TvApplicationList.cs" />
     <Compile Include="Communication\SystemCommunicationList.cs" />
     <Compile Include="Communication\CommunicationEntry.cs" />
     <Compile Include="Communication\EmailPreferenceEntry.cs" />
@@ -239,6 +255,7 @@
     <Compile Include="Engagement\StreakTypeExclusionDetail.cs" />
     <Compile Include="Finance\FinancialGatewayList.cs" />
     <Compile Include="Finance\BusinessContactList.cs" />
+	<Compile Include="Event\RegistrationInstanceList.cs" />
     <Compile Include="Event\RegistrationInstancePaymentList.cs" />
     <Compile Include="Finance\SavedAccountList.cs" />
     <Compile Include="Finance\FinancialPledgeDetail.cs" />

@@ -186,8 +186,9 @@ namespace Rock.Blocks.Lms
                 IdKey = entity.IdKey,
                 Absences = absences,
                 AbsencesLabelStyle = entity.LearningClass?.AbsencesLabelStyle( absences ?? 0 ),
-                CurrentGradePercent = entity.LearningGradePercent,
+                CurrentGradePercent = Math.Round( entity.LearningGradePercent, 1),
                 CurrentGradeText = entity.LearningGradingSystemScale?.Name,
+                Note = entity.Note,
                 ParticipantRole = entity.GroupRole?.ToListItemBag(),
                 PersonAlias = entity.Person?.PrimaryAlias?.ToListItemBag(),
                 IsFacilitator = entity.GroupRole?.IsLeader ?? false
@@ -483,28 +484,25 @@ namespace Rock.Blocks.Lms
         /// <inheritdoc/>
         public BreadCrumbResult GetBreadCrumbs( PageReference pageReference )
         {
-            using ( var rockContext = new RockContext() )
+            var entityKey = pageReference.GetPageParameter( PageParameterKey.LearningParticipantId ) ?? "";
+
+            var entityDetail =
+                    entityKey.Length == 0 ?
+                    null :
+                    new Service<LearningParticipant>( RockContext )
+                        .GetSelect( entityKey, p => new { p.Person.NickName, p.Person.LastName, p.Person.SuffixValueId } );
+
+            var breadCrumbPageRef = new PageReference( pageReference.PageId, pageReference.RouteId, pageReference.Parameters );
+            var entityName = entityDetail == null ? null : Rock.Model.Person.FormatFullName( entityDetail.NickName, entityDetail.LastName, entityDetail.SuffixValueId );
+            var breadCrumb = new BreadCrumbLink( entityName ?? "New Participant", breadCrumbPageRef );
+
+            return new BreadCrumbResult
             {
-                var entityKey = pageReference.GetPageParameter( PageParameterKey.LearningParticipantId ) ?? "";
-
-                var entityDetail =
-                        entityKey.Length == 0 ?
-                        null :
-                        new Service<LearningParticipant>( rockContext )
-                            .GetSelect( entityKey, p => new { p.Person.NickName, p.Person.LastName, p.Person.SuffixValueId } );
-
-                var breadCrumbPageRef = new PageReference( pageReference.PageId, pageReference.RouteId, pageReference.Parameters );
-                var entityName = entityDetail == null ? null : Rock.Model.Person.FormatFullName( entityDetail.NickName, entityDetail.LastName, entityDetail.SuffixValueId );
-                var breadCrumb = new BreadCrumbLink( entityName ?? "New Participant", breadCrumbPageRef );
-
-                return new BreadCrumbResult
-                {
-                    BreadCrumbs = new List<IBreadCrumb>
+                BreadCrumbs = new List<IBreadCrumb>
                     {
                         breadCrumb
                     }
-                };
-            }
+            };
         }
 
         #endregion
@@ -621,21 +619,19 @@ namespace Rock.Blocks.Lms
             }
 
             var now = DateTime.Now;
+            var participantService = new LearningParticipantService( RockContext );
 
             // Get the grade scales first since we'll need them for the grade caluculations.
-            var gradeScales = new LearningParticipantService( RockContext ).Queryable()
+            var gradeScales = participantService.Queryable()
                 .Where( p => p.Id == entity.Id )
                 .Include( c => c.LearningClass.LearningGradingSystem.LearningGradingSystemScales )
                 .SelectMany( c => c.LearningClass.LearningGradingSystem.LearningGradingSystemScales )
                 .ToList()
                 .OrderByDescending( g => g.ThresholdPercentage );
 
-            var learningPlan = new LearningActivityCompletionService( RockContext ).Queryable()
-                .Include( a => a.LearningActivity )
-                .Where( a => a.StudentId == entity.Id )
-                .AsNoTracking()
-                .ToList()
-                .OrderBy( a => a.LearningActivity.Order );
+            var classId = RequestContext.PageParameterAsId( PageParameterKey.LearningClassId );
+            var personId = GetCurrentPerson()?.Id ?? 0;
+            var learningPlan = participantService.GetStudentLearningPlan( classId, personId );
 
             var components = LearningActivityContainer.Instance.Components;
 
@@ -652,7 +648,7 @@ namespace Rock.Blocks.Lms
                 .AddField( "dueDate", a => a.DueDate )
                 .AddField( "isPastDue", a => a.DueDate != null && a.DueDate >= now && !a.CompletedDateTime.HasValue )
                 .AddField( "isAvailableNow", a => a.AvailableDateTime != null && now >= a.AvailableDateTime )
-                .AddTextField( "grade", a => a.GradeText( gradeScales ) );
+                .AddTextField( "grade", a => a.GetGradeText( gradeScales ) );
 
             return ActionOk( gridBuilder.Build( learningPlan ) );
         }

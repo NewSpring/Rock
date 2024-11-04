@@ -39,11 +39,7 @@ namespace Rock.Blocks.Lms
     [Category( "LMS" )]
     [Description( "Displays the details of a particular learning semester." )]
     [IconCssClass( "fa fa-question" )]
-    // [SupportedSiteTypes( Model.SiteType.Web )]
-
-    #region Block Attributes
-
-    #endregion
+    [SupportedSiteTypes( Model.SiteType.Web )]
 
     [Rock.SystemGuid.EntityTypeGuid( "78bcf0d7-b5ac-4429-8055-b436652083a7" )]
     [Rock.SystemGuid.BlockTypeGuid( "97b2e57f-3a03-490d-834f-cd3640c7ff1e" )]
@@ -282,22 +278,19 @@ namespace Rock.Blocks.Lms
         /// <inheritdoc/>
         public BreadCrumbResult GetBreadCrumbs( PageReference pageReference )
         {
-            using ( var rockContext = new RockContext() )
+            var entityKey = pageReference.GetPageParameter( PageParameterKey.LearningSemesterId ) ?? "";
+
+            var entityName = entityKey.Length > 0 ? new Service<LearningSemester>( RockContext ).GetSelect( entityKey, p => p.Name ) : "New Semester";
+            var breadCrumbPageRef = new PageReference( pageReference.PageId, pageReference.RouteId, pageReference.Parameters );
+            var breadCrumb = new BreadCrumbLink( entityName ?? "New Semester", breadCrumbPageRef );
+
+            return new BreadCrumbResult
             {
-                var entityKey = pageReference.GetPageParameter( PageParameterKey.LearningSemesterId ) ?? "";
-
-                var entityName = entityKey.Length > 0 ? new Service<LearningSemester>( rockContext ).GetSelect( entityKey, p => p.Name ) : "New Semester";
-                var breadCrumbPageRef = new PageReference( pageReference.PageId, pageReference.RouteId, pageReference.Parameters );
-                var breadCrumb = new BreadCrumbLink( entityName ?? "New Semester", breadCrumbPageRef );
-
-                return new BreadCrumbResult
-                {
-                    BreadCrumbs = new List<IBreadCrumb>
+                BreadCrumbs = new List<IBreadCrumb>
                     {
                         breadCrumb
                     }
-                };
-            }
+            };
         }
 
         #endregion

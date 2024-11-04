@@ -1,6 +1,6 @@
 <!-- Copyright by the Spark Development Network; Licensed under the Rock Community License -->
 <template>
-    <TabbedContent :tabs="programDetailTabs">
+    <TabbedContent :tabs="programDetailTabs" v-model:selectedTab="selectedTab">
         <template #tabpane="{ item }">
             <div v-if="item === 'Overview'">
                 <fieldset>
@@ -11,68 +11,63 @@
                                      label="Name"
                                      rules="required" />
 
-                            <TextBox
-                                     v-model="summary"
-                                     label="Summary"
-                                     help="Short summary of the program to be used on public sites and lists."
-                                     textMode="multiline" />
+                        </div>
+                        <div class="col-md-6">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <CheckBox
+                                            v-model="isActive"
+                                            label="Active" />
+                                </div>
 
+                                <div class="col-md-6">
+                                    <CheckBox
+                                            v-model="isPublic"
+                                            label="Public" />
+
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <TextBox
+                            v-model="summary"
+                            label="Public Summary"
+                            help="Short summary of the program to be used on public sites and lists."
+                            textMode="multiline"
+                            :maxLength="500" />
+
+                    <div class="row">
+                        <div class="col-md-6">
                             <RadioButtonList
                                              v-model="configurationMode"
                                              label="Configuration Mode"
                                              horizontal
+                                             rules="required"
                                              :items="configurationModes" />
-
-                            <CategoryPicker
-                                            v-model="category"
-                                            label="Category"
-                                            :entityTypeGuid="EntityType.LearningProgram"
-                                            :multiple="false" />
-
-                            <CheckBox
-                                      v-model="isCompletionStatusTracked"
-                                      help="Determines if program start and end dates will be automatically tracked for students as they start/complete classes."
-                                      label="Track Program Status" />
-
-                            <DropDownList
-                                          :enhanceForLongLists="true"
-                                          v-model="systemCommunicationValue"
-                                          label="Default Communication Template"
-                                          help="The template to use when sending emails for communications about this program and it's courses."
-                                          rules="required"
-                                          :items="systemCommunications" />
-
-                            <WorkflowTypePicker
-                                                v-model="completionWorkflowType"
-                                                label="Completion Workflow Type"
-                                                help="The workflow to launch when an individual completes the requirements for a program." />
-                        </div>
-
-                        <div class="col-md-6">
-                            <div class="col-md-6">
-                                <CheckBox
-                                      v-model="isActive"
-                                      label="Active" />
-                            </div>
-
-                            <div class="col-md-6">
-                                <CheckBox
-                                      v-model="isPublic"
-                                      label="Public" />
-
-                            </div>
-                            <ColorPicker
-                                         v-model="highlightColor"
-                                         label="Highlight Color"
-                                         help="The color to use to differentiate from other learning programs." />
-
-                            <TextBox
-                                     v-model="iconCssClass"
-                                     label="Icon CSS Class" />
 
                             <ImageUploader v-model="imageBinaryFile"
                                            label="Image"
                                            :binaryFileTypeGuid="imageFileTypeGuid" />
+                        </div>
+
+                        <div class="col-md-6">
+
+                            <CategoryPicker
+                                    v-model="category"
+                                    label="Category"
+                                    :entityTypeGuid="EntityType.LearningProgram"
+                                    :multiple="false" />
+
+                            <ColorPicker
+                                        v-model="highlightColor"
+                                        label="Highlight Color"
+                                        help="The color to use to differentiate from other learning programs." />
+
+                            <TextBox
+                                     v-model="iconCssClass"
+                                     class="input-width-xl"
+                                     label="Icon CSS Class" />
 
                             <!-- <NumberBox
                                        v-model="absencesWarningCount"
@@ -87,6 +82,39 @@
                     </div>
 
                     <AttributeValuesContainer v-model="attributeValues" :attributes="attributes" isEditMode :numberOfColumns="2" />
+
+                    <Panel title="Advanced Settings" :hasCollapse="true" class="mt-4">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <CheckBox
+                                    v-model="isCompletionStatusTracked"
+                                    help="Determines if program start and end dates will be automatically tracked for individuals as they start/complete classes."
+                                    label="Track Program Status" />
+
+                                    <DropDownList
+                                        :enhanceForLongLists="true"
+                                        v-model="systemCommunicationValue"
+                                        label="Activity Available Communication Template"
+                                        help="The template to use when sending available activity emails for this program and it's courses."
+                                        rules="required"
+                                        :items="systemCommunications" />
+                            </div>
+                            <div class="col-md-6">
+                                <DropDownList
+                                    label="Default Grading System"
+                                    v-model="gradingSystem"
+                                    :grouped="false"
+                                    :items="gradingSystems"
+                                    :multiple="false"
+                                    :showBlankItem="true" />
+
+                                <WorkflowTypePicker
+                                    v-model="completionWorkflowType"
+                                    label="Completion Workflow Type"
+                                    help="The workflow to launch when an individual completes the requirements for a program." />
+                            </div>
+                        </div>
+                    </Panel>
                 </fieldset>
             </div>
             <div v-else-if="item === 'Description'">
@@ -98,6 +126,7 @@
 </template>
 
 <script setup lang="ts">
+    import Panel from "@Obsidian/Controls/panel.obs";
     import { PropType, ref, watch } from "vue";
     import AttributeValuesContainer from "@Obsidian/Controls/attributeValuesContainer.obs";
     import CheckBox from "@Obsidian/Controls/checkBox.obs";
@@ -118,7 +147,6 @@
     import WorkflowTypePicker from "@Obsidian/Controls/workflowTypePicker.obs";
     import ImageUploader from "@Obsidian/Controls/imageuploader.obs";
     import { BinaryFiletype } from "@Obsidian/SystemGuids/binaryFiletype";
-    import NumberBox from "@Obsidian/Controls/numberBox.obs";
     import { ValidPropertiesBox } from "@Obsidian/ViewModels/Utility/validPropertiesBox";
     import { setPropertiesBoxValue } from "@Obsidian/Utility/block";
 
@@ -150,12 +178,14 @@
     const attributes = ref(props.modelValue.bag?.attributes ?? {});
     const attributeValues = ref(props.modelValue.bag?.attributeValues ?? {});
     const systemCommunications = ref(props.options.systemCommunications ?? []);
+    const gradingSystems = ref(props.options.gradingSystems ?? []);
 
+    const gradingSystem = propertyRef(props.modelValue.bag?.defaultGradingSystem?.value ?? "", "DefaultGradingSystem");
     const systemCommunicationValue = propertyRef(props.modelValue.bag?.systemCommunication?.value ?? "", "SystemCommunication");
     const completionWorkflowType = propertyRef(props.modelValue.bag?.completionWorkflowType ?? {}, "CompletionWorkflowType");
     const description = propertyRef(props.modelValue.bag?.description ?? "", "Description");
     const summary = propertyRef(props.modelValue.bag?.summary ?? "", "Summary");
-    const configurationMode = propertyRef(props.modelValue.bag?.configurationMode?.toString(), "ConfigurationMode");
+    const configurationMode = propertyRef(props.modelValue.bag?.configurationMode?.toString() ?? undefined, "ConfigurationMode");
     const highlightColor = propertyRef(props.modelValue.bag?.highlightColor ?? "", "HighlightColor");
     const iconCssClass = propertyRef(props.modelValue.bag?.iconCssClass ?? "", "IconCssClass");
     const isCompletionStatusTracked = propertyRef(props.modelValue.bag?.isCompletionStatusTracked ?? false, "TrackProgramStatus");
@@ -186,7 +216,8 @@
         isActive,
         isPublic,
         name,
-        publicName
+        publicName,
+        gradingSystem
     ];
 
     // #endregion
@@ -214,7 +245,7 @@
         updateRefValue(name, props.modelValue.bag?.name ?? "");
         updateRefValue(publicName, props.modelValue.bag?.name ?? "");
         updateRefValue(summary, props.modelValue.bag?.summary ?? "");
-        updateRefValue(configurationMode, props.modelValue.bag?.configurationMode?.toString() ?? defaultConfigurationMode);
+        updateRefValue(configurationMode, props.modelValue.bag?.configurationMode?.toString() ?? undefined);
         updateRefValue(systemCommunicationValue, props.modelValue.bag?.systemCommunication?.value ?? "");
         updateRefValue(category, props.modelValue.bag?.category ?? null);
         updateRefValue(highlightColor, props.modelValue.bag?.highlightColor ?? "");
@@ -223,6 +254,7 @@
         updateRefValue(absencesWarningCount, props.modelValue.bag?.absencesWarningCount ?? null);
         updateRefValue(absencesCriticalCount, props.modelValue.bag?.absencesCriticalCount ?? null);
         updateRefValue(completionWorkflowType, props.modelValue.bag?.completionWorkflowType ?? {});
+        updateRefValue(gradingSystem, props.modelValue.bag?.defaultGradingSystem?.value ?? "");
     });
 
     // Determines which values we want to track changes on (defined in the
@@ -238,7 +270,9 @@
         setPropertiesBoxValue(newValue, "name", name.value);
         setPropertiesBoxValue(newValue, "publicName", publicName.value);
         setPropertiesBoxValue(newValue, "summary", summary.value);
-        setPropertiesBoxValue(newValue, "configurationMode", parseInt(configurationMode.value ?? defaultConfigurationMode) as ConfigurationMode);
+        if (configurationMode.value) {
+            setPropertiesBoxValue(newValue, "configurationMode", parseInt(configurationMode.value ?? defaultConfigurationMode) as ConfigurationMode);
+        }
         setPropertiesBoxValue(newValue, "category", category.value);
         setPropertiesBoxValue(newValue, "isCompletionStatusTracked", isCompletionStatusTracked.value);
         setPropertiesBoxValue(newValue, "systemCommunication", { value: systemCommunicationValue.value });
@@ -250,6 +284,7 @@
         setPropertiesBoxValue(newValue, "imageBinaryFile", imageBinaryFile.value);
         setPropertiesBoxValue(newValue, "absencesWarningCount", absencesWarningCount.value);
         setPropertiesBoxValue(newValue, "absencesCriticalCount", absencesCriticalCount.value);
+        setPropertiesBoxValue(newValue, "defaultGradingSystem", { value: gradingSystem.value });
 
         emit("update:modelValue", newValue);
     });
@@ -257,4 +292,12 @@
     // Watch for any changes to props that represent properties and then
     // automatically emit which property changed.
     watchPropertyChanges(propRefs, emit);
+
+    const queryString = new URLSearchParams(window.location.search.toLowerCase());
+
+    const selectedTab = ref(
+            queryString.has("tab") && queryString.get("tab")?.toLowerCase() === "description" ?
+            "Description" :
+            "Overview"
+    );
 </script>

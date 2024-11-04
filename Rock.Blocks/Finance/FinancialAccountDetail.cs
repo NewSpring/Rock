@@ -40,7 +40,7 @@ namespace Rock.Blocks.Finance
     [Category( "Finance" )]
     [Description( "Displays the details of the given financial account." )]
     [IconCssClass( "fa fa-question" )]
-    // [SupportedSiteTypes( Model.SiteType.Web )]
+    [SupportedSiteTypes( Model.SiteType.Web )]
 
     #region Block Attributes
 
@@ -338,10 +338,25 @@ namespace Rock.Blocks.Finance
         /// <returns>A dictionary of key names and URL values.</returns>
         private Dictionary<string, string> GetBoxNavigationUrls()
         {
-            return new Dictionary<string, string>
+            var parentAccountId = PageParameter( PageParameterKey.ParentAccountId ).AsIntegerOrNull();
+            if ( parentAccountId.HasValue )
             {
-                [NavigationUrlKey.ParentPage] = this.GetParentPageUrl()
-            };
+                var qryParams = new Dictionary<string, string>();
+                if ( parentAccountId != 0 )
+                {
+                    qryParams["AccountId"] = parentAccountId.ToString();
+                }
+
+                qryParams["ExpandedIds"] = PageParameter( "ExpandedIds" );
+                return new Dictionary<string, string>
+                {
+                    [NavigationUrlKey.ParentPage] = this.GetCurrentPageUrl( qryParams )
+                };
+            }
+            else
+            {
+                return new Dictionary<string, string> { [NavigationUrlKey.ParentPage] = this.GetCurrentPageUrl() };
+            }
         }
 
         /// <inheritdoc/>

@@ -42,6 +42,7 @@ namespace Rock.Blocks.Cms
     [Category( "CMS" )]
     [Description( "Displays the details of a particular lava shortcode." )]
     [IconCssClass( "fa fa-question" )]
+    [SupportedSiteTypes( Model.SiteType.Web )]
 
     #region Block Attributes
 
@@ -609,6 +610,8 @@ namespace Rock.Blocks.Cms
                     return ActionBadRequest( errorMessage );
                 }
 
+                // unregister the shortcode
+                LavaService.DeregisterShortcode( entity.TagName );
                 entityService.Delete( entity );
                 rockContext.SaveChanges();
 

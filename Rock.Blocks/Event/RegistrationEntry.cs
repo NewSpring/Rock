@@ -442,6 +442,10 @@ namespace Rock.Blocks.Event
         {
             using ( var rockContext = new RockContext() )
             {
+                // Ensure the arguments provided are in their proper format
+                // before use (e.g. proper currency formatting of amounts).
+                FixRegistrationArguments( args );
+
                 var context = GetContext( rockContext, args, out var errorMessage );
 
                 if ( !errorMessage.IsNullOrWhiteSpace() )
@@ -1144,6 +1148,10 @@ namespace Rock.Blocks.Event
         /// <exception cref="Exception">There was a problem with the payment</exception>
         private Registration SubmitRegistration( RockContext rockContext, RegistrationContext context, RegistrationEntryArgsBag args, out string errorMessage )
         {
+            // Ensure the arguments provided are in their proper format
+            // before use (e.g. proper currency formatting of amounts).
+            FixRegistrationArguments( args );
+
             /*
                 8/15/2023 - JPH
 
@@ -3018,7 +3026,6 @@ namespace Rock.Blocks.Event
                     }
                 }
 
-                // TODO JMH Should this be done even if the field is locked?
                 field.NoteFieldDetailsIfRequiredAndMissing( MissingFieldsByFormId, fieldValue );
             }
 
@@ -4621,8 +4628,6 @@ namespace Rock.Blocks.Event
         /// <returns></returns>
         private RegistrationEntrySuccessBag GetSuccessViewModel( int registrationId, string transactionCode, string gatewayPersonIdentifier )
         {
-            var currentPerson = GetCurrentPerson();
-
             // Create a view model with default values in case anything goes wrong
             var viewModel = new RegistrationEntrySuccessBag
             {
@@ -4651,12 +4656,10 @@ namespace Rock.Blocks.Event
                     registration.RegistrationInstance.RegistrationTemplate != null )
                 {
                     var template = registration.RegistrationInstance.RegistrationTemplate;
-                    var mergeFields = new Dictionary<string, object>
-                    {
-                        { "CurrentPerson", currentPerson },
-                        { "RegistrationInstance", registration.RegistrationInstance },
-                        { "Registration", registration }
-                    };
+
+                    var mergeFields = this.RequestContext.GetCommonMergeFields();
+                    mergeFields.Add( "RegistrationInstance", registration.RegistrationInstance );
+                    mergeFields.Add( "Registration", registration );
 
                     if ( template != null && !string.IsNullOrWhiteSpace( template.SuccessTitle ) )
                     {
@@ -4930,7 +4933,7 @@ namespace Rock.Blocks.Event
 
             var alreadyPaid = registrationService.GetTotalPayments( registration.Id );
 
-            var balanceDue = registration.DiscountedCost - alreadyPaid;
+            var balanceDue = ( registration.DiscountedCost - alreadyPaid ).AsCurrency();
 
             if ( balanceDue < 0 )
             {

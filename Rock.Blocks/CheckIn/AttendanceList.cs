@@ -56,36 +56,7 @@ namespace Rock.Blocks.CheckIn
             public const string AttendanceDate = "AttendanceDate";
         }
 
-        private static class PreferenceKey
-        {
-            public const string FilterEnteredBy = "filter-entered-by";
-            public const string FilterDidAttend = "filter-did-attend";
-        }
-
         #endregion Keys
-
-        #region Properties
-
-        /// <summary>
-        /// Gets the guid of the Person whose entries should be included in the results.
-        /// </summary>
-        /// <value>
-        /// The entered by filter.
-        /// </value>
-        protected Guid? FilterEnteredBy => GetBlockPersonPreferences()
-            .GetValue( PreferenceKey.FilterEnteredBy )
-            .FromJsonOrNull<ListItemBag>()?.Value?.AsGuidOrNull();
-
-        /// <summary>
-        /// Gets the filter indicating DidAttend status of the results.
-        /// </summary>
-        /// <value>
-        /// The DidAttend filter.
-        /// </value>
-        protected string FilterDidAttend => GetBlockPersonPreferences()
-            .GetValue( PreferenceKey.FilterDidAttend );
-
-        #endregion
 
         #region Methods
 
@@ -138,19 +109,6 @@ namespace Rock.Blocks.CheckIn
                         a.Occurrence.OccurrenceDate == attendanceDate.Value &&
                         a.Occurrence.LocationId == groupLocation.LocationId &&
                         a.Occurrence.ScheduleId == scheduleId );
-
-                // Filter by DidAttend
-                if ( FilterDidAttend.IsNotNullOrWhiteSpace() )
-                {
-                    var didAttend = FilterDidAttend.AsBoolean();
-                    attendanceQry = attendanceQry.Where( a => a.DidAttend == didAttend );
-                }
-
-                // Filter by Entered By
-                if ( FilterEnteredBy.HasValue )
-                {
-                    attendanceQry = attendanceQry.Where( a => a.CreatedByPersonAliasId.HasValue && a.CreatedByPersonAlias.Person.Guid == FilterEnteredBy.Value );
-                }
 
                 return attendanceQry;
             }

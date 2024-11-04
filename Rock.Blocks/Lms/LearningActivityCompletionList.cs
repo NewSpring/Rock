@@ -18,7 +18,6 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.Data.Entity;
 using System.Linq;
 
 using Rock.Attribute;
@@ -26,7 +25,6 @@ using Rock.Data;
 using Rock.Model;
 using Rock.Obsidian.UI;
 using Rock.Security;
-using Rock.Utility;
 using Rock.ViewModels.Blocks;
 using Rock.ViewModels.Blocks.Lms.LearningActivityCompletionList;
 using Rock.ViewModels.Utility;
@@ -37,12 +35,11 @@ namespace Rock.Blocks.Lms
     /// <summary>
     /// Displays a list of learning activity completions.
     /// </summary>
-
     [DisplayName( "Learning Activity Completion List" )]
     [Category( "LMS" )]
     [Description( "Displays a list of learning activity completions." )]
     [IconCssClass( "fa fa-list" )]
-    // [SupportedSiteTypes( Model.SiteType.Web )]
+    [SupportedSiteTypes( Model.SiteType.Web )]
 
     [LinkedPage( "Detail Page",
         Description = "The page that will show the learning activity completion details.",
@@ -150,15 +147,8 @@ namespace Rock.Blocks.Lms
         /// <inheritdoc/>
         protected override IQueryable<LearningActivityCompletion> GetListQueryable( RockContext rockContext )
         {
-            var activityId = IdHasher.Instance.GetId( PageParameter( PageParameterKey.LearningActivityId ) );
-
-            return base.GetListQueryable( rockContext )
-                .Include( a => a.Student )
-                .Include( a => a.LearningActivity )
-                .Include( a => a.Student.Person )
-                .Include( a => a.LearningActivity.LearningClass.LearningSemester )
-                .Include( a => a.Student.LearningClass.LearningGradingSystem.LearningGradingSystemScales )
-                .Where( a => a.LearningActivityId == activityId );
+            var activityId = RequestContext.PageParameterAsId( PageParameterKey.LearningActivityId );
+            return new LearningParticipantService( rockContext ).GetActivityCompletions( activityId );
         }
 
         /// <inheritdoc/>
@@ -173,13 +163,13 @@ namespace Rock.Blocks.Lms
                 .AddField( "dueDate", a => a.DueDate )
                 .AddField( "pointsEarned", a => a.PointsEarned )
                 .AddField( "points", a => a.LearningActivity.Points )
-                .AddField( "grade", a => a.GradeText() )
-                .AddField( "gradePercent", a => a.GradePercent )
-                .AddField( "isPassingGrade", a => a.Grade()?.IsPassing )
-                .AddField( "isFacilitatorCompleted", a => a.IsFacilitatorCompleted )
-                .AddField( "wasCompletedOnTime", a => a.WasCompletedOnTime )
+                .AddField( "grade", a => a.GetGradeText() )
+                .AddField( "gradePercent", a => a.GradePercent.ToIntSafe() )
+                .AddField( "requiresScoring", a => a.RequiresGrading )
+                .AddField( "isPassingGrade", a => a.GetGrade()?.IsPassing )
+                .AddField( "isLate", a => a.IsLate )
                 .AddField( "isCompleted", a => a.CompletedDateTime.HasValue )
-                .AddField( "hadExtension", a => a.LearningActivity.DueDateCalculated != null && a.DueDate != a.LearningActivity.DueDateCalculated )
+                .AddField( "hadExtension", a => a.HadExtension )
                 .AddField( "dueDateCalculated", a => a.LearningActivity.DueDateCalculated )
                 .AddTextField( "facilitatorComment", a => a.FacilitatorComment )
                 .AddTextField( "studentComment", a => a.StudentComment );
@@ -232,7 +222,7 @@ namespace Rock.Blocks.Lms
             }
 
             var programCommunicationId = new LearningProgramService( RockContext ).GetSelect( PageParameter( PageParameterKey.LearningProgramId ), p => p.SystemCommunicationId );
-            var completion = completionService.GetNew( activity, participant.Id, participant.EnrollmentDate, programCommunicationId );
+            var completion = LearningActivityCompletionService.GetNew( activity, participant.Id, participant.EnrollmentDate, programCommunicationId );
             completionService.Add( completion );
 
             RockContext.SaveChanges();
