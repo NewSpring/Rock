@@ -1,6 +1,6 @@
 <!-- Copyright by the Spark Development Network; Licensed under the Rock Community License -->
 <template>
-    <Grid v-if="config.options?.eventCalendarIdKey"
+    <Grid v-if="isVisible"
           :definition="config.gridDefinition ?? undefined"
           :data="gridDataSource"
           keyField="idKey"
@@ -22,16 +22,23 @@
                     width="23%"
                     visiblePriority="xs" />
 
-        <TextColumn name="date"
-                    :title="nextDateColumnTitle"
+        <DateColumn name="date"
+                    title="Next Start Date"
                     field="date"
-                    visiblePriority="xs" />
+                    :filter="dateValueFilter"
+                    visiblePriority="xs">
+            <template #format="{ row }">
+                <span v-if="row.date">{{ RockDateTime.parseISO(row.date)?.toASPString("d") }}</span>
+                <span v-else>N/A</span>
+            </template>
+        </DateColumn>
 
         <Column name="calendars"
                 title="Calendars"
                 field="calendars"
                 :filter="pickExistingValueFilter"
                 :filterValue="getRowCalendarsFilterValue"
+                :quickFilterValue="getRowCalendarsFilterValue"
                 visiblePriority="md">
             <template #format="{ row }">
                 <template v-for="calendar in row.calendars">
@@ -43,7 +50,8 @@
         <Column name="audiences"
                 title="Audiences"
                 field="audiences"
-                :filter="textValueFilter"
+                :filter="pickExistingValueFilter"
+                :quickFilterValue="getRowAudiencesFilterValue"
                 :filterValue="getRowAudiencesFilterValue"
                 visiblePriority="md">
             <template #format="{ row }">
@@ -69,6 +77,7 @@
                 field="isActive"
                 :filter="pickExistingValueFilter"
                 :filterValue="getActiveStatusFilterValue"
+                :quickFilterValue="getActiveStatusFilterValue"
                 visiblePriority="md">
             <template #format="{ row }">
                 <span v-if="row.isActive" class="label label-success">
@@ -85,6 +94,7 @@
                 field="isApproved"
                 :filter="pickExistingValueFilter"
                 :filterValue="getApprovalStatusRowFilterValue"
+                :quickFilterValue="getApprovalStatusRowFilterValue"
                 visiblePriority="md">
             <template #format="{ row }">
                 <span v-if="row.isApproved" class="label label-info">
@@ -107,7 +117,7 @@
 <script setup lang="ts">
     import { useConfigurationValues, useInvokeBlockAction, usePersonPreferences } from "@Obsidian/Utility/block";
     import { EntityType } from "@Obsidian/SystemGuids/entityType";
-    import Grid, { AttributeColumns, TextColumn, textValueFilter, booleanValueFilter, pickExistingValueFilter, numberValueFilter, DeleteColumn, Column, NumberBadgeColumn } from "@Obsidian/Controls/grid";
+    import Grid, { AttributeColumns, TextColumn, textValueFilter, DateColumn, pickExistingValueFilter, numberValueFilter, DeleteColumn, Column, NumberBadgeColumn, dateValueFilter } from "@Obsidian/Controls/grid";
     import { alert } from "@Obsidian/Utility/dialogs";
     import { ListBlockBox } from "@Obsidian/ViewModels/Blocks/listBlockBox";
     import { EventCalendarItemListOptionsBag } from "@Obsidian/ViewModels/Blocks/Event/EventCalendarItemList/eventCalendarItemListOptionsBag";
@@ -115,10 +125,13 @@
     import { NavigationUrlKey, GridSettingsOptions, PreferenceKey } from "./EventCalendarItemList/types.partial";
     import { computed, reactive, ref, watch } from "vue";
     import GridSettingsModal from "./EventCalendarItemList/gridSettingsModal.partial.obs";
+    import { RockDateTime } from "@Obsidian/Utility/rockDateTime";
+    import { useStore } from "@Obsidian/PageState";
 
     const config = useConfigurationValues<ListBlockBox<EventCalendarItemListOptionsBag>>();
     const invokeBlockAction = useInvokeBlockAction();
     const preferences = usePersonPreferences().blockPreferences;
+    const store = useStore();
 
     // #region Values
 
@@ -127,30 +140,20 @@
 
     const isGridSettingsVisible = ref(false);
     const gridSettings = ref<GridSettingsOptions>({
-        startDate: preferences.getValue(makeKeyUniqueToEventCalendar(PreferenceKey.FilterStartDate)),
-        endDate: preferences.getValue(makeKeyUniqueToEventCalendar(PreferenceKey.FilterEndDate)),
-        status: preferences.getValue(makeKeyUniqueToEventCalendar(PreferenceKey.FilterStatus)),
-        approvalStatus: preferences.getValue(makeKeyUniqueToEventCalendar(PreferenceKey.FilterApprovalStatus)),
-        campuses: JSON.parse(preferences.getValue(makeKeyUniqueToEventCalendar(PreferenceKey.FilterCampus)) || "[]"),
-        audiences: JSON.parse(preferences.getValue(makeKeyUniqueToEventCalendar(PreferenceKey.FilterAudience)) || "[]"),
+        campuses: JSON.parse(preferences.getValue(makeKeyUniqueToEventCalendar(PreferenceKey.FilterCampus)) || "[]")
     });
 
     // #endregion
 
     // #region Computed Values
 
-    const nextDateColumnTitle = computed((): string => {
-        return !!gridSettings.value.startDate || !!gridSettings.value.endDate ? "Next Date In Range" : "Next Start Date";
+    const isVisible = computed((): boolean => {
+        return !!config.options?.eventCalendarIdKey && store.state.areSecondaryBlocksShown;
     });
 
     /** `true` if the grid settings is performing any filtering. */
     const hasSettingsFilters = computed((): boolean => {
-        return !!gridSettings.value.startDate
-            || !!gridSettings.value.endDate
-            || !!gridSettings.value.status
-            || !!gridSettings.value.approvalStatus
-            || gridSettings.value.campuses.length > 0
-            || gridSettings.value.audiences.length > 0;
+        return gridSettings.value.campuses.length > 0;
     });
 
     /**
@@ -292,12 +295,7 @@
     // #endregion
 
     watch(gridSettings, async () => {
-        preferences.setValue(makeKeyUniqueToEventCalendar(PreferenceKey.FilterStartDate), gridSettings.value.startDate ?? "");
-        preferences.setValue(makeKeyUniqueToEventCalendar(PreferenceKey.FilterEndDate), gridSettings.value.endDate ?? "");
-        preferences.setValue(makeKeyUniqueToEventCalendar(PreferenceKey.FilterStatus), gridSettings.value.status ?? "");
-        preferences.setValue(makeKeyUniqueToEventCalendar(PreferenceKey.FilterApprovalStatus), gridSettings.value.approvalStatus ?? "");
         preferences.setValue(makeKeyUniqueToEventCalendar(PreferenceKey.FilterCampus), JSON.stringify(gridSettings.value.campuses));
-        preferences.setValue(makeKeyUniqueToEventCalendar(PreferenceKey.FilterAudience), JSON.stringify(gridSettings.value.audiences));
 
         await preferences.save();
 

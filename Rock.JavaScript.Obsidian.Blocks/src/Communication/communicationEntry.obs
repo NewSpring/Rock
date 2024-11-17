@@ -25,6 +25,7 @@
                                    v-model:isBulkCommunication="isBulkCommunication"
                                    v-model:scheduleSendIsoString="scheduleSendIsoString"
                                    v-model:communicationListGroupGuid="communicationListGroupGuid"
+                                   v-model:isDuplicatePreventionOptionShown="isDuplicatePreventionOptionShown"
                                    @saved="onSaved"
                                    @sent="onSent($event, true)" />
 
@@ -34,6 +35,7 @@
                                  v-model:isBulkCommunication="isBulkCommunication"
                                  v-model:scheduleSendIsoString="scheduleSendIsoString"
                                  v-model:communicationListGroupGuid="communicationListGroupGuid"
+                                 v-model:isDuplicatePreventionOptionShown="isDuplicatePreventionOptionShown"
                                  @saved="onSaved"
                                  @sent="onSent" />
 
@@ -93,7 +95,7 @@
     import { CommunicationStatus, CommunicationStatusDescription } from "@Obsidian/Enums/Communication/communicationStatus";
     import { Mode } from "@Obsidian/Enums/Blocks/Communication/CommunicationEntry/mode";
     import { EntityType } from "@Obsidian/SystemGuids/entityType";
-    import { onConfigurationValuesChanged, useConfigurationValues, useReloadBlock } from "@Obsidian/Utility/block";
+    import { getSecurityGrant, onConfigurationValuesChanged, provideSecurityGrant, useConfigurationValues, useReloadBlock } from "@Obsidian/Utility/block";
     import { areEqual } from "@Obsidian/Utility/guid";
     import { Guid } from "@Obsidian/Types";
     import { CommunicationEntryCommunicationBag } from "@Obsidian/ViewModels/Blocks/Communication/CommunicationEntry/communicationEntryCommunicationBag";
@@ -104,6 +106,7 @@
 
     const config = useConfigurationValues<CommunicationEntryInitializationBox>();
     const reloadBlock = useReloadBlock();
+    const securityGrant = getSecurityGrant(config.securityGrantToken);
 
     defineProps();
 
@@ -125,6 +128,7 @@
     const communicationGuid = ref<Guid | undefined>(config.communication?.communicationGuid ?? undefined);
     const template = ref<CommunicationEntryCommunicationBag | null | undefined>(config.communication);
     const communicationListGroupGuid = ref<Guid | null | undefined>(config.communication?.communicationListGroupGuid);
+    const isDuplicatePreventionOptionShown = ref<boolean>(config.isDuplicatePreventionOptionShown ?? false);
 
     //#endregion
 
@@ -172,10 +176,6 @@
             return "unknown";
         }
     });
-
-    //#endregion
-
-    //#region Functions
 
     //#endregion
 
@@ -260,14 +260,7 @@
 
     //#endregion
 
-    //#region Watchers
-
-    //#endregion
-
-    //#region Hooks
-
-    //#endregion
-
+    provideSecurityGrant(securityGrant);
     provideSelectedMediumType(selectedMedium);
     provideTemplate(template);
     onConfigurationValuesChanged(reloadBlock);

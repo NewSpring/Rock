@@ -31,6 +31,22 @@ namespace Rock.Model
     public partial class LearningCourseService
     {
         /// <summary>
+        /// Get a list of required courses for the specified course. 
+        /// </summary>
+        /// <param name="courseId">The identifier of the <see cref="LearningCourse"/> to get requirements for.</param>
+        /// <returns>A list of <see cref="LearningCourseRequirementBag"/> records.</returns>
+        public LearningCourse GetCourseWithRequirements( int courseId )
+        {
+            var course = Queryable()
+                .Include( a => a.LearningProgram )
+                .Include( a => a.LearningClasses )
+                .Include( a => a.LearningCourseRequirements.Select( cr => cr.RequiredLearningCourse ) )
+                .FirstOrDefault( a => a.Id == courseId );
+
+            return course;
+        }
+
+        /// <summary>
         /// Gets the details for a public course.
         /// </summary>
         /// <param name="courseId">The identifier of the course to get.</param>
@@ -38,13 +54,16 @@ namespace Rock.Model
         /// <param name="semesterStartFrom">Optional filter for the next session Semester Start. Only Start Dates greater than this date will be included.</param>
         /// <param name="semesterStartTo">Optional filter for the next session Semester Start. Only Start Dates less than this date will be included.</param>
         /// <returns>A <see cref="PublicLearningCourseDetailBag"/> containing the data necessary for rendering the details.</returns>
-        public PublicLearningCourseDetailBag GetPublicCourseDetails( int courseId, int personId, DateTime? semesterStartFrom = null, DateTime? semesterStartTo = null )
+        public PublicLearningCourseDetailBag GetPublicCourseDetails( int courseId, int? personId, DateTime? semesterStartFrom = null, DateTime? semesterStartTo = null )
         {
             var rockContext = ( RockContext ) Context;
             var participantService = new LearningParticipantService( rockContext );
 
-            var mostRecentParticipation = participantService
-                .GetClasses( personId, true )
+            var mostRecentParticipation =
+                !personId.HasValue ?
+                default :
+                participantService
+                .GetClasses( personId.Value, true )
                 .AsNoTracking()
                 .OrderByDescending( p => p.CreatedDateTime )
                 .FirstOrDefault( p => p.LearningClass.LearningCourseId == courseId );
@@ -65,13 +84,14 @@ namespace Rock.Model
                     CategoryColor = c.Category.HighlightColor,
                     CourseRequirements = c.LearningCourseRequirements.ToList(),
                     ImageFileGuid = c.ImageBinaryFile.Guid,
+                    Program = c.LearningProgram,
 
                     // Get the earliest semester with open enrollment and a future start date for this course.
                     NextSemester = c.LearningClasses
                         .Select( cl => cl.LearningSemester )
                         .FirstOrDefault( s =>
                             ( s.EnrollmentCloseDate == null || s.EnrollmentCloseDate >= now ) &&
-                            s.StartDate >= now &&
+                            ( s.StartDate == null || s.StartDate >= now ) &&
                             ( !semesterStartFrom.HasValue || s.StartDate >= semesterStartFrom.Value ) &&
                             ( !semesterStartTo.HasValue || s.StartDate <= semesterStartTo.Value ) &&
                             s.LearningClasses.Any( sc => sc.LearningCourseId == c.Id )
@@ -102,8 +122,11 @@ namespace Rock.Model
                     cr.RequiredLearningCourse =
                         requiredCourses.FirstOrDefault( r => r.Id == cr.RequiredLearningCourseId ) );
 
-                var completedClasses = new LearningParticipantService( rockContext )
-                    .GetClasses( personId )
+                var completedClasses =
+                    !personId.HasValue ?
+                    default
+                    : new LearningParticipantService( rockContext )
+                    .GetClasses( personId.Value )
                     .AsNoTracking();
 
                 // Any Equivalent or PreRequisite classes that aren't already passed.
@@ -133,13 +156,17 @@ namespace Rock.Model
         /// <param name="programId">The identifier of the <see cref="LearningProgram"/> for which to return courses.</param>
         /// <param name="personId">The identifier of the <see cref="Person"/> to include completion status for.</param>
         /// <param name="semesterStartFrom">Optional filter for the next session Semester Start. Only Start Dates greater than this date will be included.</param>
-        /// /// <param name="semesterStartTo">Optional filter for the next session Semester Start. Only Start Dates less than this date will be included.</param>
+        /// <param name="semesterStartTo">Optional filter for the next session Semester Start. Only Start Dates less than this date will be included.</param>
+        /// <param name="publicOnly"><c>true</c> to include <see cref="LearningCourse"/> records whose IsPublic property is true; <c>false</c> to include regardless of IsPublic.</param>
         /// <returns>An enumerable of PublicLearningCourseBag.</returns>
-        public List<PublicLearningCourseBag> GetPublicCourses( int programId, int personId, DateTime? semesterStartFrom = null, DateTime? semesterStartTo = null )
+        public List<PublicLearningCourseBag> GetPublicCourses( int programId, int? personId, DateTime? semesterStartFrom = null, DateTime? semesterStartTo = null, bool publicOnly = true )
         {
             var rockContext = ( RockContext ) Context;
-            var orderedPersonCompletions = new LearningParticipantService( rockContext )
-                .GetClasses( personId )
+            var orderedPersonCompletions =
+                !personId.HasValue ?
+                new List<LearningParticipant>().AsQueryable().OrderBy( "LearningCompletionStatus" ) :
+                new LearningParticipantService( rockContext )
+                .GetClasses( personId.Value )
                 .AsNoTracking()
                 // If the student has taken the class multiple times take in this order:
                 // 'Pass' - 'Incomplete' - 'Fail'.
@@ -163,7 +190,10 @@ namespace Rock.Model
                 .Include( c => c.LearningProgram )
                 .Include( c => c.Category )
                 .Include( c => c.LearningCourseRequirements )
-                .Where( c => c.IsActive && c.IsPublic && c.LearningProgramId == programId )
+                .Where( c =>
+                    c.IsActive
+                    && c.LearningProgramId == programId
+                    && ( c.IsPublic || !publicOnly ) )
                 .Select( c => new PublicLearningCourseBag
                 {
                     Entity = c,
@@ -172,14 +202,16 @@ namespace Rock.Model
                     ImageFileGuid = c.ImageBinaryFile.Guid,
 
                     // Get the person's completion status for this course.
-                    LearningCompletionStatus = orderedPersonCompletions
+                    LearningCompletionStatus = !personId.HasValue ?
+                        LearningCompletionStatus.Incomplete :
+                        orderedPersonCompletions
                         .FirstOrDefault( p => p.LearningClass.LearningCourseId == c.Id )
                         .LearningCompletionStatus,
 
                     // Get the earliest semester with open enrollment and a start date within the specified dates for this course.
                     NextSemester = semesters.FirstOrDefault( s =>
                         ( s.EnrollmentCloseDate == null || s.EnrollmentCloseDate >= now ) &&
-                        s.StartDate >= now && 
+                        s.StartDate >= now &&
                         ( !semesterStartFrom.HasValue || s.StartDate >= semesterStartFrom.Value ) &&
                         ( !semesterStartTo.HasValue || s.StartDate <= semesterStartTo.Value ) &&
                         s.LearningClasses.Any( sc => sc.LearningCourseId == c.Id )
@@ -189,9 +221,11 @@ namespace Rock.Model
                     UnmetPrerequisites = c.LearningCourseRequirements
                         .Where( r =>
                             unmetPrerequisiteTypes.Contains( r.RequirementType ) &&
-                            !orderedPersonCompletions.Any( comp =>
+                            (
+                                !personId.HasValue
+                                || !orderedPersonCompletions.Any( comp =>
                                 comp.LearningCompletionStatus == LearningCompletionStatus.Pass &&
-                                comp.LearningClass.LearningCourseId == r.RequiredLearningCourseId ) )
+                                comp.LearningClass.LearningCourseId == r.RequiredLearningCourseId ) ) )
                         .ToList()
                 } )
                 .ToList()
@@ -220,32 +254,6 @@ namespace Rock.Model
             }
 
             return courses.ToList();
-        }
-
-        /// <summary>
-        /// Get a list of required courses for the specified course. 
-        /// </summary>
-        /// <param name="courseId">The identifier of the <see cref="LearningCourse"/> to get requirements for.</param>
-        /// <returns>A list of <see cref="LearningCourseRequirementBag"/> records.</returns>
-        public LearningCourse GetCourseWithRequirements( int courseId )
-        {
-            var course = Queryable()
-                .Include( a => a.LearningProgram )
-                .Include( a => a.LearningClasses )
-                .Include( a => a.LearningCourseRequirements )
-                .FirstOrDefault( a => a.Id == courseId );
-
-            if ( course.LearningCourseRequirements.Any() )
-            {
-                var requiredCourseIds = course.LearningCourseRequirements.Select( r => r.RequiredLearningCourseId );
-                var requiredCourses = Queryable().Where( c => requiredCourseIds.Contains( c.Id ) );
-
-                course.LearningCourseRequirements.ForEach( cr =>
-                    cr.RequiredLearningCourse =
-                        requiredCourses.FirstOrDefault( r => r.Id == cr.RequiredLearningCourseId ) );
-            }
-
-            return course;
         }
 
         #region Nested Classes
@@ -336,6 +344,11 @@ namespace Rock.Model
             /// Gets or sets the most recently attended class for the student.
             /// </summary>
             public LearningParticipant MostRecentParticipation { get; set; }
+
+            /// <summary>
+            /// Gets or sets the related <see cref="LearningProgram"/> for the course.
+            /// </summary>
+            public LearningProgram Program { get; set; }
         }
 
         #endregion

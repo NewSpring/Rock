@@ -99,6 +99,7 @@ namespace Rock.Blocks.Core
 
         private static class NavigationUrlKey
         {
+            public const string CurrentPageTemplate = "CurrentPageTemplate";
             public const string ParentPage = "ParentPage";
         }
 
@@ -137,6 +138,8 @@ namespace Rock.Blocks.Core
         private CategoryDetailOptionsBag GetBoxOptions( bool isEditable )
         {
             var options = new CategoryDetailOptionsBag();
+
+            options.ShowBlock = PageParameter( PageParameterKey.CategoryId )?.Length > 0;
 
             return options;
         }
@@ -207,6 +210,12 @@ namespace Rock.Blocks.Core
                 if ( box.IsEditable )
                 {
                     box.Entity = GetEntityBagForEdit( entity );
+
+                    // To support Category Tree View Add Category from the same page
+                    // (e.g. Prayer Category page) - also include the valid properties.
+                    // The Category Tree View Add Category click will redirect to the same page
+                    // replacing the categoryId parameter only so we can't use autoEdit.
+                    box.ValidProperties = box.Entity.GetType().GetProperties().Select( p => p.Name ).ToList();
                 }
                 else
                 {
@@ -232,6 +241,7 @@ namespace Rock.Blocks.Core
             return new CategoryBag
             {
                 IdKey = entity.IdKey,
+                CategoryId = entity.Id,
                 Description = entity.Description,
                 EntityType = entity.EntityType.ToListItemBag(),
                 EntityTypeQualifierColumn = entity.EntityTypeQualifierColumn,
@@ -286,8 +296,8 @@ namespace Rock.Blocks.Core
                     var entityType = EntityTypeCache.Get( entityTypeGuid.Value );
                     bag.EntityType = new ViewModels.Utility.ListItemBag
                     {
-                        Text = entityType.Name,
-                        Value = entityType.Guid.ToString()
+                        Text = entityType?.Name,
+                        Value = entityType?.Guid.ToString()
                     };
                 }
 
@@ -351,9 +361,16 @@ namespace Rock.Blocks.Core
         /// <returns>A dictionary of key names and URL values.</returns>
         private Dictionary<string, string> GetBoxNavigationUrls()
         {
+            var routeWithCategoryId = this.PageCache.PageRoutes
+                .FirstOrDefault( r =>
+                    r.Parameters.Count == 1
+                    && r.Parameters.FirstOrDefault().Equals( "CategoryId", StringComparison.OrdinalIgnoreCase ) );
+
+            var templateUrl = $"{RequestContext.RootUrlPath}/{routeWithCategoryId.Route}";
             return new Dictionary<string, string>
             {
-                [NavigationUrlKey.ParentPage] = this.GetParentPageUrl()
+                [NavigationUrlKey.ParentPage] = this.GetParentPageUrl(),
+                [NavigationUrlKey.CurrentPageTemplate] = templateUrl
             };
         }
 
@@ -473,6 +490,25 @@ namespace Rock.Blocks.Core
                 }
                 entity.EntityTypeQualifierColumn = GetAttributeValue( AttributeKey.EntityTypeQualifierProperty );
                 entity.EntityTypeQualifierValue = GetAttributeValue( AttributeKey.EntityTypeQualifierValue );
+                int nextOrder = 0;
+
+                if ( entity.ParentCategoryId.HasValue && entity.ParentCategoryId > 0 )
+                {
+                    var parentGuid = entityService.GetSelect( entity.ParentCategoryId.Value, c => c.Guid );
+
+                    // Get the current max order for any sibling category and
+                    // convert to a nullable int since there may be no siblings.
+                    var maxOrder = entityService
+                        .GetChildCategoryQuery( new Rock.Model.Core.Category.Options.ChildCategoryQueryOptions
+                        {
+                            ParentGuid = parentGuid
+                        } )
+                        .Max( siblingCategory => (int?)siblingCategory.Order );
+
+                    nextOrder = ( maxOrder ?? -1 ) + 1;
+                }
+
+                entity.Order = nextOrder;
             }
 
             // Ensure everything is valid before saving.
@@ -491,7 +527,7 @@ namespace Rock.Blocks.Core
             {
                 return ActionContent( System.Net.HttpStatusCode.Created, this.GetCurrentPageUrl( new Dictionary<string, string>
                 {
-                    [PageParameterKey.CategoryId] = entity.IdKey
+                    [PageParameterKey.CategoryId] = entity.Id.ToString()
                 } ) );
             }
 
@@ -499,7 +535,7 @@ namespace Rock.Blocks.Core
             entity = entityService.Get( entity.Id );
             entity.LoadAttributes( RockContext );
 
-            var bag = GetEntityBagForEdit( entity );
+            var bag = GetEntityBagForView( entity );
 
             return ActionOk( new ValidPropertiesBox<CategoryBag>
             {
@@ -599,6 +635,45 @@ namespace Rock.Blocks.Core
         }
 
         /// <summary>
+        /// Changes the ordered position of a single child category.
+        /// </summary>
+        /// <param name="key">The guid of the item that will be moved.</param>
+        /// <param name="beforeKey">The guid of the item it will be placed before.</param>
+        /// <returns>An empty result that indicates if the operation succeeded.</returns>
+        [BlockAction]
+        public BlockActionResult ReorderChildCategory( string parentCategoryIdKey, string idKey, string beforeIdKey )
+        {
+            using (var rockContext = new RockContext() )
+            {
+                // Get the queryable and make sure it is ordered correctly.
+                var items = OrderedChildCategories( parentCategoryIdKey, rockContext );
+
+                if ( !items.ReorderEntity( idKey, beforeIdKey ) )
+                {
+                    return ActionBadRequest( "Invalid reorder attempt." );
+                }
+
+                foreach ( var item in items )
+                {
+                    rockContext.Entry( item ).State = System.Data.Entity.EntityState.Modified;
+                }
+
+                rockContext.SaveChanges();
+
+                // Clear cached content for the changed items.
+                CategoryCache.Remove( parentCategoryIdKey );
+                CategoryCache.Remove( idKey );
+
+                if ( beforeIdKey?.Length > 0 )
+                {
+                    CategoryCache.Remove( beforeIdKey );
+                }
+
+                return ActionOk();
+            }
+        }
+
+        /// <summary>
         /// Gets a list of Categories that are a direct child of specified Category.Guid.
         /// </summary>
         /// <returns>A List of Categories.</returns>
@@ -618,19 +693,37 @@ namespace Rock.Blocks.Core
         [BlockAction]
         public BlockActionResult GetChildCategories( string idKey )
         {
-            var categoryService = new CategoryService( RockContext );
-            var guid = categoryService.GetSelect( idKey, c => c.Guid );
-
             var entityTypeGuid = GetAttributeValue( AttributeKey.EntityType ).AsGuid();
             var entityTypeId = EntityTypeCache.GetId( entityTypeGuid ).ToStringSafe();
 
-            var childCategories = categoryService
+            return ActionOk( ChildCategoriesGridBuilder( entityTypeId ).Build( OrderedChildCategories( idKey, RockContext ) ) );
+        }
+
+        /// <summary>
+        /// Gets a list of ordered child categories for the specified Category <paramref name="idKey"/>.
+        /// </summary>
+        /// <param name="idKey">The parent id key hash to use for getting the list of child categories.</param>
+        /// <returns>A list of <see cref="Category"/>.</returns>
+        private List<Category> OrderedChildCategories(string idKey, RockContext rockContext )
+        {
+            var categoryService = new CategoryService( rockContext );
+            var parentGuid = categoryService.GetSelect( idKey, c => c.Guid );
+
+            var categories = categoryService
                 .GetChildCategoryQuery( new Rock.Model.Core.Category.Options.ChildCategoryQueryOptions
                 {
-                    ParentGuid = guid
-                } );
+                    ParentGuid = parentGuid
+                } )
+                .ToList()
+                .OrderBy( c => c.Order )
+                .ThenBy( c => c.Name )
+                .ThenBy( c => c.Id )
+                .ToList();
 
-            return ActionOk( ChildCategoriesGridBuilder( entityTypeId ).Build( childCategories ) );
+            // Need to load attributes in case there are any grid attributes to display.
+            categories.LoadAttributes( rockContext );
+
+            return categories;
         }
 
         /// <summary>
@@ -646,6 +739,7 @@ namespace Rock.Blocks.Core
             var gridAttributes = AttributeCache.GetOrderedGridAttributes( entityTypeId, ChildCategoryQualifierColumn, qualifierValue );
 
             return new GridBuilder<Category>()
+                .AddField( "categoryId", a => a.Id )
                 .AddTextField( "idKey", a => a.IdKey )
                 .AddTextField( "name", a => a.Name )
                 .AddField( "isSystem", a => a.IsSystem )

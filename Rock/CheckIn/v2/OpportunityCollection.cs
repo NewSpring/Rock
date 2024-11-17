@@ -20,6 +20,7 @@ using System.Collections.Generic;
 using System.Linq;
 
 using Rock.Data;
+using Rock.Enums.CheckIn;
 using Rock.Model;
 using Rock.Web.Cache;
 
@@ -174,7 +175,8 @@ namespace Rock.CheckIn.v2
                     .Select( a => new AreaOpportunity
                     {
                         Id = a.IdKey,
-                        Name = a.Name
+                        Name = a.Name,
+                        LocationSelectionStrategy = a.GetCheckInAreaData( rockContext ).LocationSelectionStrategy
                     } )
                     .ToList(),
                 Groups = new List<GroupOpportunity>(),
@@ -249,7 +251,16 @@ namespace Rock.CheckIn.v2
                     AreaId = groupType.IdKey,
                     CheckInData = grp.Group.GetCheckInData( rockContext ),
                     CheckInAreaData = groupType.GetCheckInAreaData( rockContext ),
-                    LocationIds = grp.Locations.OrderBy( gl => gl.Order )
+                    LocationIds = grp.Locations
+                        .Where( gl => !gl.IsOverflowLocation )
+                        .OrderBy( gl => gl.Order )
+                        .Select( gl => NamedLocationCache.Get( gl.LocationId ) )
+                        .Where( l => l != null )
+                        .Select( l => l.IdKey )
+                        .ToList(),
+                    OverflowLocationIds = grp.Locations
+                        .Where( gl => gl.IsOverflowLocation )
+                        .OrderBy( gl => gl.Order )
                         .Select( gl => NamedLocationCache.Get( gl.LocationId ) )
                         .Where( l => l != null )
                         .Select( l => l.IdKey )
@@ -283,7 +294,8 @@ namespace Rock.CheckIn.v2
                     .Select( a => new AreaOpportunity
                     {
                         Id = a.Id,
-                        Name = a.Name
+                        Name = a.Name,
+                        LocationSelectionStrategy = a.LocationSelectionStrategy
                     } )
                     .ToList(),
                 Groups = Groups
@@ -295,7 +307,9 @@ namespace Rock.CheckIn.v2
                         AreaId = g.AreaId,
                         CheckInData = g.CheckInData,
                         CheckInAreaData = g.CheckInAreaData,
-                        LocationIds = g.LocationIds.ToList()
+                        IsPreferredGroup = g.IsPreferredGroup,
+                        LocationIds = g.LocationIds.ToList(),
+                        OverflowLocationIds = g.OverflowLocationIds.ToList()
                     } )
                     .ToList(),
                 Locations = Locations

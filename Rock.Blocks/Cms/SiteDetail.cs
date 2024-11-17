@@ -637,11 +637,7 @@ namespace Rock.Blocks.Cms
                 RockContext.SaveChanges();
                 entity.SaveAttributeValues( RockContext );
 
-                if ( box.Bag.SiteAttributes.Count > 0 )
-                {
-
-                    SaveAttributes( new Page().TypeId, "SiteId", entity.Id.ToString(), box.Bag.SiteAttributes, RockContext );
-                }
+                SaveAttributes( new Page().TypeId, "SiteId", entity.Id.ToString(), box.Bag.SiteAttributes, RockContext );
 
                 if ( existingIconId.HasValue && existingIconId.Value != entity.FavIconBinaryFileId )
                 {
@@ -792,14 +788,7 @@ namespace Rock.Blocks.Cms
                     sitePages.Contains( t.Id ) ) );
 
             pageQry = pageQry.Where( p => !otherSitesQry.Any( s => s.DefaultPageId == p.Id || s.LoginPageId == p.Id || s.RegistrationPageId == p.Id || s.PageNotFoundPageId == p.Id ) );
-
-            foreach ( var page in pageQry )
-            {
-                if ( pageService.CanDelete( page, out string deletePageErrorMessage ) )
-                {
-                    pageService.Delete( page );
-                }
-            }
+            pageService.DeleteRange( pageQry );
 
             var layoutQry = layoutService.Queryable()
                 .Where( l =>
@@ -808,7 +797,7 @@ namespace Rock.Blocks.Cms
             layoutService.DeleteRange( layoutQry );
             RockContext.SaveChanges( true );
 
-            if ( !entityService.CanDelete( entity, out var errorMessage ) )
+            if ( !entityService.CanDelete( entity, out var errorMessage, includeSecondLvl: true ) )
             {
                 return ActionBadRequest( errorMessage );
             }

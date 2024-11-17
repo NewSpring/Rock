@@ -26,6 +26,7 @@ using Rock.Data;
 using Rock.Model;
 using Rock.Obsidian.UI;
 using Rock.Security;
+using Rock.Utility;
 using Rock.ViewModels.Blocks;
 using Rock.ViewModels.Blocks.Event.RegistrationInstancePaymentList;
 using Rock.Web.Cache;
@@ -59,7 +60,6 @@ namespace Rock.Blocks.Event
 
     [Rock.SystemGuid.EntityTypeGuid( "3842853c-75b2-4568-8397-2b9e4409fd44" )]
     [Rock.SystemGuid.BlockTypeGuid( "e804f6b4-e4c2-47e5-b1de-2147222bf3a2" )]
-    [CustomizedGrid]
     public class RegistrationInstancePaymentList : RockEntityListBlockType<FinancialTransaction>
     {
         #region Keys
@@ -87,16 +87,6 @@ namespace Rock.Blocks.Event
         }
 
         #endregion Keys
-
-        #region Properties
-
-        /// <summary>
-        /// Gets the campuses to filter the results by.
-        /// </summary>
-        protected string FilterPaymentDateRange => GetBlockPersonPreferences()
-            .GetValue( MakeKeyUniqueToRegistrationTemplate( PreferenceKey.FilterPaymentDateRange ) );
-
-        #endregion
 
         #region Fields
 
@@ -130,11 +120,20 @@ namespace Rock.Blocks.Event
         private RegistrationInstancePaymentListOptionsBag GetBoxOptions()
         {
             var registrationInstance = GetRegistrationInstance();
+            var currencyInfo = new RockCurrencyCodeInfo();
+            var currencyInfoBag = new ViewModels.Utility.CurrencyInfoBag
+            {
+                Symbol = currencyInfo.Symbol,
+                DecimalPlaces = currencyInfo.DecimalPlaces,
+                SymbolLocation = currencyInfo.SymbolLocation
+            };
+
             var options = new RegistrationInstancePaymentListOptionsBag()
             {
                 RegistrationTemplateIdKey = registrationInstance?.RegistrationTemplate?.IdKey,
                 ExportFileName = $"{registrationInstance?.Name} RegistrationPayments",
-                ExportTitle = $"{registrationInstance?.Name} - Registration Payments"
+                ExportTitle = $"{registrationInstance?.Name} - Registration Payments",
+                CurrencyInfo = currencyInfoBag
             };
             return options;
         }
@@ -147,7 +146,7 @@ namespace Rock.Blocks.Event
         {
             return new Dictionary<string, string>
             {
-                [NavigationUrlKey.DetailPage] = this.GetLinkedPageUrl( AttributeKey.DetailPage, "FinancialTransactionId", "((Key))" )
+                [NavigationUrlKey.DetailPage] = this.GetLinkedPageUrl( AttributeKey.DetailPage, "TransactionId", "((Key))" )
             };
         }
 
@@ -177,21 +176,6 @@ namespace Rock.Blocks.Event
                             d.EntityTypeId.Value == registrationEntityTypeId &&
                             d.EntityId.HasValue &&
                             registrationIds.Contains( d.EntityId.Value ) ) );
-
-                // Date Range
-                var dateRange = RockDateTimeHelper.CalculateDateRangeFromDelimitedValues( FilterPaymentDateRange, RockDateTime.Now );
-
-                if ( dateRange.Start.HasValue )
-                {
-                    qry = qry.Where( r =>
-                        r.TransactionDateTime >= dateRange.Start.Value );
-                }
-
-                if ( dateRange.End.HasValue )
-                {
-                    qry = qry.Where( r =>
-                        r.TransactionDateTime < dateRange.End.Value );
-                }
             }
 
             return qry.AsQueryable();
@@ -209,6 +193,7 @@ namespace Rock.Blocks.Event
             return new GridBuilder<FinancialTransaction>()
                 .WithBlock( this )
                 .AddTextField( "idKey", a => a.IdKey )
+                .AddTextField( "id", a => a.Id.ToString() )
                 .AddTextField( "person", a => a.AuthorizedPersonAlias?.Person?.FullNameReversed )
                 .AddDateTimeField( "transactionDateTime", a => a.TransactionDateTime )
                 .AddField( "totalAmount", a => a.TotalAmount )
@@ -287,23 +272,6 @@ namespace Rock.Blocks.Event
                 .ToList();
 
             return registrars;
-        }
-
-        /// <summary>
-        /// Makes the key unique to the registration template.
-        /// </summary>
-        /// <param name="key">The key.</param>
-        /// <returns></returns>
-        private string MakeKeyUniqueToRegistrationTemplate( string key )
-        {
-            var registrationTemplate = GetRegistrationInstance()?.RegistrationTemplate;
-
-            if ( registrationTemplate != null )
-            {
-                return $"{registrationTemplate.IdKey}-{key}";
-            }
-
-            return key;
         }
 
         /// <summary>
