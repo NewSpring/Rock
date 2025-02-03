@@ -1,8 +1,8 @@
-<div id="search-input" class="closed bg-gray-dark soft-sides soft-half-ends xs-soft-half-sides xs-hard-ends width-full push-bottom xs-flush-bottom shadowed flush">
-    <div class="position-relative input-search-wrapper display-inline-block width-auto stretchy">
-        <input type="text" spellcheck="false" data-search-input class="stretchy input-search hard jumbo text-white sans-serif stronger form-control input-lg" placeholder="What can we help you find?" style="border: 0px; box-shadow: none;">
-        <i data-search-input-clear class="input-clear position-absolute far fa-2x fa-backspace hidden"></i>
+<div id="search-input" class="p-0 bg-gray-dark overflow-hidden">
+    <div class="py-2 px-4 py-md-3 d-flex align-items-center">
+        <input type="text" spellcheck="false" data-search-input class=" input-search p-0 mb-0 h4 text-white bg-transparent text-sans-serif font-weight-bold form-control" placeholder="What can we help you find?" style="border: 0px; box-shadow: none;">
+        <div class="h-100 d-flex align-items-center">
+            <i data-search-input-clear class="p-2 far fa-2x fa-times cursor-pointer text-danger hidden"></i>
+        </div>
     </div>
 </div>
-
-<script src="~~/Scripts/stretchy.js" data-filter=".stretchy" async></script>
