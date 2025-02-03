@@ -1,0 +1,444 @@
+/* stylelint-disable */
+/* stylelint-enable */
+/*
+    The accent colors are deprecated and should not be used in new theme development. They will be
+    removed in Rock v 6.0.
+*/
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 79px;
+}
+.bg-fuscia {
+  background-color: #e854be;
+}
+.bg-blue {
+  background-color: #215cd7;
+}
+.bg-beige {
+  background-color: #f2f1ee;
+}
+.bg-amber {
+  background-color: #fd8a1a;
+}
+.bg-red {
+  background-color: #dd0e23;
+}
+.bg-green {
+  background-color: #58770e;
+}
+.bg-yellow {
+  background-color: #ffc240;
+}
+.bg-purple {
+  background-color: #5c34d5;
+}
+.bg-sky {
+  background-color: #acdde5;
+}
+.bg-slate {
+  background-color: #202427;
+}
+.bg-pink {
+  background-color: #f687a8;
+}
+.bg-orange {
+  background-color: #f05421;
+}
+.bg-lime {
+  background-color: #b9d956;
+}
+.bg-teal {
+  background-color: #0fa4b7;
+}
+.bg-brown {
+  background-color: #7a2e20;
+}
+.bg-lilac {
+  background-color: #c3c3fc;
+}
+.text-fuscia {
+  color: #e854be;
+}
+.text-blue {
+  color: #215cd7;
+}
+.text-beige {
+  color: #f2f1ee;
+}
+.text-amber {
+  color: #fd8a1a;
+}
+.text-red {
+  color: #dd0e23;
+}
+.text-green {
+  color: #58770e;
+}
+.text-yellow {
+  color: #ffc240;
+}
+.text-purple {
+  color: #6d49d9;
+}
+.text-sky {
+  color: #acdde5;
+}
+.text-slate {
+  color: #202427;
+}
+.text-pink {
+  color: #f687a8;
+}
+.text-orange {
+  color: #f05421;
+}
+.text-lime {
+  color: #b9d956;
+}
+.text-teal {
+  color: #0fa4b7;
+}
+.text-brown {
+  color: #7a2e20;
+}
+.text-lilac {
+  color: #c3c3fc;
+}
+.fill-fuscia {
+  fill: #e854be;
+}
+.fill-blue {
+  fill: #215cd7;
+}
+.fill-beige {
+  fill: #f2f1ee;
+}
+.fill-amber {
+  fill: #fd8a1a;
+}
+.fill-red {
+  fill: #dd0e23;
+}
+.fill-green {
+  fill: #58770e;
+}
+.fill-yellow {
+  fill: #ffc240;
+}
+.fill-purple {
+  fill: #6d49d9;
+}
+.fill-sky {
+  fill: #acdde5;
+}
+.fill-slate {
+  fill: #202427;
+}
+.fill-pink {
+  fill: #f687a8;
+}
+.fill-orange {
+  fill: #f05421;
+}
+.fill-lime {
+  fill: #b9d956;
+}
+.fill-teal {
+  fill: #0fa4b7;
+}
+.fill-brown {
+  fill: #7a2e20;
+}
+.fill-lilac {
+  fill: #c3c3fc;
+}
+.h-0 {
+  height: 0;
+}
+.svh-100 {
+  height: 100svh !important;
+  /* new browsers */
+}
+.o-97 {
+  opacity: 0.97;
+}
+[data-toggle="collapse"] i {
+  transition: all 0.3s ease-in-out;
+}
+.collapse {
+  overflow: hidden;
+}
+.border-none {
+  border-width: 0px !important;
+}
+.btn {
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+.btn-primary {
+  background-color: #f05421;
+  color: #ffffff;
+}
+.btn-primary:hover,
+.btn-primary:active,
+.btn-primary:focus {
+  background-color: #d03e0e !important;
+}
+.btn-secondary {
+  background-color: #6d49d9;
+  color: #ffffff;
+}
+.btn-secondary:hover,
+.btn-secondary:active,
+.btn-secondary:focus {
+  background-color: #4825b1 !important;
+}
+.btn-blue {
+  background-color: #215cd7;
+  color: #ffffff;
+}
+.btn-blue:hover,
+.btn-blue:active,
+.btn-blue:focus {
+  color: #ffffff;
+  background-color: #1a49ab;
+}
+.btn-amber {
+  background-color: #fd8a1a;
+  color: #ffffff;
+}
+.btn-amber:hover,
+.btn-amber:active,
+.btn-amber:focus {
+  color: #ffffff;
+  background-color: #e27102;
+}
+.btn-yellow {
+  background-color: #f3a500;
+  color: #ffffff;
+}
+.btn-yellow:hover,
+.btn-yellow:active,
+.btn-yellow:focus {
+  color: #ffffff;
+  background-color: #c08200;
+}
+.btn-fuscia {
+  background-color: #e854be;
+  color: #ffffff;
+}
+.btn-fuscia:hover,
+.btn-fuscia:active,
+.btn-fuscia:focus {
+  color: #ffffff;
+  background-color: #e227ad;
+}
+.btn-slate {
+  background-color: #202427;
+  color: #ffffff;
+}
+.btn-slate:hover,
+.btn-slate:active,
+.btn-slate:focus {
+  color: #ffffff;
+  background-color: #090a0b;
+}
+.btn-pink {
+  background-color: #f687a8;
+  color: #ffffff;
+}
+.btn-pink:hover,
+.btn-pink:active,
+.btn-pink:focus {
+  color: #ffffff;
+  background-color: #f25886;
+}
+.btn-sky {
+  background-color: #acdde5;
+  color: #1c1c1c;
+}
+.btn-sky:hover,
+.btn-sky:active,
+.btn-sky:focus {
+  color: #ffffff;
+  background-color: #85cdd9;
+}
+.btn-black {
+  background-color: #000000;
+  color: #ffffff;
+}
+.btn-black:hover,
+.btn-black:active,
+.btn-black:focus {
+  color: #ffffff;
+  background-color: #000000;
+}
+.btn-white {
+  background-color: #ffffff;
+  color: #000000;
+}
+.btn-white:hover,
+.btn-white:active,
+.btn-white:focus {
+  color: #000000;
+  background-color: #e6e6e6;
+}
+body {
+  font-family: "colfax-web", sans-serif;
+  font-weight: 500;
+  letter-spacing: -0.5px;
+}
+.lead {
+  color: inherit;
+  font-style: normal;
+  font-weight: inherit;
+}
+h1,
+.h1,
+h2,
+.h2,
+h3,
+.h3,
+h4,
+.h4,
+h5,
+.h5,
+h6,
+.h6,
+.display-1,
+.display-2,
+.display-3 {
+  text-transform: uppercase;
+}
+a.text-purple:hover {
+  color: #6d49d9;
+}
+a.text-blue:hover {
+  color: #215cd7;
+}
+.display-1 {
+  font-size: 52px;
+}
+.display-2 {
+  font-size: 51px;
+}
+.display-3 {
+  font-size: 46px;
+}
+#gauntlet-nav a {
+  font-size: 125%;
+}
+small {
+  font-size: 80%;
+  line-height: 1.3;
+}
+[data-toggle='collapse'] i {
+  margin-top: -7px;
+}
+#gauntlet-wordmark {
+  margin-bottom: -2px;
+}
+#cutout_2 {
+  position: absolute;
+  top: 15%;
+  right: -60%;
+  max-width: 100%;
+}
+#cutout_3 {
+  position: absolute;
+  bottom: -70%;
+  right: 0;
+  left: -5%;
+  max-width: 100%;
+}
+#cutout_4 {
+  width: 100%;
+  margin: 40px auto;
+  transform: scale(1.3);
+}
+.max-w-full {
+  max-width: 100%;
+}
+@media (min-width: 576px) {
+  #cutout_2 {
+    top: 0;
+    right: -63%;
+  }
+  #cutout_4 {
+    transform: scale(1.5);
+    margin: 80px auto;
+  }
+}
+@media (min-width: 768px) {
+  #gauntlet-wordmark {
+    margin-bottom: -3px;
+  }
+  #cutout_2 {
+    right: -30%;
+    width: 70%;
+  }
+  #gauntlet-nav a {
+    font-size: 100%;
+  }
+  .display-1 {
+    font-size: 92px;
+    letter-spacing: -3px;
+  }
+  .display-2 {
+    font-size: 84px;
+    letter-spacing: -2.7px;
+  }
+}
+@media (min-width: 992px) {
+  html {
+    scroll-padding-top: 91px;
+  }
+  .display-3 {
+    font-size: 75px;
+  }
+  #gauntlet-wordmark {
+    margin-bottom: -4px;
+  }
+  #cutout_2 {
+    top: -5%;
+  }
+  #cutout_5 {
+    position: absolute;
+    top: 9%;
+    right: -10%;
+    width: 35%;
+  }
+  #cutout_6 {
+    position: absolute;
+    top: 8%;
+    left: -5%;
+    width: 25%;
+  }
+  #gauntlet-nav.collapse {
+    display: block;
+    height: auto !important;
+    overflow: visible;
+  }
+  .svh-lg-100 {
+    height: svh100;
+  }
+  .h-lg-100 {
+    height: 100%;
+  }
+  .w-lg-auto {
+    width: auto;
+  }
+}
+@media (min-width: 1441px) {
+  #gauntlet-wordmark {
+    margin-bottom: -7px;
+  }
+  #cutout_5 {
+    width: 25%;
+    right: -8%;
+  }
+  #cutout_6 {
+    width: 18%;
+  }
+}

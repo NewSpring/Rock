@@ -143,7 +143,7 @@ Outer 'a' = a
             // Add a lava template that references merge fields from the outer template.
             var contactDetailsTemplate = @"
 Mobile: {{ mobilePhone }}
-Home: {{ homePhone }} 
+Home: {{ homePhone }}
 Work: {{ workPhone }}
 Email: {{ email }}
 ";
