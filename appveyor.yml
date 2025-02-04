@@ -18,6 +18,8 @@ branches:
   - appveyor
   - pre-alpha-release
 
+init:
+  - node -v
 # Do not build on tags (GitHub only)
 skip_tags: true
 
