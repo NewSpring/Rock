@@ -19,7 +19,9 @@ branches:
   - pre-alpha-release
 
 init:
+  - cmd: set NODE_OPTIONS=--max_old_space_size=1028
   - node -v
+
 # Do not build on tags (GitHub only)
 skip_tags: true
 
