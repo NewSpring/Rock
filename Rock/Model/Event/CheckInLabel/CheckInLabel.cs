@@ -34,6 +34,7 @@ namespace Rock.Model
     [RockDomain( "Check-in" )]
     [Table( "CheckInLabel" )]
     [DataContract]
+    [CodeGenerateRest]
     [Rock.SystemGuid.EntityTypeGuid( "8B651EB1-492F-46D0-821B-CA7355C6E6E7" )]
     public partial class CheckInLabel : Model<CheckInLabel>, IHasAdditionalSettings
     {
@@ -130,7 +131,13 @@ namespace Rock.Model
         /// <returns>A new instance of <see cref="FieldFilterGroupBag"/> that defines the criteria.</returns>
         public FieldFilterGroupBag GetConditionalPrintCriteria()
         {
-            return this.GetAdditionalSettings<FieldFilterGroupBag>( "Rock.Model.CheckInLabel.ConditionalCriteria" );
+            return this.GetAdditionalSettingsOrNull<FieldFilterGroupBag>( "Rock.Model.CheckInLabel.ConditionalCriteria" )
+                ?? new FieldFilterGroupBag
+                {
+                    Guid = System.Guid.NewGuid(),
+                    ExpressionType = FilterExpressionType.GroupAll,
+                    Rules = new List<FieldFilterRuleBag>()
+                };
         }
 
         /// <summary>
@@ -144,6 +151,8 @@ namespace Rock.Model
             {
                 conditionalPrintCriteria = new FieldFilterGroupBag
                 {
+                    Guid = System.Guid.NewGuid(),
+                    ExpressionType = FilterExpressionType.GroupAll,
                     Rules = new List<FieldFilterRuleBag>()
                 };
             }

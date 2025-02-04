@@ -52,6 +52,8 @@ namespace Rock.Blocks.Cms
     [Rock.SystemGuid.BlockTypeGuid( "113c4223-19b9-46f2-aae8-ac646bc5a3c7" )]
     public class AdaptiveMessageAdaptationDetail : RockDetailBlockType
     {
+        private AdaptiveMessageAdaptation SelectedAdaptiveMessageAdaptation { get; set; }
+
         #region Keys
 
         private static class PageParameterKey
@@ -188,6 +190,8 @@ namespace Rock.Blocks.Cms
                 Order = entity.Order,
                 ViewSaturationCount = entity.ViewSaturationCount,
                 ViewSaturationInDays = entity.ViewSaturationInDays,
+                StartDate = entity.StartDate,
+                EndDate = entity.EndDate,
                 Segments = entity.AdaptiveMessageAdaptationSegments.Select( a => a.PersonalizationSegment.Guid.ToString() ).ToList()
             };
         }
@@ -206,7 +210,7 @@ namespace Rock.Blocks.Cms
 
             var bag = GetCommonEntityBag( entity );
 
-            bag.LoadAttributesAndValuesForPublicView( entity, RequestContext.CurrentPerson );
+            bag.LoadAttributesAndValuesForPublicView( entity, RequestContext.CurrentPerson, enforceSecurity: true );
 
             return bag;
         }
@@ -225,7 +229,7 @@ namespace Rock.Blocks.Cms
 
             var bag = GetCommonEntityBag( entity );
 
-            bag.LoadAttributesAndValuesForPublicEdit( entity, RequestContext.CurrentPerson );
+            bag.LoadAttributesAndValuesForPublicEdit( entity, RequestContext.CurrentPerson, enforceSecurity: true );
 
             return bag;
         }
@@ -259,6 +263,15 @@ namespace Rock.Blocks.Cms
             box.IfValidProperty( nameof( box.Entity.ViewSaturationInDays ),
                 () => entity.ViewSaturationInDays = box.Entity.ViewSaturationInDays );
 
+            box.IfValidProperty( nameof( box.Entity.StartDate ),
+                () => entity.StartDate = box.Entity.StartDate );
+
+            box.IfValidProperty( nameof( box.Entity.EndDate ),
+                () => entity.EndDate = box.Entity.EndDate );
+
+            box.IfValidProperty( nameof( box.Entity.ViewSaturationInDays ),
+                () => entity.ViewSaturationInDays = box.Entity.ViewSaturationInDays );
+
             box.IfValidProperty( nameof( box.Entity.Segments ),
                 () =>
                 {
@@ -276,7 +289,7 @@ namespace Rock.Blocks.Cms
                 {
                     entity.LoadAttributes( rockContext );
 
-                    entity.SetPublicAttributeValues( box.Entity.AttributeValues, RequestContext.CurrentPerson );
+                    entity.SetPublicAttributeValues( box.Entity.AttributeValues, RequestContext.CurrentPerson, enforceSecurity: true );
                 } );
 
             return true;
@@ -300,6 +313,21 @@ namespace Rock.Blocks.Cms
         private Dictionary<string, string> GetBoxNavigationUrls()
         {
             var adaptiveMessageId = RequestContext.GetPageParameter( PageParameterKey.AdaptiveMessageId );
+            if ( adaptiveMessageId.IsNullOrWhiteSpace() )
+            {
+                var adaptiveMessageAdaptation = GetAdaptiveMessageAdaptation();
+                if ( adaptiveMessageAdaptation != null )
+                {
+                    return new Dictionary<string, string>
+                    {
+                        [NavigationUrlKey.ParentPage] = this.GetParentPageUrl( new Dictionary<string, string>
+                        {
+                            [PageParameterKey.AdaptiveMessageId] = adaptiveMessageAdaptation.AdaptiveMessageId.ToString()
+                        } )
+                    };
+                }
+            }
+
             return new Dictionary<string, string>
             {
                 [NavigationUrlKey.ParentPage] = this.GetParentPageUrl( new Dictionary<string, string>
@@ -385,6 +413,16 @@ namespace Rock.Blocks.Cms
             }
 
             return true;
+        }
+
+        private AdaptiveMessageAdaptation GetAdaptiveMessageAdaptation()
+        {
+            if ( SelectedAdaptiveMessageAdaptation == null )
+            {
+                SelectedAdaptiveMessageAdaptation = new AdaptiveMessageAdaptationService( new RockContext() ).Get( RequestContext.GetPageParameter( PageParameterKey.AdaptiveMessageAdaptationId ) );
+            }
+
+            return SelectedAdaptiveMessageAdaptation;
         }
 
         #endregion

@@ -21,6 +21,7 @@
 // </copyright>
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 
 using Rock.Data;
@@ -167,6 +168,24 @@ namespace Rock.Model
         }
     }
 
+    [HasQueryableAttributes( typeof( Group.GroupQueryableAttributeValue ), nameof( GroupAttributeValues ) )]
+    public partial class Group
+    {
+        /// <summary>
+        /// Gets the entity attribute values. This should only be used inside
+        /// LINQ statements when building a where clause for the query. This
+        /// property should only be used inside LINQ statements for filtering
+        /// or selecting values. Do <b>not</b> use it for accessing the
+        /// attributes after the entity has been loaded.
+        /// </summary>
+        public virtual ICollection<GroupQueryableAttributeValue> GroupAttributeValues { get; set; } 
+
+        /// <inheritdoc/>
+        public class GroupQueryableAttributeValue : QueryableAttributeValue
+        {
+        }
+    }
+
     /// <summary>
     /// Generated Extension Methods
     /// </summary>
@@ -228,6 +247,7 @@ namespace Rock.Model
             target.ArchivedDateTime = source.ArchivedDateTime;
             target.AttendanceRecordRequiredForCheckIn = source.AttendanceRecordRequiredForCheckIn;
             target.CampusId = source.CampusId;
+            target.ChatChannelKey = source.ChatChannelKey;
             target.ConfirmationAdditionalDetails = source.ConfirmationAdditionalDetails;
             target.Description = source.Description;
             target.DisableScheduleToolboxAccess = source.DisableScheduleToolboxAccess;
@@ -244,6 +264,10 @@ namespace Rock.Model
             target.InactiveReasonValueId = source.InactiveReasonValueId;
             target.IsActive = source.IsActive;
             target.IsArchived = source.IsArchived;
+            target.IsChatChannelAlwaysShownOverride = source.IsChatChannelAlwaysShownOverride;
+            target.IsChatChannelPublicOverride = source.IsChatChannelPublicOverride;
+            target.IsChatEnabledOverride = source.IsChatEnabledOverride;
+            target.IsLeavingChatChannelAllowedOverride = source.IsLeavingChatChannelAllowedOverride;
             target.IsPublic = source.IsPublic;
             target.IsSecurityRole = source.IsSecurityRole;
             target.IsSpecialNeeds = source.IsSpecialNeeds;

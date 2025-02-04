@@ -24,7 +24,6 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Rock.Data;
 using Rock.Lava;
 using Rock.Lava.Fluid;
-using Rock.Lava.RockLiquid;
 using Rock.Model;
 using Rock.Tests.Shared.Lava;
 using Rock.Tests.Shared.TestFramework;
@@ -326,7 +325,11 @@ findme-interactiontest3
             // Process the transaction queue to ensure that the interactions are created.
             var exceptions = new List<Exception>();
             Rock.Transactions.RockQueue.Drain( ( e ) => { exceptions.Add( e ); } );
-            Assert.IsTrue( exceptions.Count == 0, "Interaction transaction processing failed." );
+
+            if ( exceptions.Count > 0 )
+            {
+                throw new AggregateException( exceptions );
+            }
 
             // Verify the interactions are assigned to the correct channel and component.
             Interaction interaction;
@@ -630,18 +633,9 @@ Brian;Daniel;Nancy;William;
 
                 var output = result.Text.Replace( " ", string.Empty );
 
-                if ( engine.GetType() == typeof ( RockLiquidEngine ) )
-                {
-                    Assert.IsTrue( output.Contains( "person-Rock.Lava.RockLiquid.Blocks.RockEntity" ), "Expected Entity Tag not found." );
-                    Assert.IsTrue( output.Contains( "cache-Rock.Lava.RockLiquid.Blocks.Cache" ), "Expected Command Block not found." );
-                    Assert.IsTrue( output.Contains( "interactionwrite-Rock.Lava.RockLiquid.Blocks.InteractionWrite" ), "Expected Command Tag not found." );
-                }
-                else
-                {
-                    Assert.IsTrue( output.Contains( "person-Rock.Lava.Blocks.RockEntity" ), "Expected Entity Tag not found." );
-                    Assert.IsTrue( output.Contains( "cache-Rock.Lava.Blocks.Cache" ), "Expected Command Block not found." );
-                    Assert.IsTrue( output.Contains( "interactionwrite-Rock.Lava.Blocks.InteractionWrite" ), "Expected Command Tag not found." );
-                }
+                Assert.IsTrue( output.Contains( "person-Rock.Lava.Blocks.RockEntity" ), "Expected Entity Tag not found." );
+                Assert.IsTrue( output.Contains( "cache-Rock.Lava.Blocks.Cache" ), "Expected Command Block not found." );
+                Assert.IsTrue( output.Contains( "interactionwrite-Rock.Lava.Blocks.InteractionWrite" ), "Expected Command Tag not found." );
             } );
         }
 

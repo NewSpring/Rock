@@ -23,19 +23,31 @@ using System.ComponentModel.DataAnnotations.Schema;
 using System.Data.Entity.ModelConfiguration;
 using System.Linq;
 using System.Runtime.Serialization;
+
 using Rock.Data;
-using Rock.Web.Cache;
-using Z.EntityFramework.Plus;
 using Rock.Lava;
+using Rock.Utility;
+using Rock.Web.Cache;
+
+using Z.EntityFramework.Plus;
 
 namespace Rock.Model
 {
+    /*
+    12/16/2024 - DSH
+
+    The GroupMember model participates in the the TPT (Table-Per-Type) pattern. This
+    can cause some rare unexpected results. See the engineering note above the
+    Group class for details.
+    */
+
     /// <summary>
     /// Represents a member of a group in Rock. A group member is a <see cref="Rock.Model.Person"/> who has a relationship with a <see cref="Rock.Model.Group"/>.
     /// </summary>
     [RockDomain( "Group" )]
     [Table( "GroupMember" )]
     [DataContract]
+    [CodeGenerateRest]
     [Rock.SystemGuid.EntityTypeGuid( Rock.SystemGuid.EntityType.GROUP_MEMBER )]
     public partial class GroupMember : Model<GroupMember>, ICacheable
     {
@@ -59,6 +71,7 @@ namespace Rock.Model
         /// </value>
         [Required]
         [DataMember( IsRequired = true )]
+        [EnableAttributeQualification]
         public int GroupId { get; set; }
 
         /// <summary>
@@ -69,6 +82,7 @@ namespace Rock.Model
         /// </value>
         [Required]
         [DataMember( IsRequired = true )]
+        [EnableAttributeQualification]
         public int GroupTypeId { get; set; }
 
         /// <summary>
@@ -89,6 +103,7 @@ namespace Rock.Model
         /// </value>
         [Required]
         [DataMember( IsRequired = true )]
+        [EnableAttributeQualification]
         public int GroupRoleId { get; set; }
 
         /// <summary>
@@ -227,6 +242,21 @@ namespace Rock.Model
         /// </value>
         [DataMember]
         public CommunicationType CommunicationPreference { get; set; }
+
+        /// <summary>
+        /// Gets or sets whether notifications for the chat channel are muted for this person. This should be treated as
+        /// read-only and only set from the sync job or webhooks.
+        /// </summary>
+        [DataMember]
+        public bool IsChatMuted { get; set; }
+
+        /// <summary>
+        /// Gets or sets whether this user is banned from the chat channel. It should be assumed that external chat
+        /// providers do not remove the member from the channel when they are banned; they just set a banned field to
+        /// true. This should be treated as read-only and only set from the sync job or webhooks.
+        /// </summary>
+        [DataMember]
+        public bool IsChatBanned { get; set; }
 
         #endregion
 

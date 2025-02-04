@@ -19,11 +19,11 @@ namespace Rock.Blocks.CheckIn
     [Category( "Check-in" )]
     [Description( "Helps to build schedules used for check-in." )]
     [IconCssClass( "fa fa-clipboard" )]
-    //[SupportedSiteTypes( Model.SiteType.Web )]
+    [SupportedSiteTypes( Model.SiteType.Web )]
 
     [Rock.SystemGuid.EntityTypeGuid( "28B9DAB2-C58A-4459-9EE7-8D1895C09592" )]
     [Rock.SystemGuid.BlockTypeGuid( "03C8EA07-DAF5-4B5A-9BB6-3A1AF99BB135" )]
-    [CustomizedGrid]
+    [CustomizedGrid( IsCustomColumnsSupported = false )]
     public class CheckInScheduleBuilder : RockBlockType
     {
         #region Keys
@@ -63,6 +63,11 @@ namespace Rock.Blocks.CheckIn
             /// The selected parent location user preference key
             /// </summary>
             public const string SelectedParentLocation = "selected-parent-location";
+        }
+
+        private static class NavigationUrlKey
+        {
+            public const string ParentPage = "ParentPage";
         }
 
         #endregion
@@ -142,8 +147,26 @@ namespace Rock.Blocks.CheckIn
                 };
             }
 
+            bag.NavigationUrls = GetBoxNavigationUrls();
+
             return bag;
         }
+
+        /// <summary>
+        /// Gets the box navigation URLs required for the page to operate.
+        /// </summary>
+        /// <returns>A dictionary of key names and URL values.</returns>
+        private Dictionary<string, string> GetBoxNavigationUrls()
+        {
+            return new Dictionary<string, string>
+            {
+                [NavigationUrlKey.ParentPage] = this.GetParentPageUrl( new Dictionary<string, string>
+                {
+                    ["CheckinTypeId"] = PageParameter( PageParameterKey.GroupTypeId )
+                } ),
+            };
+        }
+
 
         /// <summary>
         /// Gets the list of schedules to display and applies the category filter against the schedules.
@@ -501,6 +524,11 @@ namespace Rock.Blocks.CheckIn
 
                 if ( sourceSchedule != null && destinationSchedule != null )
                 {
+                    if ( !destinationSchedule.CheckInStartOffsetMinutes.HasValue || !sourceSchedule.CheckInStartOffsetMinutes.HasValue )
+                    {
+                        return ActionBadRequest( "The selected schedule is not enabled for check-in. Please select an active schedule." );
+                    }
+
                     var srcGroupLocations = groupLocationQuery.Where( gl => gl.Schedules.Any( s => s.Id == sourceSchedule.Id ) );
                     var destGroupLocations = groupLocationQuery.Where( gl => gl.Schedules.Any( s => s.Id == destinationSchedule.Id ) );
 

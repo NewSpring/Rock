@@ -380,7 +380,7 @@ namespace Rock.Blocks.Administration
                 PageTitle = entity.PageTitle,
                 ParentPage = ToListItemBag( entity.ParentPage ),
                 ParentPageId = entity.ParentPageId,
-                RateLimitPeriodDuration = entity.RateLimitPeriodDuration,
+                RateLimitPeriodDurationSeconds = entity.RateLimitPeriodDurationSeconds,
                 RateLimitRequestPerPeriod = entity.RateLimitRequestPerPeriod,
                 RequiresEncryption = entity.RequiresEncryption,
                 PageUrl = pageUrl,
@@ -446,7 +446,7 @@ namespace Rock.Blocks.Administration
 
             var bag = GetCommonEntityBag( entity );
 
-            bag.LoadAttributesAndValuesForPublicView( entity, RequestContext.CurrentPerson );
+            bag.LoadAttributesAndValuesForPublicView( entity, RequestContext.CurrentPerson, enforceSecurity: true );
 
             return bag;
         }
@@ -461,7 +461,7 @@ namespace Rock.Blocks.Administration
 
             var bag = GetCommonEntityBag( entity );
 
-            bag.LoadAttributesAndValuesForPublicEdit( entity, RequestContext.CurrentPerson );
+            bag.LoadAttributesAndValuesForPublicEdit( entity, RequestContext.CurrentPerson, enforceSecurity: true );
 
             return bag;
         }
@@ -558,8 +558,8 @@ namespace Rock.Blocks.Administration
             box.IfValidProperty( nameof( box.Bag.ParentPageId ),
                 () => entity.ParentPageId = box.Bag.ParentPageId );
 
-            box.IfValidProperty( nameof( box.Bag.RateLimitPeriodDuration ),
-                () => entity.RateLimitPeriodDuration = box.Bag.RateLimitPeriodDuration );
+            box.IfValidProperty( nameof( box.Bag.RateLimitPeriodDurationSeconds ),
+                () => entity.RateLimitPeriodDurationSeconds = box.Bag.RateLimitPeriodDurationSeconds );
 
             box.IfValidProperty( nameof( box.Bag.RateLimitRequestPerPeriod ),
                 () => entity.RateLimitRequestPerPeriod = box.Bag.RateLimitRequestPerPeriod );
@@ -578,7 +578,7 @@ namespace Rock.Blocks.Administration
                 {
                     entity.LoadAttributes( RockContext );
 
-                    entity.SetPublicAttributeValues( box.Bag.AttributeValues, RequestContext.CurrentPerson );
+                    entity.SetPublicAttributeValues( box.Bag.AttributeValues, RequestContext.CurrentPerson, enforceSecurity: true );
                 } );
 
             return true;

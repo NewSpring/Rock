@@ -18,6 +18,10 @@ branches:
   - appveyor
   - pre-alpha-release
 
+init:
+  - cmd: set NODE_OPTIONS=--max_old_space_size=4096
+  - node -v
+
 # Do not build on tags (GitHub only)
 skip_tags: true
 
@@ -30,6 +34,9 @@ platform: Any CPU
 clone_depth: 1
 clone_folder: C:\projects\Rock
 
+environment:
+  nodejs_version: "22.6.0"
+
 # scripts that run after cloning repository
 install:
 - ps: >-
@@ -41,6 +48,8 @@ install:
 
     Set-Content c:\users\appveyor\.ssh\id_rsa $fileContent
 
+    Install-Product node $env:nodejs_version
+- npm install
 
 # directories to preserve between builds
 cache:

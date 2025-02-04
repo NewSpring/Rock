@@ -117,7 +117,12 @@ namespace Rock.Blocks.Lms
         /// <inheritdoc/>
         protected override IQueryable<LearningProgram> GetListQueryable( RockContext rockContext )
         {
-            return base.GetListQueryable( rockContext );
+            var currentPerson = GetCurrentPerson();
+
+            // Materialize the LearningPrograms so that we can check for View authorization.
+            return new LearningProgramService( rockContext ).Queryable().ToList()
+                .Where( p => p.IsAuthorized( Authorization.VIEW, currentPerson ) )
+                .AsQueryable();
         }
 
         /// <inheritdoc/>
@@ -137,6 +142,12 @@ namespace Rock.Blocks.Lms
                 .AddField( "isPublic", a => a.IsPublic )
                 .AddField( "isActive", a => a.IsActive )
                 .AddField( "isSecurityDisabled", a => !a.IsAuthorized( Authorization.ADMINISTRATE, RequestContext.CurrentPerson ) );
+        }
+
+        /// <inheritdoc/>
+        protected override IQueryable<LearningProgram> GetOrderedListQueryable( IQueryable<LearningProgram> queryable, RockContext rockContext )
+        {
+            return queryable.OrderBy( s => s.Name );
         }
 
         #endregion
@@ -161,7 +172,7 @@ namespace Rock.Blocks.Lms
 
             if ( !entity.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson ) )
             {
-                return ActionBadRequest( $"Not authorized to delete ${LearningProgram.FriendlyTypeName}." );
+                return ActionBadRequest( $"Not authorized to delete {LearningProgram.FriendlyTypeName}." );
             }
 
             entityService.Delete( entity.Id );

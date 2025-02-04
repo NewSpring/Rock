@@ -53,10 +53,8 @@ namespace Rock.Lms
         /// </summary>
         public override string Name => "Assessment";
 
-        /// <summary>
-        /// Initializes a new instance of the Assessment component.
-        /// </summary>
-        public AssessmentComponent() : base( @"/Obsidian/Controls/Internal/LearningActivity/assessmentLearningActivity.obs" ) { }
+        /// <inheritdoc/>
+        public override string ComponentUrl => @"/Obsidian/Controls/Internal/LearningActivity/assessmentLearningActivity.obs";
 
         /// <summary>
         /// Calculates the student grade based on the configured multiple choice responses and weights.
@@ -135,7 +133,7 @@ namespace Rock.Lms
         /// <returns><c>true</c> if the completion's configuration has short answer items; otherwise <c>false</c>.</returns>
         public override bool RequiresGrading( LearningActivityCompletion completion )
         {
-            if ( completion.Id == 0 || completion.GradedByPersonAliasId.HasValue )
+            if ( completion.GradedByPersonAliasId.HasValue )
             {
                 return false;
             }
