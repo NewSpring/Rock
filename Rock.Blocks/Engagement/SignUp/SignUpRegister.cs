@@ -91,6 +91,24 @@ namespace Rock.Blocks.Engagement.SignUp
         DefaultBooleanValue = false,
         Order = 5 )]
 
+    [DefinedValueField( "Connection Status",
+        Key = AttributeKey.ConnectionStatus,
+        DefinedTypeGuid = Rock.SystemGuid.DefinedType.PERSON_CONNECTION_STATUS,
+        Description = "The connection status to use for new individuals (default: 'Prospect').",
+        IsRequired = true,
+        AllowMultiple = false,
+        DefaultValue = Rock.SystemGuid.DefinedValue.PERSON_CONNECTION_STATUS_PROSPECT,
+        Order = 6 )]
+
+    [DefinedValueField( "Record Status",
+        Key = AttributeKey.RecordStatus,
+        DefinedTypeGuid = Rock.SystemGuid.DefinedType.PERSON_RECORD_STATUS,
+        Description = "The record status to use for new individuals (default: 'Pending').",
+        IsRequired = true,
+        AllowMultiple = false,
+        DefaultValue = Rock.SystemGuid.DefinedValue.PERSON_RECORD_STATUS_PENDING,
+        Order = 7 )]
+
     #endregion
 
     [Rock.SystemGuid.EntityTypeGuid( "ED7A31F2-8D4C-469A-B2D8-7E28B8717FB8" )]
@@ -107,6 +125,8 @@ namespace Rock.Blocks.Engagement.SignUp
             public const string RegistrantConfirmationSystemCommunication = "RegistrantConfirmationSystemCommunication";
             public const string RequireEmail = "RequireEmail";
             public const string RequireMobilePhone = "RequireMobilePhone";
+            public const string ConnectionStatus = "ConnectionStatus";
+            public const string RecordStatus = "RecordStatus";
         }
 
         private static class PageParameterKey
@@ -140,11 +160,11 @@ namespace Rock.Blocks.Engagement.SignUp
 
         #region Properties
 
-        public bool IsAuthenticated
+        public bool IsAuthenticatedOrImpersonated
         {
             get
             {
-                return this.RequestContext.CurrentUser?.IsAuthenticated == true;
+                return this.RequestContext.CurrentPerson != null;
             }
         }
 
@@ -220,12 +240,12 @@ namespace Rock.Blocks.Engagement.SignUp
 
             var mode = GetAttributeValue( AttributeKey.Mode ).ConvertToEnum<RegisterMode>( RegisterMode.Anonymous );
 
-            if ( mode == RegisterMode.Family && !IsAuthenticated )
+            if ( mode == RegisterMode.Family && !IsAuthenticatedOrImpersonated )
             {
                 mode = RegisterMode.Anonymous;
             }
 
-            if ( !IsAuthenticated && mode != RegisterMode.Anonymous )
+            if ( !IsAuthenticatedOrImpersonated && mode != RegisterMode.Anonymous )
             {
                 registrationData.ErrorMessage = MustBeLoggedInMessage;
                 return registrationData;
@@ -281,7 +301,7 @@ namespace Rock.Blocks.Engagement.SignUp
                 registrationData.ProjectHasRequiredGroupRequirements = true;
 
                 // We can only determine if an Individual meets GroupRequirements if they're logged in.
-                if ( !IsAuthenticated )
+                if ( !IsAuthenticatedOrImpersonated )
                 {
                     registrationData.ErrorMessage = MustBeLoggedInMessage;
                     return registrationData;
@@ -708,7 +728,7 @@ namespace Rock.Blocks.Engagement.SignUp
             var personGroupRequirementStatuses = group.PersonMeetsGroupRequirements( rockContext, personId, groupRoleId );
             foreach ( var personGroupRequirementStatus in personGroupRequirementStatuses
                                                                 .Where( s => s.GroupRequirement.MustMeetRequirementToAddMember
-                                                                            && s.MeetsGroupRequirement != MeetsGroupRequirement.Meets ) )
+                                                                            && s.MeetsGroupRequirement != MeetsGroupRequirement.Meets && s.MeetsGroupRequirement != MeetsGroupRequirement.NotApplicable ) )
             {
                 var groupRequirementType = personGroupRequirementStatus.GroupRequirement.GroupRequirementType;
                 if ( groupRequirementType == null )
@@ -741,12 +761,12 @@ namespace Rock.Blocks.Engagement.SignUp
             // Load all member attributes for this project.
             var groupMember = new GroupMember { GroupId = registrationData.Project.Id };
             groupMember.LoadAttributes( rockContext );
-            registrationData.MemberAttributes = groupMember.GetPublicAttributesForEdit( this.CurrentPerson, attributeFilter: IsPublicAttribute );
+            registrationData.MemberAttributes = groupMember.GetPublicAttributesForEdit( this.CurrentPerson, enforceSecurity: false, attributeFilter: IsPublicAttribute );
 
             // Load all member opportunity attributes for this project.
             var groupMemberAssignment = new GroupMemberAssignment { GroupId = registrationData.Project.Id };
             groupMemberAssignment.LoadAttributes( rockContext );
-            registrationData.MemberOpportunityAttributes = groupMemberAssignment.GetPublicAttributesForEdit( this.CurrentPerson, attributeFilter: IsPublicAttribute );
+            registrationData.MemberOpportunityAttributes = groupMemberAssignment.GetPublicAttributesForEdit( this.CurrentPerson, enforceSecurity: false, attributeFilter: IsPublicAttribute );
         }
 
         /// <summary>
@@ -768,7 +788,7 @@ namespace Rock.Blocks.Engagement.SignUp
                 }
 
                 existingProjectGroupMember.LoadAttributes( rockContext );
-                registrant.MemberAttributeValues = existingProjectGroupMember.GetPublicAttributeValuesForEdit( this.CurrentPerson, attributeFilter: IsPublicAttribute );
+                registrant.MemberAttributeValues = existingProjectGroupMember.GetPublicAttributeValuesForEdit( this.CurrentPerson, enforceSecurity: false, attributeFilter: IsPublicAttribute );
 
                 var existingRegistration = registrationData.ExistingRegistrations
                         .FirstOrDefault( gma => gma.GroupMember.Id == existingProjectGroupMember.Id );
@@ -776,7 +796,7 @@ namespace Rock.Blocks.Engagement.SignUp
                 if ( existingRegistration != null )
                 {
                     existingRegistration.LoadAttributes( rockContext );
-                    registrant.MemberOpportunityAttributeValues = existingRegistration.GetPublicAttributeValuesForEdit( this.CurrentPerson, attributeFilter: IsPublicAttribute );
+                    registrant.MemberOpportunityAttributeValues = existingRegistration.GetPublicAttributeValuesForEdit( this.CurrentPerson, enforceSecurity: false, attributeFilter: IsPublicAttribute );
                 }
             }
         }
@@ -853,7 +873,7 @@ namespace Rock.Blocks.Engagement.SignUp
             // We'll pass this Person instance to any workflow defined on the block, so we know who was responsible for registering
             // a given group of registrants.
             Person registrarPerson = null;
-            if ( IsAuthenticated )
+            if ( IsAuthenticatedOrImpersonated )
             {
                 registrarPerson = this.RequestContext.CurrentPerson;
             }
@@ -1000,7 +1020,9 @@ namespace Rock.Blocks.Engagement.SignUp
                             LastName = registrant.LastName?.Trim(),
                             Email = registrant.Email?.Trim(),
                             RecordTypeValueId = DefinedValueCache.Get( Rock.SystemGuid.DefinedValue.PERSON_RECORD_TYPE_PERSON.AsGuid() ).Id,
-                            CommunicationPreference = communicationPreference
+                            CommunicationPreference = communicationPreference,
+                            RecordStatusValueId = DefinedValueCache.Get( GetAttributeValue( AttributeKey.RecordStatus ).AsGuid() )?.Id,
+                            ConnectionStatusValueId = DefinedValueCache.Get( GetAttributeValue( AttributeKey.ConnectionStatus ).AsGuid() )?.Id,
                         };
 
                         if ( wasMobilePhoneProvided )
@@ -1146,7 +1168,7 @@ namespace Rock.Blocks.Engagement.SignUp
             }
             else // Family or Group mode.
             {
-                if ( !IsAuthenticated )
+                if ( !IsAuthenticatedOrImpersonated )
                 {
                     errorMessage = MustBeLoggedInMessage;
                     return null;

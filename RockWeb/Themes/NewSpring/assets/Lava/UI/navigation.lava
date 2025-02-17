@@ -1,10 +1,11 @@
 {% assign useNewStyles = CurrentPage | Attribute:'UseNewStyles' %}
+{% assign siteId = 'Global' | Page:'SiteId' %}
 {% assign hideNav = 'Global' | Page:'QueryString' | Property:'hidenav' %}
 {% assign navItemCount = 0 %}
 
 {% if useNewStyles == 'Yes' %}
 <section
-	class="p-0 w-100 bg-white d-grid grid-cols-2 justify-content-between align-content-center drop-shadow">
+	class="p-0 w-100 bg-white d-grid grid-cols-2 justify-content-between align-content-center drop-shadow {% if hideNav == 'true' %}hidden{% endif %}">
 	<div class="d-grid align-content-center">
 		<a href="/" class="px-3 mb-0">
 			<img src="/Themes/NewSpring/assets/SVG/logo.svg"
@@ -24,10 +25,12 @@
 				<i class="fal fa-fw fa-lg fa-map-marker-alt"></i>
 			</a>
 
+            {% if siteId == 22 %}
 			<a href="/search"
 				class="nav-icon d-inline-block no-underline p-3 p-md-3 text-gray-darker border-solid border-l border-gray-lighter">
 				<i class="fal fa-fw fa-lg fa-search"></i>
 			</a>
+			{% endif %}
 		</span>
 		{% assign personPhoto = CurrentPerson.PhotoUrl %}
 		{% if CurrentPerson != null %}
@@ -91,7 +94,7 @@
 			<a href="/locations?utm_source=newspring&utm_campaign=locations&utm_medium=main-nav"
 				title="Locations"><i
 					class="fal fa-fw fa-lg fa-map-marker-alt"></i></a>
-		</li>{% endif %}{% if search == 'true' %}<li class="hidden-xs">
+		</li>{% endif %}{% if search == 'true' and siteId == 22 %}<li class="hidden-xs">
 			{% assign navItemCount = navItemCount | Plus:1 %}
 			<a href="/search" title="Search"><i
 					class="fal fa-fw fa-lg fa-search"></i></a>

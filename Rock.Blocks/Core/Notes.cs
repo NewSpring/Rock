@@ -308,7 +308,7 @@ namespace Rock.Blocks.Core
                 NoteTypeIdKey = noteType.IdKey,
                 Caption = note.Caption,
                 Text = note.Text,
-                ApprovalStatus = note.ApprovalStatus,
+                ApprovalStatus = ( noteType.RequiresApprovals ) ? note.ApprovalStatus : NoteApprovalStatus.Approved,
                 AnchorId = note.NoteAnchorId,
                 IsAlert = note.IsAlert ?? false,
                 IsPinned = note.IsPinned,
@@ -383,8 +383,9 @@ namespace Rock.Blocks.Core
                 AllowsReplies = noteType.AllowsReplies,
                 MaxReplyDepth = noteType.MaxReplyDepth ?? -1,
                 AllowsWatching = noteType.AllowsWatching,
+                RequiresApprovals = noteType.RequiresApprovals,
                 IsMentionEnabled = noteType.FormatType != NoteFormatType.Unstructured && noteType.IsMentionEnabled,
-                Attributes = note.GetPublicAttributesForEdit( currentPerson )
+                Attributes = note.GetPublicAttributesForEdit( currentPerson, enforceSecurity: true )
             };
         }
 
@@ -458,7 +459,7 @@ namespace Rock.Blocks.Core
                     IsPrivate = note.IsPrivateNote,
                     IsPinned = note.IsPinned,
                     CreatedDateTime = note.CreatedDateTime?.ToRockDateTimeOffset(),
-                    AttributeValues = note.GetPublicAttributeValuesForEdit( RequestContext.CurrentPerson )
+                    AttributeValues = note.GetPublicAttributeValuesForEdit( RequestContext.CurrentPerson, enforceSecurity: true )
                 };
 
                 return ActionOk( editBag );
@@ -593,7 +594,7 @@ namespace Rock.Blocks.Core
                 note.NoteUrl = this.GetCurrentPageUrl();
 
                 note.LoadAttributes( rockContext );
-                note.SetPublicAttributeValues( request.Bag.AttributeValues, RequestContext.CurrentPerson );
+                note.SetPublicAttributeValues( request.Bag.AttributeValues, RequestContext.CurrentPerson, enforceSecurity: true );
 
                 // If the note was loaded, we checked security. But if it was
                 // a new note, we were not able to check security until after

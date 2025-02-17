@@ -28,7 +28,8 @@ import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
  * @returns A string of code that can be used to import the given control file
  */
 export function getControlImportPath(fileName: string): string {
-    return `import ${upperCaseFirstCharacter(fileName)} from "@Obsidian/Controls/${fileName}";`;
+    const controlName = upperCaseFirstCharacter(fileName.replace("internal/", ""));
+    return `import ${controlName} from "@Obsidian/Controls/${fileName}";`;
 }
 
 /**
@@ -39,7 +40,8 @@ export function getControlImportPath(fileName: string): string {
  * @returns A string of code that can be used to import the given control file
  */
 export function getSfcControlImportPath(fileName: string): string {
-    return `import ${upperCaseFirstCharacter(fileName)} from "@Obsidian/Controls/${fileName}.obs";`;
+    const controlName = upperCaseFirstCharacter(fileName.replace("internal/", ""));
+    return `import ${controlName} from "@Obsidian/Controls/${fileName}.obs";`;
 }
 
 /**
@@ -79,15 +81,15 @@ export function convertComponentName(name: string | undefined | null): string {
  *
  * @param elementName The name of the element to use in the example code.
  * @param attributes The attribute names and values to append to the element name.
+ * @param allFalseByDefault If true then all attributes will be considered false by default, so they'll only show up as 'flag' props if they are set to true.
  *
  * @returns A string of valid HTML content for how to use the component.
  */
-export function buildExampleCode(elementName: string, attributes: Record<string, Ref<unknown> | unknown>): string {
+export function buildExampleCode(elementName: string, attributes: Record<string, Ref<unknown> | unknown>, allFalseByDefault: boolean = false): string {
     const attrs: string[] = [];
 
     for (const attr in attributes) {
         let value = attributes[attr];
-        console.log("attributes", attr, value);
 
         if (isRef(value)) {
             value = value.value;
@@ -100,14 +102,17 @@ export function buildExampleCode(elementName: string, attributes: Record<string,
             attrs.push(`:${attr}="${value}"`);
         }
         else if (typeof value === "boolean") {
-            attrs.push(`:${attr}="${value ? "true" : "false"}"`);
+            if (allFalseByDefault && value === true) {
+                attrs.push(attr);
+            }
+            else if (!allFalseByDefault) {
+                attrs.push(`:${attr}="${value ? "true" : "false"}"`);
+            }
         }
         else if (value === undefined || value === null) {
             /* Do nothing */
         }
     }
-
-    console.log(attrs);
 
     return `<${elementName} ${attrs.join(" ")} />`;
 }

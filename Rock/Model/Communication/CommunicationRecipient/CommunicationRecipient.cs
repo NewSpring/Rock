@@ -34,6 +34,7 @@ namespace Rock.Model
     [RockDomain( "Communication" )]
     [Table( "CommunicationRecipient" )]
     [DataContract]
+    [CodeGenerateRest]
     [Rock.SystemGuid.EntityTypeGuid( "3EC89B90-6692-451E-A48F-0D2ADEBA05BC")]
     public partial class CommunicationRecipient : Model<CommunicationRecipient>
     {
@@ -97,6 +98,15 @@ namespace Rock.Model
         /// </value>
         [DataMember]
         public DateTime? SendDateTime { get; set; }
+
+        /// <summary>
+        /// Gets or sets the datetime that communication was first attempted.
+        /// </summary>
+        /// <value>
+        /// The date time that communication was first attempted.
+        /// </value>
+        [DataMember]
+        public DateTime? FirstSendAttemptDateTime { get; set; }
 
         /// <summary>
         /// Gets or sets the datetime that communication was opened by recipient.

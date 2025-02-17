@@ -176,6 +176,7 @@ namespace Rock.Blocks.Core
             return new BinaryFileTypeBag
             {
                 IdKey = entity.IdKey,
+                AllowAnonymous = entity.AllowAnonymous,
                 CacheControlHeaderSettings = cacheability.ToCacheabilityBag(),
                 CacheToServerFileSystem = entity.CacheToServerFileSystem,
                 Description = entity.Description,
@@ -205,7 +206,7 @@ namespace Rock.Blocks.Core
 
             var bag = GetCommonEntityBag( entity );
 
-            bag.LoadAttributesAndValuesForPublicView( entity, RequestContext.CurrentPerson );
+            bag.LoadAttributesAndValuesForPublicView( entity, RequestContext.CurrentPerson, enforceSecurity: false );
 
             return bag;
         }
@@ -224,7 +225,7 @@ namespace Rock.Blocks.Core
 
             var bag = GetCommonEntityBag( entity );
 
-            bag.LoadAttributesAndValuesForPublicEdit( entity, RequestContext.CurrentPerson );
+            bag.LoadAttributesAndValuesForPublicEdit( entity, RequestContext.CurrentPerson, enforceSecurity: false );
             bag.BinaryFileTypeAttributes = GetAttributes( entity, rockContext ).ConvertAll( a => PublicAttributeHelper.GetPublicEditableAttributeViewModel( a ) );
 
             if ( entity.IsSystem )
@@ -249,6 +250,9 @@ namespace Rock.Blocks.Core
             {
                 return false;
             }
+
+            box.IfValidProperty( nameof( box.Entity.AllowAnonymous ),
+                () => entity.AllowAnonymous = box.Entity.AllowAnonymous );
 
             box.IfValidProperty( nameof( box.Entity.CacheControlHeaderSettings ),
                 () => entity.CacheControlHeaderSettings = box.Entity.CacheControlHeaderSettings.ToCacheability()?.ToJson() );
@@ -288,7 +292,7 @@ namespace Rock.Blocks.Core
                 {
                     entity.LoadAttributes( rockContext );
 
-                    entity.SetPublicAttributeValues( box.Entity.AttributeValues, RequestContext.CurrentPerson );
+                    entity.SetPublicAttributeValues( box.Entity.AttributeValues, RequestContext.CurrentPerson, enforceSecurity: false );
                 } );
 
             return true;

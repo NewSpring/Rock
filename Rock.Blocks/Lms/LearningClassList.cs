@@ -25,6 +25,7 @@ using Rock.Data;
 using Rock.Model;
 using Rock.Obsidian.UI;
 using Rock.Security;
+using Rock.Utility;
 using Rock.ViewModels.Blocks;
 using Rock.ViewModels.Blocks.Lms.LearningClassList;
 using Rock.Web.Cache;
@@ -152,15 +153,22 @@ namespace Rock.Blocks.Lms
             
             var programKey = PageParameter( PageParameterKey.LearningProgramId ) ?? string.Empty;
             var isNewProgram = programKey == "0";
-            var program = !isNewProgram && programKey.Length > 0 ? new LearningProgramService( RockContext ).Get( programKey ) : course?.LearningProgram;
+            var isOnDemandConfigurationMode = false;
+            if (!isNewProgram && programKey.Length > 0)
+            {
+                var configurationMode = new LearningProgramService( RockContext )
+                    .GetSelect( programKey, p => p.ConfigurationMode, !PageCache.Layout.Site.DisablePredictableIds );
+
+                isOnDemandConfigurationMode = configurationMode == Enums.Lms.ConfigurationMode.OnDemandLearning;
+            }
             
             // Only add the course column if the results aren't filtered to a course already.
-            options.ShowCourseColumn = course == null;
-            options.HasValidCourse = course != null;
+            options.HasValidCourse = course?.Id > 0;
+            options.ShowCourseColumn = !options.HasValidCourse;
 
             options.ShowLocationColumn = GetAttributeValue( AttributeKey.ShowLocationColumn ).AsBoolean();
             options.ShowScheduleColumn = GetAttributeValue( AttributeKey.ShowScheduleColumn ).AsBoolean();
-            options.ShowSemesterColumn = GetAttributeValue( AttributeKey.ShowSemesterColumn ).AsBoolean();
+            options.ShowSemesterColumn = GetAttributeValue( AttributeKey.ShowSemesterColumn ).AsBoolean() && !isOnDemandConfigurationMode;
 
             return options;
         }
@@ -199,9 +207,11 @@ namespace Rock.Blocks.Lms
         /// <inheritdoc/>
         protected override IQueryable<LearningClass> GetListQueryable( RockContext rockContext )
         {
+            // Eagerly load the LearningProgram in case it needs to be checked for VIEW authorization.
             var baseQuery = new LearningClassService( rockContext )
                 .Queryable()
                 .Include( c => c.LearningCourse )
+                .Include( c => c.LearningCourse.LearningProgram )
                 .Include( c => c.LearningSemester )
                 .Include( c => c.LearningParticipants )
                 .Include( c => c.LearningParticipants.Select( p => p.LearningActivities ));
@@ -215,10 +225,23 @@ namespace Rock.Blocks.Lms
             var courseId = RequestContext.PageParameterAsId( PageParameterKey.LearningCourseId );
             if ( courseId > 0 )
             {
+                // When there's a course defined include all classes.
                 baseQuery = baseQuery.Where( c => c.LearningCourseId == courseId );
             }
+            else
+            {
+                // When there's no course selected show only active classes.
+                baseQuery = baseQuery.Where( c => c.IsActive );
+            }
 
-            return baseQuery;
+            var currentPerson = GetCurrentPerson();
+            return baseQuery.ToList().Where( c => c.IsAuthorized( Authorization.VIEW, currentPerson ) ).AsQueryable();
+        }
+
+        /// <inheritdoc/>
+        protected override IQueryable<LearningClass> GetOrderedListQueryable( IQueryable<LearningClass> queryable, RockContext rockContext )
+        {
+            return queryable.OrderBy( c => c.LearningCourse.Name ).ThenBy( c => c.Name );
         }
 
         /// <inheritdoc/>
@@ -227,18 +250,23 @@ namespace Rock.Blocks.Lms
             var grid = new GridBuilder<LearningClass>()
                 .WithBlock( this )
                 .AddTextField( "idKey", a => a.IdKey )
-                .AddField( "facilitators", a => a.LearningParticipants.Where( p => p.GroupRole.IsLeader ).Select( p => p.Person.FullName ).JoinStrings( ", " ) )
-                .AddTextField( "category", a => a.LearningCourse.CategoryId.HasValue ? CategoryCache.Get( a.LearningCourse.CategoryId.Value )?.Name : null )
-                .AddTextField( "categoryColor", a => a.LearningCourse.CategoryId.HasValue ? CategoryCache.Get( a.LearningCourse.CategoryId.Value )?.HighlightColor : null )
+                .AddField( "facilitators", a => a.LearningParticipants
+                    .Where( p => p.GroupRole.IsLeader )
+                    .Select( p => p.Person.FullName )
+                    .OrderBy( p => p )
+                    .JoinStrings( ", " ) )
                 .AddField( "students", a => a.LearningParticipants.Count( p => !p.GroupRole?.IsLeader ?? false ) )
                 .AddTextField( "course", a => a.LearningCourse.Name )
                 .AddTextField( "learningCourseIdKey", a => a.LearningCourse.IdKey )
                 .AddTextField( "code", a => a.LearningCourse.CourseCode )
+                .AddTextField( "className", a => a.Name )
+                .AddField( "isActive", a => a.IsActive )
+                .AddField( "isPublic", a => a.IsPublic )
                 .AddField( "isSecurityDisabled", a => !a.IsAuthorized( Authorization.ADMINISTRATE, RequestContext.CurrentPerson ) );
 
             if ( GetAttributeValue( AttributeKey.ShowSemesterColumn ).AsBoolean() )
             {
-                grid.AddTextField( "semester", a => a.LearningSemester.Name );
+                grid.AddTextField( "semester", a => a.LearningSemester?.Name );
             }
 
             if ( GetAttributeValue( AttributeKey.ShowLocationColumn ).AsBoolean() )
@@ -257,6 +285,53 @@ namespace Rock.Blocks.Lms
         #endregion
 
         #region Block Actions
+        
+        /// <summary>
+        /// Copy the Class to create as a new Class
+        /// </summary>
+        [BlockAction]
+        public BlockActionResult Copy( string key )
+        {
+            if ( key.IsNullOrWhiteSpace() )
+            {
+                return ActionNotFound();
+            }
+
+            var learningClassService = new LearningClassService( RockContext );
+            var copiedEntity = learningClassService.Copy( key );
+            var currentPageParams = new Dictionary<string, string>
+            {
+                [PageParameterKey.LearningProgramId] = PageParameter( PageParameterKey.LearningProgramId )
+            };
+
+            var courseIdPageParameter = PageParameter( PageParameterKey.LearningCourseId );
+
+            // When creating the return url only include the LearningCourseId
+            // if it's present for the current page ( avoid an empty query string param).
+            if ( courseIdPageParameter.IsNotNullOrWhiteSpace() )
+            {
+                currentPageParams.Add( PageParameterKey.LearningCourseId, courseIdPageParameter );
+            }
+
+            var returnUrl = this.GetCurrentPageUrl( currentPageParams );
+
+            // After getting the returnUrl ensure that the detail page includes the LearningCourseIdKey.
+            if ( courseIdPageParameter.IsNullOrWhiteSpace() )
+            {
+                var courseIdKeyFromCopiedClass = IdHasher.Instance.GetHash( copiedEntity.LearningCourseId );
+                currentPageParams.AddOrReplace( PageParameterKey.LearningCourseId, courseIdKeyFromCopiedClass );
+            }
+
+            // Add the LearningClassId, autoEdit and returnUrl to the current page parameters.
+            var queryParams = new Dictionary<string, string>( currentPageParams )
+            {
+                ["LearningClassId"] = copiedEntity.IdKey,
+                ["autoEdit"] = true.ToString(),
+                ["returnUrl"] = returnUrl
+            };
+
+            return ActionContent( System.Net.HttpStatusCode.Created, this.GetLinkedPageUrl( AttributeKey.DetailPage, queryParams ) );
+        }
 
         /// <summary>
         /// Deletes the specified entity.
@@ -278,7 +353,7 @@ namespace Rock.Blocks.Lms
 
                 if ( !entity.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson ) )
                 {
-                    return ActionBadRequest( $"Not authorized to delete ${LearningClass.FriendlyTypeName}." );
+                    return ActionBadRequest( $"Not authorized to delete {LearningClass.FriendlyTypeName}." );
                 }
 
                 entityService.Delete( entity.Id );
@@ -296,10 +371,14 @@ namespace Rock.Blocks.Lms
         [BlockAction]
         public BlockActionResult HasStudentCompletions( string key )
         {
-            var entityService = new LearningClassService( RockContext );
-            var hasCompletions = entityService.GetSelect( key, c => c.LearningActivities.Any(), !PageCache.Layout.Site.DisablePredictableIds );
+            var classId = IdHasher.Instance.GetId( key );
+            var hasCompletions = new LearningParticipantService( RockContext )
+                .Queryable()
+                .Any( p =>
+                    p.LearningClassId == classId
+                    && p.LearningActivities.Any() );
 
-            return ActionOk(hasCompletions);
+            return ActionOk( hasCompletions );
         }
 
         #endregion

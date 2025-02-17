@@ -64,7 +64,6 @@ namespace Rock.Blocks.Lms
             public const string LearningProgramId = "LearningProgramId";
             public const string LearningCourseId = "LearningCourseId";
             public const string LearningClassId = "LearningClassId";
-            public const string CloneId = "CloneId";
             public const string AutoEdit = "autoEdit";
             public const string ReturnUrl = "returnUrl";
         }
@@ -228,7 +227,10 @@ namespace Rock.Blocks.Lms
 
             // Get the current persons info.
             var currentPerson = GetCurrentPerson();
-            var isClassFacilitator = new LearningParticipantService( RockContext ).GetFacilitatorId( currentPerson.Id, entity.LearningClassId ) > 0;
+            var facilitatorId = new LearningParticipantService( RockContext )
+                .GetFacilitatorId( currentPerson.Id, entity.LearningClassId );
+
+            var isClassFacilitator = facilitatorId.HasValue && facilitatorId.Value > 0;
             var currentPersonBag = new LearningActivityParticipantBag
             {
                 Name = currentPerson.FullName,
@@ -303,10 +305,25 @@ namespace Rock.Blocks.Lms
 
         private LearningActivity GetDefaultEntity()
         {
+            /*
+	            12/12/2024 - JC
+
+	            We must load the parent LearningClass for new records.
+                When the authorization is checked the LearningClass (the ParentAuthority)
+                will be responsible for approving/denying access (see LearningActvity.IsAuthorized).
+
+	            Reason: ParentAuthority (LearningClass) will be checked for authorization.
+            */
+            var learningClass = new LearningClassService( RockContext ).Get(
+                PageParameter( PageParameterKey.LearningClassId ),
+                !this.PageCache.Layout.Site.DisablePredictableIds );
+
             return new LearningActivity
             {
                 Id = 0,
                 Guid = Guid.Empty,
+                LearningClass = learningClass,
+                LearningClassId = learningClass.Id,
                 AvailabilityCriteria = Enums.Lms.AvailabilityCriteria.AfterPreviousCompleted,
                 DueDateCriteria = Enums.Lms.DueDateCriteria.NoDate
             };
@@ -322,7 +339,7 @@ namespace Rock.Blocks.Lms
 
             var bag = GetCommonEntityBag( entity );
 
-            bag.LoadAttributesAndValuesForPublicView( entity, RequestContext.CurrentPerson );
+            bag.LoadAttributesAndValuesForPublicView( entity, RequestContext.CurrentPerson, enforceSecurity: true );
 
             return bag;
         }
@@ -337,7 +354,7 @@ namespace Rock.Blocks.Lms
 
             var bag = GetCommonEntityBag( entity );
 
-            bag.LoadAttributesAndValuesForPublicEdit( entity, RequestContext.CurrentPerson );
+            bag.LoadAttributesAndValuesForPublicEdit( entity, RequestContext.CurrentPerson, enforceSecurity: true );
 
             return bag;
         }
@@ -416,7 +433,7 @@ namespace Rock.Blocks.Lms
                 {
                     entity.LoadAttributes( RockContext );
 
-                    entity.SetPublicAttributeValues( box.Bag.AttributeValues, RequestContext.CurrentPerson );
+                    entity.SetPublicAttributeValues( box.Bag.AttributeValues, RequestContext.CurrentPerson, enforceSecurity: true );
                 } );
 
             return true;
@@ -437,6 +454,7 @@ namespace Rock.Blocks.Lms
 
             return entityService.Queryable()
                 .AsNoTracking()
+                .Include( a => a.LearningClass )
                 .Include( a => a.CompletionWorkflowType )
                 .FirstOrDefault( a => a.Id == entityId );
         }
@@ -494,7 +512,7 @@ namespace Rock.Blocks.Lms
 
             if ( !entity.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson ) )
             {
-                error = ActionBadRequest( $"Not authorized to edit ${LearningActivity.FriendlyTypeName}." );
+                error = ActionBadRequest( $"Not authorized to edit {LearningActivity.FriendlyTypeName}." );
                 return false;
             }
 
@@ -508,7 +526,9 @@ namespace Rock.Blocks.Lms
 
             // Exclude the auto edit and return URL parameters from the page reference parameters (if any).
             var excludedParamKeys = new[] { PageParameterKey.AutoEdit.ToLower(), PageParameterKey.ReturnUrl.ToLower() };
-            var paramsToInclude = pageReference.Parameters.Where( kv => !excludedParamKeys.Contains( kv.Key.ToLower() ) ).ToDictionary( kv => kv.Key, kv => kv.Value );
+            var paramsToInclude = pageReference.Parameters
+                .Where( kv => !excludedParamKeys.Contains( kv.Key.ToLower() ) )
+                .ToDictionary( kv => kv.Key, kv => kv.Value );
 
             var entityName = entityKey.Length > 0 ? new Service<LearningActivity>( RockContext ).GetSelect( entityKey, p => p.Name ) : "New Activity";
             var breadCrumbPageRef = new PageReference( pageReference.PageId, pageReference.RouteId, paramsToInclude );

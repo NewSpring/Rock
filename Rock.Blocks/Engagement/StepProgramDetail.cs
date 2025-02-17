@@ -127,7 +127,7 @@ namespace Rock.Blocks.Engagement
         private RockContext _rockContext;
 
         /// <summary>
-        /// The step type, should be accessed using the <see cref="GetStepType"/> since performs a null check on <see cref="_stepType"/>
+        /// The step type, should be accessed using the <see cref="GetStepProgram"/> since performs a null check on <see cref="_stepProgram"/>
         /// before assigning a value when possible.
         /// </summary>
         private StepProgram _stepProgram;
@@ -303,7 +303,7 @@ namespace Rock.Blocks.Engagement
 
             var bag = GetCommonEntityBag( entity );
 
-            bag.LoadAttributesAndValuesForPublicView( entity, RequestContext.CurrentPerson );
+            bag.LoadAttributesAndValuesForPublicView( entity, RequestContext.CurrentPerson, enforceSecurity: true );
 
             var defaultDateRange = GetAttributeValue( AttributeKey.SlidingDateRange );
 
@@ -345,7 +345,7 @@ namespace Rock.Blocks.Engagement
             var bag = GetCommonEntityBag( entity );
             var rockContext = GetRockContext();
 
-            bag.LoadAttributesAndValuesForPublicEdit( entity, RequestContext.CurrentPerson );
+            bag.LoadAttributesAndValuesForPublicEdit( entity, RequestContext.CurrentPerson, enforceSecurity: true );
 
             bag.StepProgramAttributes = GetStepTypeAttributes( rockContext, entity.Id.ToString() ).ConvertAll( e => PublicAttributeHelper.GetPublicEditableAttributeViewModel( e ) );
 
@@ -469,7 +469,7 @@ namespace Rock.Blocks.Engagement
                 {
                     entity.LoadAttributes( rockContext );
 
-                    entity.SetPublicAttributeValues( box.Entity.AttributeValues, RequestContext.CurrentPerson );
+                    entity.SetPublicAttributeValues( box.Entity.AttributeValues, RequestContext.CurrentPerson, enforceSecurity: true );
                 } );
 
             return true;
@@ -846,15 +846,19 @@ namespace Rock.Blocks.Engagement
         {
             // Set the visibility of the Activity Summary chart.
             var showActivitySummary = GetAttributeValue( AttributeKey.ShowChart ).AsBoolean( true );
-            var stepTypeId = GetStepProgramId();
+            var stepProgramId = GetStepProgramId();
 
             if ( showActivitySummary )
             {
                 // If the Step Type does not have any activity, hide the Activity Summary.
                 var dataContext = GetRockContext();
                 var stepService = new StepService( dataContext );
-                var stepsQuery = stepService.Queryable().AsNoTracking()
-                                    .Where( x => x.StepTypeId == stepTypeId );
+                var stepsQuery = stepService.Queryable()
+                    .AsNoTracking()
+                    .Where( x => x.StepType.StepProgramId == stepProgramId
+                        && x.StepType.IsActive
+                        && x.CompletedDateKey.HasValue );
+
                 showActivitySummary = stepsQuery.Any();
             }
 

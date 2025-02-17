@@ -287,11 +287,14 @@ namespace RockWeb.Blocks.Reporting
 
             lMapStyling.Text = string.Format( mapStylingFormat, GetAttributeValue( "MapHeight" ) );
 
+            string mapId = string.Empty;
+
             DefinedValueCache dvcMapStyle = DefinedValueCache.Get( GetAttributeValue( "MapStyle" ).AsGuid() );
             // add styling to map
             if ( dvcMapStyle != null )
             {
                 this.StyleCode = dvcMapStyle.GetAttributeValue( "DynamicMapStyle" );
+                mapId = dvcMapStyle.GetAttributeValue( "core_GoogleMapId" );
                 if ( this.StyleCode.IsNullOrWhiteSpace() )
                 {
                     this.StyleCode = "[]";
@@ -301,6 +304,8 @@ namespace RockWeb.Blocks.Reporting
             {
                 this.StyleCode = "[]";
             }
+
+            this.MapId = mapId;
 
             var polygonColorList = GetAttributeValue( "PolygonColors" ).Split( new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries ).ToList();
             string polygonColors = polygonColorList.AsDelimited( "," );
@@ -480,6 +485,14 @@ namespace RockWeb.Blocks.Reporting
         /// The style code.
         /// </value>
         public string StyleCode { get; set; }
+
+        /// <summary>
+        /// Gets or sets the Map Id.
+        /// </summary>
+        /// <value>
+        /// The Map Id.
+        /// </value>
+        public string MapId { get; set; }
 
         /// <summary>
         /// Shows the settings.

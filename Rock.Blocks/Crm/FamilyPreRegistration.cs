@@ -23,18 +23,14 @@ using System.Linq;
 using Microsoft.Extensions.Logging;
 
 using Rock.Attribute;
-using Rock.ClientService.Core.Campus;
-using Rock.ClientService.Core.Campus.Options;
 using Rock.Communication;
 using Rock.Data;
 using Rock.Enums.Blocks.Crm.FamilyPreRegistration;
-using Rock.Logging;
 using Rock.Model;
 using Rock.Security;
 using Rock.ViewModels.Blocks.Crm.FamilyPreRegistration;
 using Rock.ViewModels.Controls;
 using Rock.ViewModels.Utility;
-using Rock.Web;
 using Rock.Web.Cache;
 using Rock.Web.UI.Controls;
 
@@ -671,6 +667,8 @@ namespace Rock.Blocks.Crm
         {
             public static string CampusGuid = "CampusGuid";
             public static string CampusId = "CampusId";
+            public static string Campus = "Campus";
+            public static string CampusCode = "CampusCode";
         }
 
         #endregion Attribute Keys, Categories and Values
@@ -2000,8 +1998,8 @@ namespace Rock.Blocks.Crm
 
                 box.FamilyGuid = family.Guid;
                 var familyAttributes = GetFamilyAttributes( currentPerson );
-                box.FamilyAttributes = family.GetPublicAttributesForEdit( currentPerson, attributeFilter: f => familyAttributes.Any( a => a.Guid == f.Guid ) );
-                box.FamilyAttributeValues = family.GetPublicAttributeValuesForEdit( currentPerson, attributeFilter: f => familyAttributes.Any( a => a.Guid == f.Guid ) );
+                box.FamilyAttributes = family.GetPublicAttributesForEdit( currentPerson, enforceSecurity: false, attributeFilter: f => familyAttributes.Any( a => a.Guid == f.Guid ) );
+                box.FamilyAttributeValues = family.GetPublicAttributeValuesForEdit( currentPerson, enforceSecurity: false, attributeFilter: f => familyAttributes.Any( a => a.Guid == f.Guid ) );
 
                 var mockChild = new Person
                 {
@@ -2056,6 +2054,8 @@ namespace Rock.Blocks.Crm
         {
             var campusGuid = PageParameter( PageParameterKey.CampusGuid ).AsGuidOrNull();
             var campusId = PageParameter( PageParameterKey.CampusId ).AsIntegerOrNull();
+            var campusIdKey = PageParameter( PageParameterKey.Campus );
+            var campusCode = PageParameter( PageParameterKey.CampusCode );
 
             CampusCache initialCampus = null;
 
@@ -2063,9 +2063,19 @@ namespace Rock.Blocks.Crm
             {
                 initialCampus = CampusCache.Get( campusGuid.Value );
             }
-            else if ( campusId.HasValue )
+            else if ( campusId.HasValue && !PageCache.Layout.Site.DisablePredictableIds )
             {
                 initialCampus = CampusCache.Get( campusId.Value );
+            }
+            else if ( !string.IsNullOrWhiteSpace( campusIdKey ) )
+            {
+                initialCampus = CampusCache.Get( campusIdKey, !PageCache.Layout.Site.DisablePredictableIds );
+            }
+            else if ( !string.IsNullOrWhiteSpace( campusCode ) )
+            {
+                var campuses = CampusCache.All( false );
+
+                initialCampus = campuses.Where( c => c.ShortCode.ToUpper() == campusCode.ToUpper() ).FirstOrDefault();
             }
 
             if ( initialCampus == null && this.DefaultCampusGuid != Guid.Empty )
@@ -2565,8 +2575,8 @@ namespace Rock.Blocks.Crm
 
             var bag = new FamilyPreRegistrationPersonBag
             {
-                Attributes = person.GetPublicAttributesForEdit( currentPerson, attributeFilter: a1 => personAttributes.Any( a => a.Guid == a1.Guid ) ),
-                AttributeValues = person.GetPublicAttributeValuesForEdit( currentPerson, attributeFilter: a1 => personAttributes.Any( a => a.Guid == a1.Guid ) ),
+                Attributes = person.GetPublicAttributesForEdit( currentPerson, enforceSecurity: false, attributeFilter: a1 => personAttributes.Any( a => a.Guid == a1.Guid ) ),
+                AttributeValues = person.GetPublicAttributeValuesForEdit( currentPerson, enforceSecurity: false, attributeFilter: a1 => personAttributes.Any( a => a.Guid == a1.Guid ) ),
                 BirthDate = person.BirthDate != null ?
                     new BirthdayPickerBag
                     {

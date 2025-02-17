@@ -64,6 +64,110 @@
     <Compile Include="..\Rock.Version\AssemblySharedInfo.cs">
       <Link>AssemblySharedInfo.cs</Link>
     </Compile>
+    <Compile Include="Migrations\202411211742013_AddAdaptiveMessageCategory.cs" />
+    <Compile Include="Migrations\202411211742013_AddAdaptiveMessageCategory.Designer.cs">
+      <DependentUpon>202411211742013_AddAdaptiveMessageCategory.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Migrations\202412050843482_UpdateAnalyticsFinancialTransaction.cs" />
+    <Compile Include="Migrations\202412050843482_UpdateAnalyticsFinancialTransaction.Designer.cs">
+      <DependentUpon>202412050843482_UpdateAnalyticsFinancialTransaction.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Migrations\202412051949353_Rollup_20241205.cs" />
+    <Compile Include="Migrations\202412051949353_Rollup_20241205.designer.cs">
+      <DependentUpon>202412051949353_Rollup_20241205.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Migrations\202412052331428_CodeGenerated_20241205.cs" />
+    <Compile Include="Migrations\202412052331428_CodeGenerated_20241205.designer.cs">
+      <DependentUpon>202412052331428_CodeGenerated_20241205.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Migrations\202412111235268_RemoveGroupTypeLocationTypeIndexes.cs" />
+    <Compile Include="Migrations\202412111235268_RemoveGroupTypeLocationTypeIndexes.Designer.cs">
+      <DependentUpon>202412111235268_RemoveGroupTypeLocationTypeIndexes.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Migrations\202412172125380_AddRestViewSupport.cs" />
+    <Compile Include="Migrations\202412172125380_AddRestViewSupport.Designer.cs">
+      <DependentUpon>202412172125380_AddRestViewSupport.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Migrations\202412172356239_LearningHubImage.cs" />
+    <Compile Include="Migrations\202412172356239_LearningHubImage.Designer.cs">
+      <DependentUpon>202412172356239_LearningHubImage.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Migrations\202412181755297_Rollup_20241218.cs" />
+    <Compile Include="Migrations\202412181755297_Rollup_20241218.designer.cs">
+      <DependentUpon>202412181755297_Rollup_20241218.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Migrations\202412182043229_CodeGenerated_20241218.cs" />
+    <Compile Include="Migrations\202412182043229_CodeGenerated_20241218.designer.cs">
+      <DependentUpon>202412182043229_CodeGenerated_20241218.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Migrations\202412191302059_CommunicationRecipient_FirstSendAttemptDateTime.cs" />
+    <Compile Include="Migrations\202412191302059_CommunicationRecipient_FirstSendAttemptDateTime.Designer.cs">
+      <DependentUpon>202412191302059_CommunicationRecipient_FirstSendAttemptDateTime.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Migrations\202412221138199_AddStartAndEndDateToAdaptiveModule.cs" />
+    <Compile Include="Migrations\202412221138199_AddStartAndEndDateToAdaptiveModule.Designer.cs">
+      <DependentUpon>202412221138199_AddStartAndEndDateToAdaptiveModule.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Migrations\202501031653023_ModerationFlagsDataType.cs" />
+    <Compile Include="Migrations\202501031653023_ModerationFlagsDataType.Designer.cs">
+      <DependentUpon>202501031653023_ModerationFlagsDataType.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Migrations\202501061756492_AddMissingConstraintsForRestViewSupport.cs" />
+    <Compile Include="Migrations\202501061756492_AddMissingConstraintsForRestViewSupport.Designer.cs">
+      <DependentUpon>202501061756492_AddMissingConstraintsForRestViewSupport.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Migrations\202501070941039_AddPrimaryAliasGuidToPerson.cs" />
+    <Compile Include="Migrations\202501070941039_AddPrimaryAliasGuidToPerson.Designer.cs">
+      <DependentUpon>202501070941039_AddPrimaryAliasGuidToPerson.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Migrations\202501081726013_Rollup_20250108.cs" />
+    <Compile Include="Migrations\202501081726013_Rollup_20250108.designer.cs">
+      <DependentUpon>202501081726013_Rollup_20250108.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Migrations\202501081813592_CodeGenerated_20250108.cs" />
+    <Compile Include="Migrations\202501081813592_CodeGenerated_20250108.designer.cs">
+      <DependentUpon>202501081813592_CodeGenerated_20250108.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Migrations\202501132050349_AddMobileChatBackend.cs" />
+    <Compile Include="Migrations\202501132050349_AddMobileChatBackend.Designer.cs">
+      <DependentUpon>202501132050349_AddMobileChatBackend.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Migrations\202501152023534_AddNewRestV2CrudControllers.cs" />
+    <Compile Include="Migrations\202501152023534_AddNewRestV2CrudControllers.Designer.cs">
+      <DependentUpon>202501152023534_AddNewRestV2CrudControllers.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Migrations\202501152224140_ImprovePeerNetworkRelationshipTrends.cs" />
+    <Compile Include="Migrations\202501152224140_ImprovePeerNetworkRelationshipTrends.Designer.cs">
+      <DependentUpon>202501152224140_ImprovePeerNetworkRelationshipTrends.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Migrations\202501171949509_FixAdaptiveMessagesAttributeKey.cs" />
+    <Compile Include="Migrations\202501171949509_FixAdaptiveMessagesAttributeKey.designer.cs">
+      <DependentUpon>202501171949509_FixAdaptiveMessagesAttributeKey.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Migrations\202501211620250_TvApplicationPages.cs" />
+    <Compile Include="Migrations\202501211620250_TvApplicationPages.Designer.cs">
+      <DependentUpon>202501211620250_TvApplicationPages.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Migrations\202501221847578_Rollup_20250122.cs" />
+    <Compile Include="Migrations\202501221847578_Rollup_20250122.designer.cs">
+      <DependentUpon>202501221847578_Rollup_20250122.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Migrations\202501221932491_CodeGenerated_20250122.cs" />
+    <Compile Include="Migrations\202501221932491_CodeGenerated_20250122.designer.cs">
+      <DependentUpon>202501221932491_CodeGenerated_20250122.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Migrations\Version 16.0\Version 1.16.7\202411131526017_AddIsConcurrentCheckInPreventedToGroupType.cs" />
+    <Compile Include="Migrations\Version 16.0\Version 1.16.7\202411131526017_AddIsConcurrentCheckInPreventedToGroupType.Designer.cs">
+      <DependentUpon>202411131526017_AddIsConcurrentCheckInPreventedToGroupType.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Migrations\Version 16.0\Version 1.16.7\202411121524262_FixRateLimitPeriodDurationSecondsColumnName.cs" />
+    <Compile Include="Migrations\Version 16.0\Version 1.16.7\202411121524262_FixRateLimitPeriodDurationSecondsColumnName.Designer.cs">
+      <DependentUpon>202411121524262_FixRateLimitPeriodDurationSecondsColumnName.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Migrations\Version 16.0\Version 1.16.7\202411062044462_AddDefaultNextGenCheckInLabels.cs" />
+    <Compile Include="Migrations\Version 16.0\Version 1.16.7\202411062044462_AddDefaultNextGenCheckInLabels.Designer.cs">
+      <DependentUpon>202411062044462_AddDefaultNextGenCheckInLabels.cs</DependentUpon>
+    </Compile>
     <Compile Include="Migrations\Version 16.0\Version 1.16.7\202410311824406_CodeGenerated_20241031.cs" />
     <Compile Include="Migrations\Version 16.0\Version 1.16.7\202410311824406_CodeGenerated_20241031.designer.cs">
       <DependentUpon>202410311824406_CodeGenerated_20241031.cs</DependentUpon>
@@ -2301,11 +2405,105 @@
     <Compile Include="Migrations\Version 13.0\Version 1.13.0\202112152202412_GivingAchievements.Designer.cs">
       <DependentUpon>202112152202412_GivingAchievements.cs</DependentUpon>
     </Compile>
+    <Compile Include="Migrations\Version 16.0\Version 1.16.7\202411141824585_RemoveLegacyAppleTvPages.cs" />
+    <Compile Include="Migrations\Version 16.0\Version 1.16.7\202411141824585_RemoveLegacyAppleTvPages.Designer.cs">
+      <DependentUpon>202411141824585_RemoveLegacyAppleTvPages.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Migrations\Version 16.0\Version 1.16.7\202411142255543_AddAgeRestrictionToCheckInConfigurationGroupType.cs" />
+    <Compile Include="Migrations\Version 16.0\Version 1.16.7\202411142255543_AddAgeRestrictionToCheckInConfigurationGroupType.Designer.cs">
+      <DependentUpon>202411142255543_AddAgeRestrictionToCheckInConfigurationGroupType.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Migrations\Version 16.0\Version 1.16.7\202411182318196_UpdateNextGenCheckInDefaultSecurity.cs" />
+    <Compile Include="Migrations\Version 16.0\Version 1.16.7\202411182318196_UpdateNextGenCheckInDefaultSecurity.Designer.cs">
+      <DependentUpon>202411182318196_UpdateNextGenCheckInDefaultSecurity.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Migrations\Version 16.0\Version 1.16.7\202411191728290_RestoreChildAndParentKnownRelationships.cs" />
+    <Compile Include="Migrations\Version 16.0\Version 1.16.7\202411191728290_RestoreChildAndParentKnownRelationships.Designer.cs">
+      <DependentUpon>202411191728290_RestoreChildAndParentKnownRelationships.cs</DependentUpon>
+    </Compile>
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="RockStartup\DataMigrationsStartup.cs" />
     <Compile Include="SqlServerTypes\Loader.cs" />
   </ItemGroup>
   <ItemGroup>
+    <EmbeddedResource Include="Migrations\202411211742013_AddAdaptiveMessageCategory.resx">
+      <DependentUpon>202411211742013_AddAdaptiveMessageCategory.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Migrations\202412050843482_UpdateAnalyticsFinancialTransaction.resx">
+      <DependentUpon>202412050843482_UpdateAnalyticsFinancialTransaction.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Migrations\202412051949353_Rollup_20241205.resx">
+      <DependentUpon>202412051949353_Rollup_20241205.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Migrations\202412052331428_CodeGenerated_20241205.resx">
+      <DependentUpon>202412052331428_CodeGenerated_20241205.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Migrations\202412111235268_RemoveGroupTypeLocationTypeIndexes.resx">
+      <DependentUpon>202412111235268_RemoveGroupTypeLocationTypeIndexes.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Migrations\202412172125380_AddRestViewSupport.resx">
+      <DependentUpon>202412172125380_AddRestViewSupport.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Migrations\202412172356239_LearningHubImage.resx">
+      <DependentUpon>202412172356239_LearningHubImage.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Migrations\202412181755297_Rollup_20241218.resx">
+      <DependentUpon>202412181755297_Rollup_20241218.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Migrations\202412182043229_CodeGenerated_20241218.resx">
+      <DependentUpon>202412182043229_CodeGenerated_20241218.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Migrations\202412191302059_CommunicationRecipient_FirstSendAttemptDateTime.resx">
+      <DependentUpon>202412191302059_CommunicationRecipient_FirstSendAttemptDateTime.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Migrations\202412221138199_AddStartAndEndDateToAdaptiveModule.resx">
+      <DependentUpon>202412221138199_AddStartAndEndDateToAdaptiveModule.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Migrations\202501031653023_ModerationFlagsDataType.resx">
+      <DependentUpon>202501031653023_ModerationFlagsDataType.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Migrations\202501061756492_AddMissingConstraintsForRestViewSupport.resx">
+      <DependentUpon>202501061756492_AddMissingConstraintsForRestViewSupport.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Migrations\202501070941039_AddPrimaryAliasGuidToPerson.resx">
+      <DependentUpon>202501070941039_AddPrimaryAliasGuidToPerson.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Migrations\202501081726013_Rollup_20250108.resx">
+      <DependentUpon>202501081726013_Rollup_20250108.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Migrations\202501081813592_CodeGenerated_20250108.resx">
+      <DependentUpon>202501081813592_CodeGenerated_20250108.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Migrations\202501132050349_AddMobileChatBackend.resx">
+      <DependentUpon>202501132050349_AddMobileChatBackend.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Migrations\202501152023534_AddNewRestV2CrudControllers.resx">
+      <DependentUpon>202501152023534_AddNewRestV2CrudControllers.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Migrations\202501152224140_ImprovePeerNetworkRelationshipTrends.resx">
+      <DependentUpon>202501152224140_ImprovePeerNetworkRelationshipTrends.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Migrations\202501171949509_FixAdaptiveMessagesAttributeKey.resx">
+      <DependentUpon>202501171949509_FixAdaptiveMessagesAttributeKey.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Migrations\202501211620250_TvApplicationPages.resx">
+      <DependentUpon>202501211620250_TvApplicationPages.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Migrations\202501221847578_Rollup_20250122.resx">
+      <DependentUpon>202501221847578_Rollup_20250122.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Migrations\202501221932491_CodeGenerated_20250122.resx">
+      <DependentUpon>202501221932491_CodeGenerated_20250122.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Migrations\Version 16.0\Version 1.16.7\202411131526017_AddIsConcurrentCheckInPreventedToGroupType.resx">
+      <DependentUpon>202411131526017_AddIsConcurrentCheckInPreventedToGroupType.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Migrations\Version 16.0\Version 1.16.7\202411121524262_FixRateLimitPeriodDurationSecondsColumnName.resx">
+      <DependentUpon>202411121524262_FixRateLimitPeriodDurationSecondsColumnName.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Migrations\Version 16.0\Version 1.16.7\202411062044462_AddDefaultNextGenCheckInLabels.resx">
+      <DependentUpon>202411062044462_AddDefaultNextGenCheckInLabels.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="Migrations\Version 16.0\Version 1.16.7\202410311824406_CodeGenerated_20241031.resx">
       <DependentUpon>202410311824406_CodeGenerated_20241031.cs</DependentUpon>
     </EmbeddedResource>
@@ -3983,6 +4181,18 @@
     <EmbeddedResource Include="Migrations\Version 13.0\Version 1.13.0\202112152202412_GivingAchievements.resx">
       <DependentUpon>202112152202412_GivingAchievements.cs</DependentUpon>
     </EmbeddedResource>
+    <EmbeddedResource Include="Migrations\Version 16.0\Version 1.16.7\202411141824585_RemoveLegacyAppleTvPages.resx">
+      <DependentUpon>202411141824585_RemoveLegacyAppleTvPages.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Migrations\Version 16.0\Version 1.16.7\202411142255543_AddAgeRestrictionToCheckInConfigurationGroupType.resx">
+      <DependentUpon>202411142255543_AddAgeRestrictionToCheckInConfigurationGroupType.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Migrations\Version 16.0\Version 1.16.7\202411182318196_UpdateNextGenCheckInDefaultSecurity.resx">
+      <DependentUpon>202411182318196_UpdateNextGenCheckInDefaultSecurity.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Migrations\Version 16.0\Version 1.16.7\202411191728290_RestoreChildAndParentKnownRelationships.resx">
+      <DependentUpon>202411191728290_RestoreChildAndParentKnownRelationships.cs</DependentUpon>
+    </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
     <Content Include="..\packages\Microsoft.SqlServer.Types.11.0.2\nativeBinaries\x64\msvcr100.dll">
@@ -4006,6 +4216,7 @@
     <None Include="Migrations\Version 16.0\Version 1.16.7\202410101546296_AddDefaultCheckInAdvertisement_Image.jpg">
       <DependentUpon>202410101546296_AddDefaultCheckInAdvertisement.cs</DependentUpon>
     </None>
+    <Content Include="Migrations\202501152224140_ImprovePeerNetworkRelationshipTrends_spPeerNetwork_UpdateFollowing.sql" />
     <Content Include="Migrations\Version 16.0\Version 1.16.7\202410231736231_PledgeAnalyticsAndPledgeEntryEnhancements_spFinance_PledgeAnalyticsQuery.sql" />
     <Content Include="Migrations\Version 16.0\Version 1.16.7\202410231736231_PledgeAnalyticsAndPledgeEntryEnhancements_spFinance_PledgeAnalyticsQueryWithMultipleAccountIds.sql" />
     <Content Include="Migrations\Version 15.0\Version 1.15.0\202302092033593_Rollup_20230209_UpdateRemindersSystemCommunication.sql">
@@ -4200,6 +4411,11 @@
     <Content Include="Migrations\Version 14.0\Version 1.14.1\202301062147044_Rollup_20230106_UpdateAnalyticsStoredProcedure_spCrm_FamilyAnalyticsUpdateVisitDates.sql">
       <DependentUpon>202301062147044_Rollup_20230106.cs</DependentUpon>
     </Content>
+    <Content Include="Migrations\Version 16.0\Version 1.16.7\202411062044462_AddDefaultNextGenCheckInLabels_ChildLabel.png" />
+    <Content Include="Migrations\Version 16.0\Version 1.16.7\202411062044462_AddDefaultNextGenCheckInLabels_NameTag.png" />
+    <Content Include="Migrations\Version 16.0\Version 1.16.7\202411062044462_AddDefaultNextGenCheckInLabels_NoteLabel.png" />
+    <Content Include="Migrations\Version 16.0\Version 1.16.7\202411062044462_AddDefaultNextGenCheckInLabels_ParentLabel.png" />
+    <None Include="Resources\lms_header_min.png" />
     <Content Include="SqlServerTypes\readme.htm" />
     <None Include="Migrations\Version 14.0\Version 1.14.1\202211072054502_UpdateValueAsAttributeValueColumns_spCrm_PersonMerge.sql">
       <DependentUpon>202211072054502_UpdateValueAsAttributeValueColumns.cs</DependentUpon>
@@ -4222,6 +4438,10 @@
     <None Include="Migrations\Version 12.0\Version 1.12.4\202105280103566_StatementGenerator_RockDefaultTemplateReportSettings.json">
       <DependentUpon>202105280103566_StatementGenerator.cs</DependentUpon>
     </None>
+    <None Include="Migrations\Version 16.0\Version 1.16.7\202411062044462_AddDefaultNextGenCheckInLabels_ChildLabel.json" />
+    <None Include="Migrations\Version 16.0\Version 1.16.7\202411062044462_AddDefaultNextGenCheckInLabels_NameTag.json" />
+    <None Include="Migrations\Version 16.0\Version 1.16.7\202411062044462_AddDefaultNextGenCheckInLabels_NoteLabel.json" />
+    <None Include="Migrations\Version 16.0\Version 1.16.7\202411062044462_AddDefaultNextGenCheckInLabels_ParentLabel.json" />
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
@@ -4249,9 +4469,7 @@
       <Name>Rock</Name>
     </ProjectReference>
   </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Resources\" />
-  </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
     <PreBuildEvent>

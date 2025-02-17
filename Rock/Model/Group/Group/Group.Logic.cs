@@ -95,6 +95,106 @@ namespace Rock.Model
         [Obsolete( "Does nothing. No longer needed. We replaced this with a private property under the SaveHook class for this entity.", true )]
         public virtual History.HistoryChangeList HistoryChangeList { get; set; }
 
+        /// <summary>
+        /// Gets whether this group is overriding its parent group type's peer network configuration in any way.
+        /// </summary>
+        /// <remarks>
+        ///     <para>
+        ///         <strong>This is an internal API</strong> that supports the Rock
+        ///         infrastructure and not subject to the same compatibility standards
+        ///         as public APIs. It may be changed or removed without notice in any
+        ///         release and should therefore not be directly used in any plug-ins.
+        ///     </para>
+        /// </remarks>
+        [RockInternal( "1.17.0" )]
+        public bool IsOverridingGroupTypePeerNetworkConfiguration
+        {
+            get
+            {
+                if ( this.GroupType?.IsPeerNetworkEnabled != true )
+                {
+                    return false;
+                }
+
+                if ( this.RelationshipGrowthEnabledOverride.HasValue
+                    && this.RelationshipGrowthEnabledOverride.Value != this.GroupType.RelationshipGrowthEnabled )
+                {
+                    return true;
+                }
+
+                if ( this.RelationshipStrengthOverride.HasValue
+                    && this.RelationshipStrengthOverride.Value != this.GroupType.RelationshipStrength )
+                {
+                    return true;
+                }
+
+                if ( this.LeaderToLeaderRelationshipMultiplierOverride.HasValue
+                    && this.LeaderToLeaderRelationshipMultiplierOverride.Value != this.GroupType.LeaderToLeaderRelationshipMultiplier )
+                {
+                    return true;
+                }
+
+                if ( this.LeaderToNonLeaderRelationshipMultiplierOverride.HasValue
+                    && this.LeaderToNonLeaderRelationshipMultiplierOverride.Value != this.GroupType.LeaderToNonLeaderRelationshipMultiplier )
+                {
+                    return true;
+                }
+
+                if ( this.NonLeaderToLeaderRelationshipMultiplierOverride.HasValue
+                    && this.NonLeaderToLeaderRelationshipMultiplierOverride.Value != this.GroupType.NonLeaderToLeaderRelationshipMultiplier )
+                {
+                    return true;
+                }
+
+                if ( this.NonLeaderToNonLeaderRelationshipMultiplierOverride.HasValue
+                    && this.NonLeaderToNonLeaderRelationshipMultiplierOverride.Value != this.GroupType.NonLeaderToNonLeaderRelationshipMultiplier )
+                {
+                    return true;
+                }
+
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Gets whether any relationship multipliers have been customized for this group or its parent group type.
+        /// </summary>
+        /// <remarks>
+        ///     <para>
+        ///         <strong>This is an internal API</strong> that supports the Rock
+        ///         infrastructure and not subject to the same compatibility standards
+        ///         as public APIs. It may be changed or removed without notice in any
+        ///         release and should therefore not be directly used in any plug-ins.
+        ///     </para>
+        /// </remarks>
+        [RockInternal( "1.17.0" )]
+        public bool AreAnyRelationshipMultipliersCustomized
+        {
+            get
+            {
+                // First, if all of this group's direct values are 100%, treat this as not customized.
+                if ( LeaderToLeaderRelationshipMultiplierOverride.GetValueOrDefault() == 1m
+                    && LeaderToNonLeaderRelationshipMultiplierOverride.GetValueOrDefault() == 1m
+                    && NonLeaderToLeaderRelationshipMultiplierOverride.GetValueOrDefault() == 1m
+                    && NonLeaderToNonLeaderRelationshipMultiplierOverride.GetValueOrDefault() == 1m )
+                {
+                    return false;
+                }
+
+                // Next, check if any of the parent group type's values are customized (not 100%).
+                if ( GroupType?.AreAnyRelationshipMultipliersCustomized == true )
+                {
+                    return true;
+                }
+
+                // Last, check if any of this group's direct values are defined.
+                return LeaderToLeaderRelationshipMultiplierOverride != null
+                    || LeaderToNonLeaderRelationshipMultiplierOverride != null
+                    || NonLeaderToLeaderRelationshipMultiplierOverride != null
+                    || NonLeaderToNonLeaderRelationshipMultiplierOverride != null;
+            }
+        }
+
         #endregion Properties
 
         #region Indexing Methods
@@ -540,6 +640,71 @@ namespace Rock.Model
 
             // Fall back to notification types defined on the group type.
             return this.GroupType?.ScheduleCoordinatorNotificationTypes?.HasFlag( notificationType ) == true;
+        }
+
+        /// <summary>
+        /// Gets whether chat is enabled for this group. If <see cref="IsChatEnabledOverride"/> is set to
+        /// <see langword="null"/>, then the value from <see cref="GroupType.IsChatEnabledForAllGroups"/> will be used.
+        /// </summary>
+        /// <returns>Whether chat is enabled for this group.</returns>
+        internal bool GetIsChatEnabled()
+        {
+            if ( this.IsChatEnabledOverride.HasValue )
+            {
+                return this.IsChatEnabledOverride.Value;
+            }
+
+            return this.GroupType?.IsChatEnabledForAllGroups ?? false;
+        }
+
+        /// <summary>
+        /// Gets whether individuals are allowed to leave this chat channel. Otherwise, they will only be allowed to
+        /// mute the channel. If <see cref="IsLeavingChatChannelAllowedOverride"/> is set to <see langword="null"/>,
+        /// then the value of <see cref="GroupType.IsLeavingChatChannelAllowed"/> will be used.
+        /// </summary>
+        /// <returns>Whether individuals are allowed to leave this chat channel.</returns>
+        internal bool GetIsLeavingChatChannelAllowed()
+        {
+            if ( this.IsLeavingChatChannelAllowedOverride.HasValue )
+            {
+                return this.IsLeavingChatChannelAllowedOverride.Value;
+            }
+
+            return this.GroupType?.IsLeavingChatChannelAllowed ?? false;
+        }
+
+        /// <summary>
+        /// Gets whether this chat channel is public and visible to everyone when performing a search. This also implies
+        /// that the channel may be joined by any person via the chat application. If
+        /// <see cref="IsChatChannelPublicOverride"/> is set to <see langword="null"/>, then the value of
+        /// <see cref="GroupType.IsChatChannelPublic"/> will be used.
+        /// </summary>
+        /// <returns>Whether this chat channel is public, and may be joined by any person.</returns>
+        internal bool GetIsChatChannelPublic()
+        {
+            if ( this.IsChatChannelPublicOverride.HasValue )
+            {
+                return this.IsChatChannelPublicOverride.Value;
+            }
+
+            return this.GroupType?.IsChatChannelPublic ?? false;
+        }
+
+        /// <summary>
+        /// Gets whether this chat channel is always shown in the channel list even if the person has not joined
+        /// the channel. This also implies that the channel may be joined by any person via the chat application. If
+        /// <see cref="IsChatChannelAlwaysShownOverride"/> is set to <see langword="null"/>, then the value of
+        /// <see cref="GroupType.IsChatChannelAlwaysShown"/> will be used.
+        /// </summary>
+        /// <returns>Whether this chat channel is always shown in the channel list, and may be joined by any person.</returns>
+        internal bool GetIsChatChannelAlwaysShown()
+        {
+            if ( this.IsChatChannelAlwaysShownOverride.HasValue )
+            {
+                return this.IsChatChannelAlwaysShownOverride.Value;
+            }
+
+            return this.GroupType?.IsChatChannelAlwaysShown ?? false;
         }
 
         #endregion
