@@ -1,6 +1,9 @@
+{%- capture conditional -%}
+  {%- if includepending == 'true' -%}ContentChannelId == {{ ccid }} && Status != 3{%- else -%}ContentChannelId == {{ ccid }} && Status == 2{%- endif -%}
+{%- endcapture -%}
 {%- if ccid != empty -%}
 [
-    {% contentchannelitem where:'ContentChannelId == {{ ccid }} && Status == 2' limit:'100000' sort:'StartDateTime desc' securityenabled:'false' iterator:'items' -%}
+    {% contentchannelitem where:'{{ conditional }}' limit:'100000' sort:'StartDateTime desc' securityenabled:'false' iterator:'items' -%}
       {%- for item in items -%}
         {%- assign imageLandscape = item | Attribute:'ImageLandscape','Url' -%}
         {%- assign imageSquare = item | Attribute:'ImageSquare','Url' -%}
@@ -68,7 +71,7 @@
         {%- endif -%}
 
         {% assign related_items = 'content_related' | PersistedDataset | Where:'Id', item.Id | Select:'Related' | First %}
-        {%- assign video = item | Attribute:'Video','RawValue' -%}
+        {%- assign video = item | Attribute:'Video','Object' | Property:'SourceKey' -%}
         {%- capture videoImage -%}{[ getImageFromVideoId id:'{{ video }}' ]}{%- endcapture -%}
         {% assign videoImage = videoImage | Trim | Split:'?' | First %}
         {% capture contentType %}{% if category and category != empty -%}{{ item.ContentChannel | Attribute:'ContentFormat' | Prepend:' ' | Prepend:category | ToJSON }}{%- else -%}{{ item.ContentChannel | Attribute:'ContentFormat' | ToJSON }}{%- endif -%}{% endcapture %}{
@@ -78,7 +81,7 @@
         "Guid": {{ item.Guid | ToJSON }},
         "Status": {{ item.Status | ToJSON }},
         "Priority": {{ item.Priority | ToJSON }},
-        "Permalink": {{ permalink | Trim | ToJSON }},
+        "Permalink": {{ permalink | StripNewlines | Trim | ToJSON }},
         "PublishDateTime": {{ item.StartDateTime | ToJSON }},
         "ExpireDateTime": {{ item.ExpireDateTime | ToJSON }},
         "ModifiedDateTime": {{ item.ModifiedDateTime | ToJSON }},
