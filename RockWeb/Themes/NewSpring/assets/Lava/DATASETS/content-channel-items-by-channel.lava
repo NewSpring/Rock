@@ -98,6 +98,7 @@
         "InteractionChannelId": {{ interactionData | First | Property:'InteractionChannelId' | ToJSON }},
         "InteractionComponentId": {{ interactionData | First | Property:'InteractionComponentId' | ToJSON }},
         "Category": {{ category | ToJSON }},
+        "Categories": {{ item | Attribute:'Categories','RawValue' | ToJSON }},
         "Content": {{ item.Content | Replace:"'","’" | Escape | ToJSON }},
         "Departments": {{ item | Attribute:'Department' | ToJSON }},
         "Subtitle": {{ item | Attribute:'Subtitle' | Replace:"'","’" | ToJSON }},
