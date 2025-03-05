@@ -1,6 +1,10 @@
 {% assign internalApplicationRoot = 'Global' | Attribute:'InternalApplicationRoot' %}
 {% assign externalApplicationRoot = 'Global' | Attribute:'ExternalApplicationRoot' %}
-{% assign items = 'newspring_news' | PersistedDataset | Where:'Status',2 | Where:'Priority',0,'notequal' %}
+{% if editable == 'true' %}
+    {% assign items = 'newspring_news' | PersistedDataset | Where:'Status',3,'notequal' | Where:'Priority',0,'notequal' %}
+{% else %}
+    {% assign items = 'newspring_news' | PersistedDataset | Where:'Status',2 | Where:'Priority',0,'notequal' %}
+{% endif %}
 
 //- This loops through the items from the dataset and strips out anything that is future-dated or expired.
 {%- assign now = 'Now' | Date:'yyyyMMddHHmmss' -%}
@@ -8,8 +12,10 @@
 	{%- assign status = item.Status %}
 	{%- assign publishDateTime = item.PublishDateTime | Date:'yyyyMMddHHmmss' -%}
 	{%- assign expireDateTime = item.ExpireDateTime | Date:'yyyyMMddHHmmss' -%}
-	{% if publishDateTime > now or expireDateTime < now or status != 2 %}
-		{% assign items = items | RemoveFromArray:item %}
+	{% if publishDateTime > now or expireDateTime < now %}
+        {% if editable != 'true' and status != 2 %}
+            {% assign items = items | RemoveFromArray:item %}
+        {% endif %}
 	{% endif %}
 {%- endfor -%}
 {% assign items = items | OrderBy:'Priority' %}
@@ -50,18 +56,24 @@
 
                         <tr>
                             <td>
-                                {% if editable == 'true' %}<p class="clearfix"><a href="{{ internalApplicationRoot | Append:'ContentChannelItem/' | Append:item.Id }}" class="btn btn-primary btn-xs pull-right" target="_blank">Edit This</a></p>{% endif %}
 
                                 {% if imageUrl and imageUrl != empty %}
-                                    <img class="float-{{ imageAlignment }} xs-float-none width-half xs-width-full push-{{ imageMargin }} xs-flush-{{ imageMargin }} rounded-lg xs-push-bottom" src="{{ imageUrl }}">
+                                    <img class="float-{{ imageAlignment }} xs-float-none width-half xs-width-full push-{{ imageMargin }} xs-flush-{{ imageMargin }} rounded-lg xs-push-bottom" src="{{ imageUrl }}" />
+                                {% endif %}
+
+                                {% if editable == 'true' %}
+                                    <p>
+                                        <span class="label label-{{ item.Status | Replace:'1','warning' | Replace:'2','success' }} ml-0">{{ item.Status | Replace:'1','Pending' | Replace:'2','Approved' }}</span>
+                                        <a href="{{ internalApplicationRoot | Append:'ContentChannelItem/' | Append:item.Id }}" class="label btn btn-primary btn-xs" target="_blank">Edit This</a>
+                                    </p>
                                 {% endif %}
 
                                 <h2>{{ item.Title | Trim }}</h2>
 
-                                {% assign summary = item.Summary | Replace:'<p><br></p>','' %}
+                                {% assign summary = item.Summary | HtmlDecode | Replace:'<p><br></p>','' | Trim %}
                                 {% assign permalink = item.Permalink %}
-                                {% if summary != empty %}
-                                    {{ summary | HtmlDecode | Trim }}
+                                {% if summary != '' %}
+                                    {{ summary }}
 
                                     {% if permalink != empty %}
                                         <p><a target="_blank" href="{{ permalink }}" style="background-color: #6bac43; font-family: 'Colfax', -apple-system, Roboto, sans-serif; font-weight: 600; letter-spacing: -.2px; text-decoration: none; padding: 10px 15px; color: #ffffff; border-radius: 5px; display: inline-block; mso-padding-alt: 0;">
