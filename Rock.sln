@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 17
-VisualStudioVersion = 17.3.32804.467
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.32002.261
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{E24C65DC-7377-472B-9ABA-BC803B73C61A}") = "RockWeb", "RockWeb\", "{E43B5D55-BED0-4E74-BF97-9327F9A9D656}"
 	ProjectSection(ProjectDependencies) = postProject
@@ -28,6 +28,10 @@ Project("{E24C65DC-7377-472B-9ABA-BC803B73C61A}") = "RockWeb", "RockWeb\", "{E43
 		Release.AspNetCompiler.Debug = "False"
 		VWDPort = "6229"
 		SlnRelativePath = "RockWeb\"
+	EndProjectSection
+	ProjectSection(ProjectDependencies) = postProject
+		{11ACFF28-4199-450B-8A43-F59ADEF63A99} = {11ACFF28-4199-450B-8A43-F59ADEF63A99}
+		{A4FB4B9B-3564-4C25-938C-4350A9515B24} = {A4FB4B9B-3564-4C25-938C-4350A9515B24}
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DotLiquid", "DotLiquid\DotLiquid.csproj", "{00EDCB8D-EF33-459C-AD62-02876BD24DFF}"
