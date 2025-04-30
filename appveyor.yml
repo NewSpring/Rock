@@ -35,7 +35,7 @@ clone_depth: 1
 clone_folder: C:\projects\Rock
 
 environment:
-  nodejs_version: "22.6.0"
+  nodejs_version: "22.14.0"
 
 # scripts that run after cloning repository
 install:
