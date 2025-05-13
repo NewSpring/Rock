@@ -1,3 +1,22 @@
+{% sql %}
+    SELECT
+        cc.[Id]
+        ,   cc.[Name]
+        ,   pd.[AccessKey] AS [Dataset]
+        ,   av1.[Value] AS [HiddenAttributes]
+        ,   (
+            SELECT CAST(cci.[Id] AS VARCHAR) + ','
+            FROM [ContentChannelItem] cci
+            WHERE cci.[ContentChannelId] = cc.[Id]
+            FOR XML PATH (''), TYPE
+        ) AS [Items]
+    FROM [ContentChannel] cc
+    LEFT JOIN [AttributeValue] av1 ON av1.[EntityId] = cc.[Id] AND av1.[AttributeId] = 104484
+    LEFT JOIN [AttributeValue] av2 ON av2.[EntityId] = cc.[Id] AND av2.[AttributeId] = 107096
+    LEFT JOIN [PersistedDataset] pd ON av2.[Value] = pd.[Id]
+    WHERE cc.[ContentChannelTypeId] != 14
+{% endsql %}{{ results | ToJSON }}
+{% comment %}
 {% contentchannel where:'Id != null' iterator:'channels' %}[
     {% for channel in channels %}{
         {% assign datasetId = channel | Attribute:'PersistedDataset','RawValue' | AsInteger %}
@@ -9,3 +28,4 @@
         Items: {{ channel.Items | Select:'Id' | Join:',' | ToJSON }}
     }{% unless forloop.last %},{% endunless %}{% endfor %}
 ]{% endcontentchannel %}
+{% endcomment %}
