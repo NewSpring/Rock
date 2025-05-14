@@ -1,9 +1,9 @@
-{%- capture conditional -%}
-  {%- if includepending == 'true' -%}ContentChannelId == {{ ccid }} && Status != 3{%- else -%}ContentChannelId == {{ ccid }} && Status == 2{%- endif -%}
-{%- endcapture -%}
+{% comment %}
+    {% include '~/Themes/NewSpring/Assets/Lava/DATASETS/content-channel-items-by-channel.lava' %}
+{% endcomment %}
 {%- if ccid != empty -%}
-[
-    {% contentchannelitem where:'{{ conditional }}' limit:'100000' sort:'StartDateTime desc' securityenabled:'false' iterator:'items' -%}
+  [
+    {% contentchannelitem where:'ContentChannelId == {{ ccid }} && Status == 2' limit:'100000' sort:'StartDateTime desc' securityenabled:'false' iterator:'items' -%}
       {%- for item in items -%}
         {%- assign imageLandscape = item | Attribute:'ImageLandscape','Url' -%}
         {%- assign imageSquare = item | Attribute:'ImageSquare','Url' -%}
@@ -71,12 +71,14 @@
         {%- endif -%}
 
         {% assign related_items = 'content_related' | PersistedDataset | Where:'Id', item.Id | Select:'Related' | First %}
-        {%- assign video = item | Attribute:'Video','Object' | Property:'SourceKey' -%}
-        {%- capture videoImage -%}{[ getImageFromVideoId id:'{{ video }}' ]}{%- endcapture -%}
-        {% assign videoImage = videoImage | Trim | Split:'?' | First %}
+        {%- assign video = item | Attribute:'Video','Object' | Property:'Id' -%}
+        {%- assign videoImage = item | Attribute:'Video','Object' | Property:'DefaultThumbnailUrl' -%}
+        {% comment %}{%- capture videoImage -%}{[ getImageFromVideoId id:'{{ video }}' ]}{%- endcapture -%}
+        {% assign videoImage = videoImage | Trim | Split:'?' | First %}{% endcomment %}
         {% capture contentType %}{% if category and category != empty -%}{{ item.ContentChannel | Attribute:'ContentFormat' | Prepend:' ' | Prepend:category | ToJSON }}{%- else -%}{{ item.ContentChannel | Attribute:'ContentFormat' | ToJSON }}{%- endif -%}{% endcapture %}{
         "Id": {{ item.Id }},
         "Title": {{ item.Title | Replace:"'","’" | ToJSON }},
+        "DisplayTitle": {{ item | Attribute:'DisplayTitle' | ToJSON }},
         "Slug": {{ item.PrimarySlug | ToJSON }},
         "Guid": {{ item.Guid | ToJSON }},
         "Status": {{ item.Status | ToJSON }},
@@ -103,6 +105,7 @@
         "Category": {{ category | ToJSON }},
         "Categories": {{ item | Attribute:'Categories','RawValue' | ToJSON }},
         "Content": {{ item.Content | Replace:"'","’" | Escape | ToJSON }},
+        "StructuredContent": {{ item.StructuredContent | ToJSON }},
         "Departments": {{ item | Attribute:'Department' | ToJSON }},
         "Subtitle": {{ item | Attribute:'Subtitle' | Replace:"'","’" | ToJSON }},
         "Summary": {{ item | Attribute:'Summary' | Replace:"'","’" | Escape | ToJSON }},
@@ -129,6 +132,7 @@
         "VideoFileLow": {{ item | Attribute:'VideoFileLow' | ToJSON }},
         "AudioFile": {{ item | Attribute:'AudioFile' | ToJSON }},
         "AudioDuration": {{ item | Attribute:'AudioDuration' | ToJSON }},
+        "Season": {{ item | Attribute:'Season' | ToJSON }},
         "ActualDate": {{ item | Attribute:'ActualDate','RawValue' | Date:'yyyy-MM-ddThh:mm:ss' | ToJSON }},
         "DataViews": "{{ item | Attribute:'DataViews','RawValue' }}",
         "Videos": {{ videosObject.Attributes | ToJSON }},
@@ -136,11 +140,12 @@
         "Scriptures": {{ scripturesObject.Attributes | ToJSON }},
         "ItemHasDownloads": {% assign downloadsSize = downloadsObject | Size %}{% if downloadsSize >= 1 %}true{% else %}false{% endif %},
         "Downloads": {{ downloadsObject.Attributes | ToJSON }},
+        "Keywords": {{ item | Attribute:'Keywords' | ToJSON }},
         "Tags": {{ tags | ToJSON }},
         "Children": {{ children | ToJSON }},
         "Parents": {{ parents | ToJSON }},
         "RelatedItems": {{ related_items | ToJSON }}
       }{%- unless forloop.last -%},{%- endunless -%}{%- endfor -%}
     {%- endcontentchannelitem %}
-]
-{%- endif -%}
+  ]
+  {%- endif -%}
