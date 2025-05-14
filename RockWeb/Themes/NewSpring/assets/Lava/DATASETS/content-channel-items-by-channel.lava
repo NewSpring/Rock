@@ -131,7 +131,7 @@
         "VideoFileMid": {{ item | Attribute:'VideoFileMid' | ToJSON }},
         "VideoFileLow": {{ item | Attribute:'VideoFileLow' | ToJSON }},
         "AudioFile": {{ item | Attribute:'AudioFile' | ToJSON }},
-        "AudioDuration": {{ item | Attribute:'AudioDuration' | ToJSON }},
+        "Duration": {{ item | Attribute:'Duration' | ToJSON }},
         "Season": {{ item | Attribute:'Season' | ToJSON }},
         "ActualDate": {{ item | Attribute:'ActualDate','RawValue' | Date:'yyyy-MM-ddThh:mm:ss' | ToJSON }},
         "DataViews": "{{ item | Attribute:'DataViews','RawValue' }}",
