@@ -133,6 +133,7 @@
         "AudioFile": {{ item | Attribute:'AudioFile' | ToJSON }},
         "Duration": {{ item | Attribute:'Duration' | ToJSON }},
         "Season": {{ item | Attribute:'Season' | ToJSON }},
+        "EpisodeType": {{ item | Attribute:'EpisodeType' | ToJSON }},
         "ActualDate": {{ item | Attribute:'ActualDate','RawValue' | Date:'yyyy-MM-ddThh:mm:ss' | ToJSON }},
         "DataViews": "{{ item | Attribute:'DataViews','RawValue' }}",
         "Videos": {{ videosObject.Attributes | ToJSON }},
