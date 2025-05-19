@@ -14,13 +14,14 @@
 // limitations under the License.
 // </copyright>
 //
-import { App, Component, createApp, defineComponent, Directive, h, markRaw, onMounted, provide, ref, VNode } from "vue";
+import { App, Component, createApp, defineComponent, Directive, h, markRaw, onMounted, provide, reactive, ref, VNode } from "vue";
 import RockBlock from "./rockBlock.partial";
 import { useStore } from "@Obsidian/PageState";
 import "@Obsidian/ValidationRules";
 import "@Obsidian/FieldTypes/index";
 import { DebugTiming } from "@Obsidian/ViewModels/Utility/debugTiming";
 import { ObsidianBlockConfigBag } from "@Obsidian/ViewModels/Cms/obsidianBlockConfigBag";
+import { FormError, FormState, provideFormState } from "@Obsidian/Utility/form";
 import { PageConfig } from "@Obsidian/Utility/page";
 import { RockDateTime } from "@Obsidian/Utility/rockDateTime";
 import { BasicSuspenseProvider, provideSuspense } from "@Obsidian/Utility/suspense";
@@ -276,15 +277,181 @@ export function showShortLink(url: string): void {
     iframe.style.overflowY = "clip";
     const iframeResizer = new ResizeObserver((event) => {
         const iframeBody = event[0].target;
-        iframe.style.height = (iframeBody.scrollHeight?.toString() + "px") ?? "25vh";
+        iframe.style.height = iframeBody.scrollHeight.toString() + "px";
     });
     iframe.onload = () => {
-        if(!iframe?.contentWindow?.document?.documentElement) {
+        if (!iframe?.contentWindow?.document?.documentElement) {
             return;
         }
-        iframe.style.height = (iframe.contentWindow.document.body.scrollHeight?.toString() + "px") ?? "25vh";
+        iframe.style.height = iframe.contentWindow.document.body.scrollHeight.toString() + "px";
         iframeResizer.observe(iframe.contentWindow.document.body);
     };
+}
+
+/**
+ * This is an internal method that will be removed in the future. It serves the
+ * ObsidianDataComponentWrapper WebForms control to initialize an Obsidian
+ * component inside a WebForms component.
+ *
+ * @param url The URL of the Obsidian component to load.
+ * @param rootElementId The identifier of the DOM node to mount the component on.
+ * @param componentDataId The identifier of the DOM node that contains the component data.
+ * @param componentPropertiesId The identifier of the DOM node that contains the additional component properties.
+ */
+export async function initializeDataComponentWrapper(url: string, rootElementId: string, componentDataId: string, componentPropertiesId: string | undefined): Promise<void> {
+    const componentUrl = `${url}.js`;
+    let component: Component | null = null;
+    let errorMessage = "";
+
+    const rootElement = document.getElementById(rootElementId);
+
+    if (!rootElement) {
+        throw new Error("Could not initialize Obsidian component because the root element was not found.");
+    }
+
+    try {
+        const componentModule = await import(componentUrl);
+        component = componentModule ?
+            (componentModule.default || componentModule) :
+            null;
+    }
+    catch (e) {
+        // Log the error, but continue setting up the app so the UI will show the user an error
+        console.error(e);
+        errorMessage = `${e}`;
+    }
+
+    const name = `Root${componentUrl.replace(/\//g, ".")}`;
+
+    // Initialize a fake form state to track errors and proxy them to the
+    // WebForms system.
+    const formErrors: Record<string, FormError> = {};
+    const formState = reactive<FormState>({
+        submitCount: 0,
+        setError(id, name, error) {
+            if (error) {
+                formErrors[id] = { name, text: error };
+            }
+            else if (formErrors[id]) {
+                delete formErrors[id];
+            }
+        }
+    });
+
+    // Register the validator function for this component. This will be called
+    // whenever form validation is triggered by submitting a form.
+    window[`validator_${rootElementId}`] = function (validationControl: HTMLElement & { errormessage?: string }, controlState: Record<string, unknown>): void {
+        formState.submitCount++;
+
+        // If we don't have any errors, then the form is valid.
+        if (Object.keys(formErrors).length === 0) {
+            controlState.IsValid = true;
+            return;
+        }
+
+        // Translate the form errors into error strings.
+        const errors: string[] = [];
+        for (const key of Object.keys(formErrors)) {
+            errors.push(`${formErrors[key].name} ${formErrors[key].text}`);
+        }
+
+        // Put the error strings into the WebForms control. It injects the error
+        // text as raw HTML, so we hijack things a bit to make the bullet list
+        // look right.
+        if (errors.length === 1) {
+            validationControl.errormessage = errors[0];
+        }
+        else {
+            const firstError = errors.shift();
+            validationControl.errormessage = `${firstError}</li><li>${errors.join("</li><li>")}</li>`;
+        }
+
+        controlState.IsValid = false;
+    };
+
+    const app = createApp({
+        name,
+        setup() {
+            let componentData: Record<string, string> = {};
+            let componentProperties: Record<string, unknown> = {};
+
+            provideFormState(formState);
+
+            try {
+                const componentDataElement = document.getElementById(componentDataId) as HTMLInputElement;
+
+                componentData = JSON.parse(decodeURIComponent(componentDataElement.value)) ?? {};
+            }
+            catch (e) {
+                if (!errorMessage) {
+                    errorMessage = `${e}`;
+                }
+            }
+
+            if (componentPropertiesId) {
+                try {
+                    const componentPropertiesElement = document.getElementById(componentPropertiesId) as HTMLInputElement;
+
+                    componentProperties = JSON.parse(decodeURIComponent(componentPropertiesElement.value)) ?? {};
+                }
+                catch (e) {
+                    if (!errorMessage) {
+                        errorMessage = `${e}`;
+                    }
+                }
+            }
+
+            function onUpdateComponentData(data: Record<string, string>): void {
+                const componentDataElement = document.getElementById(componentDataId) as HTMLInputElement;
+
+                if (componentDataElement) {
+                    componentDataElement.value = encodeURIComponent(JSON.stringify(data));
+                }
+            }
+
+            return {
+                component: component ? markRaw(component) : null,
+                componentData,
+                componentProperties,
+                onUpdateComponentData,
+                errorMessage
+            };
+        },
+
+        // Note: We are using a custom alert so there is not a dependency on
+        // the Controls package.
+        template: `
+<div v-if="errorMessage" class="alert alert-danger">
+    <strong>Error Initializing Component</strong>
+    <br />
+    {{errorMessage}}
+</div>
+<component v-else :is="component" :modelValue="componentData" @update:modelValue="onUpdateComponentData" v-bind="componentProperties" />`
+    });
+
+    app.mount(rootElement);
+
+    // This monitors for a WebForms postback that has removed the old DOM
+    // tree. The app will then be unmounted to free memory and remove even
+    // listeners that may have been installed.
+    const observer = new MutationObserver(mutations => {
+        let removed = false;
+
+        for (const mutation of mutations) {
+            for (const node of mutation.removedNodes) {
+                if (node == rootElement || node.contains(rootElement)) {
+                    removed = true;
+                }
+            }
+        }
+
+        if (removed) {
+            app.unmount();
+            observer.disconnect();
+        }
+    });
+
+    observer.observe(document.body, { subtree: true, childList: true });
 }
 
 /**
@@ -337,7 +504,7 @@ export async function showCustomBlockAction(actionFileUrl: string, pageGuid: str
                 return await httpCall<T>("POST", url, params, data);
             };
 
-            const invokeBlockAction = createInvokeBlockAction(post, pageGuid, blockGuid, store.state.pageParameters, store.state.interactionGuid);
+            const invokeBlockAction = createInvokeBlockAction(post, pageGuid, blockGuid, store.state.pageParameters, store.state.sessionGuid, store.state.interactionGuid);
 
             provideHttp({
                 doApiCall,

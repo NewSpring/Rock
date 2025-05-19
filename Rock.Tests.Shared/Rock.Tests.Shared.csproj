@@ -217,6 +217,7 @@
     <Compile Include="TestFramework\Database\ITestDatabaseContainer.cs" />
     <Compile Include="TestFramework\Database\ITestDatabaseInitializer.cs" />
     <Compile Include="TestFramework\Database\LocalDatabaseContainer.cs" />
+    <Compile Include="TestFramework\MsSqlContainerPool.cs" />
     <Compile Include="TestFramework\NumericAssertExtensions.cs" />
     <Compile Include="TestFramework\DateTimeAssertExtensions.cs" />
     <Compile Include="TestFramework\AssertExtensions.cs" />
@@ -240,6 +241,7 @@
   <ItemGroup>
     <None Include="app.config" />
     <None Include="packages.config" />
+    <None Include="README.md" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Rock.Common\Rock.Common.csproj">
@@ -281,6 +283,11 @@
   </ItemGroup>
   <ItemGroup>
     <Analyzer Include="..\packages\AWSSDK.S3.3.3.21.1\analyzers\dotnet\cs\AWSSDK.S3.CodeAnalysis.dll" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="..\Documentation\sampledata_1_14_1.xml">
+      <Link>TestFramework\sampledata_1_14_1.xml</Link>
+    </EmbeddedResource>
   </ItemGroup>
   <Import Project="$(VSToolsPath)\TeamTest\Microsoft.TestTools.targets" Condition="Exists('$(VSToolsPath)\TeamTest\Microsoft.TestTools.targets')" />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
