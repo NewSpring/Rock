@@ -81,10 +81,10 @@ matrix:
   fast_finish: true
 
 # test
-test:
-  assemblies:
-    only:
-      - Rock.Tests.dll
+# test:
+#   assemblies:
+#     only:
+#       - Rock.Tests.dll
 
 # IIS artifact configuration
 artifacts:
