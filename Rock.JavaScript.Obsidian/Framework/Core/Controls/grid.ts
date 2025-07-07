@@ -608,7 +608,7 @@ export function dateFilterMatches(needle: unknown, haystack: unknown): boolean {
 // #region Entity Sets
 
 /**
- * Gets the entity set bag that can be send to the server to create an entity
+ * Gets the entity set bag that can be sent to the server to create an entity
  * set representing the selected items in the grid.
  *
  * @param grid The grid state that will be used as the source data.
@@ -2002,7 +2002,7 @@ export class GridState implements IGridState {
             const quickFilterMatch = !quickFilterRawValue || columns.some((column): boolean => {
                 const value = column.quickFilterValue(row, column, this);
 
-                if (value === undefined) {
+                if (typeof value !== "string") {
                     return false;
                 }
 
@@ -2024,7 +2024,7 @@ export class GridState implements IGridState {
 
                 const columnFilterValue = this.columnFilters[column.name];
 
-                if (columnFilterValue === undefined) {
+                if (columnFilterValue === undefined || columnFilterValue === null) {
                     return true;
                 }
 
