@@ -80,7 +80,8 @@
 		"recommendations": [
 			"dbaeumer.vscode-eslint",
 			"vue.volar",
-			"orta.vscode-jest"
+			"orta.vscode-jest",
+            "EditorConfig.EditorConfig"
 		]
 	},
 	"folders": [
@@ -227,8 +228,11 @@
 				},
 				"isBackground": true,
 				"problemMatcher": {
-					"base": "$vite",
+                    "pattern": {
+                        "regexp": ""
+                    },
 					"background": {
+                        "activeOnStart": true,
 						"beginsPattern": "^rollup v",
 						"endsPattern": "waiting for changes\\.\\.\\.$"
 					}
@@ -249,8 +253,11 @@
 				},
 				"isBackground": true,
 				"problemMatcher": {
-					"base": "$vite",
+                    "pattern": {
+                        "regexp": ""
+                    },
 					"background": {
+                        "activeOnStart": true,
 						"beginsPattern": "^rollup v",
 						"endsPattern": "waiting for changes\\.\\.\\.$"
 					}
@@ -271,8 +278,11 @@
 				},
 				"isBackground": true,
 				"problemMatcher": {
-					"base": "$vite",
+                    "pattern": {
+                        "regexp": ""
+                    },
 					"background": {
+                        "activeOnStart": true,
 						"beginsPattern": "^rollup v",
 						"endsPattern": "waiting for changes\\.\\.\\.$"
 					}

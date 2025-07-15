@@ -27,6 +27,7 @@ using System.Text;
 
 using Humanizer;
 
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 using Rock.Attribute;
@@ -223,7 +224,7 @@ namespace Rock.Jobs
                 1) Whenever you do a new RockContext() in RockCleanup make sure to set the CommandTimeout, like this:
 
                     var rockContext = new RockContext();
-                    rockContext.Database.CommandTimeout = commandTimeout;
+                    rockContext.Database.SetCommandTimeout( commandTimeout );
 
                 2) The cleanupTitle parameter on RunCleanupTask should short. The should be short enough so that the summary of all job tasks
                    only shows a one line summary of each task (doesn't wrap)
@@ -1076,7 +1077,7 @@ namespace Rock.Jobs
                 if ( ownerRoleId.HasValue )
                 {
                     var rockContext = new RockContext();
-                    rockContext.Database.CommandTimeout = commandTimeout;
+                    rockContext.Database.SetCommandTimeout( commandTimeout );
                     var personService = new PersonService( rockContext );
                     var memberService = new GroupMemberService( rockContext );
 
@@ -1424,7 +1425,7 @@ namespace Rock.Jobs
             if ( auditExpireDays.HasValue )
             {
                 var auditLogRockContext = new Rock.Data.RockContext();
-                auditLogRockContext.Database.CommandTimeout = commandTimeout;
+                auditLogRockContext.Database.SetCommandTimeout( commandTimeout );
 
                 DateTime auditExpireDate = RockDateTime.Now.Add( new TimeSpan( auditExpireDays.Value * -1, 0, 0, 0 ) );
                 totalRowsDeleted += BulkDeleteInChunks( new AuditService( auditLogRockContext ).Queryable().Where( a => a.DateTime < auditExpireDate ), batchAmount, commandTimeout );
@@ -1445,7 +1446,7 @@ namespace Rock.Jobs
                 var exceptionLogRockContext = new Rock.Data.RockContext();
 
                 // Assuming a 10 minute minimum CommandTimeout for this process.
-                exceptionLogRockContext.Database.CommandTimeout = commandTimeout >= 600 ? commandTimeout : 600;
+                exceptionLogRockContext.Database.SetCommandTimeout( commandTimeout >= 600 ? commandTimeout : 600 );
                 DateTime exceptionExpireDate = RockDateTime.Now.Add( new TimeSpan( exceptionExpireDays.Value * -1, 0, 0, 0 ) );
                 var exceptionLogsToDelete = new ExceptionLogService( exceptionLogRockContext ).Queryable().Where( a => a.CreatedDateTime < exceptionExpireDate );
 
@@ -1664,7 +1665,7 @@ namespace Rock.Jobs
 
             using ( var bulkDeleteContext = new RockContext() )
             {
-                bulkDeleteContext.Database.CommandTimeout = commandTimeout;
+                bulkDeleteContext.Database.SetCommandTimeout( commandTimeout );
                 var keepDeleting = true;
                 while ( keepDeleting )
                 {
@@ -1706,7 +1707,7 @@ namespace Rock.Jobs
 
             using ( var bulkUpdateContext = new RockContext() )
             {
-                bulkUpdateContext.Database.CommandTimeout = commandTimeout;
+                bulkUpdateContext.Database.SetCommandTimeout( commandTimeout );
                 var keepUpdating = true;
                 while ( keepUpdating )
                 {
@@ -1853,7 +1854,7 @@ namespace Rock.Jobs
             var rockContext = new Rock.Data.RockContext();
 
             // Set a 10 minute minimum timeout here.
-            rockContext.Database.CommandTimeout = commandTimeout >= 600 ? commandTimeout : 600;
+            rockContext.Database.SetCommandTimeout( commandTimeout >= 600 ? commandTimeout : 600 );
 
             DateTime transientCommunicationExpireDate = RockDateTime.Now.Add( new TimeSpan( 7 * -1, 0, 0, 0 ) );
             var communicationsToDelete = new CommunicationService( rockContext ).Queryable().Where( a => a.CreatedDateTime < transientCommunicationExpireDate && a.Status == CommunicationStatus.Transient );
@@ -2707,7 +2708,7 @@ SELECT @@ROWCOUNT
             return 0;
 
             ////var rockContext = new RockContext();
-            ////rockContext.Database.CommandTimeout = commandTimeout;
+            ////rockContext.Database.SetCommandTimeout( commandTimeout );
 
             ////var maxDays = dataMap.GetIntValue( AttributeKey.RemoveBenevolenceRequestsWithoutAPersonMaxDays );
 
@@ -3395,7 +3396,7 @@ END
 ";
             using ( var rockContext = CreateRockContext() )
             {
-                rockContext.Database.CommandTimeout = commandTimeout;
+                rockContext.Database.SetCommandTimeout( commandTimeout );
                 int result = rockContext.Database.ExecuteSqlCommand( removePersistedDataViewValueSql );
                 return result;
             }
@@ -3568,7 +3569,7 @@ SET @UpdatedCampusCount = @CampusCount;
         {
             var rockContext = new RockContext();
 
-            rockContext.Database.CommandTimeout = commandTimeout;
+            rockContext.Database.SetCommandTimeout( commandTimeout );
 
             return rockContext;
         }

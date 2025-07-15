@@ -309,10 +309,6 @@ th {
   --color-sequential-9: #AFEECB;
   --color-sequential-10: #C9F4DC;
   --color-sequential-11: #E4F9ED;
-  --kpi-col-lg: var(--color-interface-soft)
-  // ========================= END COLOR ==========================
-  // ========================= TYPOGRAPHY =========================
-  // FONT SIZES
   --font-size-xsmall: 12px;
   --font-size-small: 14px;
   --font-size-regular: 16px;
@@ -8540,6 +8536,18 @@ ul ul, ol ul, ul ol, ol ol {
   background-color: inherit;
 }
 
+.panel-worksurface .panel-body {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  overflow: auto;
+}
+
+.panel-worksurface .panel-scrollable-content {
+  flex-grow: 1;
+  overflow: clip auto;
+}
+
 .paneleditor-label {
   float: left;
 }
@@ -8633,6 +8641,16 @@ ul ul, ol ul, ul ol, ol ol {
 
 .panel-headerimage {
   margin: -15px -15px 15px -15px;
+}
+
+.panel-footer-content {
+  padding: var(--panel-body-padding);
+  background: var(--color-interface-softer);
+  border-top: 1px solid var(--color-interface-soft);
+}
+
+.panel-sidebar-footer-content {
+  grid-column: 1/span 4;
 }
 
 .popover {
@@ -9029,6 +9047,7 @@ ul ul, ol ul, ul ol, ol ol {
   text-align: center;
   background-color: var(--color-interface-stronger);
   border-radius: var(--rounded-small);
+  word-break: break-word;
 }
 
 .tooltip-arrow {
@@ -10691,6 +10710,13 @@ ul ul, ol ul, ul ol, ol ol {
   margin-left: var(--spacing-tiny);
 }
 
+.panel.panel-body-flush > .panel-body {
+  padding: 0;
+}
+.panel.panel-body-flush > .panel-body .actions:last-of-type {
+  margin: inherit;
+}
+
 .panel-block {
   position: relative;
   display: -ms-flexbox;
@@ -10760,6 +10786,9 @@ ul ul, ol ul, ul ol, ol ol {
 }
 .panel-block > .panel-heading .panel-title {
   font-size: var(--font-size-h5);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .panel-block > .panel-body {
   -ms-flex: 1 1 auto;
@@ -12308,8 +12337,8 @@ div.aspNetDisabled {
 
 .progress-tracker {
   display: flex;
-  background: var(--color-interface-soft);
-  border: 1px solid var(--color-interface-softer);
+  background: var(--color-interface-softest);
+  border: 1px solid var(--color-interface-soft);
   border-radius: var(--rounded-small);
 }
 
@@ -12345,7 +12374,7 @@ div.aspNetDisabled {
   display: block;
   width: 14px;
   height: 100%;
-  color: var(--color-interface-softer);
+  color: var(--color-interface-soft);
 }
 .progress-tracker-arrow svg {
   width: 100%;
@@ -12357,7 +12386,7 @@ div.aspNetDisabled {
   display: flex;
   align-items: center;
   width: 100%;
-  padding: var(--spacing-xsmall) var(--spacing-small) var(--spacing-xsmall) var(----spacing-small);
+  padding: var(--spacing-xsmall) var(--spacing-small) var(--spacing-xsmall) var(--spacing-small);
   font-size: 0.875rem;
   font-weight: var(--font-weight-medium);
   line-height: 1.25;
@@ -12383,11 +12412,11 @@ div.aspNetDisabled {
 }
 .progress-tracker-icon.current {
   background: var(--color-interface-softest);
-  border: 2px solid var(color-primary);
+  border: 2px solid var(--color-primary);
 }
 .progress-tracker-icon.upcoming {
   background: var(--color-interface-softest);
-  border: 2px solid var(--color-interface-strong);
+  border: 2px solid var(--color-interface-medium);
 }
 
 .progress-tracker-more {
@@ -18345,6 +18374,29 @@ iframe.file-browser {
 }
 .workflow-activity:last-of-type {
   margin-bottom: 0;
+}
+
+.segment-and {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  max-width: 580px;
+  margin: 32px auto;
+}
+.segment-and::before, .segment-and::after {
+  content: "";
+  border: 1px solid var(--color-interface-soft);
+  flex: 1;
+}
+.segment-and .text {
+  padding: 0 var(--spacing-tiny);
+  text-transform: uppercase;
+  border: 1px solid var(--color-interface-softer);
+  border-radius: var(--rounded-xsmall);
+  font-size: var(--font-size-small);
+  background-color: var(--color-interface-softer);
+  font-weight: var(--font-weight-medium);
+  margin: 0 var(--spacing-xsmall);
 }
 
 /* ===================== BLOCK =================== */
@@ -30166,11 +30218,13 @@ tbody .collapse.in {
   filter: none;
 }
 
-.fa-spin {
+.fa-spin,
+.ti-spin {
   animation: fa-spin 2s infinite linear;
 }
 
-.fa-pulse {
+.fa-pulse,
+.ti-pulse {
   animation: fa-spin 1s infinite steps(8);
 }
 

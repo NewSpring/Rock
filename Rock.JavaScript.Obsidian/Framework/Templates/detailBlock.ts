@@ -146,7 +146,7 @@ export default defineComponent({
          */
         isFullScreenVisible: {
             type: Boolean as PropType<boolean>,
-            default: true
+            default: false
         },
 
         /** The current display mode for the detail panel. */
@@ -251,7 +251,19 @@ export default defineComponent({
         additionalDeleteMessage: {
             type: String as PropType<string | null>,
             required: false
-        }
+        },
+
+        /**
+         * Enables the worksurface mode which allows the panel to be used on
+         * a full worksurface layout. This will cause the body content to
+         * automatically scroll if it is too large to fit in the panel. All
+         * other panel elements will remain in static positions.
+         */
+        worksurfaceMode: {
+            type: Boolean as PropType<boolean>,
+            default: false
+        },
+
     },
 
     emits: {
@@ -812,6 +824,7 @@ export default defineComponent({
     :title="panelTitle"
     :titleIconCssClass="panelTitleIconCssClass"
     :hasFullscreen="isFullScreenVisible"
+    :worksurfaceMode="worksurfaceMode"
     :headerSecondaryActions="internalHeaderSecondaryActions">
 
     <template v-if="$slots.sidebar" #sidebar>
