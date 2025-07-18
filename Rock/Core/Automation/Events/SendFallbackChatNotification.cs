@@ -50,6 +50,12 @@ namespace Rock.Core.Automation.Events
             /// recent notification and has not yet read the chat message that triggered it.
             /// </summary>
             public const string NotificationSuppressionMinutes = "notificationSuppressionMinutes";
+
+            /// <summary>
+            /// A Chat member will be excluded from fallback notifications if they have accessed Rock using a personal device
+            /// within this number of days. Note that the same device must also currently have Rock notifications enabled.
+            /// </summary>
+            public const string DeviceSeenWithinDays = "deviceSeenWithinDays";
         }
 
         private static class OptionKey
@@ -85,13 +91,15 @@ namespace Rock.Core.Automation.Events
         {
             var systemCommunicationGuid = privateConfiguration.GetValueOrNull( ConfigurationKey.SystemCommunication )?.AsGuidOrNull();
             var notificationSuppressionMinutes = privateConfiguration.GetValueOrNull( ConfigurationKey.NotificationSuppressionMinutes )?.AsIntegerOrNull();
+            var deviceSeenWithinDays = privateConfiguration.GetValueOrNull( ConfigurationKey.DeviceSeenWithinDays )?.AsIntegerOrNull();
 
             if ( systemCommunicationGuid.HasValue )
             {
                 return new SendFallbackChatNotificationExecutor(
                     automationEventId,
                     systemCommunicationGuid.Value,
-                    notificationSuppressionMinutes ?? 60
+                    notificationSuppressionMinutes ?? 60,
+                    deviceSeenWithinDays ?? 45
                 );
             }
 

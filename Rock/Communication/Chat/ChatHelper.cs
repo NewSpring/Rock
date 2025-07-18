@@ -3800,10 +3800,11 @@ namespace Rock.Communication.Chat
             // The UI allows an administrator to define a suppression window of zero minutes, indicating that fallback
             // notifications should never be suppressed (the fallback individuals should receive a notification for
             // every message sent within the channel).
+            var now = RockDateTime.Now;
             DateTime? suppressOnOrAfterDateTime = null;
             if ( config.NotificationSuppressionMinutes > 0 )
             {
-                suppressOnOrAfterDateTime = RockDateTime.Now.AddMinutes( -config.NotificationSuppressionMinutes );
+                suppressOnOrAfterDateTime = now.AddMinutes( -config.NotificationSuppressionMinutes );
             }
 
             var personService = new PersonService( RockContext );
@@ -3852,10 +3853,17 @@ namespace Rock.Communication.Chat
 
             // Limit the query to people who either:
             //  1) Don't have a personal device.
-            //  2) Don't have any personal devices with notifications enabled.
+            //  2) Don't have any active personal devices with notifications enabled that have been seen within the
+            //     required number of days in the past.
+            DateTime deviceSeenOnOrAfterDateTime = now.AddDays( -config.DeviceSeenWithinDays );
             var personIdsWithEnabledDeviceQry = new PersonalDeviceService( RockContext )
                 .Queryable()
-                .Where( pd => pd.IsActive && pd.NotificationsEnabled )
+                .Where( pd =>
+                    pd.IsActive
+                    && pd.NotificationsEnabled
+                    && !string.IsNullOrEmpty( pd.DeviceRegistrationId ) // Only mobile devices should have this value defined.
+                    && pd.LastSeenDateTime >= deviceSeenOnOrAfterDateTime
+                )
                 .Select( pd => pd.PersonAlias.PersonId )
                 .Distinct();
 

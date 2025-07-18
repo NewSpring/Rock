@@ -9,18 +9,26 @@
     </NotificationBox>
 
     <div class="row">
-        <div class="col-md-6">
+        <div class="col-md-4">
             <DropDownList v-model="systemCommunication"
                           label="System Communication"
+                          help="The sytem communication to be sent as a fallback notification. Email and SMS are supported."
                           :items="systemCommunicationItems"
                           enhanceForLongLists
                           rules="required" />
         </div>
 
-        <div class="col-md-6">
+        <div class="col-md-4">
             <NumberBox v-model="notificationSuppressionMinutes"
                        label="Notification Suppression Minutes"
                        help="The number of minutes the system will suppress notifications if the recipient has already received a recent notification."
+                       :minimumValue="0" />
+        </div>
+
+        <div class="col-md-4">
+            <NumberBox v-model="deviceSeenWithinDays"
+                       label="Device Seen Within Days"
+                       help="A Chat member will be excluded from fallback notifications if they have accessed Rock using a personal device within this number of days. Note that the same device must also currently have Rock notifications enabled."
                        :minimumValue="0" />
         </div>
     </div>
@@ -42,6 +50,7 @@
     const enum ConfigurationKey {
         SystemCommunication = "systemCommunication",
         NotificationSuppressionMinutes = "notificationSuppressionMinutes",
+        DeviceSeenWithinDays = "deviceSeenWithinDays"
     }
 
     const enum OptionKey {
@@ -58,16 +67,18 @@
 
     const systemCommunication = ref(props.modelValue[ConfigurationKey.SystemCommunication] ?? "");
     const notificationSuppressionMinutes = ref(toNumberOrNull(props.modelValue[ConfigurationKey.NotificationSuppressionMinutes]) ?? 60);
+    const deviceSeenWithinDays = ref(toNumberOrNull(props.modelValue[ConfigurationKey.DeviceSeenWithinDays]) ?? 45);
 
     const systemCommunicationItems = ref(safeParseJson<ListItemBag[]>(props.options[OptionKey.SystemCommunicationItems]) ?? []);
 
     // #endregion
 
-    watch([systemCommunication, notificationSuppressionMinutes], () => {
+    watch([systemCommunication, notificationSuppressionMinutes, deviceSeenWithinDays], () => {
         const newValues = { ...props.modelValue };
 
         newValues[ConfigurationKey.SystemCommunication] = systemCommunication.value;
         newValues[ConfigurationKey.NotificationSuppressionMinutes] = notificationSuppressionMinutes.value?.toString();
+        newValues[ConfigurationKey.DeviceSeenWithinDays] = deviceSeenWithinDays.value?.toString();
 
         emit("update:modelValue", newValues);
     });
@@ -75,6 +86,7 @@
     watch(() => props.modelValue, () => {
         updateRefValue(systemCommunication, props.modelValue[ConfigurationKey.SystemCommunication] ?? "");
         updateRefValue(notificationSuppressionMinutes, toNumberOrNull(props.modelValue[ConfigurationKey.NotificationSuppressionMinutes]) ?? 60);
+        updateRefValue(deviceSeenWithinDays, toNumberOrNull(props.modelValue[ConfigurationKey.DeviceSeenWithinDays]) ?? 45);
     });
 
     watch(() => props.options[OptionKey.SystemCommunicationItems], () => {

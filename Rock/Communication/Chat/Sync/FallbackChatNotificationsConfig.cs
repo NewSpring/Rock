@@ -66,5 +66,11 @@ namespace Rock.Communication.Chat.Sync
         /// already received a recent notification.
         /// </summary>
         public int NotificationSuppressionMinutes { get; set; } = 60;
+
+        /// <summary>
+        /// A Chat member will be excluded from fallback notifications if they have accessed Rock using a personal device
+        /// within this number of days. Note that the same device must also currently have Rock notifications enabled.
+        /// </summary>
+        public int DeviceSeenWithinDays { get; set; } = 45;
     }
 }

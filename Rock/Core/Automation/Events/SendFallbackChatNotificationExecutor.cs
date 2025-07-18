@@ -61,6 +61,12 @@ namespace Rock.Core.Automation.Events
         /// </summary>
         private readonly int _notificationSuppressionMinutes;
 
+        /// <summary>
+        /// A Chat member will be excluded from fallback notifications if they have accessed Rock using a personal device
+        /// within this number of days. Note that the same device must also currently have Rock notifications enabled.
+        /// </summary>
+        private readonly int _deviceSeenWithinDays;
+
         private static volatile bool HasLoggedMissingSystemCommunicationException = false;
         private static readonly object _missingSystemCommunicationExceptionLock = new object();
 
@@ -79,12 +85,22 @@ namespace Rock.Core.Automation.Events
         /// The number of minutes the system will suppress notifications if the recipient has already received a recent
         /// notification and has not yet read the chat message that triggered it.
         /// </param>
-        public SendFallbackChatNotificationExecutor( int automationEventId, Guid systemCommunicationGuid, int notificationSuppressionMinutes )
+        /// <param name="deviceSeenWithinDays">
+        /// A Chat member will be excluded from fallback notifications if they have accessed Rock using a personal device
+        /// within this number of days. Note that the same device must also currently have Rock notifications enabled.
+        /// </param>
+        public SendFallbackChatNotificationExecutor(
+            int automationEventId,
+            Guid systemCommunicationGuid,
+            int notificationSuppressionMinutes,
+            int deviceSeenWithinDays
+        )
         {
             _logger = RockLogger.LoggerFactory.CreateLogger<SendFallbackChatNotificationExecutor>();
             _automationEventId = automationEventId;
             _systemCommunicationGuid = systemCommunicationGuid;
             _notificationSuppressionMinutes = notificationSuppressionMinutes;
+            _deviceSeenWithinDays = deviceSeenWithinDays;
         }
 
         #endregion
@@ -125,7 +141,8 @@ namespace Rock.Core.Automation.Events
                             EventRockDateTime = sentRockDateTime ?? RockDateTime.Now,
                             PersonIdToExclude = senderPerson?.Id,
                             SystemCommunicationId = systemCommunication.Id,
-                            NotificationSuppressionMinutes = _notificationSuppressionMinutes
+                            NotificationSuppressionMinutes = _notificationSuppressionMinutes,
+                            DeviceSeenWithinDays = _deviceSeenWithinDays
                         }
                     );
 
