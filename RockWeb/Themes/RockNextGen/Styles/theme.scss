@@ -1,7 +1,7 @@
 
 @import "../../../Styles/summernote/summernote.min.css";
-@import "../../../Styles/styles-v2-prototype/sass-variable";
-@import "../../../Styles/styles-v2-prototype/core.css";
+@import "../../../Styles/styles-v2/sass-variable";
+@import "../../../Styles/styles-v2/core.css";
 
 // @import "../../../Styles/style-v2/icons/fontawesome-icon.css";
 // @import "../../../Styles/style-v2/icons/fontawesome-regular.css"; 
@@ -374,7 +374,7 @@ $navbar-element-height: 40px;
     border-radius: 999px;
     flex-direction: row-reverse;
 
-    .fa.fa-search {
+    .ti.ti-search {
       display: none;
     }
 
@@ -675,17 +675,6 @@ $navbar-element-height: 40px;
             margin-bottom: 0;
         }
 
-        &::before {
-          display: inline-block;
-          width: 0;
-          height: 8px;
-          margin-right: 14px;
-          margin-bottom: 1px;
-          content: " ";
-          background-color: transparent;
-          border-radius: 100px;
-        }
-
         &:focus {
           color: var(--color-interface-strong);
           background-color: var(--color-interface-soft);
@@ -749,7 +738,7 @@ $navbar-element-height: 40px;
 
       &.header {
         padding-top: 11px;
-        padding-left: 5px !important;
+        padding-left: var(--spacing-xsmall) !important;
         margin-top: var(--spacing-large);
         margin-bottom: ($line-height-computed / 2);
         font-size: var(--font-size-xsmall);
@@ -1468,4 +1457,9 @@ a.rock-bookmark {
 .rock-top-header .navbar-zone-header  .zone-content {
   flex-direction: row-reverse;
   justify-content: flex-start;
+}
+
+.borderless-panel {
+  border: none;
+  border-radius: 0;
 }

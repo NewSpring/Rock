@@ -30,6 +30,8 @@ using System.Text.RegularExpressions;
 using System.Web;
 using System.Web.UI;
 using System.Web.UI.HtmlControls;
+using Fluid.Parser;
+
 using Humanizer;
 using Humanizer.Localisation;
 using Ical.Net;
@@ -49,6 +51,7 @@ using Rock.Logging;
 using Rock.Model;
 using Rock.Net;
 using Rock.Security;
+using Rock.Tasks;
 using Rock.Utilities;
 using Rock.Utility;
 using Rock.Web;
@@ -1958,6 +1961,42 @@ namespace Rock.Lava
             return Rock.Lava.Filters.TemplateFilters.RandomNumber( input );
         }
 
+        /// <summary>
+        /// Converts a integer to a enum name
+        /// </summary>
+        /// <param name="input">The value to be converted to an enum name.</param>
+        /// <param name="enumTypeName">The full type name of the enum, such as 'Rock.Model.SiteType'.</param>
+        /// <returns>A string that represents the name of the enum value, or <c>null</c> if the parameters were not valid.</returns>
+        public static string AsEnum( object input, string enumTypeName )
+        {
+            if ( input == null || string.IsNullOrWhiteSpace( enumTypeName ) )
+            {
+                return null;
+            }
+
+            // Try to parse the input as an integer value
+            if ( !int.TryParse( input.ToString(), out int intValue ) )
+            {
+                return null;
+            }
+
+            var enumType = Reflection.GetEnumType( enumTypeName );
+
+            if ( enumType == null )
+            {
+                return null;
+            }
+
+            // Check if the enum defines the value
+            if ( Enum.IsDefined( enumType, intValue ) )
+            {
+                var enumValue = Enum.ToObject( enumType, intValue );
+                return enumValue.ToString();
+            }
+
+            return null;
+        }
+
         #endregion Number Filters
 
         #region Attribute Filters
@@ -1971,8 +2010,9 @@ namespace Rock.Lava
         /// <param name="input">The input.</param>
         /// <param name="attributeKey">The attribute key.</param>
         /// <param name="qualifier">The qualifier.</param>
+        /// <param name="securityEnabled">If true, security is enabled; if false, security checks are bypassed. Defaults to true.</param>
         /// <returns></returns>
-        public static object Attribute( ILavaRenderContext context, object input, string attributeKey, string qualifier = "" )
+        public static object Attribute( ILavaRenderContext context, object input, string attributeKey, string qualifier = "", bool securityEnabled = true )
         {
             Attribute.IHasAttributes item = null;
 
@@ -2087,7 +2127,7 @@ namespace Rock.Lava
             {
                 Person currentPerson = GetCurrentPerson( context );
 
-                if ( attribute.IsAuthorized( Authorization.VIEW, currentPerson ) )
+                if ( !securityEnabled || attribute.IsAuthorized( Authorization.VIEW, currentPerson ) )
                 {
                     // Check qualifier for 'Raw' if present, just return the raw unformatted value
                     if ( qualifier.Equals( "RawValue", StringComparison.OrdinalIgnoreCase ) )
@@ -2333,6 +2373,44 @@ namespace Rock.Lava
         #endregion Group Filters
 
         #region Misc Filters
+
+        /// <summary>
+        /// Updates a persisted dataset with the provided key.
+        /// </summary>
+        /// <param name="context"></param>
+        /// <param name="input"></param>
+        /// <param name="delayProcessingUntilComplete"></param>
+        /// <returns></returns>
+        public static string UpdatePersistedDataset( ILavaRenderContext context, object input, bool delayProcessingUntilComplete = false )
+        {
+            var dataSetKey = input.ToString();
+
+            if ( delayProcessingUntilComplete )
+            {
+                var rockContext = LavaHelper.GetRockContextFromLavaContext( context );
+                var service = new PersistedDatasetService( rockContext );
+
+                var dataset = service.Queryable().FirstOrDefault( d => d.AccessKey == dataSetKey );
+
+                if ( dataset == null )
+                {
+                    return $"Unable to find PersistedDataset with key {dataSetKey}";
+                }
+
+                dataset.UpdateResultData();
+                rockContext.SaveChanges();
+            }
+            else
+            {
+                var message = new Rock.Tasks.UpdatePersistedDataset.Message()
+                {
+                    AccessKey = dataSetKey
+                };
+                message.Send();
+            }
+
+            return string.Empty;
+        }
 
         /// <summary>
         /// Shows details about which Merge Fields are available
@@ -3446,13 +3524,13 @@ namespace Rock.Lava
 
             for ( int i = 0; i < rating; i++ )
             {
-                starMarkup.Append( "<i class='fa fa-rating-on'></i>" );
+                starMarkup.Append( "<i class='ti ti-star-filled'></i>" );
                 starCounter++;
             }
 
             for ( int i = starCounter; i < 5; i++ )
             {
-                starMarkup.Append( "<i class='fa fa-rating-off'></i>" );
+                starMarkup.Append( "<i class='ti ti-star'></i>" );
             }
 
             return starMarkup.ToString();
@@ -5013,7 +5091,7 @@ namespace Rock.Lava
 
                     if ( entityTypeCache != null )
                     {
-                        RockContext _rockContext = LavaHelper.GetRockContextFromLavaContext( context );
+                        RockContext rockContext = LavaHelper.GetRockContextFromLavaContext( context );
 
                         Type entityType = entityTypeCache.GetEntityType();
                         if ( entityType != null )
@@ -5021,7 +5099,7 @@ namespace Rock.Lava
                             Type[] modelType = { entityType };
                             Type genericServiceType = typeof( Rock.Data.Service<> );
                             Type modelServiceType = genericServiceType.MakeGenericType( modelType );
-                            Rock.Data.IService serviceInstance = Activator.CreateInstance( modelServiceType, new object[] { _rockContext } ) as IService;
+                            Rock.Data.IService serviceInstance = Activator.CreateInstance( modelServiceType, new object[] { rockContext } ) as IService;
 
                             MethodInfo getMethod = serviceInstance.GetType().GetMethod( "Get", new Type[] { typeof( int ) } );
 
@@ -5188,13 +5266,22 @@ namespace Rock.Lava
         /// <summary>
         /// Gets the integer value from from a key-hash string.
         /// </summary>
-        /// <param name="input"></param>
-        /// <returns></returns>
+        /// <param name="input">The input value to be parsed into integer form.</param>
+        /// <returns>An integer value or null if the integer could not be parsed.</returns>
+        /// <remarks>
+        /// If the provided input represents a non-hashed integer string, this integer value will be immediately returned.
+        /// </remarks>
         public static int? FromIdHash( string input )
         {
             if ( string.IsNullOrWhiteSpace( input ) )
             {
                 return null;
+            }
+
+            var inputAsInteger = input.AsIntegerOrNull();
+            if ( inputAsInteger.HasValue )
+            {
+                return inputAsInteger;
             }
 
             return IdHasher.Instance.GetId( input );

@@ -495,6 +495,16 @@ namespace Rock.SystemGuid
         public const string DATA_MIGRATIONS_171_CHOP_OBSIDIAN_BLOCKS = "C5AE8BF4-C83C-4695-9233-1B1D5D2801D7";
 
         /// <summary>
+        /// The job to run Post v17.3 Data Migrations to remove a redundant index on the AttendanceOccurrence table.
+        /// </summary>
+        public const string DATA_MIGRATIONS_173_UPDATE_ATTENDANCEOCCURRENCE_INDEX = "FFF8E02C-9FAA-4E23-99EE-4B008549F088";
+
+        /// <summary>
+        /// The job to run Post v17.3 Data Migrations to update the Nameless Schedules.
+        /// </summary>
+        public const string DATA_MIGRATIONS_173_UPDATE_NAMELESS_SCHEDULES = "4C7CC0FC-12A7-4578-B9B1-FEF2732EB912";
+
+        /// <summary>
         /// The job to run Post v18.0 Data Migrations to update an existing index on the CommunicationRecipient table.
         /// </summary>
         public const string DATA_MIGRATIONS_180_UPDATE_COMMUNICATIONRECIPIENT_INDEX = "FE519BCE-CCB8-42B7-A14C-1620859F23E8";
@@ -513,5 +523,20 @@ namespace Rock.SystemGuid
         /// The job to run Post v18.0 Data Migrations to populate the newly-added [CommunicationRecipient].[DeliveredDateTime] field.
         /// </summary>
         public const string DATA_MIGRATIONS_180_POPULATE_COMMUNICATIONRECIPIENT_DELIVEREDDATETIME = "EF2CF0AC-7A83-4BEB-8824-41D3B5B8B832";
+
+        /// <summary>
+        /// The job to run Post v18.0 Data Migrations to Delete Self-Service Kiosk Site, Blocks, BlockTypes and KioskStark theme.
+        /// </summary>
+        public const string DATA_MIGRATIONS_180_DELETE_SELFSERVICE_KIOSK_SITE_AND_RELATED = "6696B495-3EB0-442B-8DAB-82E861B92B41";
+
+        /// <summary>
+        /// The job to run Post v18.0 Data Migrations to update the Nameless Locations.
+        /// </summary>
+        public const string DATA_MIGRATIONS_180_UPDATE_NAMELESS_LOCATIONS = "6C3EE640-A442-4F9C-92ED-23E353BA8509";
+
+        /// <summary>
+        /// The job for processing communication flows. <see cref="Rock.Jobs.ProcessCommunicationFlows"/>
+        /// </summary>
+        public const string PROCESS_COMMUNICATION_FLOWS = "8D79FB3B-F0B1-4B57-A8DA-EEE46B38A08B";
     }
 }

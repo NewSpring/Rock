@@ -317,7 +317,7 @@ namespace Rock.Core.Automation.Triggers
 
             var sb = new StringBuilder();
 
-            sb.AppendLine( $"Trigger when **{( simpleCriteria.AreAllRulesRequired ? "all" : "any" )}** rules match" );
+            sb.AppendLine( $"Trigger when **{( simpleCriteria.AreAllRulesRequired ? "all" : "any" )}** rules are true" );
 
             foreach ( var rule in simpleCriteria.Rules )
             {

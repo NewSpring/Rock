@@ -15,7 +15,6 @@
 // </copyright>
 //
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 
 using Rock.Communication.Chat.Sync;
@@ -33,10 +32,16 @@ namespace Rock.Core.Automation.Triggers
         #region Fields
 
         /// <summary>
+        /// The lock object used to synchronize updates to <see cref="_monitors"/>.
+        /// This is only used when making changes, not when reading the value.
+        /// </summary>
+        private static readonly object _monitorsLock = new object();
+
+        /// <summary>
         /// The dictionary of chat message triggers that are currently registered, to execute automation events for any
         /// message events that are received.
         /// </summary>
-        private static readonly ConcurrentDictionary<int, ChatMessageMonitor> _monitors = new ConcurrentDictionary<int, ChatMessageMonitor>();
+        private static IReadOnlyDictionary<int, ChatMessageMonitor> _monitors = new Dictionary<int, ChatMessageMonitor>();
 
         /// <summary>
         /// The identifier of the automation trigger that this monitor is registered for.
@@ -62,18 +67,51 @@ namespace Rock.Core.Automation.Triggers
             _triggerId = triggerId;
             _criteria = criteria;
 
-            _monitors.TryAdd( _triggerId, this );
+            lock ( _monitorsLock )
+            {
+                var monitors = DuplicateMonitors();
+
+                monitors.Add( _triggerId, this );
+
+                _monitors = monitors;
+            }
         }
 
         /// <inheritdoc/>
         public void Dispose()
         {
-            _monitors.TryRemove( _triggerId, out var monitor );
+            //_monitors.TryRemove( _triggerId, out var monitor );
+
+            lock ( _monitorsLock )
+            {
+                var monitors = DuplicateMonitors();
+
+                monitors.Remove( _triggerId );
+
+                _monitors = monitors;
+            }
         }
 
         #endregion
 
         #region Methods
+
+        /// <summary>
+        /// Duplicates the current monitor dictionary. This is used to ensure that any changes we make to the dictionary
+        /// or the list of monitors do not affect the current lookup table, which could cause a crash.
+        /// </summary>
+        /// <returns>A new dictionary that represents the same data as <see cref="_monitors"/>.</returns>
+        private static Dictionary<int, ChatMessageMonitor> DuplicateMonitors()
+        {
+            var monitors = new Dictionary<int, ChatMessageMonitor>( _monitors.Count );
+
+            foreach ( var kvp in _monitors )
+            {
+                monitors[kvp.Key] = kvp.Value;
+            }
+
+            return monitors;
+        }
 
         /// <summary>
         /// Processes the Chat-to-Rock message event and executes any automation events that are attached to monitored triggers.

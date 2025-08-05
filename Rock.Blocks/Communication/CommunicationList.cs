@@ -48,7 +48,7 @@ namespace Rock.Blocks.Communication
     [DisplayName( "Communication List" )]
     [Category( "Communication" )]
     [Description( "Lists the status of all previously created communications." )]
-    [IconCssClass( "fa fa-list" )]
+    [IconCssClass( "ti ti-list" )]
     [SupportedSiteTypes( Model.SiteType.Web )]
 
     #region Block Attributes
@@ -271,6 +271,7 @@ namespace Rock.Blocks.Communication
         , c.[Summary]
         , c.[Status]
         , c.[CommunicationTopicValueId] AS [TopicValueId]
+        , c.[CreatedDateTime]
         , c.[SendDateTime]
         , c.[FutureSendDateTime]
         , c.[SenderPersonAliasId]
@@ -299,22 +300,21 @@ namespace Rock.Blocks.Communication
             if ( FilterHideDrafts )
             {
                 sqlSb.AppendLine( $@"        AND c.[Status] <> {CommunicationStatus.Draft.ConvertToInt()}
-        AND COALESCE(c.[SendDateTime], c.[FutureSendDateTime]) >= {SqlParamKey.SendDateTimeStart}
-        AND COALESCE(c.[SendDateTime], c.[FutureSendDateTime]) < {SqlParamKey.SendDateTimeEnd}" );
+        AND COALESCE(c.[SendDateTime], c.[FutureSendDateTime], c.[CreatedDateTime]) >= {SqlParamKey.SendDateTimeStart}
+        AND COALESCE(c.[SendDateTime], c.[FutureSendDateTime], c.[CreatedDateTime]) < {SqlParamKey.SendDateTimeEnd}" );
             }
             else
             {
                 sqlSb.AppendLine( $@"        AND (
             (
-                /* Drafts might be missing both a [SendDateTime] and [FutureSendDateTime]. */
+                /* Show all drafts that are missing both a [SendDateTime] and [FutureSendDateTime]. */
                 c.[Status] = {CommunicationStatus.Draft.ConvertToInt()}
                 AND c.[SendDateTime] IS NULL
                 AND c.[FutureSendDateTime] IS NULL
             )
             OR (
-                /* If a [SendDateTime] or [FutureSendDateTime] is provided, it must fall within the filtered range, even for drafts. */
-                COALESCE(c.[SendDateTime], c.[FutureSendDateTime]) >= {SqlParamKey.SendDateTimeStart}
-                AND COALESCE(c.[SendDateTime], c.[FutureSendDateTime]) < {SqlParamKey.SendDateTimeEnd}
+                COALESCE(c.[SendDateTime], c.[FutureSendDateTime], c.[CreatedDateTime]) >= {SqlParamKey.SendDateTimeStart}
+                AND COALESCE(c.[SendDateTime], c.[FutureSendDateTime], c.[CreatedDateTime]) < {SqlParamKey.SendDateTimeEnd}
             )
         )" );
             }
@@ -361,6 +361,7 @@ namespace Rock.Blocks.Communication
         , c.[Summary]
         , c.[Status]
         , c.[CommunicationTopicValueId]
+        , c.[CreatedDateTime]
         , c.[SendDateTime]
         , c.[FutureSendDateTime]
         , c.[SenderPersonAliasId]
@@ -411,7 +412,7 @@ LEFT OUTER JOIN [PersonAlias] paReviewer ON paReviewer.[Id] = ca.[ReviewerPerson
 LEFT OUTER JOIN [Person] pReviewer ON pReviewer.[Id] = paReviewer.[PersonId]
 ORDER BY ca.[IsDraftWithoutSendDate] DESC
     , CASE WHEN ca.[IsDraftWithoutSendDate] = 1 THEN ca.[CommunicationId] ELSE NULL END DESC
-    , COALESCE(ca.[SendDateTime], ca.[FutureSendDateTime]) DESC;" );
+    , COALESCE(ca.[SendDateTime], ca.[FutureSendDateTime], ca.[CreatedDateTime]) DESC;" );
 
             var communicationRows = RockContext.Database
                 .SqlQuery<CommunicationRow>( sqlSb.ToString(), sqlParams.ToArray() )
@@ -568,6 +569,7 @@ ORDER BY ca.[IsDraftWithoutSendDate] DESC
 
                     return DefinedValueCache.Get( a.TopicValueId.Value )?.Value;
                 } )
+                .AddDateTimeField( "createdDateTime", a => a.CreatedDateTime )
                 .AddDateTimeField( "sendDateTime", a => a.SendDateTime )
                 .AddDateTimeField( "futureSendDateTime", a => a.FutureSendDateTime )
                 .AddPersonField( "sentByPerson", a =>
@@ -645,6 +647,11 @@ ORDER BY ca.[IsDraftWithoutSendDate] DESC
 
             /// <inheritdoc cref="Rock.Model.Communication.CommunicationTopicValueId"/>
             public int? TopicValueId { get; set; }
+
+            /// <summary>
+            /// Gets or sets the <see cref="Rock.Model.Communication"/>'s created datetime.
+            /// </summary>
+            public DateTime? CreatedDateTime { get; set; }
 
             /// <inheritdoc cref="Rock.Model.Communication.SendDateTime"/>
             public DateTime? SendDateTime { get; set; }

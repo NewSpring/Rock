@@ -41,7 +41,7 @@ namespace Rock.Blocks.Core
     [DisplayName( "Binary File Type List" )]
     [Category( "Core" )]
     [Description( "Displays a list of binary file types." )]
-    [IconCssClass( "fa fa-list" )]
+    [IconCssClass( "ti ti-list" )]
     // [SupportedSiteTypes( Model.SiteType.Web )]
 
     [LinkedPage( "Detail Page",

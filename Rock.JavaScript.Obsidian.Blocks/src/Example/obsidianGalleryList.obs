@@ -108,7 +108,7 @@
         {
             title: "Custom Action",
             tooltip: "This is an example of a custom block action.",
-            iconCssClass: "fa fa-key"
+            iconCssClass: "ti ti-key"
         }
     ];
 

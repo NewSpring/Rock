@@ -14,7 +14,7 @@
                           :key="role.idKey">
                     <span v-if="role.idKey"
                           :class="['role-count', getRoleCountOverUnderCapacityClass(role.idKey)]">
-                        {{ pluralize(role.name ?? "") }}: {{ getRoleCount(role.idKey) }}
+                        {{ pluralize(role.name ?? "") }}: {{ getRoleCount(role.idKey).toLocaleString() }}
                     </span>
                 </template>
             </div>
@@ -22,13 +22,13 @@
         <template #headerActions v-if="isGenderHighlighting && !isGroupExpanded">
             <div class="d-flex gap-1 mr-3">
                 <Badge class="unknown-badge">
-                    {{ genderCounts.unknown }}
+                    {{ genderCounts.unknown.toLocaleString() }}
                 </Badge>
                 <Badge class="male-badge">
-                    {{ genderCounts.males }}
+                    {{ genderCounts.males.toLocaleString() }}
                 </Badge>
                 <Badge class="female-badge">
-                    {{ genderCounts.females }}
+                    {{ genderCounts.females.toLocaleString() }}
                 </Badge>
             </div>
         </template>
@@ -53,7 +53,7 @@
                   :key=role.idKey>
             <div v-if="role.idKey"
                  class="panel-inline">
-                <div class="panel-heading">
+                <div class="panel-heading panel-heading-bottom">
                     <h1 class="panel-title d-inline-block mr-2">
                         {{ pluralize(role.name ?? "") }}
                     </h1>
@@ -83,7 +83,7 @@
                                     <div v-if="getGroupMembersFilteredByRoleAndGender(role.idKey, section.value).length > 0">
                                         <HighlightLabel :customClass="`gender-highlight-label ${section.class}`"
                                                         labelType="custom">
-                                            {{ section.label }} ({{ getGroupMembersFilteredByRoleAndGender(role.idKey, section.value).length }})
+                                            {{ section.label }} ({{ getGroupMembersFilteredByRoleAndGender(role.idKey, section.value).length.toLocaleString() }})
                                         </HighlightLabel>
                                         <div class="group-role-wrapper"
                                              v-drag-source="groupMemberDragOptions">
@@ -188,13 +188,13 @@
 }
 
 .male-label {
-    background-color: #E8F3FC;
-    color: #1A8AE5;
+    background-color: var(--color-gender-male-bg);
+    color: var(--color-gender-male-text);
 }
 
 .female-label {
-    background-color: #FCE8FA;
-    color: #DE69C3;
+    background-color: var(--color-gender-female-bg);
+    color: var(--color-gender-female-text);
 }
 
 .unknown-label {
@@ -222,20 +222,22 @@
 
 .panel-inline .panel-heading {
     padding: 8px 16px;
-    /* background-color: rgba(245, 245, 245, 0.8); */
     background-color: var(--color-interface-softer);
-    border: 1px solid var(--color-interface-soft);
+    border-top: 1px solid var(--color-interface-soft);
     border-radius: 0;
+}
+
+.panel-body > .panel-inline:first-of-type > .panel-heading {
+    border-top: none;
+}
+
+.panel-inline .panel-heading.panel-heading-bottom {
+    border-bottom: 1px solid var(--color-interface-soft);
 }
 
 .panel-inline .panel-title {
     font-size: 14px;
     font-weight: 600
-}
-
-.panel-drawer + .group-role-members .panel-heading,
-.group-role-members:first-child .panel-heading {
-    border-top: 0
 }
 
 .placement-capacity-label {
@@ -249,15 +251,15 @@
 }
 
 .role-count.over-under-role-capacity {
-    color: var(--color-danger);
+    color: var(--color-danger-strong);
 }
 
 .male-badge {
-    background-color: #1A8AE5 !important;
+    background-color: var(--color-gender-male-text) !important;
 }
 
 .female-badge {
-    background-color: #DE69CE !important;
+    background-color: var(--color-gender-female-text) !important;
 }
 
 .unknown-badge {
@@ -266,20 +268,20 @@
 }
 
 .status-over {
-    background-color: #d4442e !important;
+    background-color: var(--color-danger-strong) !important;
 }
 
 .status-at {
-    background-color: #ee7624 !important;
+    background-color: var(--color-critical-strong) !important;
 }
 
 .status-near {
-    background-color: #ffc870 !important;
+    background-color: var(--color-warning-strong) !important;
     color: black;
 }
 
 .status-under {
-    background-color: #16c98d !important;
+    background-color: var(--color-success-strong) !important;
 }
 
 .group-role-wrapper {
@@ -526,10 +528,10 @@
         const groupMemberCount = destinationGroup.value.groupMembers?.length ?? 0;
 
         if (!destinationGroup.value.groupCapacity) {
-            return `${groupMemberCount}`;
+            return `${groupMemberCount.toLocaleString()}`;
         }
 
-        return `${groupMemberCount} / ${destinationGroup.value.groupCapacity}`;
+        return `${groupMemberCount.toLocaleString()} / ${destinationGroup.value.groupCapacity.toLocaleString()}`;
     });
 
 
@@ -582,7 +584,7 @@
 
     function getRoleSubHeaderText(roleIdKey: string): string {
         const role = groupTypeRoles.value.find(r => r.idKey === roleIdKey);
-        return role?.maxCount ? `${getRoleCount(roleIdKey)}/${role.maxCount}` : `${getRoleCount(roleIdKey)}`;
+        return role?.maxCount ? `${getRoleCount(roleIdKey).toLocaleString()}/${role.maxCount.toLocaleString()}` : `${getRoleCount(roleIdKey).toLocaleString()}`;
     }
 
     function getGroupMembersFilteredByRole(roleIdKey: string): GroupMemberBag[] {
@@ -602,11 +604,11 @@
         const parts: string[] = [];
 
         if (role.maxCount != null) {
-            parts.push(`Maximum Total: ${role.maxCount}`);
+            parts.push(`Maximum Total: ${role.maxCount.toLocaleString()}`);
         }
 
         if (role.minCount != null) {
-            parts.push(`Minimum Total: ${role.minCount}`);
+            parts.push(`Minimum Total: ${role.minCount.toLocaleString()}`);
         }
 
         return parts.join("<br>");

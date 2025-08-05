@@ -2,7 +2,7 @@
 <template>
     <AutomationEventHeader title="Send Fallback Chat Notification"
                            description="Choose the system communication that will be sent as a fallback to Chat members who don't receive device notifications whenever the event executes."
-                           :mergeFields="props.mergeFields" />
+                           :mergeFields="mergeFields" />
 
     <NotificationBox :alertType="AlertType.Info">
         To maintain performance and avoid placing unnecessary load on the Rock server, fallback notifications will be sent to a maximum of 50 members. However, the recommended use case is much smaller: ideally 3 to 5 members per channel for optimal effectiveness and responsiveness.
@@ -21,7 +21,14 @@
         <div class="col-md-4">
             <NumberBox v-model="notificationSuppressionMinutes"
                        label="Notification Suppression Minutes"
-                       help="The number of minutes the system will suppress notifications if the recipient has already received a recent notification."
+                       help="The number of minutes to suppress notifications if the recipient has recently received one. Enter 0 to disable suppression and send a notification every time the event executes."
+                       :minimumValue="0" />
+        </div>
+
+        <div class="col-md-4">
+            <NumberBox v-model="deviceSeenWithinDays"
+                       label="Device Seen Within Days"
+                       help="A Chat member will be excluded from fallback notifications if they have a personal device with notifications enabled. Specify how many days in the past Rock must have seen this device to consider it eligible for notifications. Enter 0 to ignore how long ago the device was last seen."
                        :minimumValue="0" />
         </div>
 
@@ -45,6 +52,7 @@
     import { updateRefValue } from "@Obsidian/Utility/component";
     import { toNumberOrNull } from "@Obsidian/Utility/numberUtils";
     import { safeParseJson } from "@Obsidian/Utility/stringUtils";
+    import { AutomationValueDefinitionBag } from "@Obsidian/ViewModels/Core/Automation/automationValueDefinitionBag";
     import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
 
     const enum ConfigurationKey {
@@ -59,6 +67,16 @@
 
     const props = defineProps(automationEventComponentProps);
 
+    const mergeFields = ref<AutomationValueDefinitionBag[]>([
+        ...props.mergeFields,
+        {
+            key: "Person",
+            description: "The person who will receive the fallback notification.",
+            typeName: "Rock.Model.Person"
+        }
+    ]);
+
+
     const emit = defineEmits<{
         (e: "update:modelValue", value: Record<string, string | null | undefined>): void
     }>();
@@ -71,7 +89,7 @@
 
     const systemCommunicationItems = ref(safeParseJson<ListItemBag[]>(props.options[OptionKey.SystemCommunicationItems]) ?? []);
 
-    // #endregion
+    // #endregion Values
 
     watch([systemCommunication, notificationSuppressionMinutes, deviceSeenWithinDays], () => {
         const newValues = { ...props.modelValue };

@@ -306,6 +306,11 @@ namespace Rock.Model
         public class TookStepConversionGoalSettings
         {
             /// <summary>
+            /// Gets or sets the unique identifier of the Step Program used by the Step Type for this conversion goal.
+            /// </summary>
+            public Guid StepProgramGuid { get; set; }
+
+            /// <summary>
             /// Gets or sets the unique identifier of the Step Type used for this conversion goal.
             /// </summary>
             public Guid StepTypeGuid { get; set; }

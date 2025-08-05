@@ -1050,11 +1050,11 @@ namespace Rock.Blocks.Communication
                         AdditionalMergeFields = communication?.AdditionalMergeFields,
                         BinaryFileTypeGuid = this.AttachmentBinaryFileTypeGuid,
                         BulkEmailThreshold = emailMedium.GetBulkEmailThreshold(),
-                        DocumentFolderRoot = this.DocumentRootFolder,
+                        EncryptedDocumentFolderRoot = Encryption.EncryptString( this.DocumentRootFolder ),
+                        EncryptedImageFolderRoot = Encryption.EncryptString( this.ImageFolderRoot ),
                         FromName = sender?.FullName,
                         FromAddress = sender?.Email,
                         HasActiveTransport = emailMedium.Transport?.IsActive ?? false,
-                        ImageFolderRoot = this.ImageFolderRoot,
                         IsAttachmentUploaderShown = this.IsAttachmentUploaderShown,
                         IsUserSpecificRoot = this.IsUserSpecificRoot,
                         MediumEntityTypeId = medium.EntityType.Id,
@@ -1591,7 +1591,7 @@ namespace Rock.Blocks.Communication
 
             foreach ( var template in new CommunicationTemplateService( rockContext )
                 .Queryable().AsNoTracking()
-                .Where( a => a.IsActive )
+                .Where( a => a.IsActive && a.UsageType == null ) // By default, exclude templates with a specified usage type (e.g., Communication Flows)
                 .OrderBy( t => t.Name ) )
             {
                 if ( template == null || !template.IsAuthorized( Authorization.VIEW, currentPerson ) )

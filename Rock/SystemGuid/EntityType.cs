@@ -1,4 +1,4 @@
-// <copyright>
+﻿// <copyright>
 // Copyright by the Spark Development Network
 //
 // Licensed under the Rock Community License (the "License");
@@ -134,9 +134,9 @@ namespace Rock.SystemGuid
         public const string COMMUNICATION_FLOW_INSTANCE_RECIPIENT = "F615AC08-8ACD-48F9-B42E-2F4CE02D4206";
 
         /// <summary>
-        /// The guid for the communication flow instance conversion history
+        /// The guid for the communication flow instance communication conversion
         /// </summary>
-        public const string COMMUNICATION_FLOW_INSTANCE_CONVERSION_HISTORY = "726B5B81-B4B2-4E74-9069-0409A3D19753";
+        public const string COMMUNICATION_FLOW_INSTANCE_COMMUNICATION_CONVERSION = "726B5B81-B4B2-4E74-9069-0409A3D19753";
 
         /// <summary>
         /// The guid for the email communication medium

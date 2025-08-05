@@ -1,11 +1,11 @@
 /* CSS Overrides Top Start */
-@import url('/Styles/styles-v2-prototype/icons/fontawesome-icon.css');
-@import url('/Styles/styles-v2-prototype/icons/fontawesome-solid.css');
-@import url('/Styles/styles-v2-prototype/icons/tabler-icon.css');
+@import url('/Styles/styles-v2/icons/fontawesome-icon.css');
+@import url('/Styles/styles-v2/icons/fontawesome-solid.css');
+@import url('/Styles/styles-v2/icons/tabler-icon.css');
 /* CSS Overrides Top End */
 
 @import "../../../Styles/summernote/summernote.min.css";
-@import "../../../Styles/styles-v2-prototype/core.css";
+@import "../../../Styles/styles-v2/core.css";
 :root {
   --panel-body-padding: 16px;
 }
@@ -324,7 +324,7 @@ body.navbar-side-open {
   border-radius: 999px;
   flex-direction: row-reverse;
 }
-.rock-top-header .smartsearch .fa.fa-search {
+.rock-top-header .smartsearch .ti.ti-search {
   display: none;
 }
 @media (min-width: 768px) {
@@ -588,16 +588,6 @@ body.navbar-side-open {
 .navbar-static-side .nav-childpages .nav-item .nav-link:last-child {
   margin-bottom: 0;
 }
-.navbar-static-side .nav-childpages .nav-item .nav-link::before {
-  display: inline-block;
-  width: 0;
-  height: 8px;
-  margin-right: 14px;
-  margin-bottom: 1px;
-  content: " ";
-  background-color: transparent;
-  border-radius: 100px;
-}
 .navbar-static-side .nav-childpages .nav-item .nav-link:focus {
   color: var(--color-interface-strong);
   background-color: var(--color-interface-soft);
@@ -647,7 +637,7 @@ body.navbar-side-open {
 }
 .navbar-static-side .nav-childpages li.header {
   padding-top: 11px;
-  padding-left: 5px !important;
+  padding-left: var(--spacing-xsmall) !important;
   margin-top: var(--spacing-large);
   margin-bottom: calc(var(--font-size-regular) * var(--line-height-normal))/2;
   font-size: var(--font-size-xsmall);
@@ -1240,6 +1230,11 @@ a.rock-bookmark {
 .rock-top-header .navbar-zone-header .zone-content {
   flex-direction: row-reverse;
   justify-content: flex-start;
+}
+
+.borderless-panel {
+  border: none;
+  border-radius: 0;
 }
 
 /*# sourceMappingURL=theme.css.map */

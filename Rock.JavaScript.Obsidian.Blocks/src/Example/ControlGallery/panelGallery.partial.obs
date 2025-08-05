@@ -26,11 +26,11 @@
 
             <template v-if="simulateHeaderActions" #headerActions>
                 <span class="action">
-                    <i class="fa fa-star-o"></i>
+                    <i class="ti ti-star"></i>
                 </span>
 
                 <span class="action">
-                    <i class="fa fa-user"></i>
+                    <i class="ti ti-user"></i>
                 </span>
             </template>
 
@@ -50,8 +50,8 @@
             </template>
 
             <template v-if="simulateFooterSecondaryActions" #footerSecondaryActions>
-                <RockButton btnType="default"><i class="fa fa-lock"></i></RockButton>
-                <RockButton btnType="default"><i class="fa fa-unlock"></i></RockButton>
+                <RockButton btnType="default"><i class="ti ti-lock"></i></RockButton>
+                <RockButton btnType="default"><i class="ti ti-lock-open"></i></RockButton>
             </template>
 
             <template v-if="simulateFooterContent" #footerContent>
@@ -163,13 +163,13 @@
 
         return [
             {
-                iconCssClass: "fa fa-user",
+                iconCssClass: "ti ti-user",
                 title: "Action 1",
                 type: "default",
                 handler: () => alert("Action 1 selected.")
             },
             {
-                iconCssClass: "fa fa-group",
+                iconCssClass: "ti ti-users",
                 title: "Action 2",
                 type: "default",
                 handler: () => alert("Action 2 selected.")

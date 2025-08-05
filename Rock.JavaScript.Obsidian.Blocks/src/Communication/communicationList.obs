@@ -72,18 +72,18 @@
 
         <Column name="communicationType"
                 field="type"
+                title="Communication Type"
                 :exportValue="getCommunicationTypeTextValue"
                 :hideOnScreen="true" />
 
-        <Column name="name" field="name" :hideOnScreen="true" />
-        <Column name="summary" field="summary" :hideOnScreen="true" />
+        <Column name="name" field="name" title="Name" :hideOnScreen="true" />
+        <Column name="summary" field="summary" title="Summary" :hideOnScreen="true" />
 
         <Column name="displayName"
-                field="displayName"
                 title="Name"
                 sortField="name"
                 width="40%"
-                :quickFilterValue="getDisplayNameTextValue"
+                :quickFilterValue="getDisplayQuickFilterValue"
                 :excludeFromExport="true">
             <template #format="{ row }">
                 <DisplayName :row="(row as Row)" />
@@ -109,23 +109,28 @@
                 :filter="numberValueFilter"
                 :quickFilterValue="getRecipientCountFilterTextValue">
             <template #format="{ row }">
-                <Badge :badgeType="BadgeType.Info" class="grid-cell-recipients">
+                <Badge :badgeType="BadgeType.Info" class="communication-list-grid-cell-recipients">
                     <i class="ti ti-users"></i> {{ asFormattedString(row.recipientCount) }}
                 </Badge>
             </template>
         </Column>
 
-        <Column name="deliveredCount" field="deliveredCount" :hideOnScreen="true" />
-        <Column name="openedCount" field="openedCount" :hideOnScreen="true" />
-        <Column name="failedCount" field="failedCount" :hideOnScreen="true" />
-        <Column name="unsubscribedCount" field="unsubscribedCount" :hideOnScreen="true" />
+        <Column name="deliveredCount" field="deliveredCount" title="Delivered Count" :hideOnScreen="true" />
+        <Column name="openedCount" field="openedCount" title="Opened Count" :hideOnScreen="true" />
+        <Column name="failedCount" field="failedCount" title="Failed Count" :hideOnScreen="true" />
+        <Column name="unsubscribedCount" field="unsubscribedCount" title="Unsubscribed Count" :hideOnScreen="true" />
 
         <LabelColumn name="topic"
                      field="topic"
                      title="Topic"
-                     defaultLabelClass="outline"
                      visiblePriority="xl"
-                     :filter="pickExistingValueFilter" />
+                     :filter="pickExistingValueFilter">
+            <template #format="{ row }">
+                <div class="label label-outline text-truncate" :class="{ 'communication-list-grid-cell-label': (row as Row).topic }">
+                    {{ (row as Row).topic }}
+                </div>
+            </template>
+        </LabelColumn>
 
         <Column name="sendDateTime"
                 field="sendDateTime"
@@ -144,6 +149,9 @@
                     <template v-else-if="row.futureSendDateTime">
                         <i class="ti ti-clock align-self-center"></i>
                         {{ getFormattedDateTime(row.futureSendDateTime) }}
+                    </template>
+                    <template v-else>
+                        {{ getFormattedDateTime(row.createdDateTime) }}
                     </template>
                 </div>
             </template>
@@ -177,8 +185,12 @@
     background-color: var(--theme-light);
 }
 
-.grid-cell-recipients {
+.communication-list-grid-cell-recipients {
     font-size: var(--font-size-small);
+}
+
+.communication-list-grid-cell-label {
+    display: block;
 }
 </style>
 
@@ -437,12 +449,39 @@
     }
 
     /**
-     * Gets the text value for the "[Display]Name" column.
+     * Gets the quick filter value for the "[Display]Name" column.
      *
      * @param row The row whose value to get.
      */
-    function getDisplayNameTextValue(row: Record<string, unknown>): string {
-        return (row as Row).name?.toString() ?? "";
+    function getDisplayQuickFilterValue(row: Record<string, unknown>): string {
+        const r = row as Row;
+        const searchStrings: string[] = [];
+
+        if (r.name) {
+            searchStrings.push(r.name);
+        }
+
+        if (r.summary) {
+            searchStrings.push(r.summary);
+        }
+
+        if (r.deliveredCount > 0) {
+            searchStrings.push(r.deliveredCount.toString());
+        }
+
+        if (r.openedCount > 0) {
+            searchStrings.push(r.openedCount.toString());
+        }
+
+        if (r.failedCount > 0) {
+            searchStrings.push(r.failedCount.toString());
+        }
+
+        if (r.unsubscribedCount > 0) {
+            searchStrings.push(r.unsubscribedCount.toString());
+        }
+
+        return searchStrings.join(" ");
     }
 
     /**
@@ -474,8 +513,11 @@
         if (r.sendDateTime) {
             return r.sendDateTime;
         }
+        else if (r.futureSendDateTime) {
+            return r.futureSendDateTime;
+        }
 
-        return r.futureSendDateTime ?? "";
+        return r.createdDateTime ?? "";
     }
 
     /**
@@ -489,8 +531,11 @@
         if (r.sendDateTime) {
             return getFormattedDateTime(r.sendDateTime);
         }
+        else if (r.futureSendDateTime) {
+            return getFormattedDateTime(r.futureSendDateTime);
+        }
 
-        return getFormattedDateTime(r.futureSendDateTime ?? "");
+        return getFormattedDateTime(r.createdDateTime ?? "");
     }
 
     /**

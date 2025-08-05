@@ -1,0 +1,752 @@
+<template>
+    <Chart :data="chartData"
+           :options="chartOptions"
+           :plugins="plugins"
+           type="bar" />
+</template>
+
+<script setup lang="ts">
+    import { computed, PropType } from "vue";
+    import Chart from "./chart.obs";
+    import { ChartNumericDataPointBag } from "@Obsidian/ViewModels/Reporting/chartNumericDataPointBag";
+    import { BarElement, Chart as ChartJs, ChartData, ChartDataset, ChartMeta, ChartOptions, ChartType, Plugin, ScriptableContext, ChartTypeRegistry } from "@Obsidian/Libs/chart";
+    import { Enumerable, GroupedEnumerable } from "@Obsidian/Utility/linq";
+    import { isNullish } from "@Obsidian/Utility/util";
+    import { RockColor } from "@Obsidian/Core/Utilities/rockColor";
+    import { createGlobalBackgroundColorProvider } from "./Internal/EmailEditor/providers.partial";
+
+    type ChartStyles = {
+        fontFamily: string;
+        fontColor: string;
+        fontSize: number;
+        fontWeight: string;
+        legendBoxSize: number;
+        fallbackColor: string;
+    };
+
+    type LegendConfig = {
+        hide?: boolean;
+        position?: "top" | "bottom" | "left" | "right";
+    };
+
+    type LabelAxisConfig = {
+        type?:
+        | "string"
+        | "date.day"
+        | "date.week"
+        | "date.month"
+        | "date.year";
+        title?: string;
+    };
+
+    type ValueAxisConfig = {
+        type?: "number" | "percent";
+        maxDecimalPlaces?: number;
+        limits?: {
+            min?: number;
+            max?: number;
+        };
+        ticks?: {
+            coarse?: number;
+            fine?: number;
+        };
+        tooltip?: {
+            callback?: (label: string, value: number, formattedValue: string) => string | null | undefined;
+            hide?: boolean;
+        };
+    };
+
+    type AxesConfig = {
+        label?: LabelAxisConfig;
+        value?: ValueAxisConfig;
+    };
+
+    type BarLabelPosition =
+        | "inside"
+        | "outside";
+
+    type BarLabelContext = {
+        /** Dataset (series) label, e.g. “Revenue”. */
+        seriesName: string;
+        /** Category label on the cross-axis, e.g. “Jan”. */
+        label: string;
+        /** Numeric value that determines bar length. */
+        value: number;
+    };
+
+    type BarLabelAlignment =
+        | "start"
+        | "center"
+        | "end";
+
+    type BarLabelSpec = {
+        /** Build the text for this line. */
+        formatter: (ctx: BarLabelContext) => string;
+        /** Canvas style overrides (font, fillStyle, textAlign …). */
+        style?: Partial<CSSStyleDeclaration>;
+        /** Manual vertical nudge (stacking control). */
+        offsetPx?: number;
+        /** Alignment of the label. */
+        align?: BarLabelAlignment;
+    };
+
+    type BarLabelsConfig = Partial<Record<
+        BarLabelPosition,
+        BarLabelSpec | BarLabelSpec[]
+    >>;
+
+    type IBarLabelsPluginOptions = BarLabelsConfig;
+
+    // Extend the Chart.js typings so options.plugins.barLabels is typed.
+    declare module "@Obsidian/Libs/chart" {
+        // eslint-disable-next-line @typescript-eslint/naming-convention, @typescript-eslint/no-unused-vars
+        interface PluginOptionsByType<TType extends ChartType> {
+            barLabels?: IBarLabelsPluginOptions;
+        }
+    }
+
+    const props = defineProps({
+        modelValue: {
+            type: Array as PropType<ChartNumericDataPointBag[]>,
+            required: true
+        },
+
+        axes: {
+            type: Object as PropType<AxesConfig | null | undefined>,
+            default: ({
+                label: { type: "string" },
+                value: { type: "number" }
+            })
+        },
+
+        barLabels: {
+            type: Object as PropType<BarLabelsConfig | null | undefined>
+        },
+
+        legend: {
+            type: Object as PropType<LegendConfig | null | undefined>
+        },
+
+        seriesSort: {
+            type: Object as PropType<((a: string, b: string) => number) | string[] | null | undefined>
+        },
+
+        title: {
+            type: String as PropType<string | null | undefined>,
+        }
+    });
+
+    // Spacing constants.
+    const lineGapDefaultPx = 4; // gap between stacked label lines
+    const outsideLabelBarGapPx = 0; // distance from top of bar to 1st outside label
+    const insideLabelPaddingPx = 4; // min clearance from bar edge to inside label block
+
+    type PaddingObject = { top?: number; right?: number; bottom?: number; left?: number };
+    type PaddingInput =
+        | number
+        | PaddingObject
+        | ((
+            ctx: ScriptableContext<keyof ChartTypeRegistry>
+        ) => number | PaddingObject | undefined);
+
+    /** Resolve any Chart.js layout-padding value into a full object. */
+    function resolvePadding(
+        chart: ChartJs,
+        pad: PaddingInput | undefined
+    ): Required<PaddingObject> {
+        if (pad === undefined) {
+            return { top: 0, right: 0, bottom: 0, left: 0 };
+        }
+
+        /* 1 ▸  If it’s a function, call it with a *typed* context */
+        if (typeof pad === "function") {
+            // Cast is fine here; we’re only interested in pad.top etc.
+            pad = pad({ chart } as ScriptableContext<keyof ChartTypeRegistry>);
+        }
+
+        if (pad === undefined) {
+            return { top: 0, right: 0, bottom: 0, left: 0 };
+        }
+
+        /* 2 ▸  If it’s a single number, expand to all sides */
+        if (typeof pad === "number") {
+            return { top: pad, right: pad, bottom: pad, left: pad };
+        }
+
+        /* 3 ▸  It’s already an object; fill in missing sides with 0 */
+        return {
+            top: pad.top ?? 0,
+            right: pad.right ?? 0,
+            bottom: pad.bottom ?? 0,
+            left: pad.left ?? 0
+        };
+    }
+
+    const barLabelsPlugin: Plugin<"bar"> = {
+        id: "barLabels",
+
+        // Figures out if extra padding is needed for outside labels and injects it.
+        beforeLayout(chart, _args, opts?: IBarLabelsPluginOptions) {
+            if (!opts?.outside) {
+                // No outside labels, no padding needed.
+                return;
+            }
+
+            const ctx = chart.ctx;
+            ctx.save();
+
+            // Measure the tallest outside-label block that will be drawn
+            // only considering *visible* datasets.
+            let requiredTopPad = 0;
+
+            chart.data.datasets.forEach((ds, dsIndex) => {
+                if (!chart.isDatasetVisible(dsIndex)) {
+                    return;
+                }
+
+                const meta = chart.getDatasetMeta(dsIndex);
+                meta.data.forEach((_bar, i) => {
+                    const arr = Array.isArray(opts.outside) ? opts.outside : [opts.outside];
+                    let blockHeight = 0;
+
+                    arr.forEach((spec, line) => {
+                        if (!spec) {
+                            return;
+                        }
+
+                        const text = spec.formatter({
+                            seriesName: ds.label ?? "",
+                            label: chart.data.labels?.[i] as string,
+                            value: ds.data[i] as number
+                        });
+
+                        if (!text) {
+                            return;
+                        }
+
+                        const font = spec.style?.font ?? "normal 12px sans-serif";
+                        ctx.font = font;
+                        const h = parseInt(font.match(/(\d+)px/)?.[1] ?? "12", 10);
+
+                        blockHeight += h;
+                        if (line) {
+                            blockHeight += spec.offsetPx ?? lineGapDefaultPx;
+                        }
+                    });
+
+                    requiredTopPad = Math.max(requiredTopPad, blockHeight + outsideLabelBarGapPx);
+                });
+            });
+
+            ctx.restore();
+
+            /* ------------------------------------------------------------------
+               Inject that padding.
+               If the user already supplied a static top-padding, keep the larger.
+            ------------------------------------------------------------------ */
+            const userPad = chart.options.layout?.padding as PaddingInput | undefined;
+            const resolvedPad = resolvePadding(chart, userPad);
+
+            chart.options.layout = {
+                ...chart.options.layout,
+                padding: {
+                    ...resolvedPad,
+
+                    top: Math.max(resolvedPad.top, requiredTopPad)
+                }
+            };
+        },
+
+        afterDatasetDraw(
+            chart: ChartJs<"bar">,
+            { index: datasetIndex, meta }: { index: number; meta: ChartMeta<"bar"> },
+            cfg?: IBarLabelsPluginOptions
+        ) {
+            if (!cfg?.inside && !cfg?.outside) {
+                return; // nothing to render
+            }
+
+            const { ctx, data } = chart;
+            const ds = data.datasets[datasetIndex];
+
+            ctx.save();
+
+            meta.data.forEach((bar, idx) => {
+                // Bail out if this dataset is hidden via the legend.
+                if (!chart.isDatasetVisible(datasetIndex)) {
+                    return;
+                }
+
+                if (!(bar instanceof BarElement)) {
+                    return;
+                }
+
+                const { x, y, base, width, height, horizontal } = bar.getProps(["x", "y", "base", "width", "height", "horizontal"], true);
+                const ctxBase: BarLabelContext = {
+                    seriesName: ds.label ?? "",
+                    label: (data.labels?.[idx] ?? "") as string,
+                    value: ds.data[idx] as number
+                };
+
+                function resolveTextAlignment(
+                    position: BarLabelPosition,
+                    align: BarLabelAlignment | undefined,
+                    isBarHorizontal: boolean
+                    // eslint-disable-next-line no-undef
+                ): { textAlign: CanvasTextAlign; textBaseline: CanvasTextBaseline } {
+                    if (position === "inside") {
+                        return {
+                            textAlign: "center",
+                            textBaseline:
+                                align === "start" ? "bottom" :
+                                    align === "end" ? "top" :
+                                        align === "center" ? "middle"
+                                        : "top"
+                        };
+                    }
+                    else if (position === "outside") {
+                        return !isBarHorizontal
+                            ? {
+                                textAlign:
+                                    align === "start" ? "left" :
+                                        align === "end" ? "right" :
+                                            align === "center" ? "center"
+                                            : "center",
+                                textBaseline: "bottom"
+                            }
+                            : {
+                                textAlign: "left",
+                                textBaseline:
+                                    align === "start" ? "top" :
+                                        align === "end" ? "bottom" :
+                                        align === "center" ? "middle"
+                                            : "middle"
+                            };
+                    }
+                    else {
+                        return {
+                            textAlign: "center",
+                            textBaseline: "middle"
+                        };
+                    }
+                }
+
+                function insideCoordinate(
+                    align: BarLabelAlignment | undefined,
+                    isBarHorizontal: boolean,
+                    barProps: { x: number; y: number; base: number; width: number; height: number },
+                    fontHeight: number
+                ): number {
+                    const { x, y, base, width, height } = barProps;
+
+                    if (!isBarHorizontal) {
+                        const top = Math.min(y, base);
+                        const bottom = Math.max(y, base);
+                        const barHeight = height; //bottom - top;
+
+                        switch (align) {
+                            case "start": return bottom - insideLabelPaddingPx - fontHeight / 2;
+                            case "center": return top + barHeight / 2;
+                            case "end":
+                            default: return top + insideLabelPaddingPx + fontHeight / 2;
+                        }
+                    }
+                    else {
+                        const left = Math.min(x, base);
+                        const right = Math.max(x, base);
+                        const barWidth = width;//right - left;
+
+                        switch (align) {
+                            case "start": return left + insideLabelPaddingPx + fontHeight / 2;
+                            case "end": return right - insideLabelPaddingPx - fontHeight / 2;
+                            case "center":
+                            default: return left + barWidth / 2;
+                        }
+                    }
+                }
+
+                function draw(
+                    position: BarLabelPosition,
+                    spec: BarLabelSpec | BarLabelSpec[] | undefined,
+                    baseY: number
+                ): void {
+                    if (!spec) {
+                        return;
+                    }
+
+                    const arr = Array.isArray(spec) ? spec : [spec];
+
+                    // Estimate total text height for this position.
+                    const lineHeights = arr.map(s => {
+                        const font = s.style?.font ?? "normal 12px sans-serif";
+                        // crude but fine: integer in px before the "px" token
+                        return parseInt(font.match(/(\d+)px/)?.[1] ?? "12", 10);
+                    });
+
+                    const totalHeight =
+                        lineHeights.reduce((sum, h, i) => {
+                            const offset = arr[i].offsetPx ?? lineGapDefaultPx;
+                            return sum + h + (i === 0 ? 0 : offset); // first line no offset
+                        }, 0);
+
+                    // If position === "inside", check if the bar is tall enough to fit the text.
+                    // If not, skip drawing the inside label.
+                    if (position === "inside") {
+                        const barHeight = base - y;
+                        if (totalHeight + insideLabelPaddingPx > barHeight) {
+                            return;
+                        }
+                    }
+
+                    // Now actually render each line.
+                    let cursor = baseY;
+                    arr.forEach((s, i) => {
+                        const text = s.formatter(ctxBase);
+                        if (!text) {
+                            return;
+                        }
+
+                        const font = s.style?.font ?? "normal 12px sans-serif";
+
+                        let color = s.style?.color;
+                        if (!color) {
+                            if (position === "inside") {
+                                color = pickContrast(
+                                    (ds.backgroundColor as string[] | undefined)?.[idx] ??
+                                    (ds.borderColor as string[] | undefined)?.[idx] ??
+                                    getCssVar("--color-interface-contrast", "#000")
+                                );
+                            }
+                            else if (position === "outside") {
+                                color = getCssVar("--color-interface-medium", "#8B8BA7");
+                            }
+                            else {
+                                color = "black";
+                            }
+                        }
+
+                        ctx.font = font;
+                        ctx.fillStyle = color;
+
+                        const { textAlign, textBaseline } = resolveTextAlignment(
+                            position,
+                            s.align,
+                            horizontal
+                        );
+                        ctx.textAlign = textAlign;
+                        ctx.textBaseline = textBaseline;
+
+                        let drawX = x;
+
+                        if (!horizontal) {
+                            if (textAlign === "left") {
+                                drawX = x - width / 2;
+                            }
+                            else if (textAlign === "right") {
+                                drawX = x + width / 2;
+                            }
+                            else {
+                                drawX = x;
+                            }
+                        }
+
+                        ctx.fillText(text, drawX, cursor); // where cursor = y - gap
+
+                        const lineH = lineHeights[i];
+                        const offset = s.offsetPx ?? (i === 0 ? 0 : lineGapDefaultPx);
+                        cursor += lineH + offset;
+                    });
+                }
+
+                const barCoords = {
+                    x,
+                    y,
+                    base,
+                    width,
+                    height
+                };
+                const firstInside = Array.isArray(cfg.inside) ? cfg.inside[0] : cfg.inside;
+                const align = firstInside?.align;
+                const fontStr = firstInside?.style?.font ?? "normal 12px sans-serif";
+                const fontHeight = parseInt(fontStr.match(/(\d+)px/)?.[1] ?? "12", 10);
+                const insideLabelPos = insideCoordinate(
+                    align,
+                    horizontal,
+                    barCoords,
+                    fontHeight
+                );
+                draw("inside", cfg.inside, insideLabelPos);
+
+                const outsideLabelPos = horizontal
+                    ? x + width + outsideLabelBarGapPx  // bar is horizontal → shift X
+                    : y - outsideLabelBarGapPx;         // bar is vertical → shift Y
+                draw("outside", cfg.outside, outsideLabelPos);
+            });
+
+            ctx.restore();
+        }
+    };
+
+    // #region Computed Values
+
+    const plugins = computed<Plugin<"bar">[]>(() => {
+        const plugins: Plugin<"bar">[] = [];
+
+        if (props.barLabels && Object.keys(props.barLabels).length > 0) {
+            plugins.push(barLabelsPlugin);
+        }
+
+        return plugins;
+    });
+
+    const seriesSortFunction = computed<((a: string, b: string) => number) | undefined>(() => {
+        const seriesSort = props.seriesSort;
+        if (seriesSort) {
+            if (Array.isArray(seriesSort)) {
+                return (a, b) => {
+                    return seriesSort.indexOf(a) - seriesSort.indexOf(b);
+                };
+            }
+            else {
+                return seriesSort;
+            }
+        }
+    });
+
+    const chartStyles = computed<ChartStyles>(() => {
+        return {
+            fontFamily: getCssVar("--font-family-sans-serif", '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol"'),
+            fontColor: getCssVar("--color-interface-stronger", "#0D1117"),
+            fontSize: parseInt(getCssVar("--font-size-small", "14")),
+            fontWeight: getCssVar("--font-weight-semibold", "600"),
+            legendBoxSize: parseInt(getCssVar("--spacing-large", "24")),
+            fallbackColor: "#8e8e93"
+        };
+    });
+
+    const chartData = computed<ChartData<"bar">>(() => {
+        const dataPointsEnumerable = Enumerable.from(props.modelValue);
+
+        const labels = dataPointsEnumerable
+            .select(d => d.label)
+            .ofType((d): d is string => !isNullish(d))
+            .distinct()
+            .toArray();
+
+        let groupedBySeries = dataPointsEnumerable
+            .where(d => !isNullish(d.seriesName))
+            .groupBy(d => d.seriesName!)
+            .ofType((group): group is GroupedEnumerable<string, ChartNumericDataPointBag> => {
+                return !isNullish(group.key);
+            });
+
+        if (seriesSortFunction.value) {
+            groupedBySeries = groupedBySeries
+                .orderBy(group => group.key, seriesSortFunction.value);
+        }
+
+        return {
+            labels,
+            datasets: groupedBySeries
+                .select<ChartDataset<"bar", (number | [number, number] | null)[]>>(group => {
+                    const seriesDataColors = group
+                        .select(d => d.color ?? undefined)
+                        .toArray();
+
+                    return {
+                        label: group.key,
+                        data: group.select(d => d.value).toArray(),
+                        backgroundColor: seriesDataColors,
+                        borderColor: seriesDataColors,
+                        grouped: true
+                    };
+                })
+                .toArray()
+        };
+    });
+
+    const chartOptions = computed<ChartOptions<"bar">>(() => {
+        return {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                barLabels: props.barLabels ?? undefined,
+                legend: {
+                    display: !props.legend?.hide,
+                    labels: {
+                        display: !props.legend?.hide,
+                        boxHeight: chartStyles.value.legendBoxSize,
+                        boxWidth: chartStyles.value.legendBoxSize,
+                        color: chartStyles.value.fontColor,
+                        font: {
+                            family: chartStyles.value.fontFamily,
+                            size: chartStyles.value.fontSize,
+                            weight: chartStyles.value.fontWeight
+                        }
+                    },
+                    position: props.legend?.position
+                },
+                title: {
+                    display: !!props.title,
+                    text: props.title ?? undefined,
+                    color: chartStyles.value.fontColor,
+                    font: {
+                        family: chartStyles.value.fontFamily,
+                        size: chartStyles.value.fontSize,
+                        weight: chartStyles.value.fontWeight
+                    }
+                },
+                tooltip: props.axes?.value?.tooltip
+                    ? {
+                        enabled: !props.axes.value.tooltip.hide,
+                        callbacks: {
+                            label: context => {
+                                const label = context.dataset.label ?? "";
+                                const value = context.parsed.y;
+                                //const formattedValue = context.formattedValue; // This is not formatted as a percent.
+                                const formattedValue = props.axes?.value?.type === "percent"
+                                    ? value.toLocaleString(undefined, { style: "percent", maximumFractionDigits: props.axes?.value?.maxDecimalPlaces })
+                                    : value.toLocaleString(undefined, { maximumFractionDigits: props.axes?.value?.maxDecimalPlaces });
+                                const tooltip = props.axes?.value?.tooltip?.callback?.(label, value, formattedValue);
+
+                                if (tooltip) {
+                                    return tooltip;
+                                }
+                            }
+                        }
+                    }
+                    : {
+                        enabled: !props.axes?.value?.tooltip?.hide,
+                        callbacks: {
+                            label: context => {
+                                let label = context.dataset.label || "";
+
+                                if (label) {
+                                    label += ": ";
+                                }
+
+                                if (context.parsed.y !== null) {
+                                    if (props.axes?.value?.type === "percent") {
+                                        label += context.parsed.y.toLocaleString(undefined, { style: "percent", maximumFractionDigits: props.axes?.value?.maxDecimalPlaces });
+                                    }
+                                    else {
+                                        label += context.parsed.y.toLocaleString(undefined, { maximumFractionDigits: props.axes?.value?.maxDecimalPlaces });
+                                    }
+                                }
+
+                                return label;
+                            }
+                        }
+                    }
+            },
+            scales: {
+                x: {
+                    grid: {
+                        drawOnChartArea: false
+                    },
+
+                    ...(props.axes?.label?.type?.startsWith("date")
+                        ? {
+                            type: "time",
+                            time: {
+                                unit: props.axes.label.type.split(".")[1] as "day" | "week" | "month"
+                            }
+                        }
+                        : undefined)
+                },
+                y: {
+                    beginAtZero: true,
+                    min: props.axes?.value?.limits?.min,
+                    max: props.axes?.value?.limits?.max,
+                    ticks: {
+                        stepSize: stepSize.value,
+                        callback: tickValue => {
+                            if (typeof tickValue !== "number") {
+                                tickValue = Number(tickValue);
+                            }
+
+                            if (isNaN(tickValue)) {
+                                // If it's not a number, return the original value.
+                                return `${tickValue}`;
+                            }
+                            else if (props.axes?.value?.type === "percent") {
+                                return tickValue.toLocaleString(undefined, { style: "percent", maximumFractionDigits: props.axes?.value?.maxDecimalPlaces });
+                            }
+                            else {
+                                return tickValue.toLocaleString(undefined, { maximumFractionDigits: props.axes?.value?.maxDecimalPlaces });
+                            }
+                        }
+                    },
+                    title: props.axes?.label?.title
+                        ? {
+                            display: true,
+                            text: props.axes.label.title,
+                            font: {
+                                family: chartStyles.value.fontFamily,
+                                size: chartStyles.value.fontSize,
+                                weight: chartStyles.value.fontWeight
+                            },
+                            color: chartStyles.value.fontColor
+                        }
+                        : undefined
+                }
+            }
+        };
+    });
+
+    const stepSize = computed<number | undefined>(() => {
+        const coarseTicks = props.axes?.value?.ticks?.coarse;
+        const fineTicks = props.axes?.value?.ticks?.fine;
+        const min = props.axes?.value?.limits?.min;
+        const max = props.axes?.value?.limits?.max;
+
+        if ((!isNullish(min) && !isNullish(max)) && (!isNullish(coarseTicks) || !isNullish(fineTicks))) {
+
+            const middleValue = (min + max) / 2;
+            const maxValue = Enumerable.from(props.modelValue).max(d => d.value);
+
+            if (!isNullish(maxValue)) {
+                if (maxValue >= middleValue && !isNullish(coarseTicks)) {
+                    return coarseTicks;
+                }
+                else if (maxValue < middleValue && !isNullish(fineTicks)) {
+                    return fineTicks;
+                }
+            }
+        }
+    });
+
+    // #endregion Computed Values
+
+    // #region Functions
+
+    /**
+     * Gets the CSS variable value.
+     *
+     * @param name The name of the CSS variable.
+     * @param fallback The fallback value to use.
+     */
+    function getCssVar(name: string, fallback: string): string {
+        const computedStyle = getComputedStyle(document.documentElement)
+            .getPropertyValue(name)
+            .trim();
+
+        return computedStyle || fallback;
+    }
+
+    function isDark(hex: string): boolean {
+        // const h = hex.replace("#", "");
+        // const r = parseInt(h.slice(0, 2), 16);
+        // const g = parseInt(h.slice(2, 4), 16);
+        // const b = parseInt(h.slice(4, 6), 16);
+        // return 0.299 * r + 0.587 * g + 0.114 * b < 128;
+        return new RockColor(hex).luminosity < .5;
+    }
+
+    const contrastMemo: Record<string, "black" | "white"> = {};
+    function pickContrast(hex: string): "black" | "white" {
+        return contrastMemo[hex] ??= isDark(hex) ? "white" : "black";
+    }
+
+    // #endregion Functions
+</script>

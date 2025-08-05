@@ -347,11 +347,11 @@ export default defineComponent({
             switch (internalMode.value) {
                 // If we are in edit mode show an icon to indicate that to the individual.
                 case DetailPanelMode.Edit:
-                    return "fa fa-pencil";
+                    return "ti ti-pencil";
 
                 // If we are in add mode show an icon to indicate that to the individual.
                 case DetailPanelMode.Add:
-                    return "fa fa-plus";
+                    return "ti ti-plus";
 
                 case DetailPanelMode.View:
                 default:
@@ -389,7 +389,7 @@ export default defineComponent({
             // we have a valid entity then show it.
             if (!props.isSecurityHidden && isViewMode.value && props.entityKey) {
                 actions.push({
-                    iconCssClass: "fa fa-lock",
+                    iconCssClass: "ti ti-lock",
                     title: "Edit Security",
                     type: "default",
                     handler: onSecurityClick
@@ -434,7 +434,7 @@ export default defineComponent({
             if (props.isFollowVisible && isViewMode.value) {
                 actions.push({
                     type: isEntityFollowed.value ? "primary" : "default",
-                    iconCssClass: isEntityFollowed.value ? "fa fa-star" : "fa fa-star-o",
+                    iconCssClass: isEntityFollowed.value ? "ti ti-star-filled" : "ti ti-star",
                     handler: onFollowClick,
                     title: isEntityFollowed.value ? `You are currently following ${props.name}.` : `Click to follow ${props.name}.`
                 });
@@ -504,7 +504,7 @@ export default defineComponent({
          */
         const getActionIconCssClass = (action: PanelAction): string => {
             // Provide a default value if they didn't give us one.
-            return action.iconCssClass || "fa fa-square";
+            return action.iconCssClass || "ti ti-square";
         };
 
         /**

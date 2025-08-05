@@ -36,6 +36,7 @@ using Rock.Data;
 using Rock.Model;
 using Rock.Reporting;
 using Rock.Security;
+using Rock.Tasks;
 using Rock.Utility;
 using Rock.Web.Cache;
 using Rock.Web.UI;
@@ -530,9 +531,24 @@ namespace RockWeb.Blocks.Communication
 
                             dataContext.SaveChanges();
 
+                            var outcomeMessageSb = new StringBuilder( $"The communication has been approved" );
+
+                            if ( !communication.FutureSendDateTime.HasValue || communication.FutureSendDateTime.Value <= RockDateTime.Now )
+                            {
+                                // Go ahead and send the communication.
+                                var processSendCommunicationMsg = new ProcessSendCommunication.Message
+                                {
+                                    CommunicationId = communication.Id,
+                                };
+
+                                processSendCommunicationMsg.Send();
+
+                                outcomeMessageSb.Append( " and queued for sending" );
+                            }
+
                             // TODO: Send notice to sender that communication was approved
 
-                            ShowResult( "The communication has been approved", communication, NotificationBoxType.Success );
+                            ShowResult( $"{outcomeMessageSb}.", communication, NotificationBoxType.Success );
                         }
                         else
                         {
@@ -649,25 +665,19 @@ namespace RockWeb.Blocks.Communication
         {
             if ( Page.IsValid && CommunicationId.HasValue )
             {
-                var dataContext = this.GetDataContext();
+                var newCommunicationId = new CommunicationService( this.GetDataContext() )
+                    .CopyWithBulkInsert( CommunicationId.Value, CurrentPersonAliasId );
 
-                var service = new CommunicationService( dataContext );
-
-                var newCommunication = service.Copy( CommunicationId.Value, CurrentPersonAliasId );
-
-                if ( newCommunication != null )
+                if ( newCommunicationId.HasValue )
                 {
-                    service.Add( newCommunication );
-                    dataContext.SaveChanges();
-
                     // Redirect to new communication
                     if ( CurrentPageReference.Parameters.ContainsKey( PageParameterKey.CommunicationId ) )
                     {
-                        CurrentPageReference.Parameters[PageParameterKey.CommunicationId] = newCommunication.Id.ToString();
+                        CurrentPageReference.Parameters[PageParameterKey.CommunicationId] = newCommunicationId.ToString();
                     }
                     else
                     {
-                        CurrentPageReference.Parameters.Add( PageParameterKey.CommunicationId, newCommunication.Id.ToString() );
+                        CurrentPageReference.Parameters.Add( PageParameterKey.CommunicationId, newCommunicationId.ToString() );
                     }
 
                     Response.Redirect( CurrentPageReference.BuildUrl(), false );

@@ -173,8 +173,8 @@ export const EntityType = {
     CommunicationFlowInstance: "7B487D88-0667-4AFF-BC6C-1FC8482392C8",
     /** The guid for the communication flow instance communication */
     CommunicationFlowInstanceCommunication: "FC2D426E-07E4-4803-BCB6-09CB43031856",
-    /** The guid for the communication flow instance conversion history */
-    CommunicationFlowInstanceConversionHistory: "726B5B81-B4B2-4E74-9069-0409A3D19753",
+    /** The guid for the communication flow instance communication conversion */
+    CommunicationFlowInstanceCommunicationConversion: "726B5B81-B4B2-4E74-9069-0409A3D19753",
     /** The guid for the communication flow instance recipient */
     CommunicationFlowInstanceRecipient: "F615AC08-8ACD-48F9-B42E-2F4CE02D4206",
     /** The guid for the email communication medium */

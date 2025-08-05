@@ -20,7 +20,7 @@
 
         <div class="row">
             <div class="col-md-6">
-                <TextBox v-model="iconCssClass"
+                <IconPicker v-model="iconCssClass"
                          label="Icon CSS Class"
                          help="The Font Awesome icon class to use when displaying steps of this type." />
                 <CheckBox v-model="allowMultiple"
@@ -201,6 +201,7 @@
     import AttributeValuesContainer from "@Obsidian/Controls/attributeValuesContainer.obs";
     import CheckBox from "@Obsidian/Controls/checkBox.obs";
     import TextBox from "@Obsidian/Controls/textBox.obs";
+    import IconPicker from "@Obsidian/Controls/iconPicker.obs";
     import ColorPicker from "@Obsidian/Controls/colorPicker.obs";
     import CheckBoxList from "@Obsidian/Controls/checkBoxList.obs";
     import Panel from "@Obsidian/Controls/panel.obs";

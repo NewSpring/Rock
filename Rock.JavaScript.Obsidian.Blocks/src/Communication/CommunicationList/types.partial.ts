@@ -59,6 +59,7 @@ export type Row = {
     failedCount: number;
     unsubscribedCount: number;
     topic?: string | null;
+    createdDateTime?: string | null;
     sendDateTime?: string | null;
     futureSendDateTime?: string | null;
     sentByPersonFullName?: string | null;

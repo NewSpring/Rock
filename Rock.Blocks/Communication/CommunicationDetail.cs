@@ -20,6 +20,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data.Entity;
 using System.Linq;
+using System.Text;
 
 using Rock.Attribute;
 using Rock.Constants;
@@ -28,9 +29,11 @@ using Rock.Model;
 using Rock.Obsidian.UI;
 using Rock.Security;
 using Rock.Security.SecurityGrantRules;
+using Rock.Tasks;
 using Rock.Utility;
 using Rock.ViewModels.Blocks.Communication.CommunicationDetail;
 using Rock.ViewModels.Controls;
+using Rock.ViewModels.Core.Grid;
 using Rock.ViewModels.Reporting;
 using Rock.ViewModels.Utility;
 using Rock.Web.Cache;
@@ -81,7 +84,7 @@ namespace Rock.Blocks.Communication
             public const string CommunicationId = "CommunicationId";
 
             public const string Edit = "Edit";
-            public const string Tab = "Tab";
+            public const string Tab = "tab";
         }
 
         private static class PersonPreferenceKey
@@ -650,7 +653,22 @@ namespace Rock.Blocks.Communication
 
                 RockContext.SaveChanges();
 
-                outcomeMessage = $"The {CommunicationFriendlyName} has been approved.";
+                var outcomeMessageSb = new StringBuilder( $"The {CommunicationFriendlyName} has been approved" );
+
+                if ( !communication.FutureSendDateTime.HasValue || communication.FutureSendDateTime.Value <= RockDateTime.Now )
+                {
+                    // Go ahead and send the communication.
+                    var processSendCommunicationMsg = new ProcessSendCommunication.Message
+                    {
+                        CommunicationId = communication.Id,
+                    };
+
+                    processSendCommunicationMsg.Send();
+
+                    outcomeMessageSb.Append( " and queued for sending" );
+                }
+
+                outcomeMessage = $"{outcomeMessageSb}.";
             }
             else
             {
@@ -794,8 +812,6 @@ namespace Rock.Blocks.Communication
             else if ( communication.Status == CommunicationStatus.Approved
                 || communication.Status == CommunicationStatus.PendingApproval )
             {
-                // TODO (Jason): Shouldn't `Approved` comms also require EDIT auth to cancel (Even though the legacy block didn't require this)?
-                // https://app.asana.com/1/20866866924293/project/1208321217019996/task/1210655530351448?focus=true
                 var deliveredRecipientCount = communication.Recipients
                     .Count( r =>
                         r.Status == CommunicationRecipientStatus.Sending
@@ -879,17 +895,14 @@ namespace Rock.Blocks.Communication
 
             var communicationService = new CommunicationService( RockContext );
 
-            var newCommunication = communicationService.Copy( communication.Id, GetCurrentPerson()?.PrimaryAliasId );
-            if ( newCommunication == null )
+            var newCommunicationId = communicationService.CopyWithBulkInsert( communication.Id, GetCurrentPerson()?.PrimaryAliasId );
+            if ( !newCommunicationId.HasValue )
             {
                 return ActionInternalServerError( $"Unable to duplicate the {CommunicationFriendlyName}." );
             }
 
-            communicationService.Add( newCommunication );
-            RockContext.SaveChanges();
-
             // Redirect to the new communication.
-            var pageParams = GetPageParamsForReload( newCommunication.Id );
+            var pageParams = GetPageParamsForReload( newCommunicationId.Value );
             pageParams.Remove( PageParameterKey.Tab );
 
             return ActionOk(
@@ -1007,6 +1020,28 @@ namespace Rock.Blocks.Communication
             return ActionOk();
         }
 
+        /// <summary>
+        /// Creates an entity set for the subset of selected rows in the grid.
+        /// </summary>
+        /// <returns>An action result that contains identifier of the entity set.</returns>
+        [BlockAction]
+        public BlockActionResult CreateGridEntitySet( GridEntitySetBag entitySet )
+        {
+            if ( entitySet == null )
+            {
+                return ActionBadRequest( "No entity set data was provided." );
+            }
+
+            var rockEntitySet = GridHelper.CreateEntitySet( entitySet );
+
+            if ( rockEntitySet == null )
+            {
+                return ActionBadRequest( "No entities were found to create the set." );
+            }
+
+            return ActionOk( rockEntitySet.Id.ToString() );
+        }
+
         #endregion Block Actions
 
         #region Private Methods
@@ -1092,16 +1127,14 @@ namespace Rock.Blocks.Communication
 
                     TotalRecipientCount = c.Recipients.Count(),
 
-                    // TODO (Jason): When Communications are duplicated, their recipients aren't assigned a MediumEntityTypeId.
-                    // This breaks the following aggregations.
-                    // https://app.asana.com/1/20866866924293/project/1208321217019996/task/1210655530351454?focus=true
                     Counts = c.Recipients
                         .GroupBy( r => new { r.MediumEntityTypeId, r.Status } )
                         .Select( g => new
                         {
                             g.Key.MediumEntityTypeId,
                             g.Key.Status,
-                            Count = g.Count()
+                            Count = g.Count(),
+                            MaxRecipientModifiedDateTime = g.Max( r => r.ModifiedDateTime )
                         } ),
 
                     SpamComplaints = c.Recipients
@@ -1195,6 +1228,17 @@ namespace Rock.Blocks.Communication
                         ? countsByMediumAndStatus.Where( kvp => kvp.Key.MediumEntityTypeId == mediumEntityTypeFilterId.Value ).Sum( kvp => kvp.Value )
                         : a.TotalRecipientCount;
 
+                    var dataLastUpdatedDateTime = a.Communication.ModifiedDateTime;
+                    var maxRecipientModifiedDateTime = a.Counts.Max( c => c.MaxRecipientModifiedDateTime );
+                    if ( !dataLastUpdatedDateTime.HasValue
+                        || (
+                            maxRecipientModifiedDateTime.HasValue
+                            && maxRecipientModifiedDateTime > dataLastUpdatedDateTime
+                        ) )
+                    {
+                        dataLastUpdatedDateTime = maxRecipientModifiedDateTime;
+                    }
+
                     communicationInfo.RecipientCountBreakdown = new RecipientCountBreakdown
                     {
                         CommunicationType = communicationType,
@@ -1202,7 +1246,8 @@ namespace Rock.Blocks.Communication
                         PendingCount = GetCount( CommunicationRecipientStatus.Pending ) + GetCount( CommunicationRecipientStatus.Sending ),
                         DeliveredCount = GetCount( CommunicationRecipientStatus.Delivered ) + GetCount( CommunicationRecipientStatus.Opened ),
                         FailedCount = GetCount( CommunicationRecipientStatus.Failed ),
-                        CancelledCount = GetCount( CommunicationRecipientStatus.Cancelled )
+                        CancelledCount = GetCount( CommunicationRecipientStatus.Cancelled ),
+                        DataLastUpdatedDateTime = dataLastUpdatedDateTime
                     };
 
                     communicationInfo.RecipientActivities = new List<RecipientActivity>();
@@ -1302,7 +1347,8 @@ namespace Rock.Blocks.Communication
                     FailedCount = recipientCountBreakdown.FailedCount,
                     FailedPercentage = GetPercentage( recipientCountBreakdown.FailedCount ),
                     CancelledCount = recipientCountBreakdown.CancelledCount,
-                    CancelledPercentage = GetPercentage( recipientCountBreakdown.CancelledCount )
+                    CancelledPercentage = GetPercentage( recipientCountBreakdown.CancelledCount ),
+                    DataLastUpdatedDateTime = recipientCountBreakdown.DataLastUpdatedDateTime
                 };
             }
 
@@ -2237,8 +2283,8 @@ namespace Rock.Blocks.Communication
                 .AddDateTimeField( "lastActivityDateTime", r => r.LastActivityDateTime )
                 .AddField( "status", r => r.Status )
                 .AddTextField( "statusNote", r => r.StatusNote )
-                .AddDateTimeField( "sendDateTime", r => r.SendDateTime )
-                .AddDateTimeField( "deliveredDateTime", r => r.DeliveredDateTime );
+                .AddField( "delivered", r => r.DeliveredDateTime.HasValue )
+                .AddTextField( "deliveredDateTime", r => r.DeliveredDateTime?.ToString( "g" ) );
 
             if ( communicationType == CommunicationType.RecipientPreference )
             {
@@ -2256,7 +2302,9 @@ namespace Rock.Blocks.Communication
 
             if ( communicationType != CommunicationType.SMS )
             {
-                builder.AddField( "lastOpenedDateTime", r => r.LastOpenedDateTime );
+                builder
+                    .AddField( "opened", r => r.LastOpenedDateTime.HasValue )
+                    .AddTextField( "lastOpenedDateTime", r => r.LastOpenedDateTime?.ToString( "g" ) );
             }
 
             if ( communicationType == CommunicationType.RecipientPreference || communicationType == CommunicationType.Email )
@@ -2264,9 +2312,15 @@ namespace Rock.Blocks.Communication
                 builder
                     .AddField( "opensCount", r => r.OpensCount )
                     .AddField( "clicksCount", r => r.ClicksCount )
-                    .AddField( "lastClickedDateTime", r => r.LastClickedDateTime )
-                    .AddField( "unsubscribeDateTime", r => r.UnsubscribeDateTime )
-                    .AddField( "spamComplaintDateTime", r => r.SpamComplaintDateTime );
+
+                    .AddField( "clicked", r => r.LastClickedDateTime.HasValue )
+                    .AddTextField( "lastClickedDateTime", r => r.LastClickedDateTime?.ToString( "g" ) )
+
+                    .AddField( "unsubscribed", r => r.UnsubscribeDateTime.HasValue )
+                    .AddTextField( "unsubscribedDateTime", r => r.UnsubscribeDateTime?.ToString( "g" ) )
+
+                    .AddField( "spam", r => r.SpamComplaintDateTime.HasValue )
+                    .AddTextField( "spamComplaintDateTime", r => r.SpamComplaintDateTime?.ToString( "g" ) );
             }
 
             if ( RecipientGridPropertyColumns?.Any() == true )
@@ -2424,8 +2478,6 @@ namespace Rock.Blocks.Communication
                     )
                     .Any();
 
-                // TODO (Jason): Shouldn't `Approved` comms also require EDIT auth to cancel (Even though the legacy block didn't require this)?
-                // https://app.asana.com/1/20866866924293/project/1208321217019996/task/1210655530351448?focus=true
                 permissions.CanCancel = hasPendingRecipients;
 
                 // Allow them to create a copy if they have VIEW (don't require full EDIT auth).
@@ -2595,6 +2647,11 @@ namespace Rock.Blocks.Communication
             /// Gets or sets the count of recipients for whom communications of this type were cancelled.
             /// </summary>
             public int CancelledCount { get; set; }
+
+            /// <summary>
+            /// Gets or sets the datetime this recipient count breakdown data was last updated.
+            /// </summary>
+            public DateTime? DataLastUpdatedDateTime { get; set; }
         }
 
         /// <summary>

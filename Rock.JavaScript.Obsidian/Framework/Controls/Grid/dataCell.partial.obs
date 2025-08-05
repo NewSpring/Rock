@@ -109,7 +109,7 @@
         }
 
         const tooltipText = typeof props.column.tooltip === "string"
-            ? props.column.tooltip
+            ? props.row[props.column.tooltip]?.toString()
             : props.column.tooltip(props.row, props.column, props.grid);
 
         if (!tooltipText) {

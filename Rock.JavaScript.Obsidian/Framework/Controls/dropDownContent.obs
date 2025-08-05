@@ -2,11 +2,11 @@
 <template>
     <span ref="anchorElement" @click.prevent="onAnchorClick">
         <slot name="anchor">
-            <i class="fa fa-ellipsis-v"></i>
+            <i class="ti ti-dots-vertical"></i>
         </slot>
     </span>
 
-    <div v-if="isDropDownOpen" ref="dropdownElement" :style="floatingStyles" class="floating-dropdown">
+    <div v-if="isDropDownOpen" ref="dropdownElement" :style="floatingStyles" class="floating-dropdown" :class="{ 'allow-overflow': preventOverflowClipping }">
         <svg v-if="showArrow" ref="arrowElement" class="arrow">
             <path d="M0,7L5,0L10,7"></path>
         </svg>
@@ -26,6 +26,9 @@
     background-color: white;
     margin-top: 6px;
     border-radius: 4px;
+}
+
+.floating-dropdown:not(.allow-overflow) > .body {
     overflow: clip;
 }
 
@@ -58,6 +61,11 @@
         preventCloseOnClickSelectors: {
             type: Object as PropType<string[]>,
             default: [".datepicker"]
+        },
+
+        preventOverflowClipping: {
+            type: Boolean as PropType<boolean>,
+            default: false
         }
     });
 

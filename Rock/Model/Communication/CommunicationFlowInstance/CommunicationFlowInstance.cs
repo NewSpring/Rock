@@ -49,10 +49,52 @@ namespace Rock.Model
         public int CommunicationFlowId { get; set; }
         
         /// <summary>
-        /// Gets or sets the time to send this communication flow communication.
+        /// Gets or sets the date when this Communication Flow Instance starts.
         /// </summary>
+        /// <value>The first communication is sent by adding <see cref="CommunicationFlowCommunication.DaysToWait"/> and setting <see cref="CommunicationFlowCommunication.TimeToSend"/> to this value.</value>
         [DataMember]
-        public DateTime StartDate { get; set; }
+        public DateTime StartDate
+        {
+            get
+            {
+                return _startDate;
+            }
+            set
+            {
+                _startDate = value.Date;
+            }
+        }
+        private DateTime _startDate;
+
+        /// <summary>
+        /// Gets a value indicating whether the conversion goal tracking is complete for this Communication Flow Instance.
+        /// </summary>
+        /// <remarks>Requires the parent <see cref="CommunicationFlow"/>.</remarks>
+        /// <value>
+        /// <list type="bullet">
+        /// <item><description><see langword="true" /> if conversion goal tracking is enabled and tracking is complete</description></item>
+        /// <item><description><see langword="false" /> if conversion goal tracking is enabled and tracking is not complete or hasn't started</description></item>
+        /// <item><description><see langword="null" /> if conversion goal tracking is not enabled or if the parent <see cref="CommunicationFlow"/> is null</description></item>
+        /// </list>
+        /// </value>
+        internal bool? IsConversionGoalTrackingComplete
+        {
+            get
+            {
+                var conversionGoalTimeframeInDays = CommunicationFlow?.ConversionGoalTimeframeInDays;
+
+                if ( !conversionGoalTimeframeInDays.HasValue )
+                {
+                    // Conversion goal tracking is not enabled or the parent Communication Flow is null.
+                    return null;
+                }
+
+                // The conversion goal processing is completed the last day for conversion goal tracking has already passed.
+                // Otherwise, the conversion goal processing is still in progress or hasn't started yet. (time is ignored)
+                var exclusiveConversionGoalTrackingEndDate = StartDate.AddDays( conversionGoalTimeframeInDays.Value );
+                return exclusiveConversionGoalTrackingEndDate <= RockDateTime.Now.Date;
+            }
+        }
 
         #endregion Entity Properties
 
@@ -81,24 +123,6 @@ namespace Rock.Model
         }
 
         private ICollection<CommunicationFlowInstanceCommunication> _communicationFlowInstanceCommunications;
-
-        /// <summary>
-        /// Gets or sets the conversion histories for this Communication Flow Instance.
-        /// </summary>
-        [DataMember]
-        public virtual ICollection<CommunicationFlowInstanceConversionHistory> CommunicationFlowInstanceConversionHistories
-        {
-            get
-            {
-                return _communicationFlowInstanceConversionHistories ?? ( _communicationFlowInstanceConversionHistories = new Collection<CommunicationFlowInstanceConversionHistory>() );
-            }
-            set
-            {
-                _communicationFlowInstanceConversionHistories = value;
-            }
-        }
-
-        private ICollection<CommunicationFlowInstanceConversionHistory> _communicationFlowInstanceConversionHistories;
 
         /// <summary>
         /// Gets or sets the recipients for this Communication Flow Instance.
@@ -133,7 +157,7 @@ namespace Rock.Model
         /// </summary>
         public CommunicationFlowInstanceConfiguration()
         {
-            this.HasRequired( c => c.CommunicationFlow ).WithMany( i => i.CommunicationFlowInstances ).HasForeignKey( c => c.CommunicationFlowId ).WillCascadeOnDelete( false );
+            this.HasRequired( c => c.CommunicationFlow ).WithMany( i => i.CommunicationFlowInstances ).HasForeignKey( c => c.CommunicationFlowId ).WillCascadeOnDelete( true );
         }
     }
 

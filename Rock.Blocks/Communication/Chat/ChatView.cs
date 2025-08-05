@@ -26,7 +26,7 @@ namespace Rock.Blocks.Communication.Chat
     [Category( "Communication" )]
     [Description( "Displays a chat interface utilizing the Rock StreamChat integration." )]
     [SupportedSiteTypes( SiteType.Mobile, SiteType.Web )]
-    [IconCssClass( "fa fa-comments" )]
+    [IconCssClass( "ti ti-messages" )]
 
     #region Block Attributes
 

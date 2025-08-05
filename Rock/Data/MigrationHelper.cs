@@ -8897,8 +8897,8 @@ END
         VALUES ( 
             1
             ,1
-            ,'{name}'
-            ,'{description}'
+            ,'{name.Replace( "'", "''" )}'
+            ,'{description.Replace( "'", "''" )}'
             ,'{jobType}'
             ,'{cronExpression}'
             ,1
