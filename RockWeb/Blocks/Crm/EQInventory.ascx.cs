@@ -86,6 +86,7 @@ namespace Rockweb.Blocks.Crm
         Order = 4 )]
     #endregion Block Attributes
 
+    [Rock.Cms.DefaultBlockRole( Rock.Enums.Cms.BlockRole.Primary )]
     [Rock.SystemGuid.BlockTypeGuid( Rock.SystemGuid.BlockType.EQ_INVENTORY )]
     public partial class EQInventory : Rock.Web.UI.RockBlock
     {

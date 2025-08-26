@@ -251,13 +251,16 @@ import EmailEditorGallery from "./ControlGallery/emailEditorGallery.partial.obs"
 import KpiGallery from "./ControlGallery/kpiGallery.partial.obs";
 import LearningClassPickerGallery from "./ControlGallery/learningClassPickerGallery.partial.obs";
 import LearningClassActivityPickerGallery from "./ControlGallery/learningClassActivityPickerGallery.partial.obs";
-import ConnectedListAddButtonGallery from "./ControlGallery/connectedListAddButtonGallery.partial.obs";
-import ConnectedListItemGallery from "./ControlGallery/connectedListItemGallery.partial.obs";
-import ConnectedListGallery from "./ControlGallery/connectedListGallery.partial.obs";
+import DisplayCardGallery from "./ControlGallery/displayCardGallery.partial.obs";
+import DisplayCardContainerGallery from "./ControlGallery/displayCardContainerGallery.partial.obs";
 import IconPickerGallery from "./ControlGallery/iconPickerGallery.partial.obs";
 import ContentStackGallery from "./ControlGallery/contentStackGallery.partial.obs";
 import ContentSectionGallery from "./ControlGallery/contentSectionGallery.partial.obs";
-import ContentSectionWrapperGallery from "./ControlGallery/contentSectionWrapperGallery.partial.obs";
+import ContentSectionContainerGallery from "./ControlGallery/contentSectionContainerGallery.partial.obs";
+import LineChartGallery from "./ControlGallery/lineChartGallery.partial.obs";
+import ContextSlicerGallery from "./ControlGallery/contextSlicerGallery.partial.obs";
+import CampusContextPickerGallery from "./ControlGallery/campusContextPickerGallery.partial.obs";
+import BarChartGallery from "./ControlGallery/barChartGallery.partial.obs";
 
 const controlGalleryComponents: Record<string, Component> = [
     NotificationBoxGallery,
@@ -449,13 +452,16 @@ const controlGalleryComponents: Record<string, Component> = [
     KpiGallery,
     LearningClassPickerGallery,
     LearningClassActivityPickerGallery,
-    ConnectedListAddButtonGallery,
-    ConnectedListItemGallery,
-    ConnectedListGallery,
+    DisplayCardGallery,
+    DisplayCardContainerGallery,
     IconPickerGallery,
     ContentStackGallery,
     ContentSectionGallery,
-    ContentSectionWrapperGallery,
+    ContentSectionContainerGallery,
+    LineChartGallery,
+    ContextSlicerGallery,
+    CampusContextPickerGallery,
+    BarChartGallery
 ]
     // Fix vue 3 SFC putting name in __name.
     .map(a => {

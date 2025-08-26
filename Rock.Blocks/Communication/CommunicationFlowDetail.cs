@@ -1007,6 +1007,9 @@ namespace Rock.Blocks.Communication
                 pushData.Url = bag.PushUrl;
             }
 
+            new StructuredContentHelper( newPushOpenMessageJson )
+                .DetectAndApplyDatabaseChanges( communicationTemplate.PushOpenMessageJson, rockContext );
+
             communicationTemplate.PushOpenMessage = newPushOpenMessage;
             communicationTemplate.PushOpenMessageJson = newPushOpenMessageJson;
             communicationTemplate.PushData = pushData.ToJson();
@@ -1625,9 +1628,7 @@ namespace Rock.Blocks.Communication
                 {
                     Id = 0,
                     Guid = Guid.Empty,
-                    // Inactive until the individual explicitly enables it
-                    // so that the flow isn't started before it's fully created.
-                    IsActive = false
+                    IsActive = true
                 };
             }
 

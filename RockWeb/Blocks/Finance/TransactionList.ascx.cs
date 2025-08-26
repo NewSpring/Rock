@@ -156,6 +156,7 @@ namespace RockWeb.Blocks.Finance
         Key = AttributeKey.HideTransactionsInPendingBatches
         )]
 
+    [Rock.Cms.DefaultBlockRole( Rock.Enums.Cms.BlockRole.Secondary )]
     [Rock.SystemGuid.BlockTypeGuid( "E04320BC-67C3-452D-9EF6-D74D8C177154" )]
     public partial class TransactionList : Rock.Web.UI.RockBlock, ISecondaryBlock, IPostBackEventHandler, ICustomGridColumns
     {
@@ -1198,13 +1199,27 @@ namespace RockWeb.Blocks.Finance
                 {
                     using ( var rockContext = new RockContext() )
                     {
-                        foreach ( var txn in new FinancialTransactionService( rockContext )
-                            .Queryable( "AuthorizedPersonAlias.Person" )
-                            .Where( t => txnsSelected.Contains( t.Id ) )
-                            .ToList() )
+                        if ( hfTransactionViewMode.Value == "Transactions" )
                         {
-                            txn.AuthorizedPersonAliasId = personAliasId.Value;
+                            foreach ( var txn in new FinancialTransactionService( rockContext )
+                                .Queryable( "AuthorizedPersonAlias.Person" )
+                                .Where( t => txnsSelected.Contains( t.Id ) )
+                                .ToList() )
+                            {
+                                txn.AuthorizedPersonAliasId = personAliasId.Value;
+                            }
                         }
+                        else
+                        {
+                            foreach ( var txn in new FinancialTransactionService( rockContext )
+                                .Queryable( "AuthorizedPersonAlias.Person, TransactionDetails" )
+                                .Where( t => t.TransactionDetails.Any( d => txnsSelected.Contains( d.Id ) ) )
+                                .ToList() )
+                            {
+                                txn.AuthorizedPersonAliasId = personAliasId.Value;
+                            }
+                        }
+
                         rockContext.SaveChanges();
 
                         var acctAction = rblReassignBankAccounts.SelectedValue;

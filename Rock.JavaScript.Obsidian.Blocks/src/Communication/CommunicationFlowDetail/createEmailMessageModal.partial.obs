@@ -17,12 +17,13 @@
                     <RockForm :id="createEmailFormId" @submit="onSaveEmailMessageClicked">
                         <TextBox v-model="emailName"
                                  :disabled="disabled"
+                                 help="This will be the name of the message."
                                  label="Name"
                                  rules="required" />
 
                         <TextBox v-model="emailSubject"
                                  :disabled="disabled"
-                                 help="This will be the internal name of the message."
+                                 help="This will be the first thing your recipients see. Make it clear, concise, and engaging to encourage opens."
                                  label="Email Subject"
                                  rules="required" />
 
@@ -41,8 +42,7 @@
                         <EmailBox v-model="emailReplyToAddress"
                                   :disabled="disabled"
                                   help="If your recipients reply to the email, this is the address where their responses will be sent."
-                                  label="Reply To Address"
-                                  rules="required" />
+                                  label="Reply To Address" />
 
                         <TextBox v-model="emailPreviewText"
                                  :disabled="disabled"
@@ -179,6 +179,13 @@
 
     const createEmailFormId = `create-email-form-${newGuid()}`;
 
+    function getDefaultHtml(): string {
+        return `
+<div class="structure-dropzone">
+    <div class="component component-row"></div>
+</div>`;
+    }
+
     // #region Values
 
     // UI state.
@@ -191,7 +198,7 @@
 
     // Entity state.
     const guid = ref<Guid>(toGuidOrNull(props.communicationTemplate?.guid) ?? emptyGuid);
-    const message = ref<string>(props.communicationTemplate?.message ?? "");
+    const message = ref<string>(props.communicationTemplate?.message ?? getDefaultHtml());
     const emailName = ref<string>(props.communicationTemplate?.name ?? "");
     const emailSubject = ref<string>(props.communicationTemplate?.subject ?? "");
     const emailFromName = ref<string>(props.communicationTemplate?.fromName ?? "");

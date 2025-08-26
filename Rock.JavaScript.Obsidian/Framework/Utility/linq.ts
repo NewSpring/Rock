@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // <copyright>
 // Copyright by the Spark Development Network
 //
@@ -641,11 +642,11 @@ export class Enumerable<T> {
      * @param second - The second sequence to concatenate.
      * @returns A new Enumerable containing the concatenated elements.
      */
-    concat(second: Iterable<T>): Enumerable<T> {
+    concat(second: Iterable<T>): this {
         // eslint-disable-next-line @typescript-eslint/no-this-alias
         const self = this;
 
-        return new Enumerable(function* () {
+        return this.spawn(function* () {
             yield* self;
             yield* second;
         });
@@ -683,11 +684,11 @@ export class Enumerable<T> {
      *
      * @returns A new Enumerable with unique elements.
      */
-    distinct(): Enumerable<T> {
+    distinct(): this {
         // eslint-disable-next-line @typescript-eslint/no-this-alias
         const self = this;
 
-        return new Enumerable(function* () {
+        return this.spawn(function* () {
             const seen = new Set<T>();
             for (const item of self) {
                 if (!seen.has(item)) {
@@ -703,11 +704,11 @@ export class Enumerable<T> {
      * @param keySelector A function to extract the key for comparison.
      * @returns A new Enumerable with unique elements by key.
      */
-    distinctBy<TKey>(keySelector: (item: T) => TKey): Enumerable<T> {
+    distinctBy<TKey>(keySelector: (item: T) => TKey): this {
         // eslint-disable-next-line @typescript-eslint/no-this-alias
         const self = this;
 
-        return new Enumerable(function* () {
+        return this.spawn(function* () {
             const seenKeys = new Set<string>();
 
             for (const item of self) {
@@ -775,12 +776,42 @@ export class Enumerable<T> {
      */
     firstOrDefault(defaultValue: T): T;
 
-    firstOrDefault(defaultValue?: T): T | undefined {
-        for (const item of this) {
-            return item;
-        }
+    /**
+     * Returns the first element of the sequence that satisfies the specified predicate,
+     * or `undefined` if no such element is found.
+     *
+     * @param predicate A function to test each element for a condition.
+     * @returns The first element that matches the predicate, or `undefined` if none match.
+     *
+     * @example
+     * const numbers = Enumerable.from([1, 2, 3, 4]);
+     * const firstEven = numbers.firstOrDefault(n => n % 2 === 0);
+     * console.log(firstEven); // Outputs: 2
+     *
+     * @example
+     * const empty = Enumerable.from<number>([]);
+     * const result = empty.firstOrDefault(n => n > 0);
+     * console.log(result); // Outputs: undefined
+     */
+    firstOrDefault(predicate: (item: T) => boolean): T | undefined;
 
-        return defaultValue;
+    firstOrDefault(arg?: T | ((item: T) => boolean)): T | undefined {
+        if (typeof arg === "function") {
+            const predicate = arg as (item: T) => boolean;
+
+            for (const item of this) {
+                if (predicate(item)) {
+                    return item;
+                }
+            }
+        }
+        else {
+            for (const item of this) {
+                return item;
+            }
+
+            return arg;
+        }
     }
 
     /**
@@ -889,24 +920,47 @@ export class Enumerable<T> {
      */
     lastOrDefault(defaultValue: T): T;
 
-    lastOrDefault(defaultValue?: T): T | undefined {
-        let last: T | undefined = defaultValue;
+    /**
+     * Returns the last element in the sequence that satisfies the given predicate,
+     * or `undefined` if no such element is found.
+     *
+     * @param predicate A function to test each element.
+     * @returns The last matching element, or `undefined`.
+     *
+     * @example
+     * const nums = Enumerable.from([1, 2, 3, 4]);
+     * console.log(nums.lastOrDefault(x => x % 2 === 0)); // 4
+     */
+    lastOrDefault(predicate: (item: T) => boolean): T | undefined;
 
-        for (const item of this) {
-            // Update `last` for each element.
-            last = item;
+    lastOrDefault(arg?: T | ((item: T) => boolean)): T | undefined {
+        let last: T | undefined;
+
+        if (typeof arg === "function") {
+            const predicate = arg as ((item: T) => boolean);
+
+            for (const item of this) {
+                // Update `last` for each element that satisfies the predicate.
+                if (predicate(item)) {
+                    last = item;
+                }
+            }
+        }
+        else {
+            for (const item of this) {
+                // Update `last` for each element.
+                last = item;
+            }
         }
 
         return last;
     }
 
     /**
-     * Returns the maximum element of the sequence, optionally based on a projection function.
+     * Returns the maximum element of the sequence.
      *
      * @template T The type of the elements in the sequence.
-     * @template U The type returned by the projection (must be comparable with `>`).
-     * @param selector Optional. A function to project each element to a comparable value.
-     *                 If not provided, the elements themselves are compared directly.
+     * @param selector A function to project each element to a numeric, comparable value.
      * @returns The maximum element or `undefined` if the sequence is empty.
      *
      * @example
@@ -917,6 +971,53 @@ export class Enumerable<T> {
         const self = this[Symbol.iterator]();
         const first = self.next();
         if (first.done) return undefined;
+
+        let maxItem = selector(first.value);
+
+        for (let next = self.next(); !next.done; next = self.next()) {
+            const value = selector(next.value);
+            if (value > maxItem) {
+                maxItem = value;
+            }
+        }
+
+        return maxItem;
+    }
+
+    /**
+     * Returns the minimum element of the sequence.
+     *
+     * @template T The type of the elements in the sequence.
+     * @param selector A function to project each element to a numeric, comparable value.
+     * @returns The minimum element or `undefined` if the sequence is empty.
+     *
+     * @example
+     * Enumerable.from([{x: 1}, {x: 5}]).min(e => e.x); // 1
+     */
+    min(selector: (item: T) => number): number | undefined {
+        const self = this[Symbol.iterator]();
+        const first = self.next();
+        if (first.done) return undefined;
+
+        let minItem = selector(first.value);
+
+        for (let next = self.next(); !next.done; next = self.next()) {
+            const value = selector(next.value);
+            if (value < minItem) {
+                minItem = value;
+            }
+        }
+
+        return minItem;
+    }
+
+    /**
+     * Returns the maximum element of the sequence.
+     *
+     * @template T The type of the elements in the sequence.
+     * @param selector A function to project each element to a numeric, comparable value.
+     * @returns The maximum element or `undefined` if the sequence is empty.
+     *
 
         let maxItem = selector(first.value);
 
@@ -984,6 +1085,36 @@ export class Enumerable<T> {
     }
 
     /**
+     * Returns a new sequence with the specified element(s) prepended to the start.
+     *
+     * @template T The type of elements in the sequence.
+     * @param items One or more elements to prepend.
+     * @returns A new Enumerable with the items inserted before the existing sequence.
+     *
+     * @example
+     * const nums = Enumerable.from([2, 3]);
+     * const withOne = nums.prepend(1);
+     * console.log(withOne.toArray()); // [1, 2, 3]
+     *
+     * @example
+     * const moreNums = nums.prepend(-1, 0, 1);
+     * console.log(moreNums.toArray()); // [-1, 0, 1, 2, 3]
+     */
+    prepend(items: Iterable<T>): this {
+        // eslint-disable-next-line @typescript-eslint/no-this-alias
+        const self = this;
+
+        return this.spawn(function* () {
+            for (const item of items) {
+                yield item;
+            }
+            for (const item of self) {
+                yield item;
+            }
+        });
+    }
+
+    /**
      * Applies an accumulator function over the sequence, yielding each intermediate result.
      * The first yielded value is based on the seed provided.
      *
@@ -1012,7 +1143,7 @@ export class Enumerable<T> {
         // eslint-disable-next-line @typescript-eslint/no-this-alias
         const self = this;
 
-        return new Enumerable(function* () {
+        return new Enumerable<U>(function* () {
             let acc = seed;
             let index = 0;
 
@@ -1031,7 +1162,8 @@ export class Enumerable<T> {
     select<U>(selector: (item: T) => U): Enumerable<U> {
         // eslint-disable-next-line @typescript-eslint/no-this-alias
         const self = this;
-        return new Enumerable(function* (): Generator<U, void, unknown> {
+
+        return new Enumerable(function* () {
             for (const item of self) {
                 yield selector(item);
             }
@@ -1058,14 +1190,51 @@ export class Enumerable<T> {
     }
 
     /**
+     * Determines whether two sequences are equal by comparing their elements using
+     * strict equality (`===`) or an optional equality comparer.
+     *
+     * @param other The other sequence to compare to.
+     * @param comparer Optional equality comparer function. Defaults to strict equality.
+     * @returns `true` if both sequences have the same length and all elements are equal; otherwise, `false`.
+     *
+     * @example
+     * const seq1 = Enumerable.from([1, 2, 3]);
+     * const seq2 = Enumerable.from([1, 2, 3]);
+     * console.log(seq1.sequenceEqual(seq2)); // Outputs: true
+     *
+     * @example
+     * const seq3 = Enumerable.from(["a", "b", "c"]);
+     * const seq4 = Enumerable.from(["a", "B", "c"]);
+     * console.log(seq3.sequenceEqual(seq4, (a, b) => a.toLowerCase() === b.toLowerCase())); // Outputs: true
+     */
+    sequenceEqual(
+        other: Iterable<T>,
+        comparer: (a: T, b: T) => boolean = (a, b) => a === b
+    ): boolean {
+        const it1 = this[Symbol.iterator]();
+        const it2 = other[Symbol.iterator]();
+
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
+            const n1 = it1.next();
+            const n2 = it2.next();
+
+            if (n1.done && n2.done) return true;  // Both ended → equal
+            if (n1.done !== n2.done) return false; // One ended first → not equal
+            if (!comparer(n1.value, n2.value)) return false; // Mismatch → not equal
+        }
+    }
+
+
+    /**
      * Returns a new Enumerable that skips the first `count` elements of the sequence.
      * @param count - The number of elements to skip.
      * @returns A new Enumerable that skips the specified number of elements.
      */
-    skip(count: number): Enumerable<T> {
+    skip(count: number): this {
         // eslint-disable-next-line @typescript-eslint/no-this-alias
         const self = this;
-        return new Enumerable(function* () {
+        return this.spawn(function* () {
             let skipped = 0;
             for (const item of self) {
                 if (skipped++ >= count) {
@@ -1073,6 +1242,15 @@ export class Enumerable<T> {
                 }
             }
         });
+    }
+
+    /**
+     * Recreates an instance of the *same runtime class*.
+     * This allows subtype method chaining to return the subtype instead of Enumerable<T>.
+     */
+    protected spawn(factory: () => Iterable<T>): this {
+        const ctor = this.constructor as new (f: () => Iterable<T>) => this;
+        return new ctor(factory);
     }
 
     /**
@@ -1102,7 +1280,7 @@ export class Enumerable<T> {
     take(count: number): Enumerable<T> {
         // eslint-disable-next-line @typescript-eslint/no-this-alias
         const self = this;
-        return new Enumerable(function* () {
+        return this.spawn(function* () {
             let i = 0;
             for (const item of self) {
                 if (i++ < count) {
@@ -1142,14 +1320,6 @@ export class Enumerable<T> {
     }
 
     /**
-     * Converts the sequence into a List.
-     * @returns An List containing all elements in the sequence.
-     */
-    toList(): List<T> {
-        return new List<T>(this.toArray());
-    }
-
-    /**
      * Filters the sequence to include only elements that satisfy the predicate.
      * @param predicate - A function to test each element for a condition.
      * @returns A new Enumerable containing the filtered elements.
@@ -1157,7 +1327,7 @@ export class Enumerable<T> {
     where(predicate: (item: T) => boolean): Enumerable<T> {
         // eslint-disable-next-line @typescript-eslint/no-this-alias
         const self = this;
-        return new Enumerable(function* (): Generator<T, void, unknown> {
+        return this.spawn(function* (): Generator<T, void, unknown> {
             for (const item of self) {
                 if (predicate(item)) {
                     yield item;

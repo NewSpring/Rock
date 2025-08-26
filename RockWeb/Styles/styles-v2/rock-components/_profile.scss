@@ -1,4 +1,4 @@
-.main-content:has(.profile-content) {
+.main-content:has(.profile-content, .person-profile) {
   max-width: 100%;
   padding: 0 !important;
   margin: 0 !important;
@@ -26,13 +26,7 @@
     > a {
       padding: var(--spacing-xsmall) var(--spacing-small);
       font-weight: var(--font-weight-semibold);
-      color: var(--color-interface-strong);
       white-space: nowrap;
-      background: var(--color-interface-softest);
-
-      &:hover {
-        background: var(--color-interface-softer);
-      }
     }
   }
 
@@ -40,8 +34,8 @@
     a,
     a:hover,
     a:focus {
-      color: var(--color-interface-softest);
-      background-color: var(--color-primary);
+      color: var(--color-primary);
+      background-color: var(--color-primary-soft);
     }
   }
 
@@ -84,7 +78,7 @@
     min-height: 102px;
     background: var(--color-interface-softest);
     border: 1px solid var(--color-interface-soft);
-    border-radius: var(--rounded-normal);
+    border-radius: var(--rounded-small);
     box-shadow: 0 1px 3px rgba(0,0,0,.1);
   }
 
@@ -93,6 +87,7 @@
     margin-bottom: 0;
     background: transparent;
     border: 0 !important;
+    overflow: visible;
   }
 }
 .card-badge-top {
@@ -318,11 +313,11 @@
       color:      var(--color-interface-strong);
       background: #e9ecef;
   }
-  
+
   .bio-data {
   z-index: 1010;
   }
-  
+
   .card-section {
       padding: var(--spacing-medium);
 
@@ -330,7 +325,7 @@
           border-top: 1px solid var(--color-interface-soft);
       }
   }
-  
+
   .card-body {
       padding: var(--spacing-medium);
   }

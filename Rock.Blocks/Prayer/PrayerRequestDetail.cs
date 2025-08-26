@@ -650,10 +650,18 @@ namespace Rock.Blocks.Prayer
                     return actionError;
                 }
 
+                var wasApproved = entity.IsApproved ?? false;
+
                 // Update the entity instance from the information in the bag.
                 if ( !UpdateEntityFromBox( entity, box, rockContext ) )
                 {
                     return ActionBadRequest( "Invalid data." );
+                }
+
+                if (entity.IsApproved == true && !wasApproved)
+                {
+                    entity.ApprovedOnDateTime = RockDateTime.Now;
+                    entity.ApprovedByPersonAliasId = RequestContext.CurrentPerson?.PrimaryAliasId;
                 }
 
                 // Ensure everything is valid before saving.

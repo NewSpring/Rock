@@ -92,6 +92,7 @@ namespace RockWeb.Blocks.Core
         DefaultBooleanValue = false,
         Key = AttributeKey.ShowOnlyCategories )]
 
+    [Rock.Cms.DefaultBlockRole( Rock.Enums.Cms.BlockRole.Navigation )]
     [Rock.SystemGuid.BlockTypeGuid( "ADE003C7-649B-466A-872B-B8AC952E7841" )]
     public partial class CategoryTreeView : RockBlockCustomSettings
     {

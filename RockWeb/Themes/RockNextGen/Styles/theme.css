@@ -28,6 +28,7 @@ body.navbar-side-open {
 }
 
 .full-work-surface {
+  height: 100%;
   padding: var(--spacing-medium);
 }
 
@@ -36,14 +37,18 @@ body.navbar-side-open {
 }
 .header-content .page-title-display {
   color: var(--color-interface-stronger);
-  margin-left: 80px;
+  margin-left: var(--spacing-huge);
+  margin-right: var(--spacing-large);
+  min-width: 100px;
 }
 .header-content .page-title-display .page-icon {
   display: none;
 }
+.header-content .page-title-display .page-title {
+  width: 100%;
+}
 .header-content .page-title-display .breadcrumb {
   padding: 0;
-  margin-top: var(--spacing-tiny);
   font-size: var(--font-size-xsmall);
 }
 .header-content .page-title-display .breadcrumb a:hover {
@@ -53,15 +58,20 @@ body.navbar-side-open {
   display: none;
 }
 .header-content .page-title-display .breadcrumb > li + li::before {
-  font-family: FontAwesome;
+  font-family: "tabler-icons";
   font-size: 80%;
   font-weight: 900;
-  content: "\f054";
+  content: "\ea61";
 }
 .header-content .page-title-display .title {
   font-size: 24px;
   font-weight: 700;
   margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  width: 100%;
+  line-height: var(--line-height-normal);
 }
 @media (max-width: 1200px) {
   .header-content .page-title-display {
@@ -152,6 +162,10 @@ body.navbar-side-open {
   #content-wrapper {
     margin-left: 88px;
   }
+}
+
+#content-wrapper:has(.full-work-surface) {
+  height: 100%;
 }
 
 @media (max-width: 767px) {
@@ -460,11 +474,6 @@ body.navbar-side-open {
     right: 0;
     left: auto;
   }
-}
-
-.nav-pills > li > a {
-  color: var(--color-interface-strong);
-  background-color: var(--color-interface-softer);
 }
 
 .navbar-static-side {
@@ -1148,12 +1157,12 @@ a.rock-bookmark {
 }
 @media (max-width: 992px) {
   #splash #content {
-    margin-top: 10vh;
+    margin: 2vh 0;
     grid-template-columns: 1fr;
-    grid-template-rows: 8fr 10fr;
+    grid-template-rows: 4fr 10fr;
     gap: 0;
-    min-width: 480px;
-    width: 80vw;
+    min-width: 380px;
+    width: 90vw;
   }
 }
 #splash .logo-background {
@@ -1163,8 +1172,8 @@ a.rock-bookmark {
   justify-content: center;
   border-radius: var(--rounded-large);
   background-color: var(--color-primary);
-  height: -webkit-fill-available;
-  width: -webkit-fill-available;
+  height: 100%;
+  width: 100%;
   grid-column: 1/2;
   grid-row: 1/2;
   z-index: 1001;
@@ -1214,6 +1223,11 @@ a.rock-bookmark {
 }
 #splash .checkbox {
   margin-bottom: var(--spacing-medium);
+}
+@media screen and (max-width: 992px) {
+  #splash {
+    height: 100%;
+  }
 }
 
 @keyframes slide-left {

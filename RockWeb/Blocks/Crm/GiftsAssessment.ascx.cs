@@ -87,6 +87,7 @@ namespace Rockweb.Blocks.Crm
         Order = 4 )]
     #endregion Block Attributes
 
+    [Rock.Cms.DefaultBlockRole( Rock.Enums.Cms.BlockRole.Primary )]
     [Rock.SystemGuid.BlockTypeGuid( Rock.SystemGuid.BlockType.GIFTS_ASSESSMENT )]
     public partial class GiftsAssessment : Rock.Web.UI.RockBlock
     {

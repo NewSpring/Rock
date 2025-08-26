@@ -85,7 +85,7 @@ namespace Rock.Jobs
             }
             catch ( System.Exception ex )
             {
-                SendNotificationMessage( ex, this.ServiceJob );
+                //SendNotificationMessage( ex, this.ServiceJob );
                 var exceptionList = new AggregateException( "One or more exceptions occurred while trying to remove the Self-Service Kiosk website and blocks.", ex );
                 throw new RockJobWarningException( "PostV18DeleteSelfServiceKioskSiteAndBlocks job completed with warnings", exceptionList );
             }
@@ -159,7 +159,7 @@ AND [Id] != @SiteId;
                     .ToList();
 
                 var siteList = string.Join( ", ", siteNames );
-                var statusMessage = $"The following site{( siteNames.Count == 1 ? "" : "s" )} reference pages (as the LoginPageId, RegistrationPageId, MobilePageId, etc.) belonging to the Self-Service Kiosk (Preview) site: {siteList}. Please unlink them before running this job.";
+                var statusMessage = $"The following site{( siteNames.Count == 1 ? "" : "s" )} reference{( siteNames.Count == 1 ? "s" : "" )} page settings (such as LoginPage, RegistrationPage, MobilePage, etc.) from the Self-Service Kiosk (Preview) site: {siteList}. Please unlink these references before running this job.";
                 this.UpdateLastStatusMessage( statusMessage );
                 _customMessage = "has one or more sites that are using a page that belongs the Self-Service Kiosk (Preview) site which is going to be deleted";
                 throw new RockJobWarningException( statusMessage );
@@ -356,10 +356,6 @@ The blocks that are being removed are:
 </ul>
 <p>
 One of the blocks in that preview, specifically the ""Give"" page using the ""Transaction Entry - Kiosk (deprecated)"" block, is not PCI compliant. Therefore, we recommend discontinuing its use along with the other blocks in that preview site.
-</p>
-
-<p>
-While there’s no direct replacement for these preview blocks, if needed, we suggest you find a Rock partner who can assist in creating and maintaining copies of those pages and block types if needed. Otherwise, we recommend removing them from your Rock system.
 </p>
 
 <p>

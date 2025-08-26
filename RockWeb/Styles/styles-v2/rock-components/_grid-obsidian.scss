@@ -31,9 +31,13 @@
     top: var(--sticky-element-offset);
 }
 
+.grid-obsidian .grid-header-prepend {
+    border-bottom: 1px solid var(--color-interface-soft);
+}
+
 .grid-obsidian.grid-sticky .sticky-column-header {
     position: sticky;
-    top: calc(var(--sticky-element-offset) + 56px);
+    top: calc(var(--sticky-element-offset) + 57px);
     z-index: 1;
 }
 
@@ -111,14 +115,22 @@
     width: 240px;
 }
 
+.grid-obsidian > .grid-heading > .grid-title-heading > .grid-quick-filter.active > .grid-quick-filter-search > form {
+    width: 100%;
+}
+
 .grid-obsidian > .grid-heading > .grid-title-heading > .grid-quick-filter.active > .btn-grid-action {
     background-color: var(--color-interface-soft);
     color: var(--color-interface-stronger);
 }
 
-.grid-obsidian > .grid-heading > .grid-title-heading > .grid-quick-filter > .grid-quick-filter-search > .control-wrapper {
+.grid-obsidian > .grid-heading > .grid-title-heading > .grid-quick-filter > .grid-quick-filter-search > .control-wrapper,
+.grid-obsidian > .grid-heading > .grid-title-heading > .grid-quick-filter > .grid-quick-filter-search > form > .control-wrapper,
+.grid-obsidian > .grid-heading > .grid-title-heading > .grid-quick-filter > .grid-quick-filter-search > form > .control-wrapper > div,
+.grid-obsidian > .grid-heading > .grid-title-heading > .grid-quick-filter > .grid-quick-filter-search > form > .control-wrapper > div > .form-control {
     width: 100%;
     height: 100%;
+    border-radius: 0;
 }
 
 .grid-quick-filter-search > .control-wrapper > div {
@@ -263,7 +275,7 @@
 .grid-filter-popup-container .grid-filter-popup > .actions {
     display: flex;
     border-top: 1px solid var(--color-interface-soft);
-    background-color: #fcfcfc;
+    background-color: var(--color-interface-softest);
     padding: 8px;
     gap: 8px;
 }
@@ -312,6 +324,13 @@
 
 .grid-cell.grid-wrapcell {
     flex-wrap: wrap;
+}
+
+.grid-cell > .label {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
 }
 
 .grid-select-field {
@@ -428,12 +447,28 @@
     font-weight: 600;
 }
 
+.grid-obsidian .grid-cell-boolean,
+.grid-obsidian .grid-column-header-boolean {
+    text-align: center;
+    justify-content: center;
+}
+
 .grid-obsidian .grid-cell-number,
 .grid-obsidian .grid-cell-currency,
 .grid-obsidian .grid-column-header-number,
 .grid-obsidian .grid-column-header-currency {
   text-align: right;
   justify-content: right;
+}
+
+.grid-obsidian {
+    .grid-row:has(.table-empty) {
+    border-bottom: 1px solid var(--color-interface-soft);
+    }
+
+    .grid-row:has(.table-empty) .grid-cell {
+    border-bottom: none;
+    }
 }
 
 @media (max-width: 767px) {
