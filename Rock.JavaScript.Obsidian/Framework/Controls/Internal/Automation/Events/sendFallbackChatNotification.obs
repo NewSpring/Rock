@@ -31,13 +31,6 @@
                        help="A Chat member will be excluded from fallback notifications if they have a personal device with notifications enabled. Specify how many days in the past Rock must have seen this device to consider it eligible for notifications. Enter 0 to ignore how long ago the device was last seen."
                        :minimumValue="0" />
         </div>
-
-        <div class="col-md-4">
-            <NumberBox v-model="deviceSeenWithinDays"
-                       label="Device Seen Within Days"
-                       help="A Chat member will be excluded from fallback notifications if they have accessed Rock using a personal device within this number of days. Note that the same device must also currently have Rock notifications enabled."
-                       :minimumValue="0" />
-        </div>
     </div>
 </template>
 
