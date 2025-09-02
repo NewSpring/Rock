@@ -1,0 +1,179 @@
+@font-face {
+  font-family: "AwesomeSerif";
+  src: local("AwesomeSerif"), url("https://s3.amazonaws.com/ns.images/newspring/christmas/2023/fonts/AwesomeSerifItalic-BdRegular1.otf") format("opentype");
+}
+.christmas-at-newspring .bg-forrest {
+  background-color: #102316 !important;
+}
+.christmas-at-newspring .bg-alpine {
+  background-color: #033527 !important;
+}
+.christmas-at-newspring .bg-aged-wine {
+  background-color: #53170a !important;
+}
+.christmas-at-newspring .bg-aged-gold {
+  background-color: #9b7b35 !important;
+}
+.christmas-at-newspring .bg-camel {
+  background-color: #b18654 !important;
+}
+.christmas-at-newspring .bg-ice-skating {
+  background-color: #dce2d5 !important;
+}
+.christmas-at-newspring .bg-cashmere {
+  background-color: #e1dcd4 !important;
+}
+.christmas-at-newspring .bg-red-wine {
+  background-color: #710e02 !important;
+}
+.christmas-at-newspring .bg-meringue {
+  background-color: #f2ede9 !important;
+}
+.christmas-at-newspring .bg-trench-coat {
+  background-color: #CAA06E !important;
+}
+.christmas-at-newspring .text-forrest {
+  color: #102316 !important;
+}
+.christmas-at-newspring .text-alpine {
+  color: #033527 !important;
+}
+.christmas-at-newspring .text-aged-wine,
+.christmas-at-newspring .text-aged-wine * {
+  color: #53170a !important;
+}
+.christmas-at-newspring .text-aged-gold {
+  color: #9b7b35 !important;
+}
+.christmas-at-newspring .text-camel {
+  color: #b18654 !important;
+}
+.christmas-at-newspring .text-ice-skating {
+  color: #dce2d5 !important;
+}
+.christmas-at-newspring .text-cashmere {
+  color: #e1dcd4 !important;
+}
+.christmas-at-newspring .text-red-wine {
+  color: #710e02 !important;
+}
+.christmas-at-newspring .text-meringue {
+  color: #f2ede9 !important;
+}
+.christmas-at-newspring .text-trench-coat {
+  color: #CAA06E !important;
+}
+.christmas-at-newspring .fill-forrest {
+  fill: #102316;
+}
+.christmas-at-newspring .fill-alpine {
+  fill: #033527;
+}
+.christmas-at-newspring .fill-aged-wine {
+  fill: #53170a;
+}
+.christmas-at-newspring .fill-aged-gold {
+  fill: #9b7b35;
+}
+.christmas-at-newspring .fill-camel {
+  fill: #b18654;
+}
+.christmas-at-newspring .fill-ice-skating {
+  fill: #dce2d5;
+}
+.christmas-at-newspring .fill-cashmere {
+  fill: #e1dcd4;
+}
+.christmas-at-newspring .fill-red-wine {
+  fill: #710e02;
+}
+.christmas-at-newspring .fill-meringue {
+  fill: #f2ede9;
+}
+.christmas-at-newspring .fill-trench-coat {
+  fill: #CAA06E;
+}
+.christmas-at-newspring .btn-primary {
+  background-color: #b18654;
+}
+.christmas-at-newspring .btn-primary:hover,
+.christmas-at-newspring .btn-primary:active,
+.christmas-at-newspring .btn-primary:focus {
+  background-color: #906c42;
+}
+.christmas-at-newspring .btn-secondary {
+  background-color: #710e02;
+}
+.christmas-at-newspring .btn-secondary:hover,
+.christmas-at-newspring .btn-secondary:active,
+.christmas-at-newspring .btn-secondary:focus {
+  background-color: #3f0801;
+}
+.christmas-at-newspring .btn-tertiary {
+  background-color: #033527;
+  color: #fff;
+}
+.christmas-at-newspring .btn-tertiary:hover,
+.christmas-at-newspring .btn-tertiary:active,
+.christmas-at-newspring .btn-tertiary:focus {
+  background-color: #000503;
+}
+.christmas-at-newspring a:not(.btn) {
+  color: #710e02;
+}
+.christmas-at-newspring a:not(.btn):hover,
+.christmas-at-newspring a:not(.btn):active,
+.christmas-at-newspring a:not(.btn):focus {
+  color: #3f0801;
+}
+.christmas-at-newspring .display-1,
+.christmas-at-newspring .display-2,
+.christmas-at-newspring .display-3 {
+  letter-spacing: 1px;
+}
+.christmas-at-newspring h1,
+.christmas-at-newspring h2,
+.christmas-at-newspring h3,
+.christmas-at-newspring h4,
+.christmas-at-newspring h5,
+.christmas-at-newspring h6 {
+  font-family: "AwesomeSerif", sans-serif;
+  font-weight: normal;
+  letter-spacing: 0.5px;
+}
+.christmas-at-newspring h2 {
+  line-height: 1.15;
+}
+.christmas-at-newspring .outline-none {
+  outline: none;
+}
+.select-wrapper {
+  display: inline-block;
+  position: relative;
+  background-color: #6bac43;
+  border-radius: 1000px;
+}
+.select-wrapper select {
+  padding: 12px 25px;
+  padding-right: 45px;
+  background-color: transparent;
+  border: 0;
+  font-family: 'colfax-web', sans-serif;
+  font-weight: 500;
+  letter-spacing: -0.5px;
+  outline: none;
+  -webkit-appearance: none;
+}
+.select-wrapper select:hover {
+  cursor: pointer;
+}
+.select-wrapper:after {
+  content: '\f0d7';
+  font-family: "Font Awesome 5 Pro";
+  position: absolute;
+  top: 50%;
+  right: 20px;
+  margin-top: -14px;
+  font-weight: 900;
+  cursor: pointer;
+}

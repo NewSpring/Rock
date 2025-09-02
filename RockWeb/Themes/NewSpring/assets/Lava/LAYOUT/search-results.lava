@@ -1,0 +1,213 @@
+<div id="results" class="p-3 px-md-7 text-center">
+
+    <section>
+        <h1>Not sure what to search? Start here!</h1>
+        <div class="text-constrained mx-auto d-flex flex-wrap justify-content-center gap-2">
+        {% definedvalue where:'DefinedTypeId == {{ suggestionsdefinedtypeid }}' sort:'Order' iterator:'values' %}
+            {% for value in values %}
+                <a href="/search?query={{ value.Value }}" class="btn btn-sm btn-primary">{{ value.Value }}</a>
+            {% endfor %}
+        {% enddefinedvalue %}
+        </div>
+    </section>
+
+
+</div>
+
+<script>
+
+    document.addEventListener("DOMContentLoaded", function() {
+
+        // Set Variables
+        let currentUrl = window.location.href.split('?')[0],
+            searchInput = document.querySelector('[data-search-input]'),
+            resultsContainer = document.getElementById("results"),
+            initialResultsHtml = resultsContainer.innerHTML,
+            searchInputClear = document.querySelector('[data-search-input-clear]')
+            params = new URLSearchParams(window.location.search);
+
+        // Focus on search input
+        searchInput.focus();
+
+        // If query exists in params, go ahead and search
+        if(params.has('query')){
+            searchInputClear.classList.remove('hidden');
+            var query = params.get('query').toLowerCase();
+            searchInput.value = query;
+            searchGoogle(query);
+        }
+
+        // Clear search input when clear button is clicked
+        searchInputClear.addEventListener('click', function (e) {
+            searchInputClear.classList.add('hidden');
+            resultsContainer.innerHTML = initialResultsHtml;
+            searchInput.value = "";
+            params.delete('query');
+            searchInput.focus();
+        });
+
+        // Listen for return key
+        searchInput.addEventListener('keyup', function(e) {
+            let key = e.which || e.keyCode,
+                query = searchInput.value;
+
+            if (key === 13) { // 13 is enter
+
+                if(query == '') {
+                    searchInput.parentElement.parentElement.classList.remove('bg-gray-dark');
+                    searchInput.parentElement.parentElement.classList.add('bg-info');
+                    searchInput.placeholder='What can we help you find?';
+                    Stretchy.resize(searchInput,searchInput.parentElement);
+                } else {
+                    searchInput.blur();
+                    searchInput.parentElement.parentElement.classList.remove('bg-info');
+                    searchInput.parentElement.parentElement.classList.add('bg-gray-dark');
+                    searchGoogle(query);
+                };
+
+            } else {
+
+                if(searchInput.value != '') {
+                    searchInputClear.classList.remove('hidden');
+                } else {
+                    searchInputClear.classList.add('hidden');
+                }
+
+            }
+
+        });
+
+        function searchGoogle(query, nextPageToken){
+
+            var projectId = 'method-man',
+                appId = 'newspring-website-search_1731538362818',
+                requestUrl = `https://discoveryengine.googleapis.com/v1/projects/` + projectId + `/locations/global/collections/default_collection/engines/` + appId + `/servingConfigs/default_search:searchLite?key={{ 'Global' | Attribute:'GoogleVertexSearchKey' }}`;
+
+            // Get query value
+            if(query == ''){
+                var query = searchInput.value;
+            }
+
+            // Delete query parameter if it already exists
+            if(params.has('query')){
+                searchInput.value = query;
+                params.delete('query');
+            }
+
+            // Build the request body
+            let requestBody = `{
+                "servingConfig": "projects/` + projectId + `/locations/global/collections/default_collection/engines/` + appId + `/servingConfigs/default_search",
+                "query": ` + JSON.stringify(query) + `,
+                "pageSize": "9"
+            }`;
+
+            // If a token for a page is passed in, add it to the request body
+            if(nextPageToken) {
+                requestBody = JSON.parse(requestBody);
+                requestBody.pageToken = nextPageToken;
+                requestBody = JSON.stringify(requestBody);
+            }
+
+
+            const xhr = new XMLHttpRequest();
+            xhr.open("POST", requestUrl, true);
+
+            // Send the proper header information along with the request
+            xhr.setRequestHeader("Content-Type", "application/json");
+
+            xhr.onreadystatechange = () => {
+                if (xhr.readyState === XMLHttpRequest.DONE && xhr.status === 200) {
+
+                    // Populate the search results onto the page
+                    populateResults(JSON.parse(xhr.response), query);
+                }
+            };
+
+            // Send the search request
+            xhr.send(requestBody);
+        };
+
+        function populateResults(response, query) {
+
+            console.log(response);
+
+            let scroll = new SmoothScroll(),
+                totalResults = response.results.length;
+
+            // Clear results container for each search
+            resultsContainer.innerHTML = ''
+
+            // Append the results count heading to the results container element
+            resultsContainer.innerHTML = `<h2 class="h4 px-5 mt-3 mb-5 mb-md-7">` + response.totalSize.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") + ` results found for <span class="text-info">` + query + `<span></h2>`
+
+
+            // If there are results, loop through them and add them to the results container element
+            if (response.results) {
+
+                let resultsWrapper = document.createElement('div');
+                resultsWrapper.classList.add('d-grid', 'grid-cols-1', 'grid-cols-md-2', 'grid-cols-lg-3', 'grid-cols-xl-4','gap-3', 'gap-md-5');
+
+                for (let i = 0; i < response.results.length; i++) {
+                    let item = response.results[i].document.derivedStructData;
+
+                    if(item.pagemap && item.pagemap.cse_image && item.pagemap.cse_image[0].src != 'null'){
+                        itemImage = item.pagemap.cse_image[0].src;
+                    } else {
+                        itemImage = 'https://s3.amazonaws.com/ns.images/all/heroes/Player.Default.jpg';
+                    }
+
+                    let layout = `
+                    <a href="${ item.link }" class="search-result height-max-content bg-white rounded-lg text-left text-decoration-none text-gray-darker overflow-hidden">
+                        <img src="${ itemImage }" class="ratio-landscape w-100 object-cover" />
+                        <div class="p-4">
+                            <h2 class="h5">${ item.htmlTitle }</h2>
+                            <p class="mb-3">${item.snippets[0].htmlSnippet}</p>
+                            <p class="text-gray italic small mb-0">${item.link}</p>
+                        </div>
+                    </a>`;
+
+                    resultsWrapper.innerHTML += layout;
+                }
+
+                resultsContainer.appendChild(resultsWrapper);
+
+                // When done adding a set of results, scroll to the top of the page
+                window.scrollTo(0, 0);
+
+                // Generate pagination container
+                let pagination = '<div class="my-7 text-center" data-search-pagination-container></div>';
+
+                // Append pagination container to results container
+                resultsContainer.innerHTML += pagination
+
+                // Set pagination container so we can add links
+                let paginationContainer = document.querySelector('[data-search-pagination-container]');
+
+                if (response.nextPageToken) {
+                    let nextButton = document.createElement('a');
+                    nextButton.setAttribute('data-search-next','');
+                    nextButton.classList.add('btn','btn-primary');
+                    nextButton.innerHTML = 'Next &nbsp;<i class="position-relative fas fa-angle-right" style="top: 2px;"></i>'
+                    paginationContainer.appendChild(nextButton);
+                }
+
+                let resultsSource = `
+                <div class="text-center my-7">
+                    Results By <img src="//s3.amazonaws.com/ns.images/all/google/google-logo-full.png" width="80px" class="display-inline-block mx-auto" />
+                </div>
+                `
+                resultsContainer.innerHTML += resultsSource;
+            }
+
+            if (response.nextPageToken) {
+                let nextButton = document.querySelector('[data-search-next]');
+                nextButton.addEventListener('click', function(e){
+                    searchGoogle(query, response.nextPageToken);
+                });
+            }
+
+        }
+
+    });
+
+</script>

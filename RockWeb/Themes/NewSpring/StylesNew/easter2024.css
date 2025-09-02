@@ -1,0 +1,195 @@
+@font-face {
+    font-family: "AwesomeSerif";
+    src: local("AwesomeSerif"), url("https://s3.amazonaws.com/ns.images/newspring/easter/2024/fonts/AwesomeSerif/AwesomeSerif-LightExtraTall.otf") format("opentype");
+  }
+  .easter-at-newspring .bg-daylight {
+    background-color: #fff4c0 !important;
+  }
+  .easter-at-newspring .bg-desert-sand {
+    background-color: #b39353 !important;
+  }
+  .easter-at-newspring .bg-palm-branch {
+    background-color: #165439 !important;
+  }
+  .easter-at-newspring .bg-sage {
+    background-color: #b6c19d !important;
+  }
+  .easter-at-newspring .bg-stones-throw {
+    background-color: #dcdcdc !important;
+  }
+  .easter-at-newspring .bg-coral-sunrise {
+    background-color: #ffbb99 !important;
+  }
+  .easter-at-newspring .bg-crimson {
+    background-color: #8c2531 !important;
+  }
+  .easter-at-newspring .bg-paradise-blue {
+    background-color: #d6e5e2 !important;
+  }
+  .easter-at-newspring .bg-darkest-hour {
+    background-color: #333344 !important;
+  }
+  .easter-at-newspring .bg-morning-lavendar {
+    background-color: #ded8e4 !important;
+  }
+  .easter-at-newspring .text-daylight {
+    color: #fff4c0 !important;
+  }
+  .easter-at-newspring .text-desert-sand {
+    color: #b39353 !important;
+  }
+  .easter-at-newspring .text-palm-branch {
+    color: #165439 !important;
+  }
+  .easter-at-newspring .text-sage {
+    color: #b6c19d !important;
+  }
+  .easter-at-newspring .text-stones-throw {
+    color: #dcdcdc !important;
+  }
+  .easter-at-newspring .text-coral-sunrise {
+    color: #ffbb99 !important;
+  }
+  .easter-at-newspring .text-crimson {
+    color: #8c2531 !important;
+  }
+  .easter-at-newspring .text-paradise-blue {
+    color: #d6e5e2 !important;
+  }
+  .easter-at-newspring .text-darkest-hour {
+    color: #333344 !important;
+  }
+  .easter-at-newspring .text-morning-lavendar {
+    color: #ded8e4 !important;
+  }
+  .easter-at-newspring .btn-primary {
+    background-color: #b6c19d;
+  }
+  .easter-at-newspring .btn-primary:hover,
+  .easter-at-newspring .btn-primary:active,
+  .easter-at-newspring .btn-primary:focus {
+    background-color: #8e9779;
+  }
+  .easter-at-newspring .btn-secondary {
+    background-color: #9ba583;
+  }
+  .easter-at-newspring .btn-secondary:hover,
+  .easter-at-newspring .btn-secondary:active,
+  .easter-at-newspring .btn-secondary:focus {
+    background-color: #165439;
+  }
+  .easter-at-newspring .btn-tertiary {
+    background-color: #033527;
+    color: #fff;
+  }
+  .easter-at-newspring .btn-tertiary:hover,
+  .easter-at-newspring .btn-tertiary:active,
+  .easter-at-newspring .btn-tertiary:focus {
+    background-color: #000503;
+  }
+  .easter-at-newspring a:not(.btn) {
+    color: #165439;
+  }
+  .easter-at-newspring a:not(.btn):hover,
+  .easter-at-newspring a:not(.btn):active,
+  .easter-at-newspring a:not(.btn):focus {
+    color: #8f997a;
+  }
+  .easter-at-newspring .display-1,
+  .easter-at-newspring .display-2,
+  .easter-at-newspring .display-3 {
+    letter-spacing: 3px;
+  } 
+  @media (min-width: 769px) {
+    .easter-at-newspring h1 {
+        font-size: 150px;
+        letter-spacing: 7px !important;
+    }
+}
+  @media (max-width: 768px) {
+    .easter-at-newspring h1 {
+        font-size: 130px;
+        letter-spacing: 6px !important;
+    }
+}
+  @media (max-width: 576px) {
+    .easter-at-newspring h1 {
+        font-size: 110px;
+        letter-spacing: 5px !important;
+    }
+}
+  .easter-at-newspring h1,
+  .easter-at-newspring h2,
+  .easter-at-newspring h3,
+  .easter-at-newspring h4,
+  .easter-at-newspring h5,
+  .easter-at-newspring h6 {
+    font-family: "AwesomeSerif", sans-serif;
+    font-weight: normal;
+    letter-spacing: 0.5px;
+  }
+  .easter-at-newspring h2 {
+    line-height: 1.15;
+  }
+
+  .easter-at-newspring .subtitle {
+    font-family: "colfax-web", sans-serif;
+    text-transform: uppercase;
+    font-weight: 500;
+    letter-spacing: 7px;
+    line-height: 1.4;
+    font-size: 40px;
+  }
+
+  @media (max-width: 576px) {
+    .easter-at-newspring .subtitle {
+        font-size: 27px !important;
+        line-height: normal;
+    }
+}
+@media (max-width: 768px) {
+    .easter-at-newspring .subtitle {
+        font-size: 33px;
+        line-height: normal;
+    }
+}
+@media (min-width: 769px) {
+    .easter-at-newspring .subtitle {
+        font-size: 40px;
+        line-height: normal;
+    }
+}
+  .easter-at-newspring .outline-none {
+    outline: none;
+  }
+  .select-wrapper {
+    display: inline-block;
+    position: relative;
+    background-color: #b6c19d;
+    border-radius: 1000px;
+  }
+  .select-wrapper select {
+    padding: 12px 25px;
+    padding-right: 45px;
+    background-color: transparent;
+    border: 0;
+    font-family: 'colfax-web', sans-serif;
+    font-weight: 500;
+    letter-spacing: -0.5px;
+    outline: none;
+    -webkit-appearance: none;
+  }
+  .select-wrapper select:hover {
+    cursor: pointer;
+  }
+  .select-wrapper:after {
+    content: '\f0d7';
+    font-family: "Font Awesome 5 Pro";
+    position: absolute;
+    top: 50%;
+    right: 20px;
+    margin-top: -14px;
+    font-weight: 900;
+    cursor: pointer;
+  }
+  
