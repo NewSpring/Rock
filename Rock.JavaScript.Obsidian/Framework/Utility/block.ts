@@ -758,6 +758,9 @@ type BlockRegistration = {
 /** The list of block registrations for the current page. */
 const registeredBlocks: BlockRegistration[] = [];
 
+/** The block roles that are currently hidden. */
+const hiddenBlockRoles: Set<BlockRole> = new Set<BlockRole>();
+
 /**
  * The block actions that can be performed on a block.
  */
@@ -781,11 +784,21 @@ export interface IBlockActions {
  * @param role The role of the block on the page.
  */
 export function registerBlock(actions: IBlockActions, role: BlockRole): void {
-    registeredBlocks.push({
+    const block: BlockRegistration = {
         actions,
         role,
         hideCount: 0
-    });
+    };
+
+    if (hiddenBlockRoles.has(role)) {
+        block.hideCount = 1;
+
+        if (block.actions.hideBlock) {
+            block.actions.hideBlock();
+        }
+    }
+
+    registeredBlocks.push(block);
 }
 
 /**
@@ -853,6 +866,8 @@ export async function hideBlockRole(role: BlockRole): Promise<void> {
         }
     }
 
+    hiddenBlockRoles.add(role);
+
     await Promise.all(promises);
 }
 
@@ -882,6 +897,8 @@ export async function showBlockRole(role: BlockRole): Promise<void> {
             }
         }
     }
+
+    hiddenBlockRoles.delete(role);
 
     await Promise.all(promises);
 }

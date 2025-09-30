@@ -26,7 +26,7 @@ export function isEnumValue<T extends Record<string, number | string>>(enumObjec
 }
 
 type RockDateTimeParser = {
-    parseRockDateTime(isoDateTime: string | null | undefined): RockDateTime | null;
+    parseRockDateTime(isoDateTime: string | number | RockDateTime | null | undefined): RockDateTime | null;
 };
 
 const rockDateTimeParserInjectionKey: InjectionKey<RockDateTimeParser> = Symbol("rock-date-time-parser");

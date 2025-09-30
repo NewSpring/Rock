@@ -58,6 +58,14 @@
       box-shadow: none;
     }
   }
+  .btn-tool {
+    background-color: var(--color-interface-soft);
+    border-color:     var(--color-interface-soft);
+    color:            var(--color-interface-stronger);
+    &:hover {
+      border-color:   var(--color-interface-medium);
+    }
+  }
 
 }
 

@@ -18,6 +18,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Data.Entity;
 using System.Linq;
 
 using Rock.Attribute;
@@ -160,7 +161,7 @@ namespace Rock.Blocks.Reporting
         {
             var service = new MergeTemplateService( rockContext );
 
-            var queryable = service.Queryable();
+            var queryable = service.Queryable().Include( a => a.PersonAlias.Person );
 
             var mergeTemplateOwnership = GetTemplateOwnership();
 

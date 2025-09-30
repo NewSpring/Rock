@@ -150,6 +150,9 @@
         const isPublic = asYesNoOrNull(props.modelValue?.isPublic) ?? "No";
         valueBuilder.addTextValue("Public", isPublic);
 
+        const enforcePublicSecurity = asYesNoOrNull(props.modelValue?.enforcePublicSecurity) ?? "No";
+        valueBuilder.addTextValue("Enforce Public Security", enforcePublicSecurity);
+
         return valueBuilder.build();
     });
 

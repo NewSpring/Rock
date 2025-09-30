@@ -26,6 +26,9 @@ export type CommunicationFlowInstanceBag = {
     /** Gets or sets the identifier key for the Communication Flow Instance. */
     communicationFlowInstanceIdKey?: string | null;
 
+    /** Gets or sets the start date. */
+    startDate?: string | null;
+
     /** Gets or sets the count of unique people in this Communication Flow Instance. */
     uniquePersonCount: number;
 };

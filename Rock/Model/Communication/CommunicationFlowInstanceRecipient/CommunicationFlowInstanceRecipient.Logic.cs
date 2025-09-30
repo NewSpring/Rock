@@ -24,65 +24,36 @@ namespace Rock.Model
     public partial class CommunicationFlowInstanceRecipient
     {
         // In-memory versions, compiled once per AppDomain
-        private static readonly Func<CommunicationFlowInstanceRecipient, bool> _isUnsubscribedFunc =
-            CommunicationFlowInstanceRecipientPredicates.IsUnsubscribedExpr.Compile();
+        private static readonly Func<CommunicationFlowInstanceRecipient, bool> _isUnsubscribedFromCommunicationFunc =
+            CommunicationFlowInstanceRecipientPredicates.IsUnsubscribedFromCommunicationExpr.Compile();
+        private static readonly Func<CommunicationFlowInstanceRecipient, bool> _isUnsubscribedFromCommunicationFlowFunc =
+            CommunicationFlowInstanceRecipientPredicates.IsUnsubscribedFromCommunicationFlowExpr.Compile();
         private static readonly Func<CommunicationFlowInstanceRecipient, Person> _personFunc =
             CommunicationFlowInstanceRecipientPredicates.PersonExpr.Compile();
         private static readonly Func<CommunicationFlowInstanceRecipient, int> _personIdFunc =
             CommunicationFlowInstanceRecipientPredicates.PersonIdExpr.Compile();
 
         /// <summary>
-        /// Determines whether the recipient is unsubscribed from the Communication Flow Instance.
+        /// Determines whether the recipient unsubscribed via a specific Communication.
         /// </summary>
-        /// <returns></returns>
-        public bool IsUnsubscribed()
+        /// <remarks>Recipients who unsubscribe via a specific Communication (via unsubscribe link) only unsubscribe from Communications in the current Communication Flow Instance.</remarks>
+        internal bool IsUnsubscribedFromCommunication()
         {
-            return _isUnsubscribedFunc( this );
+            return _isUnsubscribedFromCommunicationFunc( this );
         }
 
         /// <summary>
-        /// Marks the recipient as unsubscribed from the Communication Flow Instance.
+        /// Determines whether the recipient is unsubscribed from a Communication flow.
         /// </summary>
-        public void MarkUnsubscribed()
+        /// <remarks>Recipients who unsubscribe from a Communication Flow (via Email Preference Entry) unsubscribe from Communications in the current and future Communication Flow Instances.</remarks>
+        internal bool IsUnsubscribedFromCommunicationFlow()
         {
-            // FYI, update CommunicationFlowInstanceRecipientPredicates.IsUnsubscribedExpr if you change this logic.
-            Status = CommunicationFlowInstanceRecipientStatus.Inactive;
-            InactiveReason = CommunicationFlowInstanceRecipientInactiveReason.Unsubscribed;
-            
-            UnsubscribeCommunicationRecipient = null;
-            UnsubscribeCommunicationRecipientId = null;
-        }
-
-        /// <summary>
-        /// Marks the recipient as unsubscribed from the Communication Flow Instance.
-        /// </summary>
-        public void MarkUnsubscribedFromCommunication( CommunicationRecipient unsubscribeCommunicationRecipient )
-        {
-            // FYI, update CommunicationFlowInstanceRecipientPredicates.IsUnsubscribedExpr if you change this logic.
-            Status = CommunicationFlowInstanceRecipientStatus.Inactive;
-            InactiveReason = CommunicationFlowInstanceRecipientInactiveReason.Unsubscribed;
-
-            UnsubscribeCommunicationRecipient = unsubscribeCommunicationRecipient;
-            UnsubscribeCommunicationRecipientId = unsubscribeCommunicationRecipient?.Id;
-        }
-
-        /// <summary>
-        /// Marks the recipient as unsubscribed from the Communication Flow Instance.
-        /// </summary>
-        public void MarkUnsubscribedFromCommunication( int? unsubscribeCommunicationRecipientId )
-        {
-            // FYI, update CommunicationFlowInstanceRecipientPredicates.IsUnsubscribedExpr if you change this logic.
-            Status = CommunicationFlowInstanceRecipientStatus.Inactive;
-            InactiveReason = CommunicationFlowInstanceRecipientInactiveReason.Unsubscribed;
-
-            UnsubscribeCommunicationRecipientId = unsubscribeCommunicationRecipientId;
-            // Don't touch the UnsubscribeCommunicationRecipient navigation property, as it may not be loaded.
+            return _isUnsubscribedFromCommunicationFlowFunc( this );
         }
 
         /// <summary>
         /// Gets the Person associated with this CommunicationFlowInstanceRecipient.
         /// </summary>
-        /// <returns></returns>
         public Person GetPerson()
         {
             return _personFunc( this );
@@ -91,7 +62,6 @@ namespace Rock.Model
         /// <summary>
         /// Gets the Person identifier associated with this CommunicationFlowInstanceRecipient.
         /// </summary>
-        /// <returns></returns>
         public int GetPersonId()
         {
             return _personIdFunc( this );
@@ -101,12 +71,28 @@ namespace Rock.Model
     internal static partial class CommunicationFlowInstanceRecipientPredicates
     {
         /// <summary>
-        /// Expression to determine if a CommunicationFlowInstanceRecipient is unsubscribed.
+        /// Expression to determine if a Communication Flow Instance Recipient is unsubscribed from a Communication.
         /// </summary>
-        /// <remarks>Update <see cref="CommunicationFlowInstanceRecipient.MarkUnsubscribed"/> if this is changed.</remarks>
-        internal static readonly Expression<Func<CommunicationFlowInstanceRecipient, bool>> IsUnsubscribedExpr =
+        /// <remarks>Recipients who unsubscribe via a specific Communication (via unsubscribe link) only unsubscribe from Communications in the current Communication Flow Instance.</remarks>
+        internal static readonly Expression<Func<CommunicationFlowInstanceRecipient, bool>> IsUnsubscribedFromCommunicationExpr =
             r => r.Status == CommunicationFlowInstanceRecipientStatus.Inactive
                 && r.InactiveReason == CommunicationFlowInstanceRecipientInactiveReason.Unsubscribed;
+
+        /// <summary>
+        /// Expression to determine if a Communication Flow Instance Recipient is unsubscribed from a Communication or a Communication Flow.
+        /// </summary>
+        internal static readonly Expression<Func<CommunicationFlowInstanceRecipient, bool>> IsUnsubscribedExpr =
+            r => r.Status == CommunicationFlowInstanceRecipientStatus.Inactive
+                && ( r.InactiveReason == CommunicationFlowInstanceRecipientInactiveReason.Unsubscribed
+                    || r.InactiveReason == CommunicationFlowInstanceRecipientInactiveReason.UnsubscribedFromFlow );
+
+        /// <summary>
+        /// Expression to determine if a Communication Flow Instance Recipient is unsubscribed from a Communication Flow.
+        /// </summary>
+        /// <remarks>Recipients who unsubscribe from a Communication Flow (via Email Preference Entry) unsubscribe from Communications in the current and future Communication Flow Instances.</remarks>
+        internal static readonly Expression<Func<CommunicationFlowInstanceRecipient, bool>> IsUnsubscribedFromCommunicationFlowExpr =
+            r => r.Status == CommunicationFlowInstanceRecipientStatus.Inactive
+                && r.InactiveReason == CommunicationFlowInstanceRecipientInactiveReason.UnsubscribedFromFlow;
 
         /// <summary>
         /// Expression to get the Person associated with a CommunicationFlowInstanceRecipient.

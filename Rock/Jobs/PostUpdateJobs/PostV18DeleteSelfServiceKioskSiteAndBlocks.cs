@@ -21,8 +21,6 @@ using System.Data;
 using System.IO;
 using System.Linq;
 
-using DocumentFormat.OpenXml.Spreadsheet;
-
 using Rock.Attribute;
 using Rock.Communication;
 using Rock.Data;
@@ -136,7 +134,30 @@ SELECT [Id]
 FROM [Page]
 WHERE [SiteId] = @SiteId;
 
--- Find any OTHER [Site] records referencing those Pages
+-- Final step: Null out any page references on OTHER sites that point to pages from @SitePageIds
+UPDATE s
+SET
+    DefaultPageId        = CASE WHEN s.DefaultPageId        IN (SELECT PageId FROM @SitePageIds) THEN NULL ELSE s.DefaultPageId        END,
+    LoginPageId          = CASE WHEN s.LoginPageId          IN (SELECT PageId FROM @SitePageIds) THEN NULL ELSE s.LoginPageId          END,
+    RegistrationPageId   = CASE WHEN s.RegistrationPageId   IN (SELECT PageId FROM @SitePageIds) THEN NULL ELSE s.RegistrationPageId   END,
+    PageNotFoundPageId   = CASE WHEN s.PageNotFoundPageId   IN (SELECT PageId FROM @SitePageIds) THEN NULL ELSE s.PageNotFoundPageId   END,
+    CommunicationPageId  = CASE WHEN s.CommunicationPageId  IN (SELECT PageId FROM @SitePageIds) THEN NULL ELSE s.CommunicationPageId  END,
+    MobilePageId         = CASE WHEN s.MobilePageId         IN (SELECT PageId FROM @SitePageIds) THEN NULL ELSE s.MobilePageId         END,
+    ChangePasswordPageId = CASE WHEN s.ChangePasswordPageId IN (SELECT PageId FROM @SitePageIds) THEN NULL ELSE s.ChangePasswordPageId END
+FROM [Site] AS s
+WHERE
+    s.[Id] <> @SiteId
+    AND (
+        s.[DefaultPageId]        IN (SELECT PageId FROM @SitePageIds) OR
+        s.[LoginPageId]          IN (SELECT PageId FROM @SitePageIds) OR
+        s.[RegistrationPageId]   IN (SELECT PageId FROM @SitePageIds) OR
+        s.[PageNotFoundPageId]   IN (SELECT PageId FROM @SitePageIds) OR
+        s.[CommunicationPageId]  IN (SELECT PageId FROM @SitePageIds) OR
+        s.[MobilePageId]         IN (SELECT PageId FROM @SitePageIds) OR
+        s.[ChangePasswordPageId] IN (SELECT PageId FROM @SitePageIds)
+    );
+
+-- Verify: Are any OTHER [Site] records still referencing those Pages?
 SELECT s.[Name]
 FROM [Site] s
 WHERE
@@ -149,7 +170,7 @@ WHERE
     s.[MobilePageId] IN (SELECT PageId FROM @SitePageIds) OR
     s.[ChangePasswordPageId] IN (SELECT PageId FROM @SitePageIds)
 )
-AND [Id] != @SiteId;
+AND s.[Id] <> @SiteId;
 ";
             var siteNamesTable = DbService.GetDataTable( checkForPreviewSitePagesUsedByOtherSites, CommandType.Text, null, _commandTimeout );
             if ( siteNamesTable.Rows.Count > 0 )

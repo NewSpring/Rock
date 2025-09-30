@@ -132,7 +132,7 @@ namespace Rock.Blocks.Core
         protected override IQueryable<Campus> GetListQueryable( RockContext rockContext )
         {
             return base.GetListQueryable( rockContext )
-                .Include( a => a.LeaderPersonAlias )
+                .Include( a => a.LeaderPersonAlias.Person )
                 .Include( a => a.CampusTypeValue )
                 .Include( a => a.CampusStatusValue );
         }

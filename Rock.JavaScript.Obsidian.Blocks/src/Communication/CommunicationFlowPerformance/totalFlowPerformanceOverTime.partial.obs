@@ -2,7 +2,6 @@
 <template>
     <Panel v-if="hasSentCommunications"
            hasFullscreen
-           panelBodyCssClass="chart-container"
            title="Total Flow Performance Over Time">
         <LineChart :series="series"
                    :labels="labels"

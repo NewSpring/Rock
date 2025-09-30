@@ -4,6 +4,9 @@
         <div style="height: 300px;">
             <LineChart :labels="labels"
                        :series="series"
+                       :categoryLabel="categoryLabel"
+                       :categoryMaxTickCount="categoryMaxTickCount"
+                       :categoryShowGridLines="categoryShowGridLines"
                        :hideLegend="isLegendHidden"
                        :labelDateFormat="labelDateFormat"
                        :legendAlign="legendAlign"
@@ -12,17 +15,16 @@
                        :lineStyle="lineStyle"
                        :stack="isStacked"
                        :title="title"
+                       :tooltip="tooltip"
+                       :tooltipTitle="tooltipTitle"
                        :type="isPercent ? 'percent' : isPercent === false ? 'number' : undefined"
                        :unfilled="isUnfilled"
-                       :xLabel="xLabel"
-                       :xMaxTickCount="xMaxTickCount"
-                       :xShowGridLines="xShowGridLines"
-                       :yHideGridLines="yHideGridLines"
-                       :yLabel="yLabel"
-                       :yMaxTickCount="yMaxTickCount"
-                       :ySuggestedMax="ySuggestedMax"
-                       :ySuggestedMin="ySuggestedMin"
-                       :yTickCount="yTickCount" />
+                       :valueHideGridLines="valueHideGridLines"
+                       :valueLabel="valueLabel"
+                       :valueMaxTickCount="valueMaxTickCount"
+                       :valueSuggestedMax="valueSuggestedMax"
+                       :valueSuggestedMin="valueSuggestedMin"
+                       :valueTickCount="valueTickCount" />
         </div>
 
         <template #settings>
@@ -33,6 +35,16 @@
                             <TextBox :modelValue="title ?? ''"
                                      label="Chart Title"
                                      @update:modelValue="title = $event" />
+                        </div>
+                        <div class="autolayout">
+                            <TextBox :modelValue="height ?? ''"
+                                     label="Chart Container Height"
+                                     help="CSS size value (e.g., '300px' or '50%')."
+                                     @update:modelValue="height = $event" />
+                            <TextBox :modelValue="width ?? ''"
+                                     label="Chart Container Width"
+                                     help="CSS size value (e.g., '300px' or '50%')."
+                                     @update:modelValue="width = $event" />
                         </div>
                     </ContentStack>
 
@@ -76,6 +88,10 @@
                                     help="For 'percent', the data must be in decimal form (e.g., 0.1 for 10%)."
                                     label="Percent"
                                     @update:modelValue="isPercent = $event" />
+
+                            <Switch :modelValue="hasCustomTooltip ?? false"
+                                    label="Custom Tooltip"
+                                    @update:modelValue="hasCustomTooltip = $event" />
                         </div>
                     </ContentStack>
 
@@ -97,41 +113,43 @@
                         </div>
                     </ContentStack>
 
-                    <ContentStack title="X-Axis">
+                    <ContentStack title="Category Axis"
+                                  description="(x-axis)">
                         <div class="autolayout">
-                            <TextBox :modelValue="xLabel ?? ''"
+                            <TextBox :modelValue="categoryLabel ?? ''"
                                      label="Label"
-                                     @update:modelValue="xLabel = $event" />
+                                     @update:modelValue="categoryLabel = $event" />
 
-                            <NumberBox v-model="xMaxTickCount"
+                            <NumberBox v-model="categoryMaxTickCount"
                                        label="Max Tick Count" />
 
-                            <Switch :modelValue="xShowGridLines ?? false"
+                            <Switch :modelValue="categoryShowGridLines ?? false"
                                     label="Show Grid Lines"
-                                    @update:modelValue="xShowGridLines = $event" />
+                                    @update:modelValue="categoryShowGridLines = $event" />
                         </div>
                     </ContentStack>
 
-                    <ContentStack title="Y-Axis">
+                    <ContentStack title="Value Axis"
+                                  description="(y-axis)">
                         <div class="autolayout">
-                            <TextBox :modelValue="yLabel ?? ''"
+                            <TextBox :modelValue="valueLabel ?? ''"
                                      label="Label"
-                                     @update:modelValue="yLabel = $event" />
+                                     @update:modelValue="valueLabel = $event" />
 
-                            <Switch :modelValue="yHideGridLines ?? false"
+                            <Switch :modelValue="valueHideGridLines ?? false"
                                     label="Hide Grid Lines"
-                                    @update:modelValue="yHideGridLines = $event" />
+                                    @update:modelValue="valueHideGridLines = $event" />
 
-                            <NumberBox v-model="yTickCount"
+                            <NumberBox v-model="valueTickCount"
                                        label="Tick Count" />
 
-                            <NumberBox v-model="yMaxTickCount"
+                            <NumberBox v-model="valueMaxTickCount"
                                        label="Max Tick Count" />
 
-                            <NumberBox v-model="ySuggestedMin"
+                            <NumberBox v-model="valueSuggestedMin"
                                        label="Suggested Min" />
 
-                            <NumberBox v-model="ySuggestedMax"
+                            <NumberBox v-model="valueSuggestedMax"
                                        label="Suggested Max" />
                         </div>
                     </ContentStack>
@@ -172,9 +190,10 @@
     import RockButton from "@Obsidian/Controls/rockButton.obs";
     import Switch from "@Obsidian/Controls/switch.obs";
     import TextBox from "@Obsidian/Controls/textBox.obs";
-    import { LabelDateFormat, LegendAlign, LegendPosition, LineStyle, LineSeries, LineStyleDescription, LabelDateFormatDescription, LegendAlignDescription, LegendPositionDescription } from "@Obsidian/Core/Controls/chart";
+    import { LabelDateFormat, LegendAlign, LegendPosition, LineStyle, LineSeries, LineStyleDescription, LabelDateFormatDescription, LegendAlignDescription, LegendPositionDescription, TooltipCallback } from "@Obsidian/Core/Controls/chart";
     import { Enumerable } from "@Obsidian/Utility/linq";
     import { isNullish } from "@Obsidian/Utility/util";
+    import { RockDateTime } from "@Obsidian/Utility/rockDateTime";
 
     const importCode = getSfcControlImportPath("chart");
     const labels = [
@@ -223,10 +242,13 @@
 
     const minValue = ref<number>(0);
     const maxValue = ref<number>(100);
-    const xShowGridLines = ref<boolean | undefined>();
-    const yHideGridLines = ref<boolean | undefined>();
-    const xMaxTickCount = ref<number | undefined>();
-    const yMaxTickCount = ref<number | undefined>();
+    const hasCustomTooltip = ref<boolean | undefined>();
+    const categoryShowGridLines = ref<boolean | undefined>();
+    const valueHideGridLines = ref<boolean | undefined>();
+    const categoryMaxTickCount = ref<number | undefined>();
+    const valueMaxTickCount = ref<number | undefined>();
+    const height = ref<string | undefined>();
+    const width = ref<string | undefined>();
     const isUnfilled = ref<boolean | undefined>();
     const isLinear = ref<boolean | undefined>();
     const isStacked = ref<boolean | undefined>();
@@ -237,12 +259,12 @@
     const labelDateFormat = ref<LabelDateFormat | undefined>(LabelDateFormat.Auto);
     const lineStyle = ref<LineStyle | undefined>();
     const isPercent = ref<boolean | undefined>();
-    const yTickCount = ref<number | undefined>();
-    const xLabel = ref<string | undefined>("X Axis");
-    const yLabel = ref<string | undefined>("Y Axis");
+    const valueTickCount = ref<number | undefined>();
+    const categoryLabel = ref<string | undefined>("Category Label");
+    const valueLabel = ref<string | undefined>("Value Label");
     const title = ref<string | undefined>("Chart Title");
-    const ySuggestedMin = ref<number | undefined>();
-    const ySuggestedMax = ref<number | undefined>();
+    const valueSuggestedMin = ref<number | undefined>();
+    const valueSuggestedMax = ref<number | undefined>();
     const series = ref<LineSeries[]>([
         {
             label: "Small Group",
@@ -271,13 +293,27 @@
             `:series="series"`
         ];
 
+        if (categoryLabel.value) {
+            lineChartProps.push(`categoryLabel="${categoryLabel.value}"`);
+        }
+        if (!isNullish(categoryMaxTickCount.value)) {
+            lineChartProps.push(`:categoryMaxTickCount="${categoryMaxTickCount.value}"`);
+        }
+        if (!isNullish(categoryShowGridLines.value)) {
+            lineChartProps.push(`:categoryShowGridLines="${categoryShowGridLines.value}"`);
+        }
+        if (!isNullish(height.value)) {
+            lineChartProps.push(`height="${height.value}"`);
+        }
+        if (!isNullish(width.value)) {
+            lineChartProps.push(`width="${width.value}"`);
+        }
         if (!isNullish(isLegendHidden.value)) {
-            lineChartProps.push(`hideLegend="${isLegendHidden.value}"`);
+            lineChartProps.push(`:hideLegend="${isLegendHidden.value}"`);
         }
         if (!isNullish(labelDateFormat.value)) {
             lineChartProps.push(`labelDateFormat="${labelDateFormat.value}"`);
         }
-
         if (!isNullish(legendAlign.value)) {
             lineChartProps.push(`legendAlign="${legendAlign.value}"`);
         }
@@ -285,13 +321,13 @@
             lineChartProps.push(`legendPosition="${legendPosition.value}"`);
         }
         if (!isNullish(isLinear.value)) {
-            lineChartProps.push(`linear="${isLinear.value}"`);
+            lineChartProps.push(`:linear="${isLinear.value}"`);
         }
         if (!isNullish(lineStyle.value)) {
             lineChartProps.push(`lineStyle="${lineStyle.value}"`);
         }
         if (!isNullish(isStacked.value)) {
-            lineChartProps.push(`stack="${isStacked.value}"`);
+            lineChartProps.push(`:stack="${isStacked.value}"`);
         }
         if (title.value) {
             lineChartProps.push(`title="${title.value}"`);
@@ -307,37 +343,49 @@
         if (!isNullish(isUnfilled.value)) {
             lineChartProps.push(`unfilled="${isUnfilled.value}"`);
         }
-        if (xLabel.value) {
-            lineChartProps.push(`xLabel="${xLabel.value}"`);
+        if (!isNullish(valueHideGridLines.value)) {
+            lineChartProps.push(`valueHideGridLines="${valueHideGridLines.value}"`);
         }
-        if (!isNullish(xMaxTickCount.value)) {
-            lineChartProps.push(`:xMaxTickCount="${xMaxTickCount.value}"`);
+        if (valueLabel.value) {
+            lineChartProps.push(`valueLabel="${valueLabel.value}"`);
         }
-        if (!isNullish(xShowGridLines.value)) {
-            lineChartProps.push(`xShowGridLines="${xShowGridLines.value}"`);
+        if (!isNullish(valueMaxTickCount.value)) {
+            lineChartProps.push(`:valueMaxTickCount="${valueMaxTickCount.value}"`);
         }
-        if (!isNullish(yHideGridLines.value)) {
-            lineChartProps.push(`yHideGridLines="${yHideGridLines.value}"`);
+        if (!isNullish(valueSuggestedMin.value)) {
+            lineChartProps.push(`:valueSuggestedMin="${valueSuggestedMin.value}"`);
         }
-        if (yLabel.value) {
-            lineChartProps.push(`yLabel="${yLabel.value}"`);
+        if (!isNullish(valueSuggestedMax.value)) {
+            lineChartProps.push(`:valueSuggestedMax="${valueSuggestedMax.value}"`);
         }
-        if (!isNullish(yMaxTickCount.value)) {
-            lineChartProps.push(`:yMaxTickCount="${yMaxTickCount.value}"`);
-        }
-        if (!isNullish(ySuggestedMin.value)) {
-            lineChartProps.push(`:ySuggestedMin="${ySuggestedMin.value}"`);
-        }
-        if (!isNullish(ySuggestedMax.value)) {
-            lineChartProps.push(`:ySuggestedMax="${ySuggestedMax.value}"`);
-        }
-        if (!isNullish(yTickCount.value)) {
-            lineChartProps.push(`:yTickCount="${yTickCount.value}"`);
+        if (!isNullish(valueTickCount.value)) {
+            lineChartProps.push(`:valueTickCount="${valueTickCount.value}"`);
         }
 
         const prefix = "<LineChart ";
         const spaces = " ".repeat(prefix.length);
         return `${prefix}${lineChartProps.join(`\n${spaces}`)} />`;
+    });
+
+    const tooltip = computed<TooltipCallback | undefined>(() => {
+        if (hasCustomTooltip.value) {
+            return (ctx) => {
+                if (isPercent.value) {
+                    return `The ${ctx.seriesLabel} value for ${ctx.formattedLabel} is ${ctx.value?.toLocaleString(undefined, { style: "percent", maximumFractionDigits: 2 })}.`;
+                }
+                else {
+                    return `The ${ctx.seriesLabel} value for ${ctx.formattedLabel} is ${ctx.value?.toLocaleString()}.`;
+                }
+            };
+        }
+    });
+
+    const tooltipTitle = computed<TooltipCallback | undefined>(() => {
+        if (hasCustomTooltip.value) {
+            return (ctx) => {
+                return RockDateTime.parseISO(ctx.label)?.toLocaleString({ dateStyle: "long" }) ?? ctx.formattedLabel;
+            };
+        }
     });
 
     // #endregion Computed Values

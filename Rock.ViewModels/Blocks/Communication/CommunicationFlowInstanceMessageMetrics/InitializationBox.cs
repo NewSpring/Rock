@@ -32,5 +32,20 @@ namespace Rock.ViewModels.Blocks.Communication.CommunicationFlowInstanceMessageM
         /// Gets or sets the collection of communication flow instances associated with the parent communication flow.
         /// </summary>
         public List<CommunicationFlowInstanceBag> CommunicationFlowInstances { get; set; }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether conversion goal tracking is enabled.
+        /// </summary>
+        public bool IsConversionGoalTrackingEnabled { get; set; }
+
+        /// <summary>
+        /// Gets the number of unique people included in the message metrics.
+        /// </summary>
+        public int UniquePersonCount { get; set; }
+
+        /// <summary>
+        /// Gets the number of unique people in the entire flow.
+        /// </summary>
+        public int AllUniquePersonCount { get; set; }
     }
 }

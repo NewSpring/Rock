@@ -110,7 +110,7 @@ namespace Rock.Blocks.Core
         {
             var service = new RestControllerService( rockContext );
 
-            var qry = service.Queryable().OrderBy( c => c.Name ).AsNoTracking();
+            var qry = service.Queryable().Include( r => r.Actions ).OrderBy( c => c.Name ).AsNoTracking();
 
             return qry;
         }

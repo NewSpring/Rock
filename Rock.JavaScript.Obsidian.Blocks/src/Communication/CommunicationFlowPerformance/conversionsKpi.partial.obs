@@ -42,7 +42,7 @@
     });
 
     const label = computed<string>(() => {
-        return totalConversions.value === 1 ? "Conversion From Flow" : "Conversions From Flow";
+        return totalConversions.value === 1 ? "Conversion" : "Conversions";
     });
 
     // #endregion Computed Values

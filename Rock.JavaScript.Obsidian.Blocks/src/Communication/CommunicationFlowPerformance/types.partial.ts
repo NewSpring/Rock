@@ -20,6 +20,7 @@ import { ChartNumericDataPointBag } from "@Obsidian/ViewModels/Reporting/chartNu
 
 export const enum NavigationUrlKey {
     MessageMetricsPage = "MessageMetricsPage",
+    MessagesMetricsPage = "MessagesMetricsPage",
     ParentPage = "ParentPage"
 }
 

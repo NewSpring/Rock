@@ -235,13 +235,15 @@ export const ServiceJob = {
     SyncMedia: "FB27C6DF-F8DB-41F8-83AF-BBE09E77A0A9",
     /** The Rock.Jobs.UpdateAnalyticsSourcePostalCode job. */
     UpdateAnalyticsSourcePostalCode: "29731D97-699D-4D34-A9F4-50C7C33D5C48",
+    /** The Rock.Jobs.UpdateEntityUsage job configured to update Media Element usage. */
+    UpdateMediaElementUsage: "32d0cb70-d4ef-4ac2-8693-bfdfe9e5233e",
     /** The Update Persisted Attribute Values job. */
     UpdatePersistedAttributeValue: "A7DDA4B0-BA1D-49F1-8749-5E7A9876AE70",
     /** The Rock.Jobs.UpdatePersistedDatasets job. */
     UpdatePersistedDatasets: "B6D3B48A-039A-4A1C-87BE-3FC0152AB5DA",
     /** The Rock.Jobs.UpdatePersonalizationData job. */
     UpdatePersonalizationData: "67CFE1FE-7C64-4328-8576-F1A4BFD0EA8B",
-    /** The job for updating learning program completions. Rock.Jobs.UpdateProgramCompletions. */
+    /** The job for updating learning program completions. Rock.Jobs.UpdateLearningProgramCompletions. */
     UpdateProgramCompletions: "4E805A88-C031-4BA0-BAD6-0A706E647870",
     /** The job for updating step program completions. Rock.Jobs.UpdateStepProgramCompletions. */
     UpdateStepProgramCompletions: "EB658FC8-3DA1-4CE0-86F6-0D3CA6F48AAE",

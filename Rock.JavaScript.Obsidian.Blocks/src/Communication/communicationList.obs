@@ -198,7 +198,7 @@
     import StatusLabel from "./CommunicationList/statusLabel.partial.obs";
     import { GridSettingsOptions, NavigationUrlKey, PreferenceKey, Row } from "./CommunicationList/types.partial";
     import Badge from "@Obsidian/Controls/badge.obs";
-    import Grid, { Column, dateValueFilter, DeleteColumn, LabelColumn, PersonColumn, pickExistingValueFilter } from "@Obsidian/Controls/grid";
+    import Grid, { Column, DeleteColumn, LabelColumn, PersonColumn, pickExistingValueFilter } from "@Obsidian/Controls/grid";
     import NotificationBox from "@Obsidian/Controls/notificationBox.obs";
     import RockButton from "@Obsidian/Controls/rockButton.obs";
     import { InferredCommunicationStatusDescription } from "@Obsidian/Enums/Communication/inferredCommunicationStatus";

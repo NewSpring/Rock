@@ -15,6 +15,8 @@
 // </copyright>
 //
 
+using System;
+
 namespace Rock.ViewModels.Blocks.Communication.CommunicationFlowInstanceMessageMetrics
 {
     /// <summary>
@@ -31,5 +33,13 @@ namespace Rock.ViewModels.Blocks.Communication.CommunicationFlowInstanceMessageM
         /// Gets or sets the count of unique people in this Communication Flow Instance.
         /// </summary>
         public int UniquePersonCount { get; set; }
+
+        /// <summary>
+        /// Gets or sets the start date.
+        /// </summary>
+        /// <value>
+        /// The start date.
+        /// </value>
+        public DateTime StartDate { get; set; }
     }
 }

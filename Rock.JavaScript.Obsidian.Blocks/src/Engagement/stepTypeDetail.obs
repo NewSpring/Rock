@@ -1,5 +1,10 @@
 <!-- Copyright by the Spark Development Network; Licensed under the Rock Community License -->
 <template>
+    <ContextSlicer title="Filter By Campus"
+                   class="campus-slicer"
+                   showCampus
+                   v-if="panelMode === DetailPanelMode.View" />
+
     <NotificationBox v-if="blockError" alertType="warning" v-html="blockError"></NotificationBox>
 
     <NotificationBox v-if="errorMessage" alertType="danger" v-html="errorMessage"></NotificationBox>
@@ -40,14 +45,21 @@
                        :availableStepPrograms="config.options?.stepPrograms ?? []" />
 </template>
 
+<style scoped>
+.campus-slicer {
+    margin-bottom: var(--spacing-large);
+}
+</style>
+
 <script setup lang="ts">
-    import { computed, ref, watch } from "vue";
+    import { computed, ref } from "vue";
     import NotificationBox from "@Obsidian/Controls/notificationBox.obs";
     import { EntityType } from "@Obsidian/SystemGuids/entityType";
     import DetailBlock from "@Obsidian/Templates/detailBlock";
     import { DetailPanelMode } from "@Obsidian/Enums/Controls/detailPanelMode";
     import { PanelAction } from "@Obsidian/Types/Controls/panelAction";
     import EditPanel from "./StepTypeDetail/editPanel.partial.obs";
+    import ContextSlicer from "@Obsidian/Controls/contextSlicer.obs";
     import ViewPanel from "./StepTypeDetail/viewPanel.partial.obs";
     import { onConfigurationValuesChanged, useConfigurationValues, useInvokeBlockAction, useEntityDetailBlock, useReloadBlock } from "@Obsidian/Utility/block";
     import StepTypeMoveModal from "./StepTypeDetail/stepTypeMoveModal.partial.obs";
@@ -57,11 +69,9 @@
     import { StepTypeDetailOptionsBag } from "@Obsidian/ViewModels/Blocks/Engagement/StepTypeDetail/stepTypeDetailOptionsBag";
     import { ValidPropertiesBox } from "@Obsidian/ViewModels/Utility/validPropertiesBox";
     import { makeUrlRedirectSafe } from "@Obsidian/Utility/url";
-    import { useStore } from "@Obsidian/PageState";
 
     const config = useConfigurationValues<DetailBlockBox<StepTypeBag, StepTypeDetailOptionsBag>>();
     const invokeBlockAction = useInvokeBlockAction();
-    const store = useStore();
 
     // #region Values
 
@@ -166,7 +176,9 @@
     });
 
     const options = computed((): StepTypeDetailOptionsBag => {
-        return config.options ?? {};
+        return config.options ?? {
+            isReOrderColumnVisible: false
+        };
     });
 
     // #endregion
@@ -181,7 +193,7 @@
 
     // #region Event Handlers
 
-    function onBulkEntryClick(event: Event): void {
+    function onBulkEntryClick(): void {
         const bulkEntryPageUrl = config.navigationUrls?.[NavigationUrlKey.BulkEntryPage];
 
         if (bulkEntryPageUrl) {
@@ -204,7 +216,6 @@
             return false;
         }
         panelMode.value = DetailPanelMode.View;
-        store.setAreSecondaryBlocksShown(true);
         return true;
     }
 
@@ -246,7 +257,6 @@
                 bag: result.data.bag,
                 validProperties: result.data.validProperties ?? Object.keys(result.data.bag)
             };
-            panelMode.value = DetailPanelMode.Edit;
             return true;
         }
         else {
@@ -270,7 +280,6 @@
         if (result.isSuccess && result.data) {
             if (result.statusCode === 200 && typeof result.data === "object") {
                 stepTypeViewBag.value = result.data.bag;
-                panelMode.value = DetailPanelMode.View;
                 return true;
             }
             else if (result.statusCode === 201 && typeof result.data === "string") {
@@ -300,18 +309,6 @@
     }
 
     // #region Watchers
-
-    // This is a workaround to ensure the "Secondary Blocks" (ISecondaryBlocks) are shown when the panel is in view mode and not in edit mode.
-    // We will want to remove this once we have a better solution for showing/hiding secondary block.
-    // See: https://app.asana.com/1/20866866924293/project/1198840255983422/task/1205960087046095?focus=true
-    watch(panelMode, () => {
-        if (panelMode.value === DetailPanelMode.View) {
-            store.setAreSecondaryBlocksShown(true);
-        }
-        else {
-            store.setAreSecondaryBlocksShown(false);
-        }
-    }, { immediate: true });
 
     // #endregion
 

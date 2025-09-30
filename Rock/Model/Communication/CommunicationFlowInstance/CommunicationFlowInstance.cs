@@ -57,7 +57,7 @@ namespace Rock.Model
         {
             get
             {
-                return _startDate;
+                return _startDate.Date;
             }
             set
             {
@@ -67,34 +67,16 @@ namespace Rock.Model
         private DateTime _startDate;
 
         /// <summary>
-        /// Gets a value indicating whether the conversion goal tracking is complete for this Communication Flow Instance.
+        /// Gets or sets a value indicating whether this flow instance
+        /// has finished scheduling or sending all configured communications.
         /// </summary>
-        /// <remarks>Requires the parent <see cref="CommunicationFlow"/>.</remarks>
-        /// <value>
-        /// <list type="bullet">
-        /// <item><description><see langword="true" /> if conversion goal tracking is enabled and tracking is complete</description></item>
-        /// <item><description><see langword="false" /> if conversion goal tracking is enabled and tracking is not complete or hasn't started</description></item>
-        /// <item><description><see langword="null" /> if conversion goal tracking is not enabled or if the parent <see cref="CommunicationFlow"/> is null</description></item>
-        /// </list>
-        /// </value>
-        internal bool? IsConversionGoalTrackingComplete
-        {
-            get
-            {
-                var conversionGoalTimeframeInDays = CommunicationFlow?.ConversionGoalTimeframeInDays;
+        public bool IsMessagingCompleted { get; set; }
 
-                if ( !conversionGoalTimeframeInDays.HasValue )
-                {
-                    // Conversion goal tracking is not enabled or the parent Communication Flow is null.
-                    return null;
-                }
-
-                // The conversion goal processing is completed the last day for conversion goal tracking has already passed.
-                // Otherwise, the conversion goal processing is still in progress or hasn't started yet. (time is ignored)
-                var exclusiveConversionGoalTrackingEndDate = StartDate.AddDays( conversionGoalTimeframeInDays.Value );
-                return exclusiveConversionGoalTrackingEndDate <= RockDateTime.Now.Date;
-            }
-        }
+        /// <summary>
+        /// Gets or sets a value indicating whether this flow instance has finished
+        /// all conversion goal tracking and no further evaluation is required.
+        /// </summary>
+        public bool IsConversionGoalTrackingCompleted { get; set; }
 
         #endregion Entity Properties
 
