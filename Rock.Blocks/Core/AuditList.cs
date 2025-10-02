@@ -81,6 +81,7 @@ namespace Rock.Blocks.Core
             var query = base.GetListQueryable( rockContext )
                 .AsNoTracking()
                 .Include( a => a.Details )
+                .Include( a => a.EntityType )
                 .Include( a => a.PersonAlias )
                 .Include( a => a.PersonAlias.Person );
 

@@ -13,8 +13,8 @@
 
 .updateprogress-status {
   position:   fixed;
-  top:        40%;
-  left:       47%;
+  top:        45%;
+  left:       49%;
   z-index:    ($zindex-modal-background + 100);
   padding:    var(--spacing-large) var(--spacing-large);
   margin-left: -30px;
@@ -31,11 +31,11 @@
 @media (min-width: $screen-medium) {
   
   .updateprogress-status {
-    padding: var(--spacing-xlarge) var(--spacing-xlarge);
+    padding: 30px 30px;
     margin-left: -60px;
     
     .updateprogress-loader {
-      width: 100px;
+      width: 80px;
     }
   }
 }

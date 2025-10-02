@@ -716,6 +716,20 @@ namespace Rock.Communication.Chat
         #region Synchronization: From Rock To Chat Provider
 
         /// <summary>
+        /// Tries to throttle API requests - helping to proactively avoid rate limiting - by inserting a delay for the
+        /// number of milliseconds specified in <paramref name="apiThrottleMs"/>.
+        /// </summary>
+        /// <param name="apiThrottleMs">The number of milliseconds to delay.</param>
+        /// <returns>A task representing the asynchronous operation.</returns>
+        internal static async Task TryThrottleApiRequestsAsync( int apiThrottleMs )
+        {
+            if ( apiThrottleMs > 0 )
+            {
+                await Task.Delay( apiThrottleMs );
+            }
+        }
+
+        /// <summary>
         /// Ensures app-level roles, permission grants and other settings are in place within the external chat system.
         /// </summary>
         /// <returns>
@@ -1425,12 +1439,20 @@ namespace Rock.Communication.Chat
                         }
                     }
 
+                    var shouldThrottle = queryableKeysToAvoidGroupMemberSync.Count > 1;
+                    var groupMemberSyncIndex = 0;
+
                     // Do we have any groups whose group members should be synced to channel members?
                     foreach ( var queryableKey in queryableKeysToTriggerGroupMemberSync )
                     {
                         if ( queryableKeysToAvoidGroupMemberSync.Contains( queryableKey ) )
                         {
                             continue;
+                        }
+
+                        if ( shouldThrottle && groupMemberSyncIndex++ > 0 )
+                        {
+                            await TryThrottleApiRequestsAsync( syncConfig.ApiThrottleMs );
                         }
 
                         // Try to sync the group members.
@@ -1947,7 +1969,8 @@ namespace Rock.Communication.Chat
                         var rockChatUserKeys = ( personService ?? new PersonService( RockContext ) )
                             .GetActiveRockChatUserKeys( deletePersonIds );
 
-                        // Just in case any people don't have a chat user key, let's at least log them.
+                        // Just in case any people don't have a chat user key, let's at least debug-log them. This often
+                        // represents pending or inactive members that have never been synced to the external chat system.
                         // Subbing "user" for "person" here, as this can get logged in the UI.
                         var membersWithoutChatPersonKeys = deleteMembers
                             .Where( c => !rockChatUserKeys.Any( r => r.PersonId == c.PersonId ) )
@@ -1956,7 +1979,7 @@ namespace Rock.Communication.Chat
                         if ( membersWithoutChatPersonKeys.Any() )
                         {
                             var deleteMembersStructuredLog = "{@MembersWithoutChatPersonKeys}";
-                            Logger.LogWarning( $"{logMessagePrefix}: Unable to delete chat channel members in the external chat system, as matching chat person keys could not be found in Rock. {structuredLog} {deleteMembersStructuredLog}", syncCommands, groupSyncConfig, membersWithoutChatPersonKeys );
+                            Logger.LogDebug( $"{logMessagePrefix}: Unable to delete chat channel members in the external chat system, as matching chat person keys could not be found in Rock. {structuredLog} {deleteMembersStructuredLog}", syncCommands, groupSyncConfig, membersWithoutChatPersonKeys );
                         }
 
                         // Filter down to members that we're sure have keys.
@@ -2085,8 +2108,16 @@ namespace Rock.Communication.Chat
                     // Don't let individual channel failures cause all to fail.
                     var perChannelExceptions = new List<Exception>();
 
+                    var shouldThrottle = perChannelCommands.Count > 1;
+                    var commandIndex = 0;
+
                     foreach ( var command in perChannelCommands )
                     {
+                        if ( shouldThrottle && commandIndex++ > 0 )
+                        {
+                            await TryThrottleApiRequestsAsync( groupSyncConfig.ApiThrottleMs );
+                        }
+
                         // Get the existing members.
                         var getChatChannelMembersResult = await ChatProvider.GetChatChannelMembersAsync(
                             command.ChatChannelTypeKey,

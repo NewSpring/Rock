@@ -1633,12 +1633,20 @@ namespace Rock.Blocks.Communication
         {
             var securityGrant = new Rock.Security.SecurityGrant();
 
-            if ( EnableAssetManager )
-            {
-                securityGrant.AddRule( new AssetAndFileManagerSecurityGrantRule( Rock.Security.Authorization.VIEW ) );
-                securityGrant.AddRule( new AssetAndFileManagerSecurityGrantRule( Rock.Security.Authorization.EDIT ) );
-                securityGrant.AddRule( new AssetAndFileManagerSecurityGrantRule( Rock.Security.Authorization.DELETE ) );
-            }
+            /*
+                9/18/2025 - JMH
+
+                Always add the security grant rules for Asset and File Manager, even if the EnableAssetManager setting is turned off.
+                Previously, these rules were only added when the toolbar button for the Asset Manager was shown.
+                But the File Browser and Image Browser also rely on these same security grants to work correctly,
+                so they broke when the rules were skipped. The setting now only controls the visibility of the toolbar button.
+
+                Reason: File Browser and Image Browser require these grants to function correctly, even if the Asset Manager button is hidden.
+                https://github.com/SparkDevNetwork/Rock/issues/6447
+            */
+            securityGrant.AddRule( new AssetAndFileManagerSecurityGrantRule( Authorization.VIEW ) );
+            securityGrant.AddRule( new AssetAndFileManagerSecurityGrantRule( Authorization.EDIT ) );
+            securityGrant.AddRule( new AssetAndFileManagerSecurityGrantRule( Authorization.DELETE ) );
 
             return securityGrant.ToToken();
         }

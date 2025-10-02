@@ -21,11 +21,15 @@
                                  rules="required" />
 
                         <SmsMessageEditor v-model="pushMessage"
+                                          :commonMergeFields="commonMergeFields"
                                           :disabled="disabled"
                                           :editorHeight="210"
                                           :isCharacterCountShown="true"
                                           :mergeFields="['GlobalAttribute', 'Rock.Model.Person']"
                                           rules="required"
+                                          :shortLinkCheckToken="shortLinkCheckToken"
+                                          :shortLinkGetPageId="shortLinkGetPageId"
+                                          :shortLinkSites="shortLinkSites"
                                           toolbarLabel="Push Message" />
 
                         <RadioButtonList v-model="customPushOpenAction"
@@ -193,7 +197,22 @@
         pushMobileApplications: {
             type: Array as PropType<ListItemBag[]>,
             required: true
-        }
+        },
+
+        shortLinkCheckToken: {
+            type: Function as PropType<(token: string, siteId: number) => Promise<string>>,
+            required: true
+        },
+
+        shortLinkGetPageId: {
+            type: Function as PropType<(pageGuid: string) => Promise<number | null | undefined>>,
+            required: true
+        },
+
+        shortLinkSites: {
+            type: Array as PropType<ListItemBag[]>,
+            required: true
+        },
     });
 
     const emit = defineEmits<{
@@ -213,6 +232,12 @@
         SpecificPage = "Specific Page",
         ShowDetails = "Show Details"
     }
+
+    const commonMergeFields = [
+        "Person.FirstName^First Name|ti ti-user",
+        "Person.NickName^Nick Name|ti ti-user",
+        "Person.FullName^Full Name|ti ti-user"
+    ];
 
     // #region Values
 

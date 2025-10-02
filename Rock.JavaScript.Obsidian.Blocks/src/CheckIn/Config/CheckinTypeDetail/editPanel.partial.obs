@@ -23,7 +23,7 @@
             <div class="col-md-6">
                 <IconPicker v-model="iconCssClass"
                             label="Icon CSS Class"
-                            help="The Font Awesome icon class to use when displaying check-in of this check-in type." />
+                            help="The icon class to use when displaying check-in of this check-in type." />
             </div>
         </div>
 

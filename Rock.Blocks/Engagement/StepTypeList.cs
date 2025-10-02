@@ -62,8 +62,10 @@ namespace Rock.Blocks.Engagement
         Category = AttributeCategory.LinkedPages,
         Order = 3 )]
 
+    [Rock.Cms.DefaultBlockRole( Rock.Enums.Cms.BlockRole.Secondary )]
     [Rock.SystemGuid.EntityTypeGuid( "f3a7b501-61c4-4784-8f73-958e2f1fc353" )]
-    [Rock.SystemGuid.BlockTypeGuid( "6a7c7c71-4760-4e6c-9d6f-6926c81caf8f" )]
+    // Was [Rock.SystemGuid.BlockTypeGuid( "6a7c7c71-4760-4e6c-9d6f-6926c81caf8f" )]
+    [Rock.SystemGuid.BlockTypeGuid( "3EFB4302-9AB4-420F-A818-48B1B06AD109" )]
     [CustomizedGrid]
     [ContextAware( typeof( Campus ) )]
     public class StepTypeList : RockListBlockType<StepTypeList.StepTypeWithCounts>
@@ -199,7 +201,9 @@ namespace Rock.Blocks.Engagement
         {
             var stepProgram = GetStepProgram();
             var stepTypeService = new StepTypeService( rockContext );
-            var stepTypeQueryable = stepTypeService.Queryable();
+            var stepTypeQueryable = stepTypeService
+                .Queryable()
+                .Include( st => st.OrganizationalObjectiveValue );
 
             // Filter by: Step Program
             if ( stepProgram != null )
@@ -226,26 +230,19 @@ namespace Rock.Blocks.Engagement
                 stepQueryable = stepQueryable.Where( s => s.CampusId == campusContext.Id );
             }
 
-            var stepCountsQueryable = stepQueryable
-                .GroupBy( s => s.StepTypeId )
-                .Select( g => new
-                {
-                    StepTypeId = g.Key,
-                    Started = g.Count(),
-                    Completed = g.Count( s => s.StepStatus != null && s.StepStatus.IsCompleteStatus )
-                } );
+            var queryable = stepTypeQueryable
+                .GroupJoin(
+                    stepQueryable,
+                    st => st.Id,
+                    s => s.StepTypeId,
+                    ( st, steps ) => new StepTypeWithCounts
+                    {
+                        StepType = st,
+                        StartedCount = steps.Count(),
+                        CompletedCount = steps.Count( s => s.StepStatus != null && s.StepStatus.IsCompleteStatus )
+                    } );
 
-            var queryable = stepTypeQueryable.GroupJoin( stepCountsQueryable, stepType => stepType.Id, stepCount => stepCount.StepTypeId, ( stepType, stepCounts ) => new
-            {
-                StepType = stepType,
-                Counts = stepCounts
-            } )
-            .Select( x => new StepTypeWithCounts
-            {
-                StepType = x.StepType,
-                StartedCount = x.Counts.Select( a => a.Started ).FirstOrDefault(),
-                CompletedCount = x.Counts.Select( a => a.Completed ).FirstOrDefault()
-            } );
+
             return queryable;
         }
 
@@ -270,6 +267,9 @@ namespace Rock.Blocks.Engagement
                 .AddTextField( "idKey", a => a.StepType.IdKey )
                 .AddTextField( "iconCssClass", a => a.StepType.IconCssClass )
                 .AddTextField( "name", a => a.StepType.Name )
+                .AddField( "engagementType", a => a.StepType.EngagementType )
+                .AddField( "impactWeight", a => a.StepType.ImpactWeight )
+                .AddField( "organizationalObjective", a => a.StepType.OrganizationalObjectiveValue?.Value )
                 .AddField( "hasEndDate", a => a.StepType.HasEndDate )
                 .AddField( "allowMultiple", a => a.StepType.AllowMultiple )
                 .AddField( "startedCount", a => a.StartedCount )

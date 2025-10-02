@@ -6,26 +6,34 @@
           :showExport="false"
           title="Recipient Log">
         <PersonColumn :field="getField('person')"
+                      :filterValue="getPersonNameFilterValue"
+                      :filter="textValueFilter"
                       :name="getField('person')"
+                      :quickFilterValue="getPersonNameFilterValue"
                       title="Name" />
 
         <DateTimeColumn :field="getField('sentDate')"
+                        :filter="dateValueFilter"
                         :name="getField('sentDate')"
                         title="Sent Date" />
 
         <DateTimeColumn :field="getField('openedDate')"
+                        :filter="dateValueFilter"
                         :name="getField('openedDate')"
                         title="Opened Date" />
 
         <DateTimeColumn :field="getField('clickedDate')"
+                        :filter="dateValueFilter"
                         :name="getField('clickedDate')"
                         title="Clicked Date" />
 
         <DateTimeColumn :field="getField('conversionDate')"
+                        :filter="dateValueFilter"
                         :name="getField('conversionDate')"
                         title="Conversion Date" />
 
         <DateTimeColumn :field="getField('unsubscribeDate')"
+                        :filter="dateValueFilter"
                         :name="getField('unsubscribeDate')"
                         title="Unsubscribed Date" />
 
@@ -37,15 +45,16 @@
 
 <script setup lang="ts">
     import { computed, PropType } from "vue";
-    import Grid, { PersonColumn, ButtonColumn, DateTimeColumn } from "@Obsidian/Controls/grid";
+    import Grid, { ButtonColumn, dateValueFilter, DateTimeColumn, PersonColumn, textValueFilter } from "@Obsidian/Controls/grid";
     import { useGetTypeMemberName } from "@Obsidian/Utility/objectUtils";
     import { RecipientMetricsBag } from "@Obsidian/ViewModels/Blocks/Communication/CommunicationFlowInstanceMessageMetrics/recipientMetricsBag";
     import { GridDataBag } from "@Obsidian/ViewModels/Core/Grid/gridDataBag";
+    import { PersonFieldBag } from "@Obsidian/ViewModels/Core/Grid/personFieldBag";
 
     const getField = useGetTypeMemberName<RecipientMetricsBag>();
 
     const props = defineProps({
-        modelValue: {
+        recipientMetrics: {
             type: Array as PropType<RecipientMetricsBag[] | null | undefined>,
             required: true
         }
@@ -59,7 +68,7 @@
 
     const gridDataSource = computed<GridDataBag>(() => {
         return {
-            rows: props.modelValue
+            rows: props.recipientMetrics
         };
     });
 
@@ -68,7 +77,7 @@
     // #region Event Handlers
 
     function onPersonClicked(rowKey: string): void {
-        const row = props.modelValue?.find(r => r.personAliasIdKey === rowKey);
+        const row = props.recipientMetrics?.find(r => r.personAliasIdKey === rowKey);
 
         if (row) {
             emit("viewPerson", row);
@@ -76,5 +85,19 @@
     }
 
     // #endregion Event Handlers
+
+    // #region Functions
+
+    /**
+    * Gets the filter value text to use for the name column.
+    *
+    * @param row The row to be filtered.
+    */
+    function getPersonNameFilterValue(row: Record<string, unknown>): string {
+        const person = row["person"] as PersonFieldBag;
+        return !person ? "" : `${person.nickName} ${person.lastName}`;
+    }
+
+    // #endregion Functions
 
 </script>

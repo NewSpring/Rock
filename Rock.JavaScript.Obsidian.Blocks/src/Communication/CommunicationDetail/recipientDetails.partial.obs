@@ -91,6 +91,7 @@
                            title="Clicked"
                            width="150"
                            tooltip="lastClickedDateTime"
+                           visiblePriority="xl"
                            :filter="booleanValueFilter" />
 
             <BooleanColumn v-if="showEmailColumns"
@@ -99,6 +100,7 @@
                            title="Unsubscribed"
                            width="150"
                            tooltip="unsubscribedDateTime"
+                           visiblePriority="xl"
                            :filter="booleanValueFilter" />
 
             <BooleanColumn v-if="showEmailColumns"
@@ -107,6 +109,7 @@
                            title="Spam"
                            width="150"
                            tooltip="spamComplaintDateTime"
+                           visiblePriority="xl"
                            :filter="booleanValueFilter" />
 
             <NumberColumn v-if="isPropertyColumnVisible(PersonPropertyName.Age)"

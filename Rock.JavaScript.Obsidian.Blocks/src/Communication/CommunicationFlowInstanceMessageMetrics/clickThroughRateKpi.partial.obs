@@ -13,11 +13,11 @@
     import Kpi from "@Obsidian/Controls/kpi.obs";
     import { Enumerable } from "@Obsidian/Utility/linq";
     import { isNullish } from "@Obsidian/Utility/util";
-    import { CommunicationFlowInstanceCommunicationBag } from "@Obsidian/ViewModels/Blocks/Communication/CommunicationFlowInstanceMessageMetrics/communicationFlowInstanceCommunicationBag";
+    import { RecipientMetricsBag } from "@Obsidian/ViewModels/Blocks/Communication/CommunicationFlowInstanceMessageMetrics/recipientMetricsBag";
 
     const props = defineProps({
-        modelValue: {
-            type: Object as PropType<CommunicationFlowInstanceCommunicationBag | null | undefined>,
+        selectedFlowInstanceCommunicationRecipientMetrics: {
+            type: Array as PropType<RecipientMetricsBag[]>,
             required: true
         }
     });
@@ -36,14 +36,14 @@
      * Computes the click-through rate percentage [0-100] for the selected flow instance communications.
      */
     const clickThroughRatePercent = computed<number | null | undefined>(() => {
-        if (isNullish(props.modelValue)) {
+        if (isNullish(props.selectedFlowInstanceCommunicationRecipientMetrics)) {
             return null;
         }
 
-        const recipientMetrics = props.modelValue.recipientMetrics ?? [];
+        const recipientMetricsEnumerable = Enumerable.from(props.selectedFlowInstanceCommunicationRecipientMetrics ?? []);
 
-        const messageCount = Enumerable.from(recipientMetrics).count();
-        const clickCount = Enumerable.from(recipientMetrics).count(rm => !isNullish(rm.clickedDate));
+        const messageCount = recipientMetricsEnumerable.count();
+        const clickCount = recipientMetricsEnumerable.count(rm => !isNullish(rm.clickedDate));
 
         if (messageCount <= 0) {
             return 0;

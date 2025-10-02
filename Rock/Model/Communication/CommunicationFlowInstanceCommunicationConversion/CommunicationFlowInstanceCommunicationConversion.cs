@@ -76,13 +76,13 @@ namespace Rock.Model
         public virtual CommunicationFlowInstanceCommunication CommunicationFlowInstanceCommunication { get; set; }
 
         /// <summary>
-        /// Gets or sets the Person Alias whom this conversion is for.
+        /// Gets or sets the Person Alias who completed the conversion goal.
         /// </summary>
         [DataMember]
         public virtual PersonAlias PersonAlias { get; set; }
 
         /// <summary>
-        /// Gets or sets the Person Alias whom this conversion is for.
+        /// Gets or sets the Communication Recipient responsible for the conversion.
         /// </summary>
         [DataMember]
         public virtual CommunicationRecipient CommunicationRecipient { get; set; }

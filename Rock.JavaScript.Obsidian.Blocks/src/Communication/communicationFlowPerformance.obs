@@ -161,7 +161,7 @@
     import { onConfigurationValuesChanged, useConfigurationValues, useReloadBlock } from "@Obsidian/Utility/block";
     import { Enumerable } from "@Obsidian/Utility/linq";
     import { RockDateTime } from "@Obsidian/Utility/rockDateTime";
-    import { calculateSlidingDateRange, RangeType, SlidingDateRange, TimeUnit } from "@Obsidian/Utility/slidingDateRange";
+    import { calculateSlidingDateRange, parseSlidingDateRangeString, RangeType, SlidingDateRange, slidingDateRangeToString, TimeUnit } from "@Obsidian/Utility/slidingDateRange";
     import { isNullish } from "@Obsidian/Utility/util";
     import { InitializationBox } from "@Obsidian/ViewModels/Blocks/Communication/CommunicationFlowPerformance/initializationBox";
     import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
@@ -173,8 +173,9 @@
     import { CommunicationFlowInstanceBag } from "@Obsidian/ViewModels/Blocks/Communication/CommunicationFlowPerformance/communicationFlowInstanceBag";
 
     type ViewMessageIdKeys = {
-        instanceIdKey: string;
-        instanceCommunicationIdKey: string;
+        communicationFlowInstanceIdKey: string;
+        communicationFlowInstanceCommunicationIdKey: string;
+        communicationFlowCommunicationIdKey: string;
     };
 
     const config = useConfigurationValues<InitializationBox>();
@@ -405,19 +406,20 @@
 
     const onViewMessage = computed<((key: string) => void) | undefined>(() => {
         const messagePerformanceUrl = config.navigationUrls?.[NavigationUrlKey.MessageMetricsPage];
+        const messagesPerformanceUrl = config.navigationUrls?.[NavigationUrlKey.MessagesMetricsPage];
 
-        if (isNullish(messagePerformanceUrl)) {
-            // The message performance page URL is not configured.
+        if (isNullish(messagePerformanceUrl) || isNullish(messagesPerformanceUrl)) {
+            // The message(s) performance page URL is not configured.
             return;
         }
 
-        const firstCommunicationFlowInstanceCommunicationIdKey = Enumerable
+        const firstCommunicationFlowCommunicationIdKey = Enumerable
             .from(selectedFlowInstanceMessages.value)
-            .select(m => m.communicationFlowInstanceCommunicationIdKey)
+            .select(m => m.communicationFlowCommunicationIdKey)
             .where(k => !isNullish(k))
             .firstOrDefault();
 
-        if (isNullish(firstCommunicationFlowInstanceCommunicationIdKey)) {
+        if (isNullish(firstCommunicationFlowCommunicationIdKey)) {
             // Grid data has not been loaded yet or
             // there are no flow communications to select from.
             return;
@@ -426,21 +428,33 @@
         // Check if the necessary ID keys can be retrieved for the first communication.
         // If so, then we can create a "view message" handler for all of the communications.
         // If not, then we cannot create a "view message" handler.
-        const { instanceIdKey, instanceCommunicationIdKey } = getViewMessageIdKeys(firstCommunicationFlowInstanceCommunicationIdKey);
+        const {
+            communicationFlowInstanceIdKey,
+            communicationFlowInstanceCommunicationIdKey
+        } = getViewMessageIdKeys(firstCommunicationFlowCommunicationIdKey);
 
-        if (!instanceIdKey || !instanceCommunicationIdKey) {
+        if (!communicationFlowInstanceIdKey || !communicationFlowInstanceCommunicationIdKey) {
             return;
         }
 
         return (communicationFlowCommunicationIdKey: string): void => {
             // Given the selected instance, find the instance communication associated with
             // the communication flow communication key.
-            const { instanceIdKey, instanceCommunicationIdKey } = getViewMessageIdKeys(communicationFlowCommunicationIdKey);
+            const {
+                communicationFlowInstanceIdKey,
+                communicationFlowInstanceCommunicationIdKey
+            } = getViewMessageIdKeys(communicationFlowCommunicationIdKey);
 
-            if (instanceIdKey && instanceCommunicationIdKey) {
+            if (config.flowPerformance?.triggerType === CommunicationFlowTriggerType.OnDemand) {
+                window.location.href = messagesPerformanceUrl
+                    .replace("((CommunicationFlowInstanceKey))", communicationFlowInstanceIdKey ?? "")
+                    .replace("((CommunicationFlowCommunicationKey))", communicationFlowCommunicationIdKey ?? "")
+                    .replace("((StartDateRange))", selectedOnDemandSlidingDateRange.value ? slidingDateRangeToString(selectedOnDemandSlidingDateRange.value) : "");
+            }
+            else {
                 window.location.href = messagePerformanceUrl
-                    .replace("((CommunicationFlowInstanceKey))", instanceIdKey ?? "")
-                    .replace("((Key))", instanceCommunicationIdKey ?? "");
+                    .replace("((CommunicationFlowInstanceKey))", communicationFlowInstanceIdKey ?? "")
+                    .replace("((CommunicationFlowInstanceCommunicationKey))", communicationFlowInstanceCommunicationIdKey ?? "");
             }
         };
     });
@@ -450,6 +464,15 @@
     // #region Functions
 
     function findSelectedOnDemandDateRange(communicationFlowInstanceIdKey: string | undefined): SlidingDateRange {
+        const startDateRangePageParameter = getPageParameter("StartDateRange");
+
+        if (typeof startDateRangePageParameter === "string" && startDateRangePageParameter.length > 0) {
+            const startDateRange = parseSlidingDateRangeString(startDateRangePageParameter);
+            if (startDateRange) {
+                return startDateRange;
+            }
+        }
+
         if (!isNullish(communicationFlowInstanceIdKey)) {
             const messageEnumerable = Enumerable.from(config.flowPerformance?.messages ?? []);
 
@@ -485,20 +508,24 @@
         return { rangeType: RangeType.Last, timeValue: 1, timeUnit: TimeUnit.Month };
     }
 
-    function getViewMessageIdKeys(communicationFlowInstanceCommunicationIdKey: string): ViewMessageIdKeys {
+    function getViewMessageIdKeys(communicationFlowCommunicationIdKey: string): ViewMessageIdKeys {
         return Enumerable
             .from(selectedFlowInstanceMessages.value)
-            .where(m => m.communicationFlowInstanceCommunicationIdKey === communicationFlowInstanceCommunicationIdKey)
+            .where(m => m.communicationFlowCommunicationIdKey === communicationFlowCommunicationIdKey)
             .select(i => ({
-                instanceIdKey: i.communicationFlowInstanceIdKey,
-                instanceCommunicationIdKey: i.communicationFlowInstanceCommunicationIdKey
+                communicationFlowInstanceIdKey: i.communicationFlowInstanceIdKey,
+                communicationFlowInstanceCommunicationIdKey: i.communicationFlowInstanceCommunicationIdKey,
+                communicationFlowCommunicationIdKey: i.communicationFlowCommunicationIdKey
             }))
             .ofType((k): k is ViewMessageIdKeys => {
-                return !isNullish(k.instanceIdKey) && !isNullish(k.instanceCommunicationIdKey);
+                return !isNullish(k.communicationFlowInstanceIdKey)
+                    && !isNullish(k.communicationFlowInstanceCommunicationIdKey)
+                    && !isNullish(k.communicationFlowCommunicationIdKey);
             })
             .firstOrDefault({
-                instanceIdKey: "",
-                instanceCommunicationIdKey: ""
+                communicationFlowInstanceIdKey: "",
+                communicationFlowInstanceCommunicationIdKey: "",
+                communicationFlowCommunicationIdKey: ""
             });
     }
 

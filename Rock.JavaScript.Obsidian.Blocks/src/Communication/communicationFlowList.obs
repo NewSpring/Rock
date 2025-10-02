@@ -41,20 +41,23 @@
         <TextColumn name="category"
                     title="Category"
                     field="category"
-                    :filter="textValueFilter"
+                    :filter="pickExistingValueFilter"
                     visiblePriority="xs" />
 
         <Column field="conversionRate"
                 name="conversionRate"
                 title="Conversion Rate">
             <template #format="{ row }">
-                {{ row.conversionRate.toLocaleString(undefined, { style: 'percent' }) }}
+                <template v-if="!isNullish(row.conversionRate)">
+                    {{ row.conversionRate.toLocaleString(undefined, { style: 'percent' }) }}
+                </template>
             </template>
         </Column>
 
         <DateColumn name="lastTriggered"
                     title="Last Triggered"
                     field="lastTriggered"
+                    sortField="lastTriggered"
                     :filter="dateValueFilter"
                     visiblePriority="xs" />
 
@@ -85,18 +88,19 @@
 </template>
 
 <script setup lang="ts">
-    import HighlightLabel from "@Obsidian/Controls/highlightLabel.obs";
-    import { onConfigurationValuesChanged, useConfigurationValues, useInvokeBlockAction, useReloadBlock } from "@Obsidian/Utility/block";
-    import { EntityType } from "@Obsidian/SystemGuids/entityType";
-    import Grid, { AttributeColumns, Column, DateColumn, ButtonColumn, LabelColumn, pickExistingValueFilter, TextColumn, textValueFilter, DeleteColumn, dateValueFilter } from "@Obsidian/Controls/grid";
-    import { alert } from "@Obsidian/Utility/dialogs";
-    import { ListBlockBox } from "@Obsidian/ViewModels/Blocks/listBlockBox";
-    import { CommunicationFlowListOptionsBag } from "@Obsidian/ViewModels/Blocks/Communication/CommunicationFlowList/communicationFlowListOptionsBag";
-    import { GridDataBag } from "@Obsidian/ViewModels/Core/Grid/gridDataBag";
-    import { NavigationUrlKey } from "./CommunicationFlowList/types.partial";
     import { reactive, ref } from "vue";
-    import { CommunicationFlowTriggerType } from "@Obsidian/Enums/Communication/communicationFlowTriggerType";
+    import { NavigationUrlKey } from "./CommunicationFlowList/types.partial";
     import { isEnumValue } from "./CommunicationFlowList/utils.partial";
+    import Grid, { AttributeColumns, Column, DateColumn, ButtonColumn, LabelColumn, pickExistingValueFilter, TextColumn, textValueFilter, DeleteColumn, dateValueFilter } from "@Obsidian/Controls/grid";
+    import HighlightLabel from "@Obsidian/Controls/highlightLabel.obs";
+    import { CommunicationFlowTriggerType } from "@Obsidian/Enums/Communication/communicationFlowTriggerType";
+    import { EntityType } from "@Obsidian/SystemGuids/entityType";
+    import { onConfigurationValuesChanged, useConfigurationValues, useInvokeBlockAction, useReloadBlock } from "@Obsidian/Utility/block";
+    import { alert } from "@Obsidian/Utility/dialogs";
+    import { isNullish } from "@Obsidian/Utility/util";
+    import { CommunicationFlowListOptionsBag } from "@Obsidian/ViewModels/Blocks/Communication/CommunicationFlowList/communicationFlowListOptionsBag";
+    import { ListBlockBox } from "@Obsidian/ViewModels/Blocks/listBlockBox";
+    import { GridDataBag } from "@Obsidian/ViewModels/Core/Grid/gridDataBag";
 
     const config = useConfigurationValues<ListBlockBox<CommunicationFlowListOptionsBag>>();
     const invokeBlockAction = useInvokeBlockAction();

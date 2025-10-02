@@ -13,11 +13,11 @@
     import Kpi from "@Obsidian/Controls/kpi.obs";
     import { Enumerable } from "@Obsidian/Utility/linq";
     import { isNullish } from "@Obsidian/Utility/util";
-    import { CommunicationFlowInstanceCommunicationBag } from "@Obsidian/ViewModels/Blocks/Communication/CommunicationFlowInstanceMessageMetrics/communicationFlowInstanceCommunicationBag";
+    import { RecipientMetricsBag } from "@Obsidian/ViewModels/Blocks/Communication/CommunicationFlowInstanceMessageMetrics/recipientMetricsBag";
 
     const props = defineProps({
-        modelValue: {
-            type: Number as PropType<CommunicationFlowInstanceCommunicationBag | null | undefined>,
+        selectedCommunicationFlowInstanceRecipientMetrics: {
+            type: Array as PropType<RecipientMetricsBag[]>,
             required: true
         }
     });
@@ -36,14 +36,14 @@
      * Computes the unsubscribe rate percentage [0-100] for the selected flow instance communications.
      */
     const unsubscribeRatePercent = computed<number | null | undefined>(() => {
-        if (isNullish(props.modelValue)) {
+        if (isNullish(props.selectedCommunicationFlowInstanceRecipientMetrics)) {
             return null;
         }
 
-        const recipientMetrics = props.modelValue.recipientMetrics ?? [];
+        const recipientMetricsEnumerable = Enumerable.from(props.selectedCommunicationFlowInstanceRecipientMetrics ?? []);
 
-        const recipientCount = Enumerable.from(recipientMetrics).count();
-        const unsubscribeCount = Enumerable.from(recipientMetrics).count(rm => !isNullish(rm.unsubscribeDate));
+        const recipientCount = recipientMetricsEnumerable.count();
+        const unsubscribeCount = recipientMetricsEnumerable.count(rm => !isNullish(rm.unsubscribeDate));
 
         if (recipientCount <= 0) {
             return 0;

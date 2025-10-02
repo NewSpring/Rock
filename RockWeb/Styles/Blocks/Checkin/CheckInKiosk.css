@@ -1,6 +1,11 @@
 ﻿
 
 /* These are default styles to be moved to the theme or something. */
+
+html body {
+   overflow: hidden;
+}
+
 .check-in-page {
     width: 100vw;
     height: 100vh;

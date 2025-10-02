@@ -8,8 +8,8 @@
             <template #anchor>
                 <RockButton btnSize="xs"
                             :btnType="hasError ? 'danger' : undefined"
-                            :disabled="disabled">
-                    <i :class="iconCssClass"></i> <span v-html="sendDayDescriptionHtml"></span> <i class="ti ti-chevron-down"></i>
+                            :disabled="disabled || isFirstOnDemandCommunication">
+                    <i :class="iconCssClass"></i> <span v-html="sendDayDescriptionHtml"></span> <i v-if="!isFirstOnDemandCommunication" class="ti ti-chevron-down"></i>
                 </RockButton>
             </template>
 
@@ -81,6 +81,7 @@
     import { useFormState } from "@Obsidian/Utility/form";
     import { isNullish } from "@Obsidian/Utility/util";
     import { RockDateTime } from "@Obsidian/Utility/rockDateTime";
+    import { CommunicationFlowTriggerType } from "@Obsidian/Enums/Communication/communicationFlowTriggerType";
 
     type CommTrigger = {
         daysToWait: number,
@@ -90,6 +91,11 @@
     const props = defineProps({
         communication: {
             type: Object as PropType<CommunicationFlowCommunicationBag>,
+            required: true
+        },
+
+        communications: {
+            type: Array as PropType<CommunicationFlowCommunicationBag[]>,
             required: true
         },
 
@@ -103,8 +109,8 @@
             required: true
         },
 
-        communications: {
-            type: Array as PropType<CommunicationFlowCommunicationBag[]>,
+        triggerType: {
+            type: Number as PropType<CommunicationFlowTriggerType>,
             required: true
         }
     });
@@ -145,6 +151,10 @@
         }
     });
 
+    const isFirstOnDemandCommunication = computed<boolean>(() => {
+        return props.triggerType === CommunicationFlowTriggerType.OnDemand && props.index === 0;
+    });
+
     const timeToSendAsPickerValue = computed<TimePickerValue>({
         get() {
             const values = /^(\d+):(\d+)/.exec(internalCommunication.value.timeToSend ?? "");
@@ -170,6 +180,10 @@
     const sendDayDescriptionHtml = computed<string>(() => {
         function strongifyIfNoErrors(text: string): string {
             return hasError.value ? text : `<strong>${text}</strong>`;
+        }
+
+        if (isFirstOnDemandCommunication.value) {
+            return strongifyIfNoErrors("Send Immediately");
         }
 
         if (nonNullableDaysToWait.value) {
@@ -271,6 +285,20 @@
 
     watch([internalValue, () => props.communications], () => {
         updateValidation();
+    }, {
+        immediate: true
+    });
+
+    watch(isFirstOnDemandCommunication, (isFirstOnDemandCommunication) => {
+        if (isFirstOnDemandCommunication) {
+            // The first communication in an on-demand flow is always sent immediately
+            // when the instance is created and cannot be changed.
+            nonNullableDaysToWait.value = 0;
+            timeToSendAsPickerValue.value = {
+                hour: 0,
+                minute: 0
+            };
+        }
     }, {
         immediate: true
     });

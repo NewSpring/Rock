@@ -75,7 +75,7 @@ namespace Rockweb.Blocks.Crm
         Key = AttributeKey.SetPageIcon,
         Description = "The css class name to use for the heading icon.",
         IsRequired = false,
-        DefaultValue = "fa fa-handshake",
+        DefaultValue = "ti ti-heart-handshake",
         Order = 3 )]
 
     [IntegerField(

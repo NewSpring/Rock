@@ -52,6 +52,13 @@
     flex: 0 0 30%;
 }
 
+.contentstack.contentstack-top {
+    flex-direction: column;
+    .contentstack-sidebar {
+        max-width: initial;
+    }
+}
+
 .contentstack-header {
     display: flex;
     flex-direction: column;
@@ -60,12 +67,13 @@
 
 .contentstack-header-title {
     color: var(--color-interface-strong);
+    font-weight: var(--font-weight-semibold);
     margin: 0;
 }
 
 .contentstack-header-description {
     color: var(--color-interface-medium);
-
+    margin-bottom: 0;
 }
 
 @media (max-width: 767px) {

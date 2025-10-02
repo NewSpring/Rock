@@ -54,6 +54,9 @@ export type CommunicationFlowDetailInitializationBox = {
     /** Gets or sets the security grant token. */
     securityGrantToken?: string | null;
 
+    /** Gets or sets the collection of short link sites. */
+    shortLinkSites?: ListItemBag[] | null;
+
     /** Gets or sets the list of SMS From System phone numbers. */
     smsFromSystemPhoneNumbers?: ListItemBag[] | null;
 

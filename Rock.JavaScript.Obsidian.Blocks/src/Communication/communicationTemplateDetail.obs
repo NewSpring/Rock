@@ -502,7 +502,7 @@
 
 .email-preview-selected {
     background-color: var(--color-interface-medium);
-    color: var(--color-interface-softest);
+    color: var(--base-interface-softest);
 }
 
 .email-actions {
