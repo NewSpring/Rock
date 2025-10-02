@@ -52,7 +52,19 @@
                                  textMode="multiline"
                                  @blur="onEmailPreviewBlurred" />
 
-                        <FileUploader :disabled="disabled" label="Attachments" />
+                        <FileUploader v-model="currentAttachment"
+                                      :binaryFileTypeGuid="BinaryFiletype.CommunicationAttachment"
+                                      label="Attachments"
+                                      :uploadAsTemporary="true"
+                                      @update:modelValue="onAttachmentAdded" />
+
+                        <div class="attachment">
+                            <ul class="attachment-content">
+                                <li v-for="binaryFileAttachment in internalEmailAttachmentBinaryFiles">
+                                    <a :href="`/GetFile.ashx?guid=${binaryFileAttachment.value}&fileName=${binaryFileAttachment.text}`" target="_blank" rel="noopener noreferrer">{{ binaryFileAttachment.text }}</a> <a><i class="ti ti-x" @click="onAttachmentRemoved(binaryFileAttachment)"></i></a>
+                                </li>
+                            </ul>
+                        </div>
                     </RockForm>
                 </div>
 
@@ -140,6 +152,7 @@
     import RockButton from "@Obsidian/Controls/rockButton.obs";
     import RockForm from "@Obsidian/Controls/rockForm.obs";
     import TextBox from "@Obsidian/Controls/textBox.obs";
+    import { BinaryFiletype } from "@Obsidian/SystemGuids/binaryFiletype";
     import { Guid } from "@Obsidian/Types";
     import { areEqual, emptyGuid, newGuid, toGuidOrNull } from "@Obsidian/Utility/guid";
     import { CommunicationFlowDetailCommunicationTemplateBag } from "@Obsidian/ViewModels/Blocks/Communication/CommunicationFlowDetail/communicationFlowDetailCommunicationTemplateBag";
@@ -189,6 +202,8 @@
     // #region Values
 
     // UI state.
+    // Set to null to clear the attachment uploader.
+    const currentAttachment = ref<ListItemBag | null | undefined>();
     const iframeDocument = ref<Document | undefined>();
     const getHtmlRequest = ref<GetHtmlRequest | null | undefined>();
     const isSendTestConfirmationShown = ref<boolean>(false);
@@ -205,6 +220,7 @@
     const emailFromEmail = ref<string>(props.communicationTemplate?.fromEmail ?? "");
     const emailReplyToAddress = ref<string>(props.communicationTemplate?.replyToEmail ?? "");
     const emailPreviewText = ref<string>(""); // Initialized once the iframe is loaded.
+    const internalEmailAttachmentBinaryFiles = ref<ListItemBag[] | null | undefined>(props.communicationTemplate?.emailAttachmentBinaryFiles);
 
     // #endregion Values
 
@@ -238,7 +254,7 @@
                     fromEmail: emailFromEmail.value,
                     replyToEmail: emailReplyToAddress.value,
                     message: message.value,
-                    emailAttachmentBinaryFiles: []
+                    emailAttachmentBinaryFiles: internalEmailAttachmentBinaryFiles.value
                 });
             },
             onError(error) {
@@ -350,6 +366,29 @@
                 }
             };
         });
+    }
+
+    function onAttachmentAdded(attachment: ListItemBag | null | undefined): void {
+        if (isNullish(attachment)) {
+            return;
+        }
+
+        internalEmailAttachmentBinaryFiles.value = [
+            ...internalEmailAttachmentBinaryFiles.value ?? [],
+            attachment
+        ];
+
+        // Clear the attachment uploader.
+        currentAttachment.value = null;
+    }
+
+    function onAttachmentRemoved(attachment: ListItemBag | null | undefined): void {
+        if (isNullish(attachment)) {
+            return;
+        }
+
+        internalEmailAttachmentBinaryFiles.value = internalEmailAttachmentBinaryFiles.value
+            ?.filter(a => attachment !== a);
     }
 
     // #endregion Event Handlers

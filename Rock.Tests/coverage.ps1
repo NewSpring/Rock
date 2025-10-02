@@ -15,9 +15,9 @@ coverlet bin\Debug\net472\Rock.Tests.dll `
     --skipautoprops `
     --format opencover `
     --exclude-assemblies-without-sources=none `
-    --output bin\Debug\opencover.checkin.xml
+    --output bin\Debug\net472\opencover.xml
 
-reportgenerator -reports:bin\Debug\net472\opencover.checkin.xml `
+reportgenerator -reports:bin\Debug\net472\opencover.xml `
     -targetdir:.\bin\Debug\net472\coverage `
     -sourcedirs:..
 

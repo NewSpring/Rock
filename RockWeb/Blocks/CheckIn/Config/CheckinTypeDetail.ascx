@@ -39,7 +39,7 @@
 
                         <div class="row">
                             <div class="col-md-6">
-                                <Rock:RockTextBox ID="tbIconCssClass" runat="server" Label="Icon CSS Class" Help="The Font Awesome icon class to use when displaying check-in of this check-in type." />
+                                <Rock:RockTextBox ID="tbIconCssClass" runat="server" Label="Icon CSS Class" Help="The icon class to use when displaying check-in of this check-in type." />
                             </div>
                         </div>
 

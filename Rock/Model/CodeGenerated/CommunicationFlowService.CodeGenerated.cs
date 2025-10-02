@@ -140,11 +140,13 @@ namespace Rock.Model
             target.ForeignGuid = source.ForeignGuid;
             target.ForeignKey = source.ForeignKey;
             target.IsActive = source.IsActive;
+            target.IsConversionGoalTrackingClosed = source.IsConversionGoalTrackingClosed;
+            target.IsMessagingClosed = source.IsMessagingClosed;
             target.Name = source.Name;
+            target.PublicName = source.PublicName;
             target.ScheduleId = source.ScheduleId;
             target.TargetAudienceDataViewId = source.TargetAudienceDataViewId;
             target.TriggerType = source.TriggerType;
-            target.UnsubscribeMessage = source.UnsubscribeMessage;
             target.CreatedDateTime = source.CreatedDateTime;
             target.ModifiedDateTime = source.ModifiedDateTime;
             target.CreatedByPersonAliasId = source.CreatedByPersonAliasId;

@@ -47,7 +47,7 @@ namespace Rock.Blocks.Communication
     [DisplayName( "Communication Flow Detail" )]
     [Category( "Communication" )]
     [Description( "Displays the details of a particular communication flow." )]
-    [IconCssClass( "fa fa-question" )]
+    [IconCssClass( "ti ti-question-mark" )]
     // [SupportedSiteTypes( Model.SiteType.Web )]
 
     #region Block Attributes
@@ -118,6 +118,7 @@ namespace Rock.Blocks.Communication
                     box.IsStepIndicatorHidden = this.IsStepIndicatorHidden;
                     box.PushMobileApplications = SiteCache.GetAllActiveSites().Where( s => s.SiteType == SiteType.Mobile ).ToListItemBagList();
                     box.SecurityGrantToken = GetSecurityGrantToken( entity, currentPerson );
+                    box.ShortLinkSites = GetShortLinkEnabledSites();
                     box.SmsFromSystemPhoneNumbers = SystemPhoneNumberCache.All( false )
                         .Where( spn => spn.IsAuthorized( Authorization.VIEW, currentPerson ) )
                         .OrderBy( spn => spn.Order )
@@ -267,6 +268,47 @@ namespace Rock.Blocks.Communication
             else
             {
                 return ActionBadRequest( validationResult.ErrorMessage );
+            }
+        }
+
+        [BlockAction( "CheckShortLinkToken" )]
+        public BlockActionResult CheckShortLinkToken( CheckShortLinkTokenBag bag )
+        {
+            var pageShortLinkService = new PageShortLinkService( this.RockContext );
+            var pageShortLink = pageShortLinkService.GetByToken( bag.Token, bag.SiteId );
+
+            if ( pageShortLink == null )
+            {
+                return ActionOk( bag.Token );
+            }
+            else
+            {
+                return ActionOk( pageShortLinkService.GetUniqueToken( bag.SiteId, 7 ) );
+            }
+        }
+
+        [BlockAction( "GetShortLinkPageId" )]
+        public BlockActionResult GetShortLinkPageId( Guid pageGuid )
+        {
+            var pageId = PageCache.GetId( pageGuid );
+
+            if ( pageId.HasValue )
+            {
+                return ActionOk( pageId.Value );
+            }
+            else
+            {
+                // Get directly from the database just in case.
+                pageId = new PageService( this.RockContext ).GetId( pageGuid );
+
+                if ( pageId.HasValue )
+                {
+                    return ActionOk( pageId.Value );
+                }
+                else
+                {
+                    return ActionNotFound();
+                }
             }
         }
 
@@ -533,6 +575,22 @@ namespace Rock.Blocks.Communication
             return previewHtml;
         }
 
+        /// <summary>
+        /// Gets the sites enabled for shortening.
+        /// </summary>
+        private List<ListItemBag> GetShortLinkEnabledSites()
+        {
+            return SiteCache.All()
+                .Where( s => s.EnabledForShortening && s.SiteType == SiteType.Web )
+                .Select( s => new ListItemBag
+                {
+                    // Integer IDs should be passed here since they are used in Lava filters that require ints.
+                    Value = s.Id.ToString(),
+                    Text = s.Name
+                } )
+                .ToList();
+        }
+
         private bool SaveCommunicationTemplate( RockContext rockContext, Person currentPerson, CommunicationFlowDetailCommunicationTemplateBag bag, out CommunicationTemplate communicationTemplate, out ValidationResult errorResult )
         {
             communicationTemplate = GetOrCreateFlowCommunicationTemplate( this.RockContext, bag );
@@ -623,7 +681,7 @@ namespace Rock.Blocks.Communication
             communication.FromEmail = bag.CommunicationTemplate.FromEmail.TrimForMaxLength( communication, nameof( Model.Communication.FromEmail ) );
             communication.FromName = bag.CommunicationTemplate.FromName.TrimForMaxLength( communication, nameof( Model.Communication.FromName ) );
             communication.FutureSendDateTime = null;
-            communication.IsBulkCommunication = false;
+            communication.IsBulkCommunication = true;
             communication.Message = bag.CommunicationTemplate.Message;
             communication.Name = bag.Name.TrimForMaxLength( communication, nameof( Model.Communication.Name ) );
             communication.PersonalizationSegments = null;
@@ -910,22 +968,22 @@ namespace Rock.Blocks.Communication
                 communicationTemplate.Subject = bag.Subject;
                 communicationTemplate.Message = bag.Message;
 
-                var binaryFileGuids = bag.EmailAttachmentBinaryFiles?.Select( a => a.Value ).AsGuidList() ?? new List<Guid>();
-                var binaryFileIds = binaryFileService.Queryable()
-                    .Where( b => binaryFileGuids.Contains( b.Guid ) )
+                var emailBinaryFileGuids = bag.EmailAttachmentBinaryFiles?.Select( a => a.Value ).AsGuidList() ?? new List<Guid>();
+                var emailBinaryFileIds = binaryFileService.Queryable()
+                    .Where( b => emailBinaryFileGuids.Contains( b.Guid ) )
                     .Select( b => b.Id )
                     .ToList();
 
-                // Delete any attachments that are no longer included.
+                // Delete any email attachments that are no longer included.
                 foreach ( var attachment in communicationTemplate.Attachments
-                    .Where( a => !binaryFileIds.Contains( a.BinaryFileId ) ).ToList() )
+                    .Where( a => a.CommunicationType == Rock.Model.CommunicationType.Email && !emailBinaryFileIds.Contains( a.BinaryFileId ) ).ToList() )
                 {
                     communicationTemplate.Attachments.Remove( attachment );
                     communicationTemplateAttachmentService.Delete( attachment );
                 }
 
-                // Add any new attachments that were added.
-                foreach ( var binaryFileId in binaryFileIds
+                // Add any new email attachments that were added.
+                foreach ( var binaryFileId in emailBinaryFileIds
                     .Where( a => communicationTemplate.Attachments.All( x => x.BinaryFileId != a ) ) )
                 {
                     communicationTemplate.Attachments.Add( new CommunicationTemplateAttachment
@@ -935,6 +993,33 @@ namespace Rock.Blocks.Communication
                     } );
                 }
                 
+                var smsAttachmentBinaryFileGuid = bag.SmsAttachmentBinaryFile?.Value.AsGuidOrNull();
+                var smsBinaryFileIds = smsAttachmentBinaryFileGuid.HasValue
+                    ? binaryFileService.Queryable()
+                        .Where( b => b.Guid == smsAttachmentBinaryFileGuid.Value )
+                        .Select( b => b.Id )
+                        .ToList()
+                    : new List<int>();
+
+                // Delete any SMS attachments that are no longer included.
+                foreach ( var attachment in communicationTemplate.Attachments
+                    .Where( a => a.CommunicationType == Rock.Model.CommunicationType.SMS && !smsBinaryFileIds.Contains( a.BinaryFileId ) ).ToList() )
+                {
+                    communicationTemplate.Attachments.Remove( attachment );
+                    communicationTemplateAttachmentService.Delete( attachment );
+                }
+
+                // Add any new SMS attachments that were added.
+                foreach ( var binaryFileId in smsBinaryFileIds
+                    .Where( a => communicationTemplate.Attachments.All( x => x.BinaryFileId != a ) ) )
+                {
+                    communicationTemplate.Attachments.Add( new CommunicationTemplateAttachment
+                    {
+                        BinaryFileId = binaryFileId,
+                        CommunicationType = Rock.Model.CommunicationType.SMS
+                    } );
+                }
+
                 var newSmsFromSystemPhoneNumberGuid = bag.SmsFromSystemPhoneNumber?.Value?.AsGuidOrNull();
                 if ( communicationTemplate.SmsFromSystemPhoneNumber?.Guid != newSmsFromSystemPhoneNumberGuid )
                 {
@@ -1122,6 +1207,7 @@ namespace Rock.Blocks.Communication
             bag.EmailAttachmentBinaryFiles = communicationTemplate.Attachments.Select( a => a.BinaryFile ).ToListItemBagList();
 
             // SMS Fields
+            bag.SmsAttachmentBinaryFile = communicationTemplate.Attachments.Where( a => a.CommunicationType == Rock.Model.CommunicationType.SMS ).Select( a => a.BinaryFile ).ToListItemBagList().FirstOrDefault();
             bag.SmsFromSystemPhoneNumber = communicationTemplate.SmsFromSystemPhoneNumber.ToListItemBag();
             bag.SmsMessage = communicationTemplate.SMSMessage;
 
@@ -1334,7 +1420,7 @@ namespace Rock.Blocks.Communication
                 Name = entity.Name,
                 TargetAudienceDataView = entity.TargetAudienceDataView.ToListItemBag(),
                 TriggerType = entity.TriggerType,
-                UnsubscribeMessage = entity.UnsubscribeMessage
+                PublicName = entity.PublicName
             };
 
             if ( entity.Attributes == null )
@@ -1494,9 +1580,107 @@ namespace Rock.Blocks.Communication
             return source;
         }
 
+        private class ReprocessCommunicationFlowConversionsSnapshot
+        {
+            private bool IsConversionGoalTrackingClosed { get; }
+            private string ScheduleICalendarContent { get; }
+            private int? ConversionGoalTimeframeInDays { get; }            
+            private HashSet<string> CommunicationFlowCommunications { get; }
+
+            public ReprocessCommunicationFlowConversionsSnapshot( CommunicationFlow communicationFlow )
+            {
+                IsConversionGoalTrackingClosed = communicationFlow.IsConversionGoalTrackingClosed;
+                ConversionGoalTimeframeInDays = communicationFlow.ConversionGoalTimeframeInDays;
+                ScheduleICalendarContent = communicationFlow.Schedule?.iCalendarContent;
+                CommunicationFlowCommunications = GetCommunicationFlowCommunicationsHashSet( communicationFlow.CommunicationFlowCommunications );
+            }
+
+            public bool IsReprocessingRequired( CommunicationFlow communicationFlow )
+            {
+                if ( !IsConversionGoalTrackingClosed )
+                {
+                    // Conversion goal tracking is still open so reprocessing is not needed.
+                    return false;
+                }
+
+                var conversionGoalTrackingTimeframeEnabledOrExtended =
+                    ConversionGoalTimeframeInDays != communicationFlow.ConversionGoalTimeframeInDays
+                    && communicationFlow.ConversionGoalTimeframeInDays.HasValue
+                    && ( !ConversionGoalTimeframeInDays.HasValue || ConversionGoalTimeframeInDays.Value < communicationFlow.ConversionGoalTimeframeInDays.Value );
+
+                if ( conversionGoalTrackingTimeframeEnabledOrExtended || ScheduleICalendarContent != communicationFlow.Schedule?.iCalendarContent )
+                {
+                    // If the new conversion goal timeframe in days is longer than the old value
+                    // then return true to allow the job more time to process the communication flow.
+                    return true;
+                }
+
+                if ( !CommunicationFlowCommunications.SetEquals( GetCommunicationFlowCommunicationsHashSet( communicationFlow.CommunicationFlowCommunications ) ) )
+                {
+                    // Messages were added or removed or schedules were updated.
+                    return true;
+                }
+
+                return false;
+            }
+
+            private HashSet<string> GetCommunicationFlowCommunicationsHashSet( IEnumerable<CommunicationFlowCommunication> communicationFlowCommunications )
+            {
+                return communicationFlowCommunications.Select( cfc => $"{cfc.Order}|{cfc.DaysToWait}|{cfc.TimeToSend}|{cfc.Id}" ).ToHashSet();
+            }
+        }
+
+        private class ReprocessCommunicationFlowMessagesSnapshot
+        {
+            private bool IsMessagingClosed { get; }
+            private CommunicationFlowTriggerType TriggerType { get; }
+            private string ScheduleICalendarContent { get; }
+            private HashSet<string> CommunicationFlowCommunications { get; }
+
+            public ReprocessCommunicationFlowMessagesSnapshot( CommunicationFlow communicationFlow )
+            {
+                IsMessagingClosed = communicationFlow.IsMessagingClosed;
+                TriggerType = communicationFlow.TriggerType;
+                ScheduleICalendarContent = communicationFlow.Schedule?.iCalendarContent;
+                CommunicationFlowCommunications = GetCommunicationFlowCommunicationsHashSet( communicationFlow.CommunicationFlowCommunications );
+            }
+
+            public bool IsReprocessingRequired( CommunicationFlow communicationFlow )
+            {
+                if ( !IsMessagingClosed )
+                {
+                    // Messaging is still open so reprocessing is not needed.
+                    return false;
+                }
+
+                if ( TriggerType != communicationFlow.TriggerType || ScheduleICalendarContent != communicationFlow.Schedule?.iCalendarContent )
+                {
+                    // If the trigger type (recurring, on-demand, one-time) or schedule has changed
+                    // then return true to allow the job more time to process the communication flow.
+                    return true;
+                }
+
+                if ( !CommunicationFlowCommunications.SetEquals( GetCommunicationFlowCommunicationsHashSet( communicationFlow.CommunicationFlowCommunications ) ) )
+                {
+                    // Messages were added or removed or messaging schedules were updated.
+                    return true;
+                }
+
+                return false;
+            }
+
+            private HashSet<string> GetCommunicationFlowCommunicationsHashSet( IEnumerable<CommunicationFlowCommunication> communicationFlowCommunications )
+            {
+                return communicationFlowCommunications.Select( cfc => $"{cfc.Order}|{cfc.DaysToWait}|{cfc.TimeToSend}|{cfc.Id}" ).ToHashSet();
+            }
+        }
+
         /// <inheritdoc/>
         private bool UpdateEntityFromBag( RockContext rockContext, CommunicationFlow entity, CommunicationFlowBag bag )
         {
+            var reprocessConversionsSnapshot = new ReprocessCommunicationFlowConversionsSnapshot( entity );
+            var reprocessMessagesSnapshot = new ReprocessCommunicationFlowMessagesSnapshot( entity );
+
             var communicationTemplateService = new CommunicationTemplateService( rockContext );
             var communicationFlowCommunicationService = new CommunicationFlowCommunicationService( rockContext );
 
@@ -1536,7 +1720,7 @@ namespace Rock.Blocks.Communication
                 entity.Schedule = null;
             }
 
-            entity.UnsubscribeMessage = bag.UnsubscribeMessage;
+            entity.PublicName = bag.PublicName;
 
             // Attributes
             entity.LoadAttributes( RockContext );
@@ -1568,7 +1752,7 @@ namespace Rock.Blocks.Communication
             foreach ( var communicationFlowCommunication in entity.CommunicationFlowCommunications )
             {
                 var communicationFlowCommunicationBag = updatedEntityToBagMappings[communicationFlowCommunication];
-                
+
                 if ( communicationFlowCommunication.CommunicationTemplate.Guid != communicationFlowCommunicationBag.CommunicationTemplate.Guid )
                 {
                     var communicationTemplate = communicationTemplateService.GetWithCommunicationTemplateBagIncludes( communicationFlowCommunicationBag.CommunicationTemplate.Guid );
@@ -1608,6 +1792,27 @@ namespace Rock.Blocks.Communication
                     Order = communicationFlowCommunicationBag.Order,
                     TimeToSend = communicationFlowCommunicationBag.TimeToSend
                 } );
+            }
+
+            // If the flow is currently marked closed but messages have changed, then remove the closed flag so the job can reprocess the flow.
+            if ( reprocessConversionsSnapshot.IsReprocessingRequired( entity ) )
+            {
+                entity.IsConversionGoalTrackingClosed = false;
+
+                foreach ( var instance in entity.CommunicationFlowInstances )
+                {
+                    instance.IsConversionGoalTrackingCompleted = false;
+                }
+            }
+
+            if ( reprocessMessagesSnapshot.IsReprocessingRequired( entity ) )
+            {
+                entity.IsMessagingClosed = false;
+
+                foreach ( var instance in entity.CommunicationFlowInstances )
+                {
+                    instance.IsMessagingCompleted = false;
+                }
             }
 
             return true;

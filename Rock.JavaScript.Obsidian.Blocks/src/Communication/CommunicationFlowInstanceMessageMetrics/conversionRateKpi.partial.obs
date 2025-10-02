@@ -13,7 +13,7 @@
     import Kpi from "@Obsidian/Controls/kpi.obs";
     import { Enumerable } from "@Obsidian/Utility/linq";
     import { isNullish } from "@Obsidian/Utility/util";
-    import { CommunicationFlowInstanceCommunicationBag } from "@Obsidian/ViewModels/Blocks/Communication/CommunicationFlowInstanceMessageMetrics/communicationFlowInstanceCommunicationBag";
+    import { RecipientMetricsBag } from "@Obsidian/ViewModels/Blocks/Communication/CommunicationFlowInstanceMessageMetrics/recipientMetricsBag";
 
     /**
      * The percentage of PEOPLE who achieved the conversion goal is most important,
@@ -21,8 +21,8 @@
      */
 
     const props = defineProps({
-        modelValue: {
-            type: Object as PropType<CommunicationFlowInstanceCommunicationBag | null | undefined>,
+        selectedFlowInstanceCommunicationRecipientMetrics: {
+            type: Array as PropType<RecipientMetricsBag[]>,
             required: true
         },
 
@@ -46,7 +46,7 @@
      * Computes the conversion rate percentage [0-1] for the selected flow instance communications.
      */
     const conversionPercent = computed<number | null | undefined>(() => {
-        if (isNullish(props.modelValue) || isNullish(props.uniquePersonCount)) {
+        if (isNullish(props.selectedFlowInstanceCommunicationRecipientMetrics) || isNullish(props.uniquePersonCount)) {
             return null;
         }
 
@@ -55,7 +55,7 @@
         }
 
         const conversionCount = Enumerable
-            .from(props.modelValue.recipientMetrics ?? [])
+            .from(props.selectedFlowInstanceCommunicationRecipientMetrics ?? [])
             .count(rm => !isNullish(rm.conversionDate));
 
         return conversionCount / props.uniquePersonCount;

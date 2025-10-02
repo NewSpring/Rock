@@ -14,6 +14,7 @@
 // limitations under the License.
 // </copyright>
 //
+using System;
 using System.Collections.Generic;
 
 namespace Rock.ViewModels.Blocks.Communication.CommunicationFlowInstanceMessageMetrics

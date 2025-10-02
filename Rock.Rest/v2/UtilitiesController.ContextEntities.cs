@@ -18,16 +18,12 @@
 using System;
 using System.Collections.Generic;
 using System.Net;
-using System.Security.AccessControl;
-
-using Microsoft.AspNetCore.Mvc;
 
 using Rock.Data;
 using Rock.Rest.Filters;
 using Rock.Security;
 using Rock.Utility;
 using Rock.ViewModels.Cms;
-using Rock.ViewModels.Rest.Utilities;
 using Rock.Web.Cache;
 
 #if WEBFORMS
@@ -52,7 +48,7 @@ namespace Rock.Rest.v2
         [Route( "ContextEntities" )]
         [Authenticate]
         [ExcludeSecurityActions( Security.Authorization.EXECUTE_READ, Security.Authorization.EXECUTE_WRITE, Security.Authorization.EXECUTE_UNRESTRICTED_READ, Security.Authorization.EXECUTE_UNRESTRICTED_WRITE )]
-        [ProducesResponseType( HttpStatusCode.OK, Type = typeof( List<ContextEntityItemBag> ) )]
+        [ProducesResponse( HttpStatusCode.OK, Type = typeof( List<ContextEntityItemBag> ) )]
         [Rock.SystemGuid.RestActionGuid( "4269b4f4-881d-4139-a661-8d467222ea9d" )]
         public IActionResult GetContextEntities()
         {
@@ -93,8 +89,8 @@ namespace Rock.Rest.v2
         [Route( "ContextEntities/{entityTypeKey}/{entityKey}" )]
         [Authenticate]
         [ExcludeSecurityActions( Security.Authorization.EXECUTE_READ, Security.Authorization.EXECUTE_WRITE, Security.Authorization.EXECUTE_UNRESTRICTED_READ, Security.Authorization.EXECUTE_UNRESTRICTED_WRITE )]
-        [ProducesResponseType( HttpStatusCode.OK, Type = typeof( ContextEntityItemBag ), Description = "The context entity was set." )]
-        [ProducesResponseType( HttpStatusCode.BadRequest, Description = "One of the values provided was not valid." )]
+        [ProducesResponse( HttpStatusCode.OK, Type = typeof( ContextEntityItemBag ), Description = "The context entity was set." )]
+        [ProducesResponse( HttpStatusCode.BadRequest, Description = "One of the values provided was not valid." )]
         [Rock.SystemGuid.RestActionGuid( "002e3602-fc1a-4bba-915e-bd7e344cceb2" )]
         public IActionResult PostContextEntity( string entityTypeKey, string entityKey, string pageKey = null )
         {
@@ -161,8 +157,8 @@ namespace Rock.Rest.v2
         [Route( "ContextEntities/{entityTypeKey}" )]
         [Authenticate]
         [ExcludeSecurityActions( Security.Authorization.EXECUTE_READ, Security.Authorization.EXECUTE_WRITE, Security.Authorization.EXECUTE_UNRESTRICTED_READ, Security.Authorization.EXECUTE_UNRESTRICTED_WRITE )]
-        [ProducesResponseType( HttpStatusCode.NoContent, Description = "The context entity was removed." )]
-        [ProducesResponseType( HttpStatusCode.BadRequest, Description = "One of the values provided was not valid." )]
+        [ProducesResponse( HttpStatusCode.NoContent, Description = "The context entity was removed." )]
+        [ProducesResponse( HttpStatusCode.BadRequest, Description = "One of the values provided was not valid." )]
         [Rock.SystemGuid.RestActionGuid( "b7945401-be95-47ab-946a-acc7b5b7dab0" )]
         public IActionResult DeleteContextEntity( string entityTypeKey, string pageKey = null )
         {

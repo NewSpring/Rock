@@ -63,7 +63,8 @@
 }
 
 // PANEL HEADING
-.panel-heading {
+.panel-heading,
+.panel-header {
   padding:                  14px 18px;
   border-bottom:            1px solid transparent;
   border-top-left-radius:   var(--rounded-medium);
@@ -79,6 +80,7 @@
   margin-bottom:  0;
   font-size:      calc(var(--font-size-regular) * 1.125);
   color:          inherit;
+  line-height:    var(--line-height-normal);
 
   > a,
   > small,
@@ -102,15 +104,14 @@
 
 // ===================== PANEL COLLAPSED =====================
 .panel {
+  // When a panel is in a collapsed state
   &.panel-collapsed {
     .panel-heading,
+    .panel-header,
     .panel-sub-header,
     .panel-action-help {
       border-radius: var(--rounded-medium);
       border-bottom: none;
-    }
-    .panel-help > .help-content {
-      border-top: 1px solid var(--color-interface-soft);
     }
     .panel-drawer,
     .tabbed-bar {
@@ -119,13 +120,51 @@
     .panel-drawer > .drawer-pull {
       border-bottom: none;
     }
+    .panel-heading + .panel-help,
+    .panel-header + .panel-help {
+      border-top: 1px solid var(--color-interface-soft);
+    }
+    .panel-help + .tabbed-bar {
+      border-top: 1px solid var(--color-interface-soft);
+      border-top-left-radius: 0;
+      border-top-right-radius: 0;
+    }
   }
+  &.panel-note:not(:has(.note-new)) {
+    .panel-heading,
+    .panel-header {
+      border-bottom: none;
+      border-radius: var(--rounded-medium);
+    }
+  }
+
+  // If a panel is collapsed and has a tabbed bar, drawer, or sub-header, the border should stay.
   &.panel-collapsed:has(.tabbed-bar) .panel-heading,
   &.panel-collapsed:has(.panel-drawer) .panel-heading,
-  &.panel-collapsed:has(.panel-sub-header) .panel-heading {
+  &.panel-collapsed:has(.panel-sub-header) .panel-heading,
+  &.panel-collapsed:has(.tabbed-bar) .panel-header,
+  &.panel-collapsed:has(.panel-drawer) .panel-header,
+  &.panel-collapsed:has(.panel-sub-header) .panel-header {
     border-bottom: 1px solid var(--color-interface-soft);
     border-bottom-left-radius: 0;
     border-bottom-right-radius: 0;
+  }
+
+  // Remove heading bottom border if collapsed state only has help-content.
+  &.panel-collapsed:has(.panel-heading + .panel-help) .panel-heading,
+  &.panel-collapsed:has(.panel-header + .panel-help) .panel-header {
+    border-bottom: none;
+  }
+
+  &.panel-collapsed:has(.tabbed-bar) .panel-drawer > .drawer-pull,
+  &.panel-collapsed:has(.tabbed-bar) .panel-sub-header,
+  &.panel-collapsed:has(.panel-drawer) .panel-sub-header,
+  &.panel-collapsed:has(.panel-help) .panel-sub-header,
+  &.panel-collapsed:has(.panel-drawer) .panel-help {
+    border-bottom: 1px solid var(--color-interface-soft);
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    border-top: none;
   }
 
 }
@@ -159,7 +198,8 @@
       }
     }
   }
-  > .panel-heading + .panel-collapse > .list-group {
+  > .panel-heading + .panel-collapse > .list-group,
+  > .panel-header + .panel-collapse > .list-group {
     .list-group-item:first-child {
       border-top-left-radius:   0;
       border-top-right-radius:  0;
@@ -167,7 +207,8 @@
   }
 }
 
-.panel-heading + .list-group {
+.panel-heading + .list-group,
+.panel-header + .list-group {
   .list-group-item:first-child {
     border-top-width: 0;
   }
@@ -237,11 +278,11 @@ ul.activeusers {
 
         td:first-child,
         th:first-child {
-          border-bottom-left-radius:  3px;
+          border-bottom-left-radius:  var(--rounded-medium);
         }
         td:last-child,
         th:last-child {
-          border-bottom-right-radius: 3px;
+          border-bottom-right-radius: var(--rounded-medium);
         }
       }
     }
@@ -315,7 +356,8 @@ ul.activeusers {
     }
   }
 
-  .panel-heading {
+  .panel-heading,
+  .panel-header {
     border-bottom: 0;
 
     + .panel-collapse > .panel-body,
@@ -338,7 +380,8 @@ ul.activeusers {
 .panel-default {
   border-color:         var(--color-interface-soft);
 
-& > .panel-heading {
+& > .panel-heading,
+& > .panel-header {
   color:                var(--color-interface-stronger);
   background-color:     var(--color-interface-softest);
   border-color:         var(--color-interface-soft);
@@ -361,7 +404,8 @@ ul.activeusers {
 .panel-primary {
   border-color:         var(--color-primary);
 
-  & > .panel-heading {
+  & > .panel-heading,
+  & > .panel-header {
     color:              var(--color-interface-softest);
     background-color:   var(--color-primary);
     border-color:       var(--color-primary);
@@ -382,15 +426,16 @@ ul.activeusers {
 }
 
 .panel-success {          // TODO Color is hard coded needs to change
-  border-color:         #cce0c1;
+  border-color:         var(--color-success-strong);
 
-  & > .panel-heading {
+  & > .panel-heading,
+  & > .panel-header {
     color:              var(--color-success-strong);
     background-color:   var(--color-success-soft);
-    border-color:       #cce0c1;
+    border-color:       var(--color-success-strong);
 
     + .panel-collapse > .panel-body {
-      border-top-color: #cce0c1;
+      border-top-color: var(--color-success-strong);
     }
     .badge {
       color:            var(--color-success-soft);
@@ -399,21 +444,22 @@ ul.activeusers {
   }
   & > .panel-footer {
     + .panel-collapse > .panel-body {
-      border-bottom-color: #cce0c1;
+      border-bottom-color: var(--color-success-strong);
     }
   }
 }
 
 .panel-info {             // TODO Color is hard coded needs to change
-  border-color:         #c2e0ec;
+  border-color:         var(--color-info-strong);
 
-  & > .panel-heading {
+  & > .panel-heading,
+  & > .panel-header {
     color:                var(--color-info-strong);
     background-color:     var(--color-info-soft);
-    border-color:       #c2e0ec;
+    border-color:       var(--color-info-strong);
 
     + .panel-collapse > .panel-body {
-      border-top-color: #c2e0ec;
+      border-top-color: var(--color-info-strong);
     }
     .badge {
       color:                var(--color-info-soft);
@@ -422,45 +468,47 @@ ul.activeusers {
   }
   & > .panel-footer {
     + .panel-collapse > .panel-body {
-      border-bottom-color:#c2e0ec;
+      border-bottom-color: var(--color-info-strong);
     }
   }
 }
 
 .panel-warning {          // TODO Color is hard coded needs to change
-  border-color: #f6eec2;
+  border-color: var(--color-warning-strong);
 
-& > .panel-heading {
-  color: var(--color-warning-storng);
+& > .panel-heading,
+& > .panel-header {
+  color: var(--color-warning-strong);
   background-color: var(--color-warning-soft);
-  border-color: #f6eec2;
+  border-color: var(--color-warning-strong);
 
   + .panel-collapse > .panel-body {
-    border-top-color: #f6eec2;
+    border-top-color: var(--color-warning-strong);
   }
   .badge {
     color: var(--color-warning-soft);
-    background-color: var(--color-warning-storng);
+    background-color: var(--color-warning-strong);
   }
 }
 & > .panel-footer {
   + .panel-collapse > .panel-body {
-    border-bottom-color: #f6eec2;
+    border-bottom-color: var(--color-warning-strong);
   }
 }
 }
 
 .panel-danger {           // TODO Color is hard coded needs to change
   // .panel-variant(@panel-danger-border; @panel-danger-text; @panel-danger-heading-bg; @panel-danger-border);
-  border-color:       #e9c9c8;
+  border-color:       var(--color-danger-strong);
 
-& > .panel-heading {
+& > .panel-heading,
+& > .panel-header {
   color:                var(--color-danger-strong);
   background-color:     var(--color-danger-soft);
-  border-color:       #e9c9c8;
+  border-color:       var(--color-danger-strong);
 
   + .panel-collapse > .panel-body {
-    border-top-color: #e9c9c8;
+    border-top-color: var(--color-danger-strong);
   }
   .badge {
     color: var(--color-danger-soft);
@@ -469,7 +517,7 @@ ul.activeusers {
 }
 & > .panel-footer {
   + .panel-collapse > .panel-body {
-    border-bottom-color: #e9c9c8;
+    border-bottom-color: var(--color-danger-strong);
   }
 }
 }
@@ -530,8 +578,9 @@ ul.activeusers {
             margin-bottom: 6px;
 
             & > a {
-                background-color: transparent;
+                background-color: var(--color-interface-softer);
                 color: var(--color-interface-strong);
+                font-weight: var(--font-weight-medium);
             }
 
             & > a:hover {
@@ -578,7 +627,8 @@ ul.activeusers {
   // .panel-variant(@panel-widget-border; @panel-widget-text; @panel-widget-heading-bg; @panel-widget-heading-border;);
   border-color:     var(--color-interface-soft);
 
-  & > .panel-heading {
+  & > .panel-heading,
+  & > .panel-header {
     color:              var(--color-interface-strongest);
     background-color:   var(--color-interface-softer);
     border-color:       var(--color-info-soft);
@@ -600,7 +650,8 @@ ul.activeusers {
     overflow: hidden;
   }
 
-  .panel-heading {
+  .panel-heading,
+  .panel-header {
     border: 0;
 
     .checkbox {
@@ -637,7 +688,8 @@ ul.activeusers {
   // .panel-variant(@panel-border; @panel-heading-text-color; var(--color-interface-softer); @panel-heading-border;);
   border-color:             var(--color-interface-soft);
 
-  & > .panel-heading {
+  & > .panel-heading,
+  & > .panel-header {
     color:                  var(--color-interface-stronger);
     background-color:       var(--color-interface-softest);
     border-color:           var(--color-interface-soft);
@@ -661,7 +713,8 @@ ul.activeusers {
     display:      none;
   }
 
-  .panel-heading {
+  .panel-heading,
+  .panel-header {
     display:      flex;
     align-items:  center;
     flex-wrap:    wrap;
@@ -753,7 +806,8 @@ ul.activeusers {
   border-color:     var(--color-interface-soft);
 
   // .panel-variant(@panel-border; @panel-heading-text-color; var(--color-interface-softer); @panel-heading-border;);
-  & > .panel-heading {
+  & > .panel-heading,
+  & > .panel-header {
     color:                  var(--color-interface-stronger);
     background-color:       var(--color-interface-softer);
     border-color:           var(--color-interface-softer);
@@ -773,7 +827,8 @@ ul.activeusers {
   }
     background-color:       var(--color-interface-softest);
 
-  > .panel-heading {
+  > .panel-heading,
+  > .panel-header {
     &:before,
     &:after {
       display:  table;
@@ -840,7 +895,8 @@ ul.activeusers {
 .panel-waterfall {
   border-color:             var(--color-interface-softer);
 
-  & > .panel-heading {
+  & > .panel-heading,
+  & > .panel-header {
     color:                  var(--color-info-strong);
     background-color:       transparent;
     border-color:           transparent;
@@ -863,7 +919,8 @@ ul.activeusers {
   box-shadow: none !important;
   overflow: hidden;
 
-  .panel-heading {
+  .panel-heading,
+  .panel-header {
     padding-bottom: var(--spacing-xsmall);
 
     + .panel-body {
@@ -1039,6 +1096,39 @@ ul.activeusers {
     overflow: hidden auto;
 }
 
+// .panel-scrollable-content:has(.grid-obsidian) {
+//   border: none;
+// }
+
+// // If there's a non-light grid make the panel body take up the full height and remove padding
+// .panel-body:has(.grid-obsidian:not(.grid-light)) {
+//   overflow: hidden auto;
+//   flex-grow: 1;
+//   padding: 0;
+// }
+
+// // Keep padding when there's a content section with a light grid
+// .panel-body:has(.contentsection-container) {
+//   padding: var(--spacing-medium);
+// }
+
+// .panel-worksurface .panel-scrollable-content:has(.grid-obsidian) {
+//   overflow: visible;
+//   flex-grow: 0;
+// }
+
+// .panel-scrollable-content:has(.grid-obsidian) .grid-heading {
+//   position: sticky;
+//   top: 0;
+//   overflow: hidden;
+// }
+
+// .panel-scrollable-content:has(.grid-obsidian) .grid-header-container {
+//   position: sticky;
+//   top: 57px;
+//   z-index: 1;
+// }
+
 .paneleditor-label {
   float: left;
 }
@@ -1052,10 +1142,11 @@ ul.activeusers {
 
 // copy from _rock_core.less, some of the nested class I join with the bootstrap panel class.
 .panel {
-  .panel-heading {
+  .panel-heading,
+  .panel-header {
 
     .panel-header-actions {
-      margin-right: var(--spacing-xsmall) !important;
+      margin-right: var(--spacing-xsmall);
     }
 
     .panel-title {

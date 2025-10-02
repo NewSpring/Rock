@@ -39,7 +39,7 @@ namespace Rock.Blocks.Communication
     [DisplayName( "Communication Flow List" )]
     [Category( "Communication" )]
     [Description( "Displays a list of communication flows." )]
-    [IconCssClass( "fa fa-list" )]
+    [IconCssClass( "ti ti-list" )]
     // [SupportedSiteTypes( Model.SiteType.Web )]
 
     [LinkedPage( "Detail Page",
@@ -149,21 +149,38 @@ namespace Rock.Blocks.Communication
                 {
                     if ( !communicationFlow.ConversionGoalType.HasValue )
                     {
-                        return 0;
+                        return null;
                     }
 
-                    decimal recipientCountForAllInstances = communicationFlow
-                        .CommunicationFlowInstances
-                        .SelectMany( cfi => cfi.CommunicationFlowInstanceCommunications.SelectMany( cfic => cfic.Communication.Recipients.Where( r => r.SendDateTime.HasValue ) ) )
+                    var communicationFlowInstanceQuery = new CommunicationFlowService( RockContext )
+                        .Queryable()
+                        .Where( cf => cf.Id == communicationFlow.Id )
+                        .SelectMany( cf =>
+                            cf.CommunicationFlowInstances
+                        );
+
+                    // Get the unique number of people for all instances.
+                    decimal uniquePeopleCount = communicationFlowInstanceQuery
+                        .SelectMany( cfi =>
+                            cfi.CommunicationFlowInstanceRecipients.Select( cfir => cfir.RecipientPersonAlias.PersonId )
+                        )
+                        .Distinct()
                         .Count();
 
-                    decimal conversionCountForAllInstances = communicationFlow
-                        .CommunicationFlowInstances
-                        .SelectMany( i => i.CommunicationFlowInstanceCommunications )
-                        .Sum( ic => ic.CommunicationFlowInstanceCommunicationConversions.Count );
+                    // Get the number of people that have converted at least once.
+                    decimal convertedPeopleCount = communicationFlowInstanceQuery
+                        .SelectMany( cfi =>
+                            cfi.CommunicationFlowInstanceCommunications.SelectMany( cfic =>
+                                cfic.CommunicationFlowInstanceCommunicationConversions.Select( cficc =>
+                                    cficc.PersonAlias.PersonId
+                                )
+                            )
+                        )
+                        .Distinct()
+                        .Count();
 
-                    return conversionCountForAllInstances > 0
-                        ? ( conversionCountForAllInstances / recipientCountForAllInstances )
+                    return uniquePeopleCount > 0
+                        ? ( convertedPeopleCount / uniquePeopleCount )
                         : 0m;
                 })
                 .AddDateTimeField( "lastTriggered", communicationFlow =>
@@ -181,44 +198,16 @@ namespace Rock.Blocks.Communication
                 } )
                 .AddTextField( "status", communicationFlow =>
                 {
-                    if ( communicationFlow.IsActive )
+                    if ( communicationFlow.IsMessagingClosed ) // This status does not include conversion goal tracking
                     {
-                        if ( communicationFlow.TriggerType == Enums.Communication.CommunicationFlowTriggerType.Recurring || communicationFlow.TriggerType == Enums.Communication.CommunicationFlowTriggerType.OneTime )
-                        {
-                            if ( communicationFlow.Schedule == null || communicationFlow.Schedule.GetNextStartDateTime( RockDateTime.Now ).HasValue )
-                            {
-                                // The communication flow has no schedule
-                                // or the schedule has upcoming instances
-                                // so mark it as active.
-                                return "Active";
-                            }
-                            else
-                            {
-                                var hasMoreCommunicationsToSendOrSchedule = communicationFlow
-                                    .CommunicationFlowInstances
-                                    .OrderByDescending( cfi => cfi.StartDate )
-                                    .FirstOrDefault()
-                                    ?.GetHasMoreCommunicationsToSendOrSchedule() ?? false;
-
-                                if ( hasMoreCommunicationsToSendOrSchedule )
-                                {
-                                    return "Active";
-                                }
-                                else
-                                {
-                                    // The communication flow has completed all scheduled instances.
-                                    return "Completed";
-                                }
-                            }
-                        }
-                        else
-                        {
-                            return "Active";
-                        }
+                        return "Completed";
+                    }
+                    else if ( communicationFlow.IsActive )
+                    {
+                        return "Active";
                     }
                     else
                     {
-                        // The communication flow is inactive.
                         return "Inactive";
                     }
                 } )

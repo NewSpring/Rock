@@ -13,9 +13,10 @@
                 <DisplayCardContainer hasConnectors>
                     <template v-for="(communication, index) in orderedCommunications" :key="communication.communicationTemplate?.guid">
                         <CommunicationTrigger :communication="communication"
+                                              :communications="orderedCommunications"
                                               :disabled="disabled"
                                               :index="index"
-                                              :communications="orderedCommunications"
+                                              :triggerType="triggerType"
                                               @update:communication="onCommunicationUpdated(communication, $event)" />
 
                         <DisplayCard :aside="getDisplayCardAside(communication)"
@@ -82,7 +83,7 @@
         </RockForm>
 
         <div class="exit-container">
-            <i class="ti ti-outbound fa-lg"></i>
+            <i class="ti ti-outbound ti-lg"></i>
             <RockLabel>Recipients Exits Flow When</RockLabel>
             <DropDownList v-model="exitConditionTypeAsString"
                           :disabled="disabled"
@@ -120,12 +121,18 @@
                             :disabled="disabled"
                             :isRockMobilePushTransportConfigured="isRockMobilePushTransportConfigured"
                             :pushMobileApplications="pushMobileApplications"
+                            :shortLinkCheckToken="shortLinkCheckToken"
+                            :shortLinkGetPageId="shortLinkGetPageId"
+                            :shortLinkSites="shortLinkSites"
                             @close="isPushBuilderShown = false"
                             @saveCommunicationTemplate="onSaveCommunicationTemplate($event, CommunicationType.PushNotification, editPushCommunication)" />
 
     <CreateSmsMessageModal v-if="isSmsBuilderShown"
                            :communicationTemplate="editSmsCommunication?.communicationTemplate"
                            :disabled="disabled"
+                           :shortLinkCheckToken="shortLinkCheckToken"
+                           :shortLinkGetPageId="shortLinkGetPageId"
+                           :shortLinkSites="shortLinkSites"
                            :smsFromSystemPhoneNumbers="smsFromSystemPhoneNumbers"
                            :testSmsPhoneNumber="testSmsPhoneNumber"
                            @close="isSmsBuilderShown = false"
@@ -225,6 +232,21 @@
         },
 
         pushMobileApplications: {
+            type: Array as PropType<ListItemBag[]>,
+            required: true
+        },
+
+        shortLinkCheckToken: {
+            type: Function as PropType<(token: string, siteId: number) => Promise<string>>,
+            required: true
+        },
+
+        shortLinkGetPageId: {
+            type: Function as PropType<(pageGuid: string) => Promise<number | null | undefined>>,
+            required: true
+        },
+
+        shortLinkSites: {
             type: Array as PropType<ListItemBag[]>,
             required: true
         },
@@ -376,13 +398,13 @@
 
     function getDisplayCardIconCssClass(communication: CommunicationFlowCommunicationBag): string | null | undefined {
         if (communication.communicationType === CommunicationType.Email) {
-            return "ti ti-mail fa-lg";
+            return "ti ti-mail ti-lg";
         }
         else if (communication.communicationType === CommunicationType.SMS) {
-            return "ti ti-message fa-lg";
+            return "ti ti-message ti-lg";
         }
         else if (communication.communicationType === CommunicationType.PushNotification) {
-            return "ti ti-device-mobile fa-lg";
+            return "ti ti-device-mobile ti-lg";
         }
         else {
             return null;

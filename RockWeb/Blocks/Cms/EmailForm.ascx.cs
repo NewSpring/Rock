@@ -17,6 +17,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Data.Entity;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -157,7 +158,7 @@ namespace RockWeb.Blocks.Cms
         Key = AttributeKey.SaveCommunicationHistory )]
     [BooleanField(
         "Disable Captcha Support",
-        Description = "If set to 'Yes' the CAPTCHA verification step will not be performed.",
+        Description = "If set to 'Yes' the CAPTCHA verification will be skipped. \n\nNote: If the CAPTCHA site key and/or secret key are not configured in the system settings, this option will be forced as 'Yes', even if 'No' is visually selected.",
         DefaultBooleanValue = false,
         Order = 15,
         Key = AttributeKey.DisableCaptchaSupport )]
@@ -473,9 +474,42 @@ namespace RockWeb.Blocks.Cms
                 mergeFields.Add( "AttachmentCount", message.Attachments.Count );
 
                 // send email
-                foreach ( string recipient in GetAttributeValue( AttributeKey.RecipientEmail ).Split( ',' ).ToList() )
+                var personService = new PersonService( rockContext );
+                var saveCommunicationHistory = GetAttributeValue( AttributeKey.SaveCommunicationHistory ).AsBoolean();
+
+                var recipientEmails = GetAttributeValue( AttributeKey.RecipientEmail )
+                .Split( ',' )
+                .Select( e => e.Trim() )
+                .ToList();
+
+                foreach ( var emailAddress in recipientEmails )
                 {
-                    message.AddRecipient( RockEmailMessageRecipient.CreateAnonymous( recipient, mergeFields ) );
+                    string email = emailAddress.ResolveMergeFields( mergeFields, GetAttributeValue( AttributeKey.EnabledLavaCommands ) );
+                    
+                    RockEmailMessageRecipient recipient;
+                    if ( saveCommunicationHistory )
+                    {
+                        var personQuery = personService.Queryable()
+                            .AsNoTracking()
+                            .Where( p => p.Email == email && p.IsEmailActive )
+                            .OrderByDescending( p => p.CreatedDateTime );
+
+                        var person = personQuery.FirstOrDefault();
+                        if ( person != null )
+                        {
+                            recipient = new RockEmailMessageRecipient( person, mergeFields );
+                        }
+                        else
+                        {
+                            recipient = RockEmailMessageRecipient.CreateAnonymous( email, mergeFields );
+                        }
+                    }
+                    else
+                    {
+                        recipient = RockEmailMessageRecipient.CreateAnonymous( email, mergeFields );
+                    }
+                    
+                    message.AddRecipient( recipient );
                 }
 
                 message.CCEmails = GetAttributeValue( AttributeKey.CCEmail ).ResolveMergeFields( mergeFields, GetAttributeValue( AttributeKey.EnabledLavaCommands ) ).Split( ',' ).ToList();
@@ -486,7 +520,7 @@ namespace RockWeb.Blocks.Cms
                 message.Message = GetAttributeValue( AttributeKey.MessageBody );
                 message.AppRoot = ResolveRockUrl( "~/" );
                 message.ThemeRoot = ResolveRockUrl( "~~/" );
-                message.CreateCommunicationRecord = GetAttributeValue( AttributeKey.SaveCommunicationHistory ).AsBoolean();
+                message.CreateCommunicationRecord = saveCommunicationHistory;
                 message.Send();
 
                 // set response

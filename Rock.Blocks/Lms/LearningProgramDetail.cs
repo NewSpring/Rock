@@ -297,6 +297,7 @@ namespace Rock.Blocks.Lms
                 IsActive = entity.IsActive,
                 IsCompletionStatusTracked = entity.IsCompletionStatusTracked,
                 IsPublic = entity.IsPublic,
+                EnforcePublicSecurity = entity.EnforcePublicSecurity,
                 Name = entity.Name,
                 PublicName = entity.PublicName,
                 ShowKpis = showKpis,
@@ -429,6 +430,9 @@ namespace Rock.Blocks.Lms
 
             box.IfValidProperty( nameof( box.Bag.IsPublic ),
                 () => entity.IsPublic = box.Bag.IsPublic );
+
+            box.IfValidProperty( nameof( box.Bag.EnforcePublicSecurity ),
+                () => entity.EnforcePublicSecurity = box.Bag.EnforcePublicSecurity );
 
             box.IfValidProperty( nameof( box.Bag.Name ),
                 () => entity.Name = box.Bag.Name );

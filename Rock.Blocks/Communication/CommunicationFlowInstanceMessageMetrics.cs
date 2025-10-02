@@ -27,6 +27,7 @@ using Rock.ViewModels.Blocks.Communication.CommunicationFlowInstanceMessageMetri
 using Rock.ViewModels.Core.Grid;
 using Rock.Web;
 using Rock.Web.Cache;
+using Rock.Web.UI.Controls;
 
 namespace Rock.Blocks.Communication
 {
@@ -37,7 +38,7 @@ namespace Rock.Blocks.Communication
     [DisplayName( "Communication Flow Instance Message Metrics" )]
     [Category( "Communication" )]
     [Description( "Displays the metrics of each message that the flow instance sends out." )]
-    [IconCssClass( "fa fa-line-chart" )]
+    [IconCssClass( "ti ti-chart-line" )]
     // [SupportedSiteTypes( Model.SiteType.Web )]
     
     [Rock.SystemGuid.EntityTypeGuid( "91D70135-87DA-4748-B459-CCE7F60F3D67" )]
@@ -48,47 +49,116 @@ namespace Rock.Blocks.Communication
 
         private static class PageParameterKey
         {
+            /// <summary>
+            /// Used in routes:
+            /// <list type="bullet">
+            ///     <item>
+            ///         <term>/CommunicationFlow/{CommunicationFlow}/Instance/{CommunicationFlowInstance}/Messages/{CommunicationFlowInstanceCommunication}/Metrics</term>
+            ///         <term>/CommunicationFlow/{CommunicationFlow}/Instance/{CommunicationFlowInstance}/Templates/{CommunicationFlowCommunication}/Messages/Metrics?StartDateRange={StartDateRange}</term>
+            ///     </item>
+            /// </list>
+            /// </summary>
             public const string CommunicationFlow = "CommunicationFlow";
+
+            /// <summary>
+            /// Used in routes:
+            /// <list type="bullet">
+            ///     <item>
+            ///         <term>/CommunicationFlow/{CommunicationFlow}/Instance/{CommunicationFlowInstance}/Messages/{CommunicationFlowInstanceCommunication}/Metrics</term>
+            ///         <term>/CommunicationFlow/{CommunicationFlow}/Instance/{CommunicationFlowInstance}/Templates/{CommunicationFlowCommunication}/Messages/Metrics?StartDateRange={StartDateRange}</term>
+            ///     </item>
+            /// </list>
+            /// </summary>
             public const string CommunicationFlowInstance = "CommunicationFlowInstance";
+
+            /// <summary>
+            /// Used in routes:
+            /// <list type="bullet">
+            ///     <item>
+            ///         <term>/CommunicationFlow/{CommunicationFlow}/Instance/{CommunicationFlowInstance}/Messages/{CommunicationFlowInstanceCommunication}/Metrics</term>
+            ///     </item>
+            /// </list>
+            /// </summary>
             public const string CommunicationFlowInstanceCommunication = "CommunicationFlowInstanceCommunication";
+
+            /// <summary>
+            /// Used in routes:
+            /// <list type="bullet">
+            ///     <item>
+            ///         <term>/CommunicationFlow/{CommunicationFlow}/Instance/{CommunicationFlowInstance}/Templates/{CommunicationFlowCommunication}/Messages/Metrics?StartDateRange={StartDateRange}</term>
+            ///     </item>
+            /// </list>
+            /// </summary>
+            public const string CommunicationFlowCommunication = "CommunicationFlowCommunication";
+            
+            /// <summary>
+            /// Used in routes:
+            /// <list type="bullet">
+            ///     <item>
+            ///         <term>/CommunicationFlow/{CommunicationFlow}/Instance/{CommunicationFlowInstance}/Templates/{CommunicationFlowCommunication}/Messages/Metrics?StartDateRange={StartDateRange}</term>
+            ///     </item>
+            /// </list>
+            /// </summary>
+            public const string StartDateRange = "StartDateRange";
         }
 
         #endregion Keys
 
+        #region Properties
+
+        private DateRange StartDateRangePageParameter
+        {
+            get
+            {
+                var startDateRange = PageParameter( PageParameterKey.StartDateRange );
+
+                if ( startDateRange.IsNullOrWhiteSpace() )
+                {
+                    return null;
+                }
+
+                return SlidingDateRangePicker.CalculateDateRangeFromDelimitedValues( startDateRange );
+            }
+        }
+
+        private bool AreIntegerIdentifiersAllowed => !PageCache.Layout.Site.DisablePredictableIds;
+
+        #endregion Properties
+
         public override object GetObsidianBlockInitialization()
         {
-            var instanceCommunicationKey = PageParameter( PageParameterKey.CommunicationFlowInstanceCommunication );
-            var arePredictableIdsEnabled = !this.PageCache.Layout.Site.DisablePredictableIds;
-            var title = new CommunicationFlowInstanceCommunicationService( this.RockContext )
-                .GetSelect( instanceCommunicationKey, c => c.CommunicationFlowCommunication.Name, arePredictableIdsEnabled );
-            this.ResponseContext.SetPageTitle( title.ToStringOrDefault( "Communication Flow Instance Message Metrics" ) );
+            var communicationFlowInstanceCommunicationConversionService = new CommunicationFlowInstanceCommunicationConversionService( RockContext );
+            var interactionService = new InteractionService( RockContext );
 
+            var interactionChannelId = InteractionChannelCache.Get( SystemGuid.InteractionChannel.COMMUNICATION.AsGuid() )?.Id ?? 0;
+            var interactionQuery = interactionService.Queryable();
+            var conversionQuery = communicationFlowInstanceCommunicationConversionService.Queryable();
+            var communicationFlowCommunicationQuery = GetCommunicationFlowCommunicationQuery();
+
+            var communicationFlowCommunication =
+                communicationFlowCommunicationQuery
+                    .Select( cfc => new
+                    {
+                        CommunicationFlowCommunicationId = cfc.Id,
+                        cfc.Name,
+                        cfc.CommunicationFlowId,
+                        IsConversionGoalTrackingEnabled = cfc.CommunicationFlow.ConversionGoalType.HasValue
+                    } )
+                    .FirstOrDefault();
+
+            this.ResponseContext.SetPageTitle( communicationFlowCommunication?.Name.ToStringOrDefault( "Communication Flow Instance Message Metrics" ) );
+            
             var box = new InitializationBox();
-
-            var interactionChannelId = InteractionChannelCache
-                    .Get( Rock.SystemGuid.InteractionChannel.COMMUNICATION.AsGuid() )?.Id ?? 0;
-
-            var interactionQuery = new InteractionService( this.RockContext ).Queryable();
-            var conversionQuery = new CommunicationFlowInstanceCommunicationConversionService( this.RockContext ).Queryable();
-            var communicationFlowCommunication = new CommunicationFlowInstanceCommunicationService( this.RockContext )
-                .GetQueryableByKey( instanceCommunicationKey, !this.PageCache.Layout.Site.DisablePredictableIds )
-                .Select( c => new
-                {
-                    c.CommunicationFlowCommunicationId,
-                    c.CommunicationFlowCommunication.Name,
-                    c.CommunicationFlowInstance.CommunicationFlowId
-                } )
-                .FirstOrDefault();
 
             if ( communicationFlowCommunication != null )
             {
-                var recipientMetrics = new CommunicationFlowInstanceCommunicationService( this.RockContext )
+                box.IsConversionGoalTrackingEnabled = communicationFlowCommunication.IsConversionGoalTrackingEnabled;
+
+                var recipientMetrics = communicationFlowCommunicationQuery
                     // Get all sibling "instance" communications associated with this one.
                     //  1. Get the blueprint associated with this "instance" communication.
                     //  2. Get ALL "instance" communications associated with the blueprint.
                     // Purpose: "How does this instance of this message compare across all instances of this flow?"
-                    .GetQueryableByKey( instanceCommunicationKey, !this.PageCache.Layout.Site.DisablePredictableIds )
-                    .Select( cfic => cfic.CommunicationFlowCommunication )
                     .SelectMany( cfc => cfc.CommunicationFlowInstanceCommunications )
                     .SelectMany( cfic =>
                         cfic.Communication.Recipients
@@ -172,15 +242,20 @@ namespace Rock.Blocks.Communication
                     .Select( cfi => new
                     {
                         CommunicationFlowInstanceId = cfi.Id,
+                        StartDate = cfi.StartDate,
                         UniquePersonCount = cfi.CommunicationFlowInstanceRecipients.Select( cfir => cfir.RecipientPersonAlias.PersonId ).Distinct().Count()
                     } )
                     .ToList()
                     .Select( cfi => new CommunicationFlowInstanceBag
                     {
                         CommunicationFlowInstanceIdKey = IdHasher.Instance.GetHash( cfi.CommunicationFlowInstanceId ),
+                        StartDate = cfi.StartDate,
                         UniquePersonCount = cfi.UniquePersonCount
                     } )
                     .ToList();
+
+                box.UniquePersonCount = GetUniquePersonCount( communicationFlowCommunication.CommunicationFlowId );
+                box.AllUniquePersonCount = GetAllUniquePersonCount( communicationFlowCommunication.CommunicationFlowId );
             }
 
             return box;
@@ -190,10 +265,9 @@ namespace Rock.Blocks.Communication
         {
             // Get the message name from the communication blueprint (CommunicationFlowCommunication)
             // since the instance communication doesn't have a separate name.
-            var instanceCommunicationKey = pageReference.GetPageParameter( PageParameterKey.CommunicationFlowInstanceCommunication );
-            var arePredictableIdsEnabled = !this.PageCache.Layout.Site.DisablePredictableIds;
-            var title = new CommunicationFlowInstanceCommunicationService( this.RockContext )
-                .GetSelect( instanceCommunicationKey, c => c.CommunicationFlowCommunication.Name, arePredictableIdsEnabled );
+            var title = GetCommunicationFlowCommunicationQuery()
+                .Select( cfc => cfc.Name )
+                .FirstOrDefault();
 
             return new BreadCrumbResult
             {
@@ -202,6 +276,83 @@ namespace Rock.Blocks.Communication
                     new BreadCrumbLink( title ?? "Flow Communication Instance Message Metrics", pageReference )
                 }
             };
+        }
+
+        private IQueryable<CommunicationFlowCommunication> GetCommunicationFlowCommunicationQuery()
+        {
+            var communicationFlowCommunicationService = new CommunicationFlowCommunicationService( RockContext );
+            var communicationFlowInstanceCommunicationService = new CommunicationFlowInstanceCommunicationService( RockContext );
+
+            var communicationFlowCommunicationKey = PageParameter( PageParameterKey.CommunicationFlowCommunication );
+            var communicationFlowInstanceCommunicationKey = PageParameter( PageParameterKey.CommunicationFlowInstanceCommunication );
+
+            if ( communicationFlowInstanceCommunicationKey.IsNotNullOrWhiteSpace() )
+            {
+                return communicationFlowInstanceCommunicationService
+                    .GetQueryableByKey( communicationFlowInstanceCommunicationKey, AreIntegerIdentifiersAllowed )
+                    .Select( cfic => cfic.CommunicationFlowCommunication );
+            }
+            else if ( communicationFlowCommunicationKey.IsNotNullOrWhiteSpace() )
+            {
+                return communicationFlowCommunicationService
+                    .GetQueryableByKey( communicationFlowCommunicationKey, AreIntegerIdentifiersAllowed );
+            }
+            else
+            {
+                return Enumerable
+                    .Empty<CommunicationFlowCommunication>()
+                    .AsQueryable();
+            }
+        }
+
+        private int GetUniquePersonCount( int communicationFlowId )
+        {
+            var communicationFlowInstanceService = new CommunicationFlowInstanceService( RockContext );
+
+            var communicationFlowInstanceIdKey = PageParameter( PageParameterKey.CommunicationFlowInstance );
+
+            if ( communicationFlowInstanceIdKey.IsNotNullOrWhiteSpace() )
+            {
+                return communicationFlowInstanceService
+                    .GetQueryableByKey( communicationFlowInstanceIdKey, AreIntegerIdentifiersAllowed )
+                    .SelectMany( cfi => cfi
+                        .CommunicationFlowInstanceRecipients
+                        .Select( cfir => cfir.RecipientPersonAlias.PersonId )
+                    )
+                    .Distinct()
+                    .Count();
+            }
+
+            var startDateRange = StartDateRangePageParameter;
+
+            if ( startDateRange != null )
+            {
+                return communicationFlowInstanceService
+                    .Queryable()
+                    .Where( cfi => cfi.CommunicationFlowId == communicationFlowId )
+                    .SelectMany( cfi => cfi
+                        .CommunicationFlowInstanceRecipients
+                        .Select( cfir => cfir.RecipientPersonAlias.PersonId )
+                    )
+                    .Distinct()
+                    .Count();
+            }
+
+            return 0;
+        }
+
+        private int GetAllUniquePersonCount( int communicationFlowId )
+        {
+            return new CommunicationFlowService( RockContext )
+                .Queryable()
+                .Where( cf => cf.Id == communicationFlowId )
+                .SelectMany( cf => cf.CommunicationFlowInstances
+                    .SelectMany(cfi => cfi.CommunicationFlowInstanceRecipients
+                        .Select( cfir => cfir.RecipientPersonAlias.PersonId )
+                    )
+                )
+                .Distinct()
+                .Count();
         }
     }
 }

@@ -182,7 +182,6 @@
     import PushNotificationMobilePreview from "@Obsidian/Controls/Internal/pushNotificationMobilePreview.obs";
     import SmsMobilePreview from "@Obsidian/Controls/Internal/smsMobilePreview.obs";
     import NotficationBox from "@Obsidian/Controls/notificationBox.obs";
-    import Panel from "@Obsidian/Controls/panel.obs";
     import { AlertType } from "@Obsidian/Enums/Controls/alertType";
     import { CommunicationType } from "@Obsidian/Enums/Communication/communicationType";
     import { PushOpenActionDescription } from "@Obsidian/Enums/Blocks/Communication/CommunicationDetail/pushOpenAction";
@@ -391,33 +390,6 @@
         }
 
         return PushOpenActionDescription[props.messagePreview!.pushOpenAction!];
-    });
-
-    const infoItemsWithValuesCount = computed((): number => {
-        const items: string[] = [
-            // Shared items.
-            sentByPersonName.value,
-            approvedByPersonName.value,
-            fromName.value,
-            listName.value,
-
-            // Email items.
-            emailSubject.value,
-            replyToEmail.value,
-            ccEmails.value,
-            bccEmails.value,
-            emailAttachmentLinks.value.length ? "email attachments" : "",
-
-            // SMS items.
-            smsMessage.value,
-
-            // Push items.
-            pushTitle.value,
-            pushMessage.value,
-            pushOpenActionDescription.value
-        ];
-
-        return items.filter(i => !!i).length;
     });
 
     // #endregion Computed Values

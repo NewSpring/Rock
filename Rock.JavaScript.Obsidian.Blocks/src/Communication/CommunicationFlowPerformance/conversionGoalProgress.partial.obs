@@ -13,8 +13,8 @@
 
                 <EnhancedProgressBar :indicators="[conversionGoalTargetPercent ?? 0]"
                                      :modelValue="{
-                                        value: percentageOfPeopleWhoAchievedGoal * 100,
-                                        text: percentageOfPeopleWhoAchievedGoal.toLocaleString(undefined, { style: 'percent' })
+                                        value: fractionalPercentOfPeopleWhoAchievedGoalInTime * 100,
+                                        text: fractionalPercentOfPeopleWhoAchievedGoalInTime.toLocaleString(undefined, { style: 'percent' })
                                     }"
                                      :progressType="progressBarType"
                                      :indicatorType="progressBarType" />
@@ -43,7 +43,7 @@
     display: flex;
     flex-direction: row;
     align-items: center;
-    gap: var(--spacing-tiny);
+    gap: var(--spacing-xsmall);
 }
 
 .goal-summary i {
@@ -114,7 +114,6 @@
     import { ConversionGoalSettingsBag } from "@Obsidian/ViewModels/Blocks/Communication/CommunicationFlowPerformance/conversionGoalSettingsBag";
     import { RockTimeSpan } from "@Obsidian/Utility/rockTimeSpan";
     import { RockDateTime } from "@Obsidian/Utility/rockDateTime";
-    import { isRockDateTime } from "./utils.partial";
 
     /**
      * In terms of metrics, the number of PEOPLE who achieved the conversion goal is most important,
@@ -160,19 +159,32 @@
 
     // #region Computed Properties
 
-    const uniquePeopleWhoAchievedGoalCount = computed((): number => {
+    const uniquePeopleWhoAchievedGoalInTimeCount = computed((): number => {
         return Enumerable
             .from(props.messages)
             .groupBy(m => m.personAliasIdKey)
-            .count(g => g.any(m => !!m.convertedDateTime));
+            .count(g => g.any(m => {
+                const instanceConversionGoalEndDate = RockDateTime.parseISO(m.conversionGoalEndDate ?? "");
+
+                if (!instanceConversionGoalEndDate) {
+                    // If the instance doesn't have an end date,
+                    // then treat it as an instance where conversion goal
+                    // tracking is indefinite.
+                    return !!m.convertedDateTime;
+                }
+                else {
+                    const conversionDate = RockDateTime.parseISO(m.convertedDateTime ?? "");
+                    return !!conversionDate && !conversionDate.isLaterThan(instanceConversionGoalEndDate);
+                }
+            }));
     });
 
-    const percentageOfPeopleWhoAchievedGoal = computed((): number => {
+    const fractionalPercentOfPeopleWhoAchievedGoalInTime = computed((): number => {
         const uniqueCount = props.uniquePersonCount;
         if (uniqueCount === 0) {
             return 0;
         }
-        return uniquePeopleWhoAchievedGoalCount.value / uniqueCount;
+        return uniquePeopleWhoAchievedGoalInTimeCount.value / uniqueCount;
     });
 
     const conversionGoalSummaryHtml = computed<string | null>(() => {
@@ -329,50 +341,35 @@
             return "Not Tracked";
         }
         else {
+            // Test if the conversion goal has been achieved overall
+            // for the selected instances.
+            const uniquePeopleWhoConvertedInTimeFractionalPercent = props.uniquePersonCount
+                ? uniquePeopleWhoAchievedGoalInTimeCount.value / props.uniquePersonCount
+                : 0;
+
             const conversionGoalTargetFractionalPercent = (props.conversionGoalTargetPercent ?? 0) / 100;
-            const goalNotMetInstances = Enumerable
+
+            if (uniquePeopleWhoConvertedInTimeFractionalPercent >= conversionGoalTargetFractionalPercent) {
+                return "Achieved";
+            }
+
+            // Not achieved yet, see if any of the selected instances still have time to convert.
+            const anyPendingInstances = Enumerable
                 .from(messagesGroupedByInstance.value)
-                .where(messagesByInstance => {
-                    const uniquePeopleConvertedCount = Enumerable
-                        .from(messagesByInstance)
-                        .groupBy(m => m.personAliasIdKey)
-                        .count(g => g.any(m => !!m.convertedDateTime));
+                .any(messagesByInstance => {
+                    const instanceConversionGoalEndDate = RockDateTime.parseISO(messagesByInstance.first().conversionGoalEndDate ?? "");
 
-                    const conversionPercent = props.uniquePersonCount ? uniquePeopleConvertedCount / props.uniquePersonCount : 0;
-                    if (conversionPercent < conversionGoalTargetFractionalPercent) {
-                        return true;
-                    }
-                    else {
-                        return false;
-                    }
-                })
-                .toArray();
+                    // If the instance doesn't have an end date,
+                    // then treat it as an instance where conversion goal
+                    // tracking is indefinite.
+                    return !instanceConversionGoalEndDate || instanceConversionGoalEndDate.isLaterThan(RockDateTime.now());
+                });
 
-            if (Enumerable.from(goalNotMetInstances).any()) {
-                const exclusiveConversionGoalEndDate = Enumerable
-                    .from(goalNotMetInstances)
-                    .select(g => g.first())
-                    .select(m => RockDateTime.parseISO(m.conversionGoalEndDate ?? ""))
-                    .ofType(isRockDateTime)
-                    .select(r => r.addDays(1).date)
-                    .orderByDescending(r => r.toMilliseconds())
-                    .firstOrDefault();
-
-                if (exclusiveConversionGoalEndDate && exclusiveConversionGoalEndDate.isEarlierThan(RockDateTime.now())) {
-                    // The latest conversion goal end date is in the past.
-                    // This instance has missed the conversion goal,
-                    // so return true to add it to the list of "goal not met instances".
-                    return "Missed";
-                }
-                else {
-                    // The latest conversion goal end date is in the future or now
-                    // so this instance is still pending.
-                    return "Pending";
-                }
+            if (anyPendingInstances) {
+                return "Pending";
             }
             else {
-                // All selected instances have met the conversion goal.
-                return "Achieved";
+                return "Missed";
             }
         }
     });

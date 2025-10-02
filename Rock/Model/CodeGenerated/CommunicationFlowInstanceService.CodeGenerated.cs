@@ -133,6 +133,8 @@ namespace Rock.Model
             target.CommunicationFlowId = source.CommunicationFlowId;
             target.ForeignGuid = source.ForeignGuid;
             target.ForeignKey = source.ForeignKey;
+            target.IsConversionGoalTrackingCompleted = source.IsConversionGoalTrackingCompleted;
+            target.IsMessagingCompleted = source.IsMessagingCompleted;
             target.StartDate = source.StartDate;
             target.CreatedDateTime = source.CreatedDateTime;
             target.ModifiedDateTime = source.ModifiedDateTime;

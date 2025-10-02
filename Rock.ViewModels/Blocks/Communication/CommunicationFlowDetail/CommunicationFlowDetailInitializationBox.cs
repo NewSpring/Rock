@@ -68,5 +68,10 @@ namespace Rock.ViewModels.Blocks.Communication.CommunicationFlowDetail
         /// Gets or sets the SMS phone number for sending test SMS communications.
         /// </summary>
         public string TestSmsPhoneNumber { get; set; }
+
+        /// <summary>
+        /// Gets or sets the collection of short link sites.
+        /// </summary>
+        public List<ListItemBag> ShortLinkSites { get; set; }
     }
 }

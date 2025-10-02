@@ -55,7 +55,6 @@ import {
     getBorderWrapperTableSelector,
     getComponentTypeName,
     getMarginWrapperCellSelector,
-    getMarginWrapperTableSelector,
     getPaddingWrapperCellSelector,
     getPaddingWrapperTableSelector,
     GlobalStylesCssSelectors,
@@ -421,28 +420,6 @@ export function shorthandInlineStyleProvider<T>(
             isDisposed = true;
         },
     };
-}
-
-function isCssMediaRule(value: CSSRule): value is CSSMediaRule {
-    const ownerWindow = value.parentStyleSheet?.ownerNode?.ownerDocument.defaultView;
-
-    return !!value && !!ownerWindow?.CSSMediaRule && value instanceof ownerWindow.CSSMediaRule;
-}
-
-function findMediaRule(element: Element, styleCssClass: string, mediaQuery: string): CSSMediaRule | null {
-    const styleElements = findElements(element, styleCssClass, "");
-
-    if (!styleElements?.styleSheet) {
-        return null;
-    }
-
-    const match = Enumerable
-        .from(styleElements.styleSheet.cssRules)
-        .ofType(isCssMediaRule)
-        .where(rule => rule.conditionText === mediaQuery)
-        .firstOrDefault();
-
-    return match ?? null;
 }
 
 /**

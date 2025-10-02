@@ -20,8 +20,7 @@
         <CheckBox v-model="hideDrafts" label="Hide Drafts" />
 
         <SlidingDateRangePicker v-model="slidingDateRange"
-                                label="Send Date Range"
-                                :enabledSlidingDateRangeUnits="enabledSlidingDateRangeUnits" />
+                                label="Send Date Range" />
 
         <NumberRangeBox v-model="recipientCountRange" label="Recipient Count" />
 
@@ -75,7 +74,7 @@
     import TextBox from "@Obsidian/Controls/textBox.obs";
     import { DefinedType } from "@Obsidian/SystemGuids/definedType";
     import { useVModelPassthrough } from "@Obsidian/Utility/component";
-    import { RangeType, SlidingDateRange } from "@Obsidian/Utility/slidingDateRange";
+    import { SlidingDateRange } from "@Obsidian/Utility/slidingDateRange";
     import { asCommaAnd } from "@Obsidian/Utility/stringUtils";
     import { deepEqual } from "@Obsidian/Utility/util";
 
@@ -106,13 +105,6 @@
         (e: "update:visible", value: boolean): void;
         (e: "close"): void;
     }>();
-
-    const enabledSlidingDateRangeUnits: RangeType[] = [
-        RangeType.Last,
-        RangeType.Current,
-        RangeType.DateRange,
-        RangeType.Previous
-    ];
 
     // #region Values
 

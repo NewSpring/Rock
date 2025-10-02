@@ -154,7 +154,7 @@ namespace Rock.Blocks.Core
         protected override IQueryable<NoteWatch> GetListQueryable( RockContext rockContext )
         {
             var qry = base.GetListQueryable( rockContext )
-                .Include( a => a.WatcherPersonAlias )
+                .Include( a => a.WatcherPersonAlias.Person )
                 .Include( a => a.WatcherGroup )
                 .Include( a => a.NoteType )
                 .Include( a => a.EntityType );
