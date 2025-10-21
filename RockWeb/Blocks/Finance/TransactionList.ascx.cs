@@ -466,7 +466,7 @@ namespace RockWeb.Blocks.Finance
             {
                 var script = string.Format( @"
     $('#{0}').on('change', function( e ){{
-        var count = $(""#{1} input[id$='_cbSelect_0']:checked"").length;
+        var count = $(""#{1} input[id*='_cbSelect_']:checked"").length;
         if (count == 0) {{
             $('#{3}').val($ddl.val());
             window.location = ""javascript:{2}"";

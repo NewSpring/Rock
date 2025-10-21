@@ -17,12 +17,12 @@
 
 import { Guid } from "@Obsidian/Types";
 import { PersonPreferenceCollection } from "@Obsidian/Core/Core/personPreferences";
-import { doApiCall, provideHttp } from "@Obsidian/Utility/http";
+import { doApiCall, doStreamingApiCall, provideHttp } from "@Obsidian/Utility/http";
 import { Component, computed, defineComponent, nextTick, onBeforeUnmount, onErrorCaptured, onMounted, PropType, provide, ref, watch } from "vue";
 import { useStore } from "@Obsidian/PageState";
 import { RockDateTime } from "@Obsidian/Utility/rockDateTime";
 import { HttpBodyData, HttpMethod, HttpResult, HttpUrlParams } from "@Obsidian/Types/Utility/http";
-import { createInvokeBlockAction, IBlockActions, provideBlockGuid, provideBlockActions, provideBlockTypeGuid, provideConfigurationValuesChanged, providePersonPreferences, provideReloadBlock, provideStaticContent, registerBlock, unregisterBlock } from "@Obsidian/Utility/block";
+import { createInvokeBlockAction, createInvokeStreamingBlockAction, IBlockActions, provideBlockGuid, provideBlockActions, provideBlockTypeGuid, provideConfigurationValuesChanged, providePersonPreferences, provideReloadBlock, provideStaticContent, registerBlock, unregisterBlock } from "@Obsidian/Utility/block";
 import { areEqual, emptyGuid, toGuidOrNull } from "@Obsidian/Utility/guid";
 import { PanelAction } from "@Obsidian/Types/Controls/panelAction";
 import { ObsidianBlockConfigBag } from "@Obsidian/ViewModels/Cms/obsidianBlockConfigBag";
@@ -242,6 +242,7 @@ export default defineComponent({
         };
 
         const invokeBlockAction = createInvokeBlockAction(post, store.state.pageGuid, toGuidOrNull(props.config.blockGuid) ?? emptyGuid, store.state.pageParameters, store.state.sessionGuid, store.state.interactionGuid);
+        const invokeStreamingBlockAction = createInvokeStreamingBlockAction(doStreamingApiCall, store.state.pageGuid, toGuidOrNull(props.config.blockGuid) ?? emptyGuid, store.state.pageParameters, store.state.sessionGuid, store.state.interactionGuid);
 
         /**
          * Reload the block by requesting the new initialization data and then
@@ -431,6 +432,7 @@ export default defineComponent({
 
         provideHttp({
             doApiCall,
+            doStreamingApiCall,
             get,
             post
         });
@@ -439,6 +441,7 @@ export default defineComponent({
             return `/api/v2/BlockActions/${store.state.pageGuid}/${props.config.blockGuid}/${actionName}`;
         });
         provide("invokeBlockAction", invokeBlockAction);
+        provide("invokeStreamingBlockAction", invokeStreamingBlockAction);
         provide("configurationValues", configurationValues);
         provideReloadBlock(reloadBlock);
         providePersonPreferences(getPreferenceProvider());

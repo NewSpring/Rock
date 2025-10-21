@@ -29,6 +29,8 @@ export type State = {
     sessionGuid: Guid;
     interactionGuid: Guid;
     executionStartTime: number;
-    debugTimings: DebugTiming[],
-    loginUrlWithReturnUrl: string
+    debugTimings: DebugTiming[];
+    loginUrlWithReturnUrl: string;
+
+    trailblazerMode: boolean;
 };

@@ -223,7 +223,6 @@ namespace Rock.Tests.Integration.CheckIn.v2
         #region GetFamilyBag
 
         [TestMethod]
-        [IsolatedTestDatabase]
         public void GetFamilyBag_WithDeckerFamily_SetsAllBagProperties()
         {
             using ( var rockContext = new RockContext() )
@@ -242,6 +241,22 @@ namespace Rock.Tests.Integration.CheckIn.v2
                 Assert.That.AreEqual( "Maricopa", registrationFamily.Bag.Address.Locality );
                 Assert.That.AreEqual( "AZ", registrationFamily.Bag.Address.State );
                 Assert.That.AreEqual( "85029-3202", registrationFamily.Bag.Address.PostalCode );
+            }
+        }
+
+        [TestMethod]
+        public void GetFamilyBag_WithAddressUnavailableInTemplate_DoesNotIncludeAddress()
+        {
+            using ( var rockContext = new RockContext() )
+            {
+                var templateConfigurationDataMock = GetTemplateConfigurationDataMock();
+                templateConfigurationDataMock.SetupGet( m => m.DisplayAddressOnFamilies ).Returns( Enums.Controls.RequirementLevel.Unavailable );
+
+                var registration = new FamilyRegistration( rockContext, null, templateConfigurationDataMock.Object );
+                var deckerFamily = new GroupService( rockContext ).Get( DeckerFamilyGuid );
+                var registrationFamily = registration.GetFamilyBag( deckerFamily );
+
+                Assert.That.IsNull( registrationFamily.Bag.Address );
             }
         }
 
@@ -691,6 +706,68 @@ DELETE [AV]
         }
 
         [TestMethod]
+        [IsolatedTestDatabase]
+        public void CreatePrimaryFamily_WithAddressUnavailableInTemplate_DoesNotCreateFamilyAddress()
+        {
+            // Disable location services.
+            using ( var rockContext = new RockContext() )
+            {
+                rockContext.Database.ExecuteSqlCommand( @"
+DELETE [AV]
+    FROM [AttributeValue] AS [AV]
+    INNER JOIN [Attribute] AS [A] ON [A].[Id] = [AV].[AttributeId]
+    INNER JOIN [EntityType] AS [ET] ON [ET].[Id] = [A].[EntityTypeId]
+    WHERE [ET].[Name] = 'Rock.Address.SmartyStreets'
+      AND [A].[Key] = 'Active'" );
+            }
+
+            int familyId;
+            var expectedStreet = "1234 Elm Street";
+            var expectedCity = "Nowhere";
+            var expectedState = "AZ";
+            var expectedPostalCode = "12345";
+            var expectedCountry = "US";
+
+            using ( var rockContext = new RockContext() )
+            {
+                var templateConfigurationDataMock = GetTemplateConfigurationDataMock();
+                templateConfigurationDataMock.Setup( m => m.DisplayAddressOnFamilies ).Returns( Enums.Controls.RequirementLevel.Unavailable );
+                var registration = new FamilyRegistration( rockContext, null, templateConfigurationDataMock.Object );
+
+                var registrationFamily = new ValidPropertiesBox<RegistrationFamilyBag>
+                {
+                    Bag = new RegistrationFamilyBag
+                    {
+                        FamilyName = "Decker",
+                        Address = new AddressControlBag
+                        {
+                            Street1 = expectedStreet,
+                            City = expectedCity,
+                            State = expectedState,
+                            PostalCode = expectedPostalCode,
+                            Country = expectedCountry
+                        }
+                    },
+                    ValidProperties = new List<string>
+                    {
+                        nameof( RegistrationFamilyBag.FamilyName ),
+                        nameof( RegistrationFamilyBag.Address )
+                    }
+                };
+
+                var saveResult = new FamilyRegistrationSaveResult();
+                familyId = registration.CreatePrimaryFamily( registrationFamily, null, null, saveResult ).Id;
+            }
+
+            using ( var rockContext = new RockContext() )
+            {
+                var family = new GroupService( rockContext ).Get( familyId );
+                Assert.That.IsNotNull( family );
+                Assert.That.IsEmpty( family.GroupLocations );
+            }
+        }
+
+        [TestMethod]
         public void GetDefaultFamilyLastName_WithAdultsAndChildren_UsesLastNameFromAdult()
         {
             var rockContextMock = CreateRockContextWithoutSaveChanges();
@@ -875,6 +952,84 @@ DELETE [AV]
                 var family = new PersonService( rockContext ).Get( TestGuids.TestPeople.TedDecker ).PrimaryFamily;
                 Assert.That.IsNotNull( family );
                 Assert.That.IsEmpty( family.GroupLocations );
+            }
+        }
+
+        [TestMethod]
+        [IsolatedTestDatabase]
+        public void UpdatePrimaryFamily_WithAddressUnavailableInTemplate_DoesNotUpdateExistingFamilyAddress()
+        {
+            string expectedStreet;
+            string expectedCity;
+            string expectedState;
+            string expectedPostalCode;
+            string expectedCountry;
+
+            // Disable location services and ensure Ted has a home address.
+            using ( var rockContext = new RockContext() )
+            {
+                rockContext.Database.ExecuteSqlCommand( @"
+DELETE [AV]
+    FROM [AttributeValue] AS [AV]
+    INNER JOIN [Attribute] AS [A] ON [A].[Id] = [AV].[AttributeId]
+    INNER JOIN [EntityType] AS [ET] ON [ET].[Id] = [A].[EntityTypeId]
+    WHERE [ET].[Name] = 'Rock.Address.SmartyStreets'
+      AND [A].[Key] = 'Active'" );
+
+                var deckerFamily = new PersonService( rockContext ).Get( TestGuids.TestPeople.TedDecker ).PrimaryFamily;
+                var homeLocationTypeId = DefinedValueCache.Get( Rock.SystemGuid.DefinedValue.GROUP_LOCATION_TYPE_HOME.AsGuid(), rockContext ).Id;
+
+                Assert.That.IsNotEmpty( deckerFamily.GroupLocations );
+                Assert.That.Equal( homeLocationTypeId, deckerFamily.GroupLocations.First().GroupLocationTypeValueId );
+
+                expectedStreet = deckerFamily.GroupLocations.First().Location.Street1;
+                expectedCity = deckerFamily.GroupLocations.First().Location.City;
+                expectedState = deckerFamily.GroupLocations.First().Location.State;
+                expectedPostalCode = deckerFamily.GroupLocations.First().Location.PostalCode;
+                expectedCountry = deckerFamily.GroupLocations.First().Location.Country;
+            }
+
+            using ( var rockContext = new RockContext() )
+            {
+                var templateConfigurationDataMock = GetTemplateConfigurationDataMock();
+                templateConfigurationDataMock.Setup( m => m.DisplayAddressOnFamilies ).Returns( Enums.Controls.RequirementLevel.Unavailable );
+
+                var registration = new FamilyRegistration( rockContext, null, templateConfigurationDataMock.Object );
+
+                var registrationFamily = new ValidPropertiesBox<RegistrationFamilyBag>
+                {
+                    Bag = new RegistrationFamilyBag
+                    {
+                        Address = new AddressControlBag
+                        {
+                            Street1 = "1234 Elm Street",
+                            City = "Nowhere",
+                            State = "AZ",
+                            PostalCode = "12345",
+                            Country = "US"
+                        }
+                    },
+                    ValidProperties = new List<string>
+                    {
+                        nameof( RegistrationFamilyBag.Address )
+                    }
+                };
+
+                var deckerFamily = new PersonService( rockContext ).Get( TestGuids.TestPeople.TedDecker ).PrimaryFamily;
+                var saveResult = new FamilyRegistrationSaveResult();
+                registration.UpdatePrimaryFamily( deckerFamily, registrationFamily, saveResult );
+            }
+
+            using ( var rockContext = new RockContext() )
+            {
+                var family = new PersonService( rockContext ).Get( TestGuids.TestPeople.TedDecker ).PrimaryFamily;
+                Assert.That.IsNotNull( family );
+                Assert.That.IsNotEmpty( family.GroupLocations );
+                Assert.That.AreEqual( expectedStreet, family.GroupLocations.First().Location.Street1 );
+                Assert.That.AreEqual( expectedCity, family.GroupLocations.First().Location.City );
+                Assert.That.AreEqual( expectedState, family.GroupLocations.First().Location.State );
+                Assert.That.AreEqual( expectedPostalCode, family.GroupLocations.First().Location.PostalCode );
+                Assert.That.AreEqual( expectedCountry, family.GroupLocations.First().Location.Country );
             }
         }
 
@@ -1074,6 +1229,70 @@ DELETE [AV]
             var person = registration.CreateOrUpdatePerson( registrationPerson, ref primaryFamily, saveResult );
 
             Assert.That.AreEqual( expectedNickName, person.NickName );
+        }
+
+        [TestMethod]
+        public void CreateOrUpdatePerson_WithChangedNickName_UpdatesFirstName()
+        {
+            var expectedFirstName = "Teddy";
+
+            var rockContextMock = CreateRockContextWithoutSaveChanges();
+
+            var tedDeckerIdKey = new PersonService( rockContextMock.Object ).Get( TestGuids.TestPeople.TedDecker ).IdKey;
+            var templateConfigurationDataMock = GetTemplateConfigurationDataMock();
+            var registration = new FamilyRegistration( rockContextMock.Object, null, templateConfigurationDataMock.Object );
+
+            Group primaryFamily = null;
+            var registrationPerson = new ValidPropertiesBox<RegistrationPersonBag>
+            {
+                Bag = new RegistrationPersonBag
+                {
+                    Id = tedDeckerIdKey,
+                    NickName = expectedFirstName
+                },
+                ValidProperties = new List<string>
+                {
+                    nameof( RegistrationPersonBag.NickName )
+                }
+            };
+
+            var saveResult = new FamilyRegistrationSaveResult();
+            var person = registration.CreateOrUpdatePerson( registrationPerson, ref primaryFamily, saveResult );
+
+            Assert.That.AreEqual( expectedFirstName, person.FirstName );
+        }
+
+        [TestMethod]
+        public void CreateOrUpdatePerson_WithExistingPersonAndSameNickName_SkipsFirstName()
+        {
+            var rockContextMock = CreateRockContextWithoutSaveChanges();
+
+            var tedDecker = new PersonService( rockContextMock.Object ).Get( TestGuids.TestPeople.TedDecker );
+            var expectedFirstName = tedDecker.FirstName;
+
+            Assert.AreNotEqual( tedDecker.NickName, tedDecker.FirstName, "Expected Ted Decker's first name and nick name to be different." );
+
+            var templateConfigurationDataMock = GetTemplateConfigurationDataMock();
+            var registration = new FamilyRegistration( rockContextMock.Object, null, templateConfigurationDataMock.Object );
+
+            Group primaryFamily = null;
+            var registrationPerson = new ValidPropertiesBox<RegistrationPersonBag>
+            {
+                Bag = new RegistrationPersonBag
+                {
+                    Id = tedDecker.IdKey,
+                    NickName = tedDecker.NickName
+                },
+                ValidProperties = new List<string>
+                {
+                    nameof( RegistrationPersonBag.NickName )
+                }
+            };
+
+            var saveResult = new FamilyRegistrationSaveResult();
+            var person = registration.CreateOrUpdatePerson( registrationPerson, ref primaryFamily, saveResult );
+
+            Assert.That.AreEqual( expectedFirstName, person.FirstName );
         }
 
         [TestMethod]

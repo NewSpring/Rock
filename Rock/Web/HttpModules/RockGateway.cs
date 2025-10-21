@@ -22,11 +22,15 @@ using System.Web;
 
 using Microsoft.Extensions.Logging;
 
+using Rock.Data;
 using Rock.Logging;
+using Rock.Model;
 using Rock.Net;
 using Rock.Net.Geolocation;
 using Rock.Observability;
+using Rock.Security;
 using Rock.Utility;
+using Rock.Web.Cache;
 using Rock.Web.UI;
 
 namespace Rock.Web.HttpModules
@@ -139,6 +143,8 @@ namespace Rock.Web.HttpModules
                 }
             }
 
+            var tracingEnabled = EnableDebugTracing( context );
+
             Activity activity;
 
             // Create activity with the correct prefix
@@ -193,6 +199,12 @@ namespace Rock.Web.HttpModules
                                                     ?? context.Request.ServerVariables["REMOTE_ADDR"]
                                                     ?? string.Empty );
 
+                // Begin monitoring for this trace if it was enabled.
+                if ( tracingEnabled )
+                {
+                    DebugTraceProcessor.MonitorTrace( activity.TraceId.ToString() );
+                }
+
                 context.Items[ObservabilityContextKey] = activity;
             }
         }
@@ -217,6 +229,63 @@ namespace Rock.Web.HttpModules
 
                 activity.Dispose();
             }
+
+            try
+            {
+                if ( context.Items["Rock:DebugTraceEnabled"] is string tracePageKey && tracePageKey != null )
+                {
+                    DebugTraceProcessor.EndTracing();
+                    context.Items.Remove( "Rock:DebugTraceEnabled" );
+                }
+            }
+            catch
+            {
+                // Ignore exceptions.
+            }
+        }
+
+        /// <summary>
+        /// Enables debug tracing for this request if it has been properly
+        /// configured.
+        /// </summary>
+        /// <param name="context">The context that describes the current request.</param>
+        /// <returns><c>true</c> if tracing was enabled; otherwise <c>false</c>.</returns>
+        private bool EnableDebugTracing( HttpContext context )
+        {
+            var showDebugTimingsKey = context.Request.QueryString["ShowDebugTimings"]?.Split( '_' );
+
+            if ( showDebugTimingsKey == null || showDebugTimingsKey.Length != 3 )
+            {
+                return false;
+            }
+
+            var pageIdKey = showDebugTimingsKey[0];
+            var personIdKey = showDebugTimingsKey[1];
+            var hash = showDebugTimingsKey[2];
+            var verificationValue = $"{pageIdKey}_{personIdKey}";
+            var expectedHash = verificationValue.HmacSha256Hash( Encryption.GetEphemeralHashingKey() + context.Request.UrlProxySafe().AbsolutePath );
+
+            if ( hash != expectedHash )
+            {
+                return false;
+            }
+
+            using ( var rockContext = new RockContext() )
+            {
+                var pageCache = PageCache.GetByIdKey( pageIdKey, rockContext );
+                var person = new PersonService( rockContext ).Get( personIdKey, false );
+
+                if ( pageCache.IsAuthorized( Authorization.ADMINISTRATE, person ) )
+                {
+                    DebugTraceProcessor.BeginTracing();
+
+                    context.AddOrReplaceItem( "Rock:DebugTraceEnabled", pageIdKey );
+
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         #endregion Observability

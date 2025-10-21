@@ -2100,5 +2100,40 @@ namespace Rock.SystemGuid
         /// The EntityType Guid for <see cref="Rock.Model.AutomationTrigger"/> 
         /// </summary>
         public const string AUTOMATION_TRIGGER = "89ABFA37-68E5-41B7-B43C-A0CF823DEA61";
+
+        /// <summary>
+        /// The EntityType Guid for <see cref="Rock.Model.AIAgent"/> 
+        /// </summary>
+        public const string AI_AGENT = "EE3FE609-5C7C-492E-B0E9-5461045FC825";
+
+        /// <summary>
+        /// The EntityType Guid for <see cref="Rock.Model.AIAgentSkill"/> 
+        /// </summary>
+        public const string AI_AGENT_SKILL = "36DEDA2F-75BD-4BEE-AC36-46D20DCD1331";
+
+        /// <summary>
+        /// The EntityType Guid for <see cref="Rock.Model.AISkill"/> 
+        /// </summary>
+        public const string AI_SKILL = "D953AB34-4AB6-47C6-857B-53044A99ED75";
+
+        /// <summary>
+        /// The EntityType Guid for <see cref="Rock.Model.AISkillTool"/> 
+        /// </summary>
+        public const string AI_SKILL_TOOL = "357D2625-FDCA-41F8-AB8D-1CF2CE0ABEED";
+
+        /// <summary>
+        /// The EntityType Guid for <see cref="Rock.Model.AIAgentSession"/> 
+        /// </summary>
+        public const string AI_AGENT_SESSION = "2415941A-8A3F-49FE-8039-DB27096B0EDF";
+
+        /// <summary>
+        /// The EntityType Guid for <see cref="Rock.Model.AIAgentSessionAnchor"/> 
+        /// </summary>
+        public const string AI_AGENT_SESSION_ANCHOR = "3ED1476A-B7FC-40E2-BBAB-AF084C82D7F1";
+
+        /// <summary>
+        /// The EntityType Guid for <see cref="Rock.Model.AIAgentSessionHistory"/> 
+        /// </summary>
+        public const string AI_AGENT_SESSION_HISTORY = "6AD212BE-F8D0-4C58-AB0E-D723ED5E2155";
     }
 }

@@ -27,6 +27,7 @@ import { FollowingSetFollowingOptionsBag } from "@Obsidian/ViewModels/Rest/Contr
 import AuditDetail from "@Obsidian/Controls/auditDetail.obs";
 import BadgeList from "@Obsidian/Controls/badgeList.obs";
 import EntityTagList from "@Obsidian/Controls/tagList.obs";
+import ExperienceModePicker from "@Obsidian/Controls/experienceModePicker.obs";
 import RockButton from "@Obsidian/Controls/rockButton.obs";
 import RockForm from "@Obsidian/Controls/rockForm.obs";
 import RockSuspense from "@Obsidian/Controls/rockSuspense.obs";
@@ -47,6 +48,7 @@ export default defineComponent({
     components: {
         AuditDetail,
         EntityTagList,
+        ExperienceModePicker,
         Modal,
         Panel,
         RockButton,
@@ -264,6 +266,13 @@ export default defineComponent({
             default: false
         },
 
+        /**
+         * Shows the experience mode picker for this block.
+         */
+        showExperienceMode: {
+            type: Boolean as PropType<boolean>,
+            default: false
+        }
     },
 
     emits: {
@@ -872,6 +881,10 @@ export default defineComponent({
     </template>
 
     <template #headerActions>
+        <div v-if="showExperienceMode" class="action panel-experience-mode">
+            <ExperienceModePicker />
+        </div>
+
         <span v-for="action in headerActions" :class="getClassForIconAction(action)" :title="action.title" @click="onActionClick(action, $event)">
             <i :class="getActionIconCssClass(action)"></i>
         </span>

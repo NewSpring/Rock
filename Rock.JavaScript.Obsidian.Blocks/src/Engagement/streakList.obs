@@ -37,7 +37,7 @@
                 title="Recent Engagement"
                 field="engagementMap"
                 :disableSort="true"
-                quickFilterValue="null"
+                quickFilterValue="❌"
                 visiblePriority="md"
                 width="12%">
 
@@ -78,7 +78,6 @@
                     headerClass="title-right"
                     itemClass="justify-content-end text-right"
                     :filter="dateValueFilter"
-                    :quickFilterValue="getEnrollmentDateFilterValue"
                     visiblePriority="xs"
                     width="5%" />
 

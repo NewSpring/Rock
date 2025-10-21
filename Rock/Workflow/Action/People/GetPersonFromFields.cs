@@ -1,4 +1,4 @@
-// <copyright>
+﻿// <copyright>
 // Copyright by the Spark Development Network
 //
 // Licensed under the Rock Community License (the "License");
@@ -198,28 +198,48 @@ namespace Rock.Workflow.Action
 
         void UpdatePhoneNumber( Person person, string mobileNumber )
         {
-            if ( !string.IsNullOrWhiteSpace( PhoneNumber.CleanNumber( mobileNumber ) ) )
+            if ( string.IsNullOrWhiteSpace( mobileNumber ) )
             {
-                var phoneNumberType = DefinedValueCache.Get( Rock.SystemGuid.DefinedValue.PERSON_PHONE_TYPE_MOBILE.AsGuid() );
-                if ( phoneNumberType == null )
-                {
-                    return;
-                }
+                return;
+            }
 
-                var phoneNumber = person.PhoneNumbers.FirstOrDefault( n => n.NumberTypeValueId == phoneNumberType.Id );
-                string oldPhoneNumber = string.Empty;
-                if ( phoneNumber == null )
-                {
-                    phoneNumber = new PhoneNumber { NumberTypeValueId = phoneNumberType.Id };
-                    person.PhoneNumbers.Add( phoneNumber );
-                }
-                else
-                {
-                    oldPhoneNumber = phoneNumber.NumberFormattedWithCountryCode;
-                }
+            var cleanedNumber = PhoneNumber.CleanNumber( mobileNumber );
+            if ( string.IsNullOrWhiteSpace( cleanedNumber ) )
+            {
+                return;
+            }
 
-                // TODO handle country code here
-                phoneNumber.Number = PhoneNumber.CleanNumber( mobileNumber );
+            var phoneNumberType = DefinedValueCache.Get( Rock.SystemGuid.DefinedValue.PERSON_PHONE_TYPE_MOBILE.AsGuid() );
+            if ( phoneNumberType == null )
+            {
+                return;
+            }
+
+            var phoneNumber = person.PhoneNumbers.FirstOrDefault( n => n.NumberTypeValueId == phoneNumberType.Id );
+            string oldPhoneNumber = string.Empty;
+            if ( phoneNumber == null )
+            {
+                phoneNumber = new PhoneNumber { NumberTypeValueId = phoneNumberType.Id };
+                person.PhoneNumbers.Add( phoneNumber );
+            }
+            else
+            {
+                oldPhoneNumber = phoneNumber.NumberFormattedWithCountryCode;
+            }
+
+            string countryCodePart;
+            string numberPart;
+
+            var parsedOk = PhoneNumber.TryParseNumber( mobileNumber, out countryCodePart, out numberPart );
+            if ( parsedOk )
+            {
+                phoneNumber.CountryCode = PhoneNumber.CleanNumber( countryCodePart );
+                phoneNumber.Number = PhoneNumber.CleanNumber( numberPart );
+            }
+            else
+            {
+                phoneNumber.CountryCode = PhoneNumber.DefaultCountryCode();
+                phoneNumber.Number = cleanedNumber;
             }
         }
     }

@@ -243,6 +243,10 @@ namespace RockWeb.Blocks.CheckIn.Config
                 groupType.SetAttributeValue( "core_checkin_PreventDuplicateCheckin", cbPreventDuplicateCheckin.Checked.ToString() );
                 groupType.SetAttributeValue( "core_checkin_PreventInactivePeople", cbPreventInactivePeople.Checked.ToString() );
                 groupType.SetAttributeValue( Rock.SystemKey.GroupTypeAttributeKey.CHECKIN_GROUPTYPE_ENABLE_PROXIMITY_CHECKIN, cbEnableProximityCheckIn.Checked.ToString() );
+
+                // Use template settings for additional proximity configuration
+                templateSettings.ProximityAttendanceNotificationTemplate = ceCheckInNotificationTemplate.Text;
+
                 groupType.SetAttributeValue( "core_checkin_CheckInType", ddlType.SelectedValue );
                 groupType.SetAttributeValue( "core_checkin_DisplayLocationCount", cbDisplayLocCount.Checked.ToString() );
                 groupType.SetAttributeValue( Rock.SystemKey.GroupTypeAttributeKey.CHECKIN_GROUPTYPE_ABILITY_LEVEL_DETERMINATION, rblAbilityLevelDetermination.SelectedValue );
@@ -311,6 +315,8 @@ namespace RockWeb.Blocks.CheckIn.Config
                 groupType.SetAttributeValue(
                     Rock.SystemKey.GroupTypeAttributeKey.CHECKIN_REGISTRATION_OPTIONALATTRIBUTESFORFAMILIES,
                     lbRegistrationOptionalAttributesForFamilies.SelectedValues.AsDelimited( "," ) );
+
+                templateSettings.DisplayAddressOnFamilies = ddlRegistrationDisplayAddressOnFamilies.SelectedValueAsEnum<RequirementLevel>();
 
                 groupType.SetAttributeValue(
                     Rock.SystemKey.GroupTypeAttributeKey.CHECKIN_REGISTRATION_DISPLAYBIRTHDATEONCHILDREN,
@@ -567,6 +573,9 @@ namespace RockWeb.Blocks.CheckIn.Config
                 cbPreventDuplicateCheckin.Checked = groupType.GetAttributeValue( "core_checkin_PreventDuplicateCheckin" ).AsBoolean( true );
                 cbPreventInactivePeople.Checked = groupType.GetAttributeValue( "core_checkin_PreventInactivePeople" ).AsBoolean( true );
                 cbEnableProximityCheckIn.Checked = groupType.GetAttributeValue( Rock.SystemKey.GroupTypeAttributeKey.CHECKIN_GROUPTYPE_ENABLE_PROXIMITY_CHECKIN ).AsBoolean();
+                ceCheckInNotificationTemplate.Text = templateSettings.ProximityAttendanceNotificationTemplate;
+                proximityAttendanceConfiguration.Visible = cbEnableProximityCheckIn.Checked;
+
                 ddlType.SetValue( groupType.GetAttributeValue( "core_checkin_CheckInType" ) );
                 cbDisplayLocCount.Checked = groupType.GetAttributeValue( "core_checkin_DisplayLocationCount" ).AsBoolean( true );
                 rblAbilityLevelDetermination.SelectedValue = groupType.GetAttributeValue( Rock.SystemKey.GroupTypeAttributeKey.CHECKIN_GROUPTYPE_ABILITY_LEVEL_DETERMINATION );
@@ -615,6 +624,7 @@ namespace RockWeb.Blocks.CheckIn.Config
 
                 lbRegistrationRequiredAttributesForFamilies.SetValues( groupType.GetAttributeValue( Rock.SystemKey.GroupTypeAttributeKey.CHECKIN_REGISTRATION_REQUIREDATTRIBUTESFORFAMILIES ).SplitDelimitedValues() );
                 lbRegistrationOptionalAttributesForFamilies.SetValues( groupType.GetAttributeValue( Rock.SystemKey.GroupTypeAttributeKey.CHECKIN_REGISTRATION_OPTIONALATTRIBUTESFORFAMILIES ).SplitDelimitedValues() );
+                ddlRegistrationDisplayAddressOnFamilies.SetValue( templateSettings.DisplayAddressOnFamilies.ToString() );
 
                 ddlRegistrationDisplayBirthdateOnChildren.SetValue( groupType.GetAttributeValue( Rock.SystemKey.GroupTypeAttributeKey.CHECKIN_REGISTRATION_DISPLAYBIRTHDATEONCHILDREN ) );
                 ddlRegistrationDisplayBirthdateOnAdults.SetValue( groupType.GetAttributeValue( Rock.SystemKey.GroupTypeAttributeKey.CHECKIN_REGISTRATION_DISPLAYBIRTHDATEONADULTS ) );
@@ -691,6 +701,11 @@ namespace RockWeb.Blocks.CheckIn.Config
 
                 SetFieldVisibility();
             }
+        }
+
+        protected void cbEnableProximityCheckIn_CheckedChanged( object sender, EventArgs e )
+        {
+            proximityAttendanceConfiguration.Visible = cbEnableProximityCheckIn.Checked;
         }
 
         private void BuildAttributeEdits( GroupType groupType, bool setValues )
@@ -979,6 +994,11 @@ namespace RockWeb.Blocks.CheckIn.Config
                 lbRegistrationOptionalAttributesForFamilies.Items.Add( new ListItem( groupTypeFamilyAttribute.Name, groupTypeFamilyAttribute.Value ) );
             }
 
+            ddlRegistrationDisplayAddressOnFamilies.Items.Clear();
+            ddlRegistrationDisplayAddressOnFamilies.Items.Add( new ListItem( ControlOptions.HIDE, RequirementLevel.Unavailable.ToString() ) );
+            ddlRegistrationDisplayAddressOnFamilies.Items.Add( new ListItem( ControlOptions.OPTIONAL, RequirementLevel.Optional.ToString() ) );
+            ddlRegistrationDisplayAddressOnFamilies.Items.Add( new ListItem( ControlOptions.REQUIRED, RequirementLevel.Required.ToString() ) );
+
             ddlSuccessTemplateOverrideDisplayMode.Items.Clear();
             ddlSuccessTemplateOverrideDisplayMode.BindToEnum<SuccessLavaTemplateDisplayMode>();
 
@@ -1032,5 +1052,6 @@ namespace RockWeb.Blocks.CheckIn.Config
         }
 
         #endregion
+
     }
 }

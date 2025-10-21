@@ -214,6 +214,7 @@ namespace Rock.Lava
             }
 
             mergeFields.Add( "IsChatEnabled", ChatHelper.IsChatEnabled );
+            mergeFields.Add( "ExperienceMode", Rock.Web.SystemSettings.GetValue( SystemKey.SystemSetting.TRAILBLAZER_MODE ).AsBoolean() ? "Trailblazer" : "Essentials" );
 
             return mergeFields;
         }

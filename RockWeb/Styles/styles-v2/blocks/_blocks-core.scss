@@ -9,27 +9,8 @@
 //  + Workflow - styles for workflow blocks
 //  + Electronic Signatures
 //  + Rapid Attendance
+//  + Reminder List
 // =============================================================
-
-// ======================== PAGE HEADER ========================
-
-.rock-top-header .rock-bookmark.active.has-reminders > .indicator-bottom {
-  position: absolute;
-  top: 2px;
-  right: 2px;
-  background-color: var(--color-primary);
-  width: 8px;
-  height: 8px;
-  border-radius: var(--rounded-xsmall);
-}
-
-.rock-top-header .rock-bookmark:hover {
-  border: 1px solid var(--color-interface-medium);
-}
-
-
-// ======================== END PAGE HEADER ========================
-
 
 .rock-fullscreen-toggle {
   position:         absolute;
@@ -57,7 +38,6 @@
 
   &::before {
     font-family:    'tabler-icons';
-    font-weight:    var(--font-weight-black);
     text-align:     center;
     content:        "\eaea";
   }
@@ -1192,3 +1172,14 @@ body.hide-block-role-secondary .block-instance.block-role-secondary:not(.block-r
 // ====================== END RAPID ATTENDANCE ======================
 
 
+// ====================== REMINDER LIST ======================
+
+.reminder-list a.success-on-hover {
+  color: var(--color-interface-strong);
+  transition: 0.2s color;
+  &:hover {
+    color: var(--color-success-strong);
+  }
+}
+
+// ====================== END REMINDER LIST ======================

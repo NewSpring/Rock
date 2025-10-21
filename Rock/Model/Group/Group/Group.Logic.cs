@@ -53,7 +53,14 @@ namespace Rock.Model
         {
             get
             {
-                return this.ParentGroup != null ? this.ParentGroup : base.ParentAuthority;
+                if ( ParentGroupId.HasValue )
+                {
+                    return GroupCache.Get( ParentGroupId.Value );
+                }
+                else
+                {
+                    return base.ParentAuthority;
+                }
             }
         }
 

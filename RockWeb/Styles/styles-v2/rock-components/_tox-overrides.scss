@@ -28,6 +28,10 @@
 
 .note-editor:has(.tox.tox-tinymce) {
   border: 0 !important;
+  &:focus-within {
+    border: var(--focus-state-border) !important;
+    border-radius: var(--rounded-tiny) !important;
+  }
 }
 
 .tox:not(.tox-tinymce-inline) .tox-editor-header,

@@ -9,7 +9,9 @@
 //  + Communication Detail
 //  + Communication List
 //  + Communication Wizard
+//  + Email Builder
 //  + Legacy Email Editor
+//  + Communication History
 // =============================================================
 
 
@@ -131,6 +133,16 @@ iframe.email-body {
 
 // ====================== END COMMUNICATION WIZARD ======================
 
+// ======================== EMAIL BUILDER ========================
+
+.communication-entry-wizard .email-editor .side-panel .flat-panel-body .alert {
+  margin:               var(--spacing-xsmall);
+  .btn {
+    margin-top:         var(--spacing-xsmall);
+  }
+}
+
+// ======================== END EMAIL BUILDER ======================
 
 // ====================== LEGACY EMAIL EDITOR ======================
 
@@ -209,3 +221,26 @@ iframe.email-body {
 }
 
 // ====================== END LEGACY EMAIL EDITOR ======================
+
+// ======================== COMMUNICATION HISTORY ========================
+
+// Recipient Details Grid Sticky Header Fix
+.communication-detail-recipient-details > .grid-obsidian > .grid-header {
+    position: sticky;
+    top: 0;
+}
+.communication-detail-recipient-details .sticky-column-header {
+    top: 37px;
+}
+
+.page-fullscreen-capable .panel.panel-block.panel-flex > .panel-body:has(.communication-detail-recipient-details) {
+    overflow: auto;
+}
+
+// Had to refactor the padding here because of the grid header sticky positioning.
+.panel-body:has(.communication-detail-recipient-details) {
+    padding: 0 var(--spacing-medium) var(--spacing-medium) var(--spacing-medium);
+}
+
+
+// ======================== END COMMUNICATION HISTORY ========================

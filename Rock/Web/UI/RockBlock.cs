@@ -534,18 +534,6 @@ namespace Rock.Web.UI
         /// <param name="e">The <see cref="T:System.EventArgs" /> object that contains the event data.</param>
         protected override void OnLoad( EventArgs e )
         {
-            try
-            {
-                if ( PageParameter( "ShowDebugTimings" ).AsBoolean() )
-                {
-                    RockPage.ReportOnLoadDebugTiming( BlockName, BlockCache?.BlockType?.ToString() );
-                }
-            }
-            catch
-            {
-                // ignore
-            }
-
             base.OnLoad( e );
             
             if ( this.BlockCache == null ||

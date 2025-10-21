@@ -58,7 +58,7 @@ namespace Rock.Blocks.Cms
         Description = "Static lets you set a CSS height below to determine the height of the block. Flexible will grow with the content. Full Worksurface is designed to fill up a full worksurface page layout.",
         ListSource = "static^Static,flexible^Flexible,full^Full Worksurface",
         IsRequired = true,
-        DefaultValue = "static",
+        DefaultValue = "full",
         Order = 2
     )]
 
@@ -117,7 +117,8 @@ namespace Rock.Blocks.Cms
     #endregion
 
     [Rock.SystemGuid.EntityTypeGuid( "e357ad54-1725-48b8-997c-23c2587800fb" )]
-    [Rock.SystemGuid.BlockTypeGuid( "535500a7-967f-4da3-8fca-cb844203cb3d" )]
+    // Was [Rock.SystemGuid.BlockTypeGuid( "535500a7-967f-4da3-8fca-cb844203cb3d" )]
+    [Rock.SystemGuid.BlockTypeGuid( "BA327D25-BD8A-4B67-B04C-17B499DDA4B6" )]
     public class FileAssetManager : RockBlockType
     {
         #region Keys

@@ -487,6 +487,18 @@ namespace Rock.Security
         }
 
         /// <summary>
+        /// Gets the ephemeral (temporary) hashing key to be used with HMAC and
+        /// other related hashing algorithms. This key should not be used for
+        /// anything that needs to persist for long periods of time as the value
+        /// might change between versions of Rock or even between Rock restarts.
+        /// </summary>
+        /// <returns>A string that can be used as a temporary hashing key.</returns>
+        internal static string GetEphemeralHashingKey()
+        {
+            return GetDataEncryptionKey().Sha256Hash();
+        }
+
+        /// <summary>
         /// converts a hexadecimal string to byte.
         /// </summary>
         /// <param name="hexString">The hexadecimal string.</param>

@@ -3119,18 +3119,20 @@ export function getRowComponentHelper(): ComponentMigrationHelper & {
 
                 // eslint-disable-next-line @typescript-eslint/naming-convention
                 function v2AlphaToV17_3Alpha(componentElement: Element): Element {
+                    const migrationVersionNumber = "v17.3-alpha";
                     const versionNumber = getComponentVersionNumber(componentElement);
+
                     if (!versionNumber) {
                         // This shouldn't occur unless the v0 migration was skipped or modified incorrectly.
                         throw new Error("Component version number is missing.");
                     }
 
-                    if (compareComponentVersions(versionNumber, "v17.3-alpha") >= 0) {
+                    if (compareComponentVersions(versionNumber, migrationVersionNumber) >= 0) {
                         return componentElement; // Already migrated
                     }
 
                     // Bump version.
-                    setComponentVersionNumber(componentElement, "v17.3-alpha");
+                    setComponentVersionNumber(componentElement, migrationVersionNumber);
 
                     return componentElement;
                 }
@@ -3459,7 +3461,7 @@ export function getImageComponentHelper(): ComponentMigrationHelper & {
     getElements(componentElement: Element): ComponentStructure | null,
     createComponentElement(): HTMLElement
 } {
-    const latestVersion = "v17.3-alpha" as const;
+    const latestVersion = "v18-alpha" as const;
 
     return {
         createComponentElement(): HTMLElement {
@@ -3517,6 +3519,13 @@ export function getImageComponentHelper(): ComponentMigrationHelper & {
             // These are in order from oldest to newest; new migrations should be added at the end.
             const migrations = [
                 function v0ToV2Alpha(oldComponent: Element): Element {
+                    const migrationVersionNumber = "v2-alpha";
+                    const versionNumber = getComponentVersionNumber(oldComponent);
+
+                    if (versionNumber && compareComponentVersions(versionNumber, migrationVersionNumber) >= 0) {
+                        return oldComponent; // Already migrated
+                    }
+
                     const image = oldComponent.querySelector("img");
                     if (!image) {
                         throw new Error("No <img> found in the image component.");
@@ -3553,7 +3562,7 @@ export function getImageComponentHelper(): ComponentMigrationHelper & {
                     wrapper.setAttribute("role", "presentation");
                     wrapper.className = "margin-wrapper margin-wrapper-for-image component component-image";
                     wrapper.setAttribute("data-state", "component");
-                    setComponentVersionNumber(wrapper, "v2-alpha");
+                    setComponentVersionNumber(wrapper, migrationVersionNumber);
 
                     if (imageGuid) {
                         wrapper.setAttribute("data-image-guid", imageGuid);
@@ -3594,18 +3603,82 @@ export function getImageComponentHelper(): ComponentMigrationHelper & {
 
                 // eslint-disable-next-line @typescript-eslint/naming-convention
                 function v2AlphaToV17_3Alpha(componentElement: Element): Element {
+                    const migrationVersionNumber = "v17.3-alpha";
                     const versionNumber = getComponentVersionNumber(componentElement);
+
+                    if (!versionNumber) {
+                        throw new Error("Component version number is missing.");
+                    }
+
+                    if (compareComponentVersions(versionNumber, migrationVersionNumber) >= 0) {
+                        return componentElement; // Already migrated
+                    }
+
+                    // Bump version.
+                    setComponentVersionNumber(componentElement, migrationVersionNumber);
+
+                    return componentElement;
+                },
+
+                // eslint-disable-next-line @typescript-eslint/naming-convention
+                function v17_3AlphaToV18Alpha(componentElement: Element): Element {
+                    const migrationVersionNumber = "v18-alpha";
+
+                    const versionNumber = getComponentVersionNumber(componentElement);
+
                     if (!versionNumber) {
                         // This shouldn't occur unless the v0 migration was skipped or modified incorrectly.
                         throw new Error("Component version number is missing.");
                     }
 
-                    if (compareComponentVersions(versionNumber, "v17.3-alpha") >= 0) {
+                    if (compareComponentVersions(versionNumber, migrationVersionNumber) >= 0) {
                         return componentElement; // Already migrated
                     }
 
-                    // Bump version.
-                    setComponentVersionNumber(componentElement, "v17.3-alpha");
+                    // Check if this is an "asset" image based on `data-image-assetstorageproviderid`
+                    const assetStorageId = componentElement.getAttribute("data-image-assetstorageproviderid");
+
+                    if (!assetStorageId) {
+                        // If it's not an asset-based image, just bump the version number.
+                        setComponentVersionNumber(componentElement, migrationVersionNumber);
+                        return componentElement;
+                    }
+
+                    let scalePercentage = parseInt(componentElement.getAttribute("data-image-scale") ?? "100");
+                    if (!scalePercentage || Number.isNaN(scalePercentage)) {
+                        scalePercentage = 100;
+                    }
+
+                    const img = componentElement.querySelector("img");
+                    let inlineImageWidth = parseInt(img?.style.width ?? "0");
+
+                    if (!img?.style.width.endsWith("px") || Number.isNaN(inlineImageWidth)) {
+                        inlineImageWidth = 0;
+                    }
+
+                    // Remove the scale since it's irrelevant for responsive rendering
+                    componentElement.removeAttribute("data-image-scale");
+
+                    if (scalePercentage < 100 && inlineImageWidth > 0) {
+                        // The image was scaled down so set the width to the scaled size
+                        componentElement.setAttribute("data-image-resizemode", "crop");
+                        componentElement.setAttribute("data-image-width", `${inlineImageWidth}`);
+
+                        if (img) {
+                            img.style.objectFit = "cover";
+                            // img should already have a width set based on the previous scale feature.
+                        }
+                    }
+                    else {
+                        // The image was left at 100% scale so set to the original image size
+                        componentElement.removeAttribute("data-image-size");
+
+                        if (img) {
+                            img.style.removeProperty("width");
+                        }
+                    }
+
+                    setComponentVersionNumber(componentElement, migrationVersionNumber);
 
                     return componentElement;
                 }

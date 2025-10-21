@@ -450,5 +450,16 @@ namespace Rock.SystemKey
         /// The countries that are globally restricted from accessing Rock.
         /// </summary>
         public const string COUNTRIES_RESTRICTED_FROM_ACCESSING = "core_CountriesRestrictedFromAccessing";
+
+        /// <summary>
+        /// The system settings for AI Agent features.
+        /// </summary>
+        public const string AI_AGENT_SYSTEM_SETTINGS = "core_AIAgentSystemSettings";
+
+        /// <summary>
+        /// When trailblazer mode is enabled the system will show more advanced
+        /// configuration options in the UI.
+        /// </summary>
+        public const string TRAILBLAZER_MODE = "core_TrailblazerMode";
     }
 }

@@ -16,6 +16,8 @@
 //
 using System.Runtime.CompilerServices;
 
+[assembly: InternalsVisibleTo( "Rock.AI.Agent" )]
+[assembly: InternalsVisibleTo( "Rock.AI.Agent.Tests" )]
 [assembly: InternalsVisibleTo( "Rock.Blocks" )]
 [assembly: InternalsVisibleTo( "Rock.CodeGeneration" )]
 [assembly: InternalsVisibleTo( "Rock.Migrations" )]
@@ -32,6 +34,7 @@ using System.Runtime.CompilerServices;
 [assembly: InternalsVisibleTo( "DynamicProxyGenAssembly2" )] // Used by Moq
 
 // Register friendly logging category names.
+[assembly: Rock.Logging.RockLoggingCategory( "Rock" )]
 [assembly: Rock.Logging.RockLoggingCategory( "Rock.Jobs" )]
 [assembly: Rock.Logging.RockLoggingCategory( "Rock.Bus" )]
 [assembly: Rock.Logging.RockLoggingCategory( "Rock.Communication" )]

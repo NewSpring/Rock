@@ -207,7 +207,8 @@ namespace Rock.Blocks.Administration
                 RealTimeHostname = Rock.Web.SystemSettings.GetValue( SystemSetting.REALTIME_HOSTNAME ),
                 PersonalizationCookieCacheLengthMinutes = Rock.Web.SystemSettings.GetValue( SystemSetting.PERSONALIZATION_SEGMENT_COOKIE_AFFINITY_DURATION_MINUTES ).AsIntegerOrNull() ?? SettingDefault.PersonalizationCookieCacheLengthMinutes,
                 VisitorCookiePersistenceLengthDays = Rock.Web.SystemSettings.GetValue( SystemSetting.VISITOR_COOKIE_PERSISTENCE_DAYS ).AsIntegerOrNull() ?? SettingDefault.VisitorCookieTimeoutDays,
-                CountriesRestrictedFromAccessing = countriesRestrictedFromAccessing
+                CountriesRestrictedFromAccessing = countriesRestrictedFromAccessing,
+                IsTrailblazerMode = Rock.Web.SystemSettings.GetValue( SystemSetting.TRAILBLAZER_MODE ).AsBoolean(),
             };
         }
 
@@ -590,6 +591,7 @@ namespace Rock.Blocks.Administration
             Rock.Web.SystemSettings.SetValue( SystemSetting.VISITOR_COOKIE_PERSISTENCE_DAYS, bag.VisitorCookiePersistenceLengthDays?.ToString() );
             Rock.Web.SystemSettings.SetValue( SystemSetting.PERSONALIZATION_SEGMENT_COOKIE_AFFINITY_DURATION_MINUTES, bag.PersonalizationCookieCacheLengthMinutes?.ToString() );
             Rock.Web.SystemSettings.SetValue( SystemSetting.COUNTRIES_RESTRICTED_FROM_ACCESSING, string.Join( "|", bag.CountriesRestrictedFromAccessing.Distinct() ) );
+            Rock.Web.SystemSettings.SetValue( SystemSetting.TRAILBLAZER_MODE, bag.IsTrailblazerMode.ToString() );
 
             return ActionOk( GetSuccessResponseBag( "Settings saved successfully." ) );
         }

@@ -415,7 +415,7 @@
 
                                 <div class="row">
                                     <AttributeValuesContainer
-                                                              v-if="adult2.attributes != null"
+                                                              v-if="isAdult2Entered && adult2.attributes != null"
                                                               v-model="adult2.attributeValues"
                                                               :attributes="adult2.attributes"
                                                               columnBreakpoint="sm"

@@ -1898,7 +1898,7 @@ namespace Rock.Blocks.Engagement
                         g.Key.CampusGuid,
                         g.Key.CampusName,
                         g.Key.CampusOrder,
-                        Count = Math.Round( ( double ) g.Count() / g.Key.AvgCampusAttendance, 2 )
+                        Count = Math.Round( ( double ) g.Count() / g.Key.AvgCampusAttendance, 0 )
                     } )
                     .ToList();
 
@@ -2018,7 +2018,7 @@ namespace Rock.Blocks.Engagement
             "{% for stepItem in Steps %}\n" +
             "    <div class=\"flow-key\">\n" +
             "        <span class=\"color\" style=\"background-color:{{stepItem.Color}};\"></span>\n" +
-            "        <span class=\"step-text\">{{stepItem.StepName}}</span>\n" +
+            "        <span class=\"step-text\">{{forloop.index}}. {{stepItem.StepName}}</span>\n" +
             "    </div>\n" +
             "{% endfor %}\n" +
             "</div>";

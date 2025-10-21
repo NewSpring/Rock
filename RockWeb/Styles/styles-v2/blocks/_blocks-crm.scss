@@ -917,14 +917,10 @@ tr.inactive {
 }
 // ====================== END EDIT PERSON ======================
 
-// ======================== CONNECTION REQUEST ========================
+// ====================== PEOPLE MERGE ======================
 
-.connection-request-board .modal-open .modal-body .panel-body .photo > img {
-  width: 100%;
+.merge-field-cell {
+  max-width: 150px;
 }
 
-.connection-request-board .modal-open .modal-body .nav-tabs {
-  margin-top: var(--spacing-medium);
-}
-
-// ======================== END CONNECTION REQUEST ========================
+// ======================= END PEOPLE MERGE ======================

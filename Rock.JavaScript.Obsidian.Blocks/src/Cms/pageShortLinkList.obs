@@ -52,6 +52,7 @@
                        visiblePriority="xs" />
 
         <ButtonColumn name="copy"
+                      tooltip="Copy to Clipboard"
                       iconClass="ti ti-clipboard"
                       visiblePriority="xs"
                       @click="onCopyClick" />

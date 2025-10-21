@@ -142,7 +142,7 @@
                                                      @click="internalCommunicationType = CommunicationType.Email">
                                                     <div class="medium-content">
                                                         <i class="ti ti-mail ti-2x"></i>
-                                                        <h3>Email</h3>
+                                                        <h5>Email</h5>
                                                         <small>Send an email to everyone in your targeted segment.</small>
                                                         <HighlightLabel labelType="info">
                                                             <template v-if="isFetchingRecipients">Reachable Audience: <i class="ti ti-rotate-clockwise-2 ti-pulse"></i></template>
@@ -158,7 +158,7 @@
                                                      @click="internalCommunicationType = CommunicationType.SMS">
                                                     <div class="medium-content">
                                                         <i class="ti ti-device-mobile-message ti-2x"></i>
-                                                        <h3>SMS</h3>
+                                                        <h5>SMS</h5>
                                                         <small>Send a text message to your targeted segment.</small>
                                                         <HighlightLabel labelType="info">
                                                             <template v-if="isFetchingRecipients">Reachable Audience: <i class="ti ti-rotate-clockwise-2 ti-pulse"></i></template>
@@ -174,7 +174,7 @@
                                                      @click="internalCommunicationType = CommunicationType.PushNotification">
                                                     <div class="medium-content">
                                                         <i class="ti ti-bell ti-2x"></i>
-                                                        <h3>Push Notifications</h3>
+                                                        <h5>Push Notifications</h5>
                                                         <small>Notify targeted segment via the church app.</small>
                                                         <HighlightLabel labelType="info">
                                                             <template v-if="isFetchingRecipients">Reachable Audience: <i class="ti ti-rotate-clockwise-2 ti-pulse"></i></template>
@@ -190,7 +190,7 @@
                                                      @click="internalCommunicationType = CommunicationType.RecipientPreference">
                                                     <div class="medium-content">
                                                         <i class="ti ti-user ti-2x"></i>
-                                                        <h3>Personal Preference</h3>
+                                                        <h5>Personal Preference</h5>
                                                         <small>Notify targeted segment via person's preferred channel.</small>
                                                         <HighlightLabel labelType="info">
                                                             <template v-if="isFetchingRecipients">Reachable Audience: <i class="ti ti-rotate-clockwise-2 ti-pulse"></i></template>
@@ -305,10 +305,10 @@
 }
 
 .medium-content small {
-    color: var(--color-interface-strong);
+    color: var(--color-interface-medium);
 }
 
-.medium-content h3 {
+.medium-content h5 {
     margin: 0;
 }
 

@@ -1,6 +1,6 @@
 <!-- Copyright by the Spark Development Network; Licensed under the Rock Community License -->
 <template>
-    <ContentSectionContainer :sidebar="false">
+    <ContentSectionContainer sidebar>
         <ContentSection light>
             <ContentStack>
                 <div class="row">
@@ -57,7 +57,8 @@
                               :help="impactWeightHelpText"
                               :items="impactWeightOptions"
                               :inputClasses="'input-width-lg'" />
-                <CheckBoxList v-model="preRequisites"
+                <CheckBoxList v-if="availablePreRequisites.length > 0"
+                              v-model="preRequisites"
                               :items="availablePreRequisites"
                               label="Prerequisite Steps"
                               help="The steps that must be completed prior to this step."
@@ -88,10 +89,10 @@
                              help="The text shown on the action button (e.g., “Join Now” or “Start Step”). Keep it short, clear, and action-oriented to encourage engagement." />
                     <TextBox v-model="callToActionLink"
                              label="Call To Action Link"
-                             help="A brief message explaining what the action is and why it matters. Helps individuals understand the purpose and importance of the next step." />
+                             help="The URL where the individual takes the next step. This can point to a form, page, or resource—wherever the action happens." />
                     <TextBox v-model="callToActionDescription"
                              label="Call To Action Description"
-                             help="The URL where the individual takes the next step. This can point to a form, page, or resource—wherever the action happens." />
+                             help="A brief message explaining what the action is and why it matters. Helps individuals understand the purpose and importance of the next step." />
                 </div>
             </ContentStack>
         </ContentSection>
@@ -210,16 +211,20 @@
         </ContentSection>
 
         <ContentSection title="Advanced Settings" icon="ti ti-adjustments-cog">
-            <ContentStack>
+            <ContentStack title="Advanced Settings" description="Configure advanced features for this Step Type. Use these settings to define how step data is auto-completed, customize the display content with Lava templates, and control whether manual edits are allowed.">
                 <div class="row">
-                    <div class="col-md-2">
+                    <div class="col-md-3">
+                        <DataViewPicker v-model="autoCompleteDataView"
+                                        label="Auto-Complete Data View"
+                                        help="A Data View that returns a list of people who should be regarded as having completed this step." />
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-3">
                         <DataViewPicker v-if="audienceDataView.value"
                                         v-model="audienceDataView"
                                         label="Audience Data View"
                                         help="A Data View that returns a list of people who are eligible to take this step." />
-                        <DataViewPicker v-model="autoCompleteDataView"
-                                        label="Auto-Complete Data View"
-                                        help="A Data View that returns a list of people who should be regarded as having completed this step." />
                     </div>
                 </div>
                 <div class="row">
@@ -349,9 +354,9 @@
             Not all steps carry the same weight—some require more time and/or commitment. This value helps measure the overall impact of a program beyond just step count, giving insight into the depth of engagement.`;
     const impactWeightOptions: ListItemBag[] = [
         { text: "1 - Low Impact", value: "1" },
-        { text: "2 - Low-Medium Impact", value: "2" },
-        { text: "3 - Medium Impact", value: "3" },
-        { text: "4 - Medium-High Impact", value: "4" },
+        { text: "2", value: "2" },
+        { text: "3", value: "3" },
+        { text: "4", value: "4" },
         { text: "5 - High Impact", value: "5" }
     ];
     const invokeBlockAction = useInvokeBlockAction();

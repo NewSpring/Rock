@@ -242,7 +242,6 @@ namespace Rock.Blocks.Engagement
                         CompletedCount = steps.Count( s => s.StepStatus != null && s.StepStatus.IsCompleteStatus )
                     } );
 
-
             return queryable;
         }
 
