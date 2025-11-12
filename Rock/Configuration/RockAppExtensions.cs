@@ -21,6 +21,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 using Rock.Attribute;
 using Rock.Communication.Chat;
+using Rock.Data;
 using Rock.Lava;
 
 namespace Rock.Configuration
@@ -218,7 +219,17 @@ namespace Rock.Configuration
             return path;
         }
 
-        #region Service Provider
+        /// <summary>
+        /// Creates a new <see cref="RockContext"/> for use in the application.
+        /// This provides a central location to creating contexts for accessing
+        /// the database so that unit tests can more easily override the behavior.
+        /// </summary>
+        /// <param name="app">The current Rock application instannce.</param>
+        /// <returns>A new instance of <see cref="RockContext"/>.</returns>
+        internal static RockContext CreateRockContext( this RockApp app )
+        {
+            return app.GetRequiredService<IRockContextFactory>().CreateRockContext();
+        }
 
         /// <summary>
         /// Gets the <see cref="IChatProvider"/> service from the <see cref="RockApp"/>'s <see cref="IServiceProvider"/>.
@@ -235,7 +246,5 @@ namespace Rock.Configuration
         {
             return rockApp.GetRequiredService<IChatProvider>();
         }
-
-        #endregion Service Provider
     }
 }

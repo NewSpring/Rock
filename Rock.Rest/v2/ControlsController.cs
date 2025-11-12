@@ -1,4 +1,4 @@
-// <copyright>
+﻿// <copyright>
 // Copyright by the Spark Development Network
 //
 // Licensed under the Rock Community License (the "License");
@@ -19,6 +19,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Data.Entity;
+using System.Globalization;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -27,6 +28,9 @@ using System.Net.Http.Headers;
 using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
+
+using Microsoft.Extensions.DependencyInjection;
 
 using Rock.Attribute;
 using Rock.Badge;
@@ -36,6 +40,7 @@ using Rock.Communication;
 using Rock.Configuration;
 using Rock.Constants;
 using Rock.Data;
+using Rock.Enums.Cms;
 using Rock.Enums.Communication;
 using Rock.Enums.Controls;
 using Rock.Extension;
@@ -51,6 +56,7 @@ using Rock.Security;
 using Rock.Security.SecurityGrantRules;
 using Rock.Storage;
 using Rock.Storage.AssetStorage;
+using Rock.SystemKey;
 using Rock.Utility;
 using Rock.Utility.CaptchaApi;
 using Rock.ViewModels.Controls;
@@ -2592,16 +2598,87 @@ namespace Rock.Rest.v2
         /// Gets the configuration data to use when rendering the Captcha control.
         /// </summary>
         [HttpPost]
-        [Route( "CaptchaControlGetConfiguration" )]
+        [Route( "CaptchaGetConfiguration" )]
+        [Authenticate]
+        [ExcludeSecurityActions( Authorization.EXECUTE_READ, Authorization.EXECUTE_WRITE, Authorization.EXECUTE_UNRESTRICTED_READ, Authorization.EXECUTE_UNRESTRICTED_WRITE )]
+        [ProducesResponse( HttpStatusCode.OK, Type = typeof( CaptchaConfigurationBag ) )]
+        [Rock.SystemGuid.RestActionGuid( "A3DC31DC-F568-417A-8E52-F48151D9F2DB" )]
+        public IActionResult CaptchaGetConfiguration()
+        {
+            var mode = SystemSettings.GetValue( SystemSetting.CAPTCHA_MODE )
+                .ConvertToEnum<CaptchaMode>( CaptchaMode.Visible );
+
+            var bag = new CaptchaConfigurationBag()
+            {
+                CaptchaMode = mode
+            };
+
+            return Ok( bag );
+        }
+
+        /// <summary>
+        /// Initializes a new CAPTCHA.
+        /// </summary>
+        /// <returns>
+        /// An <see cref="IActionResult"/> containing a <see cref="CaptchaInitializeResultBag"/> with the CAPTCHA details.
+        /// </returns>
+        [HttpPost]
+        [Route( "CaptchaInitialize" )]
+        [Authenticate]
+        [ExcludeSecurityActions( Authorization.EXECUTE_READ, Authorization.EXECUTE_WRITE, Authorization.EXECUTE_UNRESTRICTED_READ, Authorization.EXECUTE_UNRESTRICTED_WRITE )]
+        [ProducesResponse( HttpStatusCode.OK, Type = typeof( CaptchaInitializeResultBag ) )]
+        [Rock.SystemGuid.RestActionGuid( "93A2FD36-AEB1-4D95-95C6-668415754238" )]
+        public async Task<IActionResult> CaptchaInitialize()
+        {
+            var result = await RockApp.Current.GetRequiredService<ICaptchaProvider>().InitializeAsync();
+
+            var bag = new CaptchaInitializeResultBag
+            {
+                Pow = result.Pow == null ? null :
+                    new CaptchaInitializeProofOfWorkBag
+                    {
+                        ChallengeToken = result.Pow.ChallengeToken,
+                        ChallengeCount = result.Pow.ChallengeCount,
+                        ChallengeDifficulty = result.Pow.ChallengeDifficulty,
+                        ChallengeSize = result.Pow.ChallengeSize
+                    }
+            };
+
+            return Ok( bag );
+        }
+
+        /// <summary>
+        /// Verifies the CAPTCHA using the provided options and returns the verification result.
+        /// </summary>
+        /// <param name="options">The options containing the CAPTCHA details to be verified.</param>
+        /// <returns>
+        /// An <see cref="IActionResult"/> containing a <see cref="CaptchaVerifyResultBag"/> with the verification
+        /// status, any error messages, expiration time, and a token if verification is successful.
+        /// </returns>
+        [HttpPost]
+        [Route( "CaptchaVerify" )]
         [Authenticate]
         [ExcludeSecurityActions( Security.Authorization.EXECUTE_READ, Security.Authorization.EXECUTE_WRITE, Security.Authorization.EXECUTE_UNRESTRICTED_READ, Security.Authorization.EXECUTE_UNRESTRICTED_WRITE )]
-        [ProducesResponse( HttpStatusCode.OK, Type = typeof( CaptchaControlConfigurationBag ) )]
-        [Rock.SystemGuid.RestActionGuid( "9e066058-13d9-4b4d-8457-07ba8e2cacd3" )]
-        public IActionResult CaptchaControlGetConfiguration()
+        [ProducesResponse( HttpStatusCode.OK, Type = typeof( CaptchaVerifyResultBag ) )]
+        [Rock.SystemGuid.RestActionGuid( "5B81F7C9-461C-4F70-AD04-F2DE203F5763" )]
+        public async Task<IActionResult> CaptchaVerify( [FromBody] CaptchaVerifyOptionsBag options )
         {
-            var bag = new CaptchaControlConfigurationBag()
+            var result = await RockApp.Current.GetRequiredService<ICaptchaProvider>().VerifyAsync( new CaptchaVerifyOptions
             {
-                SiteKey = Rock.Web.SystemSettings.GetValue( Rock.SystemKey.SystemSetting.CAPTCHA_SITE_KEY )
+                PowOptions = options?.PowOptions == null ? null :
+                    new CaptchaVerifyProofOfWorkOptions
+                    {
+                        ChallengeToken = options.PowOptions.ChallengeToken,
+                        ChallengeSolutions = options.PowOptions.ChallengeSolutions
+                    }
+            } );
+
+            var bag = new CaptchaVerifyResultBag
+            {
+                IsVerified = result.IsVerified,
+                Error = result.Error,
+                Expires = result.Expires,
+                Token = result.Token
             };
 
             return Ok( bag );
@@ -2612,18 +2689,16 @@ namespace Rock.Rest.v2
         /// </summary>
         /// <param name="options">The options that contain the information to be validated.</param>
         [HttpPost]
-        [Route( "CaptchaControlValidateToken" )]
+        [Route( "CaptchaValidateToken" )]
         [Authenticate]
         [ExcludeSecurityActions( Security.Authorization.EXECUTE_READ, Security.Authorization.EXECUTE_WRITE, Security.Authorization.EXECUTE_UNRESTRICTED_READ, Security.Authorization.EXECUTE_UNRESTRICTED_WRITE )]
-        [ProducesResponse( HttpStatusCode.OK, Type = typeof( CaptchaControlTokenValidateTokenResultBag ) )]
-        [Rock.SystemGuid.RestActionGuid( "8f373592-d745-4d69-944a-729e15c3f941" )]
-        public IActionResult CaptchaControlValidateToken( [FromBody] CaptchaControlValidateTokenOptionsBag options )
+        [ProducesResponse( HttpStatusCode.OK, Type = typeof( CaptchaValidateTokenResultBag ) )]
+        [Rock.SystemGuid.RestActionGuid( "3D1EF07D-169A-4394-8871-BCB139818EB5" )]
+        public async Task<IActionResult> CaptchaValidateToken( [FromBody] CaptchaValidateTokenOptionsBag options )
         {
-            var api = new CloudflareApi();
+            var isTokenValid = await RockApp.Current.GetRequiredService<ICaptchaProvider>().IsTokenValidAsync( options.Token );
 
-            var isTokenValid = api.IsTurnstileTokenValid( options.Token );
-
-            var result = new CaptchaControlTokenValidateTokenResultBag()
+            var result = new CaptchaValidateTokenResultBag()
             {
                 IsTokenValid = isTokenValid
             };
@@ -6813,73 +6888,144 @@ namespace Rock.Rest.v2
         [Rock.SystemGuid.RestActionGuid( "E57312EC-92A7-464C-AA7E-5320DDFAEF3D" )]
         public IActionResult LocationItemPickerGetActiveChildren( [FromBody] LocationItemPickerGetActiveChildrenOptionsBag options )
         {
-            IQueryable<Location> qry;
-
             using ( var rockContext = new RockContext() )
             {
                 var locationService = new LocationService( rockContext );
                 var grant = SecurityGrant.FromToken( options.SecurityGrantToken );
 
-                if ( options.Guid == Guid.Empty )
-                {
-                    qry = locationService.Queryable().AsNoTracking().Where( a => a.ParentLocationId == null );
-                    if ( options.RootLocationGuid != Guid.Empty )
-                    {
-                        qry = qry.Where( a => a.Guid == options.RootLocationGuid );
-                    }
-                }
-                else
-                {
-                    qry = locationService.Queryable().AsNoTracking().Where( a => a.ParentLocation.Guid == options.Guid );
-                }
-
-                // limit to only active locations.
-                qry = qry.Where( a => a.IsActive );
-
-                // limit to only Named Locations (don't show home addresses, etc)
-                qry = qry.Where( a => a.Name != null && a.Name != string.Empty );
-
-                List<Location> locationList = new List<Location>();
-                List<TreeItemBag> locationNameList = new List<TreeItemBag>();
-
-                var person = GetPerson();
-
-                foreach ( var location in qry.OrderBy( l => l.Name ) )
-                {
-                    if ( location.IsAuthorized( Security.Authorization.VIEW, person ) || grant?.IsAccessGranted( location, Security.Authorization.VIEW ) == true )
-                    {
-                        locationList.Add( location );
-                        var treeViewItem = new TreeItemBag();
-                        treeViewItem.Value = location.Guid.ToString();
-                        treeViewItem.Text = location.Name;
-                        locationNameList.Add( treeViewItem );
-                    }
-                }
-
-                // try to quickly figure out which items have Children
-                List<int> resultIds = locationList.Select( a => a.Id ).ToList();
-
-                var qryHasChildren = locationService.Queryable().AsNoTracking()
-                    .Where( l =>
-                        l.ParentLocationId.HasValue &&
-                        resultIds.Contains( l.ParentLocationId.Value ) &&
-                        l.IsActive
-                    )
-                    .Select( l => l.ParentLocation.Guid )
-                    .Distinct()
-                    .ToList();
-
-                var qryHasChildrenList = qryHasChildren.ToList();
-
-                foreach ( var item in locationNameList )
-                {
-                    var locationGuid = item.Value.AsGuid();
-                    item.IsFolder = qryHasChildrenList.Any( a => a == locationGuid );
-                    item.HasChildren = item.IsFolder;
-                }
+                var locationNameList = LocationItemPickerGetChildrenInternal(
+                    options.Guid,
+                    options.RootLocationGuid,
+                    grant,
+                    locationService,
+                    LocationItemPickerGetAutoExpandGuids( options.ExpandToValues ),
+                    0 );
 
                 return Ok( locationNameList );
             }
+        }
+
+        /// <summary>
+        /// Gets the items that should be automatically expanded based on the
+        /// selected values.
+        /// </summary>
+        /// <param name="selectedValues">The currently selected values in the picker.</param>
+        /// <returns>A list of unique identifiers for the items that should be eager loaded.</returns>
+        private List<Guid> LocationItemPickerGetAutoExpandGuids( List<string> selectedValues )
+        {
+            var autoExpandGuids = new List<Guid>();
+
+            if ( selectedValues == null )
+            {
+                return autoExpandGuids;
+            }
+
+            var autoExpandLocations = selectedValues
+                .Select( v => NamedLocationCache.Get( v.AsGuid() ) )
+                .Where( v => v != null );
+
+            foreach ( var selectedLocation in autoExpandLocations )
+            {
+                int depth = 0;
+
+                for ( var location = selectedLocation.ParentLocation; location != null; location = location.ParentLocation )
+                {
+                    autoExpandGuids.Add( location.Guid );
+
+                    if ( depth++ > 50 )
+                    {
+                        break;
+                    }
+                }
+            }
+
+            return autoExpandGuids;
+        }
+
+        /// <summary>
+        /// Loads the child locations recursively.
+        /// </summary>
+        /// <param name="parentLocationGuid">The unique identifier of the parent location.</param>
+        /// <param name="rootLocationGuid">The unique identifier of the root location if no parent location was specified.</param>
+        /// <param name="grant">The security grant to use for additional authorization checks.</param>
+        /// <param name="locationService">The service to use when accessing the database.</param>
+        /// <param name="autoExpandGuids">The unique identifiers of the items to automatically expand.</param>
+        /// <param name="depth">The current depth for recursion safety.</param>
+        /// <returns>A list of tree items.</returns>
+        private List<TreeItemBag> LocationItemPickerGetChildrenInternal( Guid parentLocationGuid, Guid rootLocationGuid, SecurityGrant grant, LocationService locationService, List<Guid> autoExpandGuids, int depth )
+        {
+            if ( depth > 50 )
+            {
+                // Null will cause a lazy load to be attempted later.
+                return null;
+            }
+
+            IQueryable<Location> qry;
+
+            if ( parentLocationGuid == Guid.Empty )
+            {
+                qry = locationService.Queryable().AsNoTracking().Where( a => a.ParentLocationId == null );
+                if ( rootLocationGuid != Guid.Empty )
+                {
+                    qry = qry.Where( a => a.Guid == rootLocationGuid );
+                }
+            }
+            else
+            {
+                qry = locationService.Queryable().AsNoTracking().Where( a => a.ParentLocation.Guid == parentLocationGuid );
+            }
+
+            // limit to only active locations.
+            qry = qry.Where( a => a.IsActive );
+
+            // limit to only Named Locations (don't show home addresses, etc)
+            qry = qry.Where( a => a.Name != null && a.Name != string.Empty );
+
+            List<Location> locationList = new List<Location>();
+            List<TreeItemBag> locationNameList = new List<TreeItemBag>();
+
+            var person = GetPerson();
+
+            foreach ( var location in qry.OrderBy( l => l.Name ) )
+            {
+                if ( location.IsAuthorized( Security.Authorization.VIEW, person ) || grant?.IsAccessGranted( location, Security.Authorization.VIEW ) == true )
+                {
+                    locationList.Add( location );
+                    var treeViewItem = new TreeItemBag();
+                    treeViewItem.Value = location.Guid.ToString();
+                    treeViewItem.Text = location.Name;
+                    locationNameList.Add( treeViewItem );
+
+                    if ( autoExpandGuids.Contains( location.Guid ) )
+                    {
+                        treeViewItem.Children = LocationItemPickerGetChildrenInternal( location.Guid, Guid.Empty, grant, locationService, autoExpandGuids, depth + 1 );
+                    }
+                }
+            }
+
+            // try to quickly figure out which items have Children
+            List<int> resultIds = locationList.Select( a => a.Id ).ToList();
+
+            var qryHasChildren = locationService.Queryable().AsNoTracking()
+                .Where( l =>
+                    l.ParentLocationId.HasValue &&
+                    resultIds.Contains( l.ParentLocationId.Value ) &&
+                    l.IsActive
+                )
+                .Select( l => l.ParentLocation.Guid )
+                .Distinct()
+                .ToList();
+
+            var qryHasChildrenList = qryHasChildren.ToList();
+
+            foreach ( var item in locationNameList )
+            {
+                var locationGuid = item.Value.AsGuid();
+                item.IsFolder = qryHasChildrenList.Any( a => a == locationGuid );
+                item.HasChildren = item.IsFolder;
+            }
+
+            return locationNameList;
         }
 
         #endregion
@@ -8828,7 +8974,7 @@ namespace Rock.Rest.v2
             {
                 var definedValues = definedType.DefinedValues;
 
-                foreach ( var countryCode in definedValues.OrderBy( v => v.Order ).Select( v => v.Value ).Distinct() )
+                foreach ( var countryCode in definedValues.Where( v => v.IsActive ).OrderBy( v => v.Order ).Select( v => v.Value ).Distinct() )
                 {
                     var rules = new List<PhoneNumberCountryCodeRulesConfigurationBag>();
 

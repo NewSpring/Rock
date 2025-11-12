@@ -94,7 +94,7 @@
                                     <Rock:RockCheckBox ID="cbPreventInactivePeople" runat="server" Label="Prevent Inactive People"
                                         Help="Should people who are inactive be excluded from being able to check-in?" />
                                     <Rock:RockCheckBox ID="cbPreventDuplicateCheckin" runat="server" Label="Prevent Duplicate Check-in"
-                                        Help="Should people be prevented from checking into a specifice service time (schedule) more than once?" />
+                                        Help="Should people be prevented from checking into a specific service time (schedule) more than once?" />
 
                                     <Rock:RockCheckBox ID="cbEnableProximityCheckIn" runat="server" Label="Enable Proximity Check-in"
                                         Help="Makes this check-in configuration and all areas and groups available for proximity check-in with a native Rock Mobile application."
@@ -198,6 +198,7 @@
                             <div class="row">
                                 <div class="col-md-6">
                                     <Rock:DefinedValuePicker ID="dvpRegistrationDefaultPersonConnectionStatus" runat="server" Label="Default Person Connection Status" />
+                                    <Rock:DefinedValuePicker ID="dvpRegistrationDefaultPersonRecordSource" runat="server" Label="Default Person Record Source" Help="The record source to use when creating a new person (default = 'Check-in'). If a 'RecordSource' page parameter is found, it will be used instead." />
                                     <Rock:RockCheckBox ID="cbRegistrationDisplayAlternateIdFieldForAdults" runat="server" Label="Display Alternate ID Field for Adults" />
                                     <Rock:RockCheckBox ID="cbRegistrationDisplayAlternateIdFieldForChildren" runat="server" Label="Display Alternate ID Field for Children" />
                                     <Rock:RockCheckBox ID="cbRegistrationDisplaySmsEnabled" runat="server" Label="Display SMS Enabled Selection for Phone Number" />

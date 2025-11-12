@@ -1483,18 +1483,22 @@ Obsidian.init({{ debug: true, fingerprint: ""v={fingerprint}"" }});
                     }
 
                     var colorModeScript = @"
-(function initializeColorMode() {
-    let attributeName = ""theme""
-    var htmlElement = document.documentElement;
+        (function () {
+            var attr = 'theme';
+            var states = ['light', 'dark', 'system'];
+            var html = document.documentElement;
 
-    if ( localStorage.getItem(attributeName) != null ) {
-        const value = localStorage.getItem(attributeName);
-        htmlElement.setAttribute(attributeName, value);
-    }
-})();
+            // init state
+            var saved = localStorage.getItem(attr);
+            var currentIndex = Math.max(0, states.indexOf(saved));
+            if ( saved == null ) {
+                currentIndex = 2; // default to system
+            }
+
+            html.setAttribute( ""theme"", states[currentIndex] );
+        })();
 ";
-                    ClientScript.RegisterStartupScript( this.Page.GetType(), "color-mode-init", colorModeScript, true );
-
+                    AddScriptToHead( this.Page, colorModeScript, true );
 
                     /*
                      * 2020-06-17 - JH

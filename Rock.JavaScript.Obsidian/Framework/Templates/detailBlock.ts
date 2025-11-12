@@ -276,7 +276,8 @@ export default defineComponent({
     },
 
     emits: {
-        "update:mode": (_value: DetailPanelMode) => true
+        "update:mode": (_value: DetailPanelMode) => true,
+        "update:isFullscreen": (_value: boolean) => true
     },
 
     setup(props, { emit }) {
@@ -795,7 +796,7 @@ export default defineComponent({
             // If the edit mode state changed then we need to either hide or
             // show the secondary blocks. This is rare but can happen if the
             // parent component decides to manually change the mode.
-            if (wasEditMode != newEditMode) {
+            if (wasEditMode !== newEditMode) {
                 if (newEditMode) {
                     hideBlockRole(BlockRole.Secondary);
                 }
@@ -874,7 +875,8 @@ export default defineComponent({
     :titleIconCssClass="panelTitleIconCssClass"
     :hasFullscreen="isFullScreenVisible"
     :worksurfaceMode="worksurfaceMode"
-    :headerSecondaryActions="internalHeaderSecondaryActions">
+    :headerSecondaryActions="internalHeaderSecondaryActions"
+    @update:isFullscreen="$emit('update:isFullscreen', $event)">
 
     <template v-if="$slots.sidebar" #sidebar>
         <slot name="sidebar" />

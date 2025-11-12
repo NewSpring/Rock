@@ -3290,21 +3290,6 @@ ORDER BY ct.[Name], cs.[Name]",
                     {
                         var newOpportunity = new ConnectionOpportunityService( rockContext ).Get( newOpportunityId.Value );
 
-                        // Check if a connection request in the target opportunity already exists for the same person
-                        var existingRequest = connectionRequestService.Queryable().AsNoTracking()
-                            .Where( r => r.PersonAliasId == connectionRequest.PersonAliasId &&
-                                        r.ConnectionOpportunityId == newOpportunityId.Value &&
-                                        r.Id != connectionRequest.Id &&
-                                        ( r.ConnectionState == ConnectionState.Active || r.ConnectionState == ConnectionState.FutureFollowUp ) )
-                            .FirstOrDefault();
-
-                        if ( existingRequest != null )
-                        {
-                            nbTranferFailed.Text = "This person already has an active connection request for the selected opportunity. Transfer cannot be completed.";
-                            nbTranferFailed.Visible = true;
-                            return;
-                        }
-
                         connectionRequest.ConnectionOpportunityId = newOpportunityId.Value;
                         connectionRequest.ConnectionTypeId = newOpportunity.ConnectionTypeId;
                         if ( newOpportunity.ShowStatusOnTransfer && ddlRequestModalViewModeTransferModeStatus.Visible )
@@ -3947,6 +3932,11 @@ ORDER BY ct.[Name], cs.[Name]",
         /// <param name="e"></param>
         protected void lbApplyFilter_Click( object sender, EventArgs e )
         {
+            if ( !Page.IsValid )
+            {
+                return;
+            }
+
             SaveSettingByConnectionType( FilterKey.DateRange, sdrpLastActivityDateRangeFilter.DelimitedValues );
             SaveSettingByConnectionType( FilterKey.Requester, ppRequesterFilter.PersonId.ToStringSafe() );
             SaveSettingByConnectionType( FilterKey.Statuses, cblStatusFilter.SelectedValues.AsDelimited( DefaultDelimiter ) );
@@ -4012,6 +4002,8 @@ ORDER BY ct.[Name], cs.[Name]",
                 Text = cs.ToString().SplitCase()
             } );
             cblStateFilter.DataBind();
+
+            cblStateFilter.Required = true;
 
             cblLastActivityFilter.DataSource = GetConnectionActivityTypes().Select( cat => new
             {
