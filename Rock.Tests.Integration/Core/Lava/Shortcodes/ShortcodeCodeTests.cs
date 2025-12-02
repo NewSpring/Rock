@@ -21,7 +21,6 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 using Rock.Lava;
 using Rock.Lava.Fluid;
-using Rock.Tests.Shared;
 using Rock.Tests.Shared.Lava;
 
 namespace Rock.Tests.Integration.Core.Lava.Shortcodes
@@ -213,7 +212,7 @@ Main Output: The Lava command 'execute' is not configured for this template.<br>
         /// <summary>
         /// Using the BootstrapAlert shortcode produces the expected output.
         /// </summary>
-        [DataTestMethod]
+        [TestMethod]
         [DataRow( "{[ bootstrapalert ]}This is an information message.{[ endbootstrapalert ]}", "<div class='alert alert-info'>This is an information message.</div>" )]
         [DataRow( "{[ bootstrapalert type:'success' ]}This is a success message.{[ endbootstrapalert ]}", "<div class='alert alert-success'>This is a success message.</div>" )]
         public void BootstrapAlertShortcode_VariousTypes_ProducesCorrectHtml( string input, string expectedResult )
@@ -255,7 +254,7 @@ Main Output: The Lava command 'execute' is not configured for this template.<br>
         /// <summary>
         /// Using the Scripturize shortcode produces the expected output.
         /// </summary>
-        [DataTestMethod]
+        [TestMethod]
         [DataRow( "John 3:16", "<a href=\"https://www.bible.com/bible/116/JHN.3.16.NLT\"  class=\"scripture\" title=\"YouVersion\">John 3:16</a>" )]
         [DataRow( "Jn 3:16", "<a href=\"https://www.bible.com/bible/116/JHN.3.16.NLT\"  class=\"scripture\" title=\"YouVersion\">Jn 3:16</a>" )]
         [DataRow( "John 3", "<a href=\"https://www.bible.com/bible/116/JHN.3..NLT\"  class=\"scripture\" title=\"YouVersion\">John 3</a>" )]
@@ -295,14 +294,14 @@ Main Output: The Lava command 'execute' is not configured for this template.<br>
 
                 // Verify that the result emits the expected parse error.
                 var error = result.Error;
-                if ( !(error is LavaException ) )
+                if ( !( error is LavaException ) )
                 {
                     throw new Exception( "Lava Exception expected but not encountered." );
                 }
 
                 if ( engine.GetType() == typeof( FluidEngine ) )
                 {
-                    Assert.That.IsTrue( error.Message.Contains( "Unknown shortcode 'testshortcode1'" ), "Unexpected Lava error message." );
+                    Assert.Contains( "Unknown shortcode 'testshortcode1'", error.Message, "Unexpected Lava error message." );
                 }
             } );
 
@@ -453,7 +452,7 @@ Main Output: The Lava command 'execute' is not configured for this template.<br>
         /// Verify that a shortcode embedded in an [[ item ]] tag is rendered correctly.
         /// </summary>
         [TestMethod]
-        [Ignore("This test documents a potential bug. The nested [[ item ]] tag is not resolved correctly.")]
+        [Ignore( "This test documents a potential bug. The nested [[ item ]] tag is not resolved correctly." )]
         public void ShortcodeParsing_ShortcodeEmbeddedInItemElement_IsParsedCorrectly()
         {
             var input = @"

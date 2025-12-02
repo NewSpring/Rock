@@ -51,7 +51,6 @@
 
             <CodeEditor v-model="markup"
                         label="Short Code Markup"
-                        theme="rock"
                         mode="text"
                         readonly
                         :editorHeight="350"
@@ -95,7 +94,6 @@
 
             <CodeEditor v-model="markup"
                         label="Short Code Markup"
-                        theme="rock"
                         mode="text"
                         :editorHeight="850"
                         :disabled="isSystem"

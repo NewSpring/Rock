@@ -24,6 +24,9 @@ ALTER PROCEDURE [dbo].[spCommunication_SynchronizeListRecipients]
 AS
 BEGIN
 
+    -- If any runtime error occurs inside this transaction, automatically abort the transaction.
+    SET XACT_ABORT ON;
+
     -- Get data from the specified communication record needed to operate below.
     DECLARE @SendDateTime DATETIME
         , @FutureSendDateTime DATETIME
@@ -54,266 +57,291 @@ BEGIN
     IF @SendDateTime IS NOT NULL OR @ListGroupId IS NULL OR @HasLegacySegments = 1
         RETURN;
 
-    -- Declare constants (Enum values, Etc.).
-    DECLARE @PersonalizationTypeSegment INT = 0
-        , @SegmentCriteriaAll INT = 0
-        , @SegmentCriteriaAny INT = 1
+    -- Ensure only a single process can synchronize a given communication's recipients at once.
+    DECLARE @LockResult INT
+        , @LockResource NVARCHAR(100) = CONCAT('spCommunication_SynchronizeListRecipients_', @CommunicationId);
 
-        , @GroupMemberStatusActive INT = 1
+    BEGIN TRY
+        BEGIN TRAN;
 
-        , @RecipientStatusPending INT = 0
+        EXEC @LockResult = sp_getapplock
+            @Resource = @LockResource
+            , @LockMode = 'Exclusive'
+            , @LockOwner = 'Transaction'
+            , @LockTimeout = 90000;
 
-        , @CommunicationTypeRecipientPreference INT = 0
-        , @CommunicationTypeEmail INT = 1
-        , @CommunicationTypeSms INT = 2
-        , @CommunicationTypePush INT = 3
+        IF @LockResult < 0
+            RAISERROR('Unable to acquire application lock for communication with ID %d.', 16, 1, @CommunicationId);
 
-        , @NoCommunicationPreference INT = 0
+        -- Declare constants (Enum values, Etc.).
+        DECLARE @PersonalizationTypeSegment INT = 0
+            , @SegmentCriteriaAll INT = 0
+            , @SegmentCriteriaAny INT = 1
 
-        , @EmailMediumEntityTypeId INT = (SELECT TOP 1 [Id] FROM [EntityType] WHERE [Guid] = '5A653EBE-6803-44B4-85D2-FB7B8146D55D')
-        , @SmsMediumEntityTypeId INT = (SELECT TOP 1 [Id] FROM [EntityType] WHERE [Guid] = '4BC02764-512A-4A10-ACDE-586F71D8A8BD')
-        , @PushMediumEntityTypeId INT = (SELECT TOP 1 [Id] FROM [EntityType] WHERE [Guid] = '3638C6DF-4FF3-4A52-B4B8-AFB754991597');
+            , @GroupMemberStatusActive INT = 1
 
-    DECLARE @MediumEntityTypeByCommunicationTypes TABLE
-    (
-        [CommunicationType] INT NOT NULL
-        , [MediumEntityTypeId]INT NULL
-    );
+            , @RecipientStatusPending INT = 0
 
-    INSERT INTO @MediumEntityTypeByCommunicationTypes VALUES
-        (@CommunicationTypeRecipientPreference, NULL)
-        , (@CommunicationTypeEmail, @EmailMediumEntityTypeId)
-        , (@CommunicationTypeSms, @SmsMediumEntityTypeId)
-        , (@CommunicationTypePush, @PushMediumEntityTypeId);
+            , @CommunicationTypeRecipientPreference INT = 0
+            , @CommunicationTypeEmail INT = 1
+            , @CommunicationTypeSms INT = 2
+            , @CommunicationTypePush INT = 3
 
-    DECLARE @CommunicationMediumEntityTypeId INT = (
-        SELECT TOP 1 [MediumEntityTypeId]
-        FROM @MediumEntityTypeByCommunicationTypes
-        WHERE [CommunicationType] = @CommunicationType
-    );
+            , @NoCommunicationPreference INT = 0
 
-    IF @CommunicationMediumEntityTypeId IS NULL
-    BEGIN
-        -- Default to email in case a recipient doesn't have a preference.
-        SET @CommunicationMediumEntityTypeId = @EmailMediumEntityTypeId;
-    END
+            , @EmailMediumEntityTypeId INT = (SELECT TOP 1 [Id] FROM [EntityType] WHERE [Guid] = '5A653EBE-6803-44B4-85D2-FB7B8146D55D')
+            , @SmsMediumEntityTypeId INT = (SELECT TOP 1 [Id] FROM [EntityType] WHERE [Guid] = '4BC02764-512A-4A10-ACDE-586F71D8A8BD')
+            , @PushMediumEntityTypeId INT = (SELECT TOP 1 [Id] FROM [EntityType] WHERE [Guid] = '3638C6DF-4FF3-4A52-B4B8-AFB754991597');
 
-    -- Split the communication's personalization segment IDs into a table variable for easy reference.
-    DECLARE @PersonalizationSegments TABLE
-    (
-        [PersonalizationSegmentId] INT NOT NULL
-    );
+        DECLARE @MediumEntityTypeByCommunicationTypes TABLE
+        (
+            [CommunicationType] INT NOT NULL
+            , [MediumEntityTypeId]INT NULL
+        );
 
-    INSERT INTO @PersonalizationSegments
-    SELECT TRY_CONVERT(int, value)
-    FROM STRING_SPLIT(@PersonalizationSegmentString, ',')
-    WHERE TRY_CONVERT(int, value) IS NOT NULL;
+        INSERT INTO @MediumEntityTypeByCommunicationTypes VALUES
+            (@CommunicationTypeRecipientPreference, NULL)
+            , (@CommunicationTypeEmail, @EmailMediumEntityTypeId)
+            , (@CommunicationTypeSms, @SmsMediumEntityTypeId)
+            , (@CommunicationTypePush, @PushMediumEntityTypeId);
 
-    DECLARE @PersonalizationSegmentCount INT = (
-        SELECT COUNT(*)
-        FROM @PersonalizationSegments
-        WHERE [PersonalizationSegmentId] > 0
-    );
+        DECLARE @CommunicationMediumEntityTypeId INT = (
+            SELECT TOP 1 [MediumEntityTypeId]
+            FROM @MediumEntityTypeByCommunicationTypes
+            WHERE [CommunicationType] = @CommunicationType
+        );
 
-    -- Create a map from person IDs to personalization segments for this communication.
-    IF OBJECT_ID('tempdb..#PersonSegmentList') IS NOT NULL
-    BEGIN
-        DROP TABLE #PersonSegmentList;
-    END
+        IF @CommunicationMediumEntityTypeId IS NULL
+        BEGIN
+            -- Default to email in case a recipient doesn't have a preference.
+            SET @CommunicationMediumEntityTypeId = @EmailMediumEntityTypeId;
+        END
 
-    SELECT psl.[PersonId]
-        , psl.[PersonalizationEntityId]
-    INTO #PersonSegmentList
-    FROM (
-        SELECT DISTINCT pa.[PersonId]
-            , pap.[PersonalizationEntityId]
-        FROM [PersonAliasPersonalization] pap
-        INNER JOIN [PersonAlias] pa
-            ON pa.[Id] = pap.[PersonAliasId]
-        WHERE pap.[PersonalizationType] = @PersonalizationTypeSegment
-            AND pap.[PersonalizationEntityId] IN (
-                SELECT [PersonalizationSegmentId]
-                FROM @PersonalizationSegments
-            )
-    ) psl;
+        -- Split the communication's personalization segment IDs into a table variable for easy reference.
+        DECLARE @PersonalizationSegments TABLE
+        (
+            [PersonalizationSegmentId] INT NOT NULL
+        );
 
-    CREATE CLUSTERED INDEX CX_PersonSegmentList
-        ON #PersonSegmentList([PersonId]);
+        INSERT INTO @PersonalizationSegments
+        SELECT TRY_CONVERT(int, value)
+        FROM STRING_SPLIT(@PersonalizationSegmentString, ',')
+        WHERE TRY_CONVERT(int, value) IS NOT NULL;
 
-    -- Select person + primary alias ID along with communication preference for current, active list group members.
-    IF OBJECT_ID('tempdb..#ListMembers') IS NOT NULL
-    BEGIN
-        DROP TABLE #ListMembers;
-    END
+        DECLARE @PersonalizationSegmentCount INT = (
+            SELECT COUNT(*)
+            FROM @PersonalizationSegments
+            WHERE [PersonalizationSegmentId] > 0
+        );
 
-    SELECT lm.[PersonId]
-        , lm.[PrimaryAliasId]
-        , lm.[MediumEntityTypeId]
-    INTO #ListMembers
-    FROM (
-        SELECT p.[Id] AS [PersonId]
-            , p.[PrimaryAliasId]
-            , met.[MediumEntityTypeId]
-        FROM [GroupMember] gm
-        INNER JOIN [Person] p
-            ON p.[Id] = gm.[PersonId]
-        LEFT OUTER JOIN @MediumEntityTypeByCommunicationTypes met
-            ON met.[CommunicationType] =
-                CASE
-                    WHEN gm.[CommunicationPreference] = @NoCommunicationPreference THEN p.[CommunicationPreference]
-                    ELSE gm.[CommunicationPreference]
-                END
-        WHERE gm.[GroupId] = @ListGroupId
-            AND gm.[GroupMemberStatus] = @GroupMemberStatusActive
-            AND (
-                @FutureSendDateTime IS NULL
-                -- If this is a scheduled communication, don't include Members
-                -- that were added after the scheduled FutureSendDateTime.
-                OR COALESCE(gm.[DateTimeAdded], gm.[CreatedDateTime]) < @FutureSendDateTime
-                OR (
-                    gm.[DateTimeAdded] IS NULL
-                    AND gm.[CreatedDateTime] IS NULL
+        -- Create a map from person IDs to personalization segments for this communication.
+        IF OBJECT_ID('tempdb..#PersonSegmentList') IS NOT NULL
+        BEGIN
+            DROP TABLE #PersonSegmentList;
+        END
+
+        SELECT psl.[PersonId]
+            , psl.[PersonalizationEntityId]
+        INTO #PersonSegmentList
+        FROM (
+            SELECT DISTINCT pa.[PersonId]
+                , pap.[PersonalizationEntityId]
+            FROM [PersonAliasPersonalization] pap
+            INNER JOIN [PersonAlias] pa
+                ON pa.[Id] = pap.[PersonAliasId]
+            WHERE pap.[PersonalizationType] = @PersonalizationTypeSegment
+                AND pap.[PersonalizationEntityId] IN (
+                    SELECT [PersonalizationSegmentId]
+                    FROM @PersonalizationSegments
                 )
-            )
-            AND p.[PrimaryAliasId] IS NOT NULL
-            AND (
-                -- Either the communication isn't tied to any personalization segments.
-                @PersonalizationSegmentCount = 0
-                -- OR.. filter down to only those list members who are in the specified
-                -- personalization segments.
-                OR (
-                    -- They must belong to at least one of the specified segments.
-                    @SegmentCriteria = @SegmentCriteriaAny
-                    AND EXISTS (
-                        SELECT 1
-                        FROM #PersonSegmentList
-                        WHERE [PersonId] = gm.[PersonId]
+        ) psl;
+
+        CREATE CLUSTERED INDEX CX_PersonSegmentList
+            ON #PersonSegmentList([PersonId]);
+
+        -- Select person + primary alias ID along with communication preference for current, active list group members.
+        IF OBJECT_ID('tempdb..#ListMembers') IS NOT NULL
+        BEGIN
+            DROP TABLE #ListMembers;
+        END
+
+        SELECT lm.[PersonId]
+            , lm.[PrimaryAliasId]
+            , lm.[MediumEntityTypeId]
+        INTO #ListMembers
+        FROM (
+            SELECT p.[Id] AS [PersonId]
+                , p.[PrimaryAliasId]
+                , met.[MediumEntityTypeId]
+            FROM [GroupMember] gm
+            INNER JOIN [Person] p
+                ON p.[Id] = gm.[PersonId]
+            LEFT OUTER JOIN @MediumEntityTypeByCommunicationTypes met
+                ON met.[CommunicationType] =
+                    CASE
+                        WHEN gm.[CommunicationPreference] = @NoCommunicationPreference THEN p.[CommunicationPreference]
+                        ELSE gm.[CommunicationPreference]
+                    END
+            WHERE gm.[GroupId] = @ListGroupId
+                AND gm.[GroupMemberStatus] = @GroupMemberStatusActive
+                AND (
+                    @FutureSendDateTime IS NULL
+                    -- If this is a scheduled communication, don't include Members
+                    -- that were added after the scheduled FutureSendDateTime.
+                    OR COALESCE(gm.[DateTimeAdded], gm.[CreatedDateTime]) < @FutureSendDateTime
+                    OR (
+                        gm.[DateTimeAdded] IS NULL
+                        AND gm.[CreatedDateTime] IS NULL
                     )
                 )
-                OR (
-                    -- They must belong to ALL of the specified segments.
-                    @SegmentCriteria = @SegmentCriteriaAll
-                    AND (
-                        SELECT COUNT(*)
-                        FROM #PersonSegmentList
-                        WHERE [PersonId] = gm.[PersonId]
-                    ) = @PersonalizationSegmentCount
+                AND p.[PrimaryAliasId] IS NOT NULL
+                AND (
+                    -- Either the communication isn't tied to any personalization segments.
+       @PersonalizationSegmentCount = 0
+                    -- OR.. filter down to only those list members who are in the specified
+                    -- personalization segments.
+                    OR (
+                        -- They must belong to at least one of the specified segments.
+                        @SegmentCriteria = @SegmentCriteriaAny
+                        AND EXISTS (
+                            SELECT 1
+                            FROM #PersonSegmentList
+                            WHERE [PersonId] = gm.[PersonId]
+                        )
+                    )
+                    OR (
+                        -- They must belong to ALL of the specified segments.
+                        @SegmentCriteria = @SegmentCriteriaAll
+                        AND (
+                            SELECT COUNT(*)
+                            FROM #PersonSegmentList
+                            WHERE [PersonId] = gm.[PersonId]
+                        ) = @PersonalizationSegmentCount
+                    )
                 )
+        ) lm;
+
+        CREATE CLUSTERED INDEX CX_ListMembers
+            ON #ListMembers([PersonId]);
+
+        CREATE NONCLUSTERED INDEX IX_ListMembers_PrimaryAliasId
+            ON #ListMembers([PrimaryAliasId])
+            INCLUDE ([MediumEntityTypeId]);
+
+        -- Create a map from person IDs to person alias IDs to minimize the risk of excessive table locking during the upsert.
+        IF OBJECT_ID('tempdb..#PersonIdMappings') IS NOT NULL
+        BEGIN
+            DROP TABLE #PersonIdMappings;
+        END
+
+        SELECT pa.[PersonId]
+            , pa.[Id] AS [PersonAliasId]
+        INTO #PersonIdMappings
+        FROM [PersonAlias] pa
+        INNER JOIN #ListMembers lm
+            ON lm.[PersonId] = pa.[PersonId];
+
+        CREATE CLUSTERED INDEX CX_PersonIdMappings
+            ON #PersonIdMappings([PersonId]);
+
+        CREATE NONCLUSTERED INDEX IX_PersonIdMappings_PersonAliasId
+            ON #PersonIdMappings([PersonAliasId]);
+
+        -- Upsert current, active list members to [CommunicationRecipient] records.
+        MERGE [CommunicationRecipient] AS t
+        USING #ListMembers AS s
+            ON t.[CommunicationId] = @CommunicationId
+                AND EXISTS (
+                    SELECT 1
+                    FROM #PersonIdMappings pm
+                    WHERE pm.[PersonId] = s.[PersonId]
+                        AND pm.[PersonAliasId] = t.[PersonAliasId]
+                )
+        WHEN MATCHED AND t.[Status] = @RecipientStatusPending THEN
+            -- Update each pending recipient to reflect their current list member or person communication
+            -- preference IF the commmunication type is recipient preference; otherwise, ensure the selected
+            -- medium type matches that of the communication.
+            UPDATE SET t.[MediumEntityTypeId] = CASE
+                    WHEN @CommunicationType = @CommunicationTypeRecipientPreference
+                        AND s.[MediumEntityTypeId] IS NOT NULL
+                        THEN s.[MediumEntityTypeId]
+                    ELSE @CommunicationMediumEntityTypeId
+                    END
+                , [ModifiedDateTime] = GETDATE()
+        WHEN NOT MATCHED BY TARGET THEN
+            -- Add new [CommunicationRecipient] records for list members not yet reflected in this table.
+            INSERT
+            (
+                [CommunicationId]
+                , [Status]
+                , [Guid]
+                , [CreatedDateTime]
+                , [ModifiedDateTime]
+                , [PersonAliasId]
+                , [MediumEntityTypeId]
             )
-    ) lm;
+            VALUES
+            (
+                @CommunicationId
+                , @RecipientStatusPending
+                , NEWID()
+                , GETDATE()
+                , GETDATE()
+                , s.[PrimaryAliasId]
+                , CASE
+                    WHEN @CommunicationType = @CommunicationTypeRecipientPreference
+                        AND s.[MediumEntityTypeId] IS NOT NULL
+                        THEN s.[MediumEntityTypeId]
+                    ELSE @CommunicationMediumEntityTypeId
+                    END
+            )
+        OPTION (RECOMPILE);
 
-    CREATE CLUSTERED INDEX CX_ListMembers
-        ON #ListMembers([PersonId]);
+        -- Batch delete pending [CommunicationRecipient] records that do not have a corresponding list member record.
+        WHILE 1 = 1
+        BEGIN
+            WITH [DeleteRecipients] AS (
+                SELECT TOP 1500 cr.[Id]
+                FROM [CommunicationRecipient] cr WITH (READPAST)
+                WHERE cr.[CommunicationId] = @CommunicationId
+                    AND cr.[Status] = @RecipientStatusPending
+                    AND NOT EXISTS (
+                        SELECT 1
+                        FROM #ListMembers lm
+                        WHERE lm.[PrimaryAliasId] = cr.[PersonAliasId]
+                    )
+                ORDER BY cr.[Id]
+            )
+            DELETE cr
+            FROM [CommunicationRecipient] cr WITH (ROWLOCK, READPAST)
+            INNER JOIN [DeleteRecipients] dr
+                ON dr.[Id] = cr.[Id];
 
-    CREATE NONCLUSTERED INDEX IX_ListMembers_PrimaryAliasId
-        ON #ListMembers([PrimaryAliasId])
-    INCLUDE ([MediumEntityTypeId]);
+            IF @@ROWCOUNT > 0 CONTINUE;
 
-    -- Create a map from person IDs to person alias IDs to minimize the risk of excessive table locking during the upsert.
-    IF OBJECT_ID('tempdb..#PersonIdMappings') IS NOT NULL
-    BEGIN
-        DROP TABLE #PersonIdMappings;
-    END
-
-    SELECT pa.[PersonId]
-        , pa.[Id] AS [PersonAliasId]
-    INTO #PersonIdMappings
-    FROM [PersonAlias] pa
-    INNER JOIN #ListMembers lm
-        ON lm.[PersonId] = pa.[PersonId];
-
-    CREATE CLUSTERED INDEX CX_PersonIdMappings
-        ON #PersonIdMappings([PersonId]);
-
-    CREATE NONCLUSTERED INDEX IX_PersonIdMappings_PersonAliasId
-        ON #PersonIdMappings([PersonAliasId]);
-
-    -- Upsert current, active list members to [CommunicationRecipient] records.
-    MERGE [CommunicationRecipient] WITH (UPDLOCK, HOLDLOCK) AS t
-    USING #ListMembers AS s
-        ON t.[CommunicationId] = @CommunicationId
-            AND EXISTS (
+            -- Break only if there are truly no more recipients to delete.
+            IF NOT EXISTS (
                 SELECT 1
-                FROM #PersonIdMappings pm
-                WHERE pm.[PersonId] = s.[PersonId]
-                    AND pm.[PersonAliasId] = t.[PersonAliasId]
-            )
-    WHEN MATCHED AND t.[Status] = @RecipientStatusPending THEN
-        -- Update each pending recipient to reflect their current list member or person communication
-        -- preference IF the commmunication type is recipient preference; otherwise, ensure the selected
-        -- medium type matches that of the communication.
-        UPDATE SET t.[MediumEntityTypeId] = CASE
-                WHEN @CommunicationType = @CommunicationTypeRecipientPreference
-                    AND s.[MediumEntityTypeId] IS NOT NULL
-                    THEN s.[MediumEntityTypeId]
-                ELSE @CommunicationMediumEntityTypeId
-              END
-            , [ModifiedDateTime] = GETDATE()
-    WHEN NOT MATCHED BY TARGET THEN
-        -- Add new [CommunicationRecipient] records for list members not yet reflected in this table.
-        INSERT
-        (
-            [CommunicationId]
-            , [Status]
-            , [Guid]
-            , [CreatedDateTime]
-            , [ModifiedDateTime]
-            , [PersonAliasId]
-            , [MediumEntityTypeId]
-        )
-        VALUES
-        (
-            @CommunicationId
-            , @RecipientStatusPending
-            , NEWID()
-            , GETDATE()
-            , GETDATE()
-            , s.[PrimaryAliasId]
-            , CASE
-                WHEN @CommunicationType = @CommunicationTypeRecipientPreference
-                    AND s.[MediumEntityTypeId] IS NOT NULL
-                    THEN s.[MediumEntityTypeId]
-                ELSE @CommunicationMediumEntityTypeId
-              END
-        )
-    OPTION (RECOMPILE);
+                FROM [CommunicationRecipient] cr
+                WHERE cr.[CommunicationId] = @CommunicationId
+                    AND cr.[Status] = @RecipientStatusPending
+                    AND NOT EXISTS (
+                        SELECT 1
+                        FROM #ListMembers lm
+                        WHERE lm.[PrimaryAliasId] = cr.[PersonAliasId]
+                    )
+            ) BREAK;
 
-    -- Batch delete pending [CommunicationRecipient] records that do not have a corresponding list member record.
-    WHILE 1 = 1
-    BEGIN
-        WITH [DeleteRecipients] AS (
-            SELECT TOP 1500 cr.[Id]
-            FROM [CommunicationRecipient] cr WITH (READPAST)
-            WHERE cr.[CommunicationId] = @CommunicationId
-                AND cr.[Status] = @RecipientStatusPending
-                AND NOT EXISTS (
-                    SELECT 1
-                    FROM #ListMembers lm
-                    WHERE lm.[PrimaryAliasId] = cr.[PersonAliasId]
-                )
-            ORDER BY cr.[Id]
-        )
-        DELETE cr
-        FROM [CommunicationRecipient] cr WITH (ROWLOCK, READPAST)
-        INNER JOIN [DeleteRecipients] dr
-            ON dr.[Id] = cr.[Id];
+            WAITFOR DELAY '00:00:00.100';
+        END
 
-        IF @@ROWCOUNT > 0 CONTINUE;
+        COMMIT TRAN;
+    END TRY
+    BEGIN CATCH
+        IF XACT_STATE() <> 0
+            ROLLBACK TRAN;
 
-        -- Break only if there are truly no more recipients to delete.
-        IF NOT EXISTS (
-            SELECT 1
-            FROM [CommunicationRecipient] cr
-            WHERE cr.[CommunicationId] = @CommunicationId
-                AND cr.[Status] = @RecipientStatusPending
-                AND NOT EXISTS (
-                    SELECT 1
-                    FROM #ListMembers lm
-                    WHERE lm.[PrimaryAliasId] = cr.[PersonAliasId]
-                )
-        ) BREAK;
-
-        WAITFOR DELAY '00:00:00.100';
-    END
+        THROW;
+    END CATCH
 
 END

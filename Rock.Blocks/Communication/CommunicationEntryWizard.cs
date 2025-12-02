@@ -380,7 +380,7 @@ namespace Rock.Blocks.Communication
                     // Only include non-legacy templates or the template associated with the current communication.
                     communicationTemplateQuery => communicationTemplateQuery.Where( ct => ( ct.Version != CommunicationTemplateVersion.Legacy && ct.UsageType == null ) || ( communicationTemplateId.HasValue && ct.Id == communicationTemplateId.Value ) )
                 );
-                var communicationTemplateDetailBag = GetCommunicationTemplateDetailBag( communication, communicationTemplateInfoList, currentPerson );
+                var communicationTemplateDetailBag = GetCommunicationTemplateDetailBag( communication, communicationTemplateInfoList, currentPerson, out var shouldApplyTemplateToCommunication );
                 var communicationBag = GetCommunicationBag( this.RockContext, communication, communicationTemplateDetailBag?.Guid, currentPerson );
                 var mediumBags = GetCommunicationMediumBags( currentPerson );
 
@@ -390,6 +390,7 @@ namespace Rock.Blocks.Communication
                 box.HasDetailBlockOnCurrentPage = this.PageCache.Blocks.Any( a => a.BlockType.Guid == SystemGuid.BlockType.COMMUNICATION_DETAIL.AsGuid() );
                 box.ImageComponentBinaryFileTypeGuid = this.ImageBinaryFileTypeGuid;
                 box.IsAddingIndividualsToRecipientListsDisabled = this.DisableAddingIndividualsToRecipientLists;
+                box.ShouldApplyTemplateToCommunication = shouldApplyTemplateToCommunication;
                 box.IsDuplicatePreventionOptionShown = this.ShowDuplicatePreventionOption;
                 box.IsUsingRockMobilePushTransport = GetIsUsingRockMobilePushTransport( mediumBags );
                 box.MaxSmsImageWidth = this.MaxSmsImageWidth;
@@ -487,7 +488,7 @@ namespace Rock.Blocks.Communication
             }
 
             var currentPerson = GetCurrentPerson();
-            var communication = SaveAsDraft( this.RockContext, bag );
+            var communication = SaveAsDraft( this.RockContext, bag, forceUpdateRecipients: true );
             bag = GetCommunicationBag( this.RockContext, communication, communication.CommunicationTemplate?.Guid, currentPerson );
 
             return ActionOk( new CommunicationEntryWizardSaveResponseBag
@@ -726,7 +727,7 @@ namespace Rock.Blocks.Communication
 
             var commonMergeFields = this.RequestContext.GetCommonMergeFields( communicationCreatorOrLoggedInPerson );
             var mergeFields = sampleCommunicationRecipient.CommunicationMergeValues( commonMergeFields );
-            
+
             var messagePreview = GeneratePushPreview( communication, communicationCreatorOrLoggedInPerson, mergeFields );
 
             // Create response.
@@ -762,7 +763,7 @@ namespace Rock.Blocks.Communication
 
             var commonMergeFields = this.RequestContext.GetCommonMergeFields( communicationCreatorOrLoggedInPerson );
             var mergeFields = sampleCommunicationRecipient.CommunicationMergeValues( commonMergeFields );
-            
+
             var messagePreview = GenerateSmsPreview( communication, communicationCreatorOrLoggedInPerson, mergeFields );
 
             // Create response.
@@ -1221,24 +1222,28 @@ namespace Rock.Blocks.Communication
         /// <param name="communication">The communication entity, which may be null for a new communication.</param>
         /// <param name="communicationTemplateInfoList">A list of available communication template information.</param>
         /// <param name="currentPerson">The currently logged-in person, used for authorization checks.</param>
+        /// <param name="shouldApplyTemplateToCommunication">Whether there is a template that should be applied to the communication.</param>
         /// <returns>
         /// A <see cref="CommunicationEntryWizardCommunicationTemplateDetailBag"/> containing the communication template details,
         /// or <see langword="null"/> if no valid template is found.
         /// </returns>
-        private CommunicationEntryWizardCommunicationTemplateDetailBag GetCommunicationTemplateDetailBag( Model.Communication communication, List<CommunicationEntryWizardTemplateInfo> communicationTemplateInfoList, Person currentPerson )
+        private CommunicationEntryWizardCommunicationTemplateDetailBag GetCommunicationTemplateDetailBag( Model.Communication communication, List<CommunicationEntryWizardTemplateInfo> communicationTemplateInfoList, Person currentPerson, out bool shouldApplyTemplateToCommunication )
         {
             CommunicationEntryWizardTemplateInfo communicationTemplateInfo = null;
+            var hasTemplateToApply = false;
 
             // If a communication template key was passed in and this is a new communication, set that as the selected template.
             var communicationTemplateKey = this.CommunicationTemplateOrTemplateGuidPageParameter;
 
-            if ( ( communication == null || communication.Id == 0 ) && communicationTemplateKey.IsNotNullOrWhiteSpace() )
+            if ( communication?.Id > 0 && communicationTemplateKey.IsNotNullOrWhiteSpace() )
             {
                 communicationTemplateInfo = communicationTemplateInfoList.FirstOrDefault( d => EntityHasKey( d.CommunicationTemplate, communicationTemplateKey ) );
+                hasTemplateToApply = communicationTemplateInfo != null;
             }
             else if ( communication?.CommunicationTemplateId.HasValue == true )
             {
                 communicationTemplateInfo = communicationTemplateInfoList.FirstOrDefault( d => d.CommunicationTemplate.Id == communication.CommunicationTemplateId.Value );
+                hasTemplateToApply = false;
             }
             else
             {
@@ -1248,6 +1253,8 @@ namespace Rock.Blocks.Communication
                 {
                     communicationTemplateInfo = communicationTemplateInfoList.FirstOrDefault( d => d.CommunicationTemplate.Guid == communicationTemplateGuidPersonPreference );
                 }
+
+                hasTemplateToApply = communicationTemplateInfo != null;
             }
 
             // NOTE: Only set the selected template if the user has auth for this template
@@ -1256,10 +1263,12 @@ namespace Rock.Blocks.Communication
                 && communicationTemplateInfo.CommunicationTemplate.IsAuthorized( Authorization.VIEW, currentPerson )
                 && communicationTemplateInfo.CommunicationTemplate.SupportsEmailWizard() )
             {
+                shouldApplyTemplateToCommunication = hasTemplateToApply;
                 return GetCommunicationTemplateDetailBag( communicationTemplateInfo );
             }
             else
             {
+                shouldApplyTemplateToCommunication = false;
                 return null;
             }
         }
@@ -2740,7 +2749,7 @@ namespace Rock.Blocks.Communication
 
             return previewHtml;
         }
-        
+
         /// <summary>
         /// Generates a preview of the SMS message for a given communication, resolving merge fields and applying styling if necessary.
         /// </summary>
@@ -2767,7 +2776,7 @@ namespace Rock.Blocks.Communication
 
             return previewMessage;
         }
-        
+
         /// <summary>
         /// Generates a preview of the Push message for a given communication, resolving merge fields and applying styling if necessary.
         /// </summary>
@@ -3021,39 +3030,8 @@ namespace Rock.Blocks.Communication
                         }
                     }
 
-                    /*
-                        1/2/2024 - JPH
-
-                        Rather than leveraging the default EF behavior of inserting each new recipient one-by-one,
-                        let's remove them from change tracking and perform a BULK INSERT operation instead, after
-                        saving the parent Communication record.
-
-                        We can get away with this because none of the downstream processes further reference the
-                        Communication.Recipients collection. If this changes, we will need to rethink this strategy.
-
-                        Reason: Communications with a large number of recipients time out and don't send.
-                        https://github.com/SparkDevNetwork/Rock/issues/5651
-                    */
-                    var newRecipients = new List<CommunicationRecipient>( communication.Recipients.Where( r => r.Id == 0 ) );
-
-                    // Stop tracking these entities.
-                    communication.Recipients.RemoveAll( newRecipients );
-
-                    // Save the communication entity and any updated/deleted recipients.
+                    // Save the communication entity.
                     rockContext.SaveChanges();
-
-                    if ( newRecipients.Any() )
-                    {
-                        using ( var bulkInsertActivity = ObservabilityHelper.StartActivity( "COMMUNICATION: Entry Wizard > Send Communication > Bulk-Insert New Communication Recipients" ) )
-                        {
-                            foreach ( var recipient in newRecipients )
-                            {
-                                recipient.CommunicationId = communication.Id;
-                            }
-
-                            rockContext.BulkInsert<CommunicationRecipient>( newRecipients );
-                        }
-                    }
                 }
 
                 // send approval email if needed (now that we have a communication id)
@@ -3120,17 +3098,21 @@ namespace Rock.Blocks.Communication
         /// </summary>
         /// <param name="rockContext">The database context used for querying and saving data.</param>
         /// <param name="bag">The communication details to save as a draft.</param>
+        /// <param name="forceUpdateRecipients">
+        /// If <see langword="true"/>, recipients will always be updated, regardless of internal checks.
+        /// Use this to ensure recipient data is refreshed even if Rock would otherwise skip updating them.
+        /// </param>
         /// <returns>The saved <see cref="Model.Communication"/> entity in draft status.</returns>
-        private Model.Communication SaveAsDraft( RockContext rockContext, CommunicationEntryWizardCommunicationBag bag )
+        private Model.Communication SaveAsDraft( RockContext rockContext, CommunicationEntryWizardCommunicationBag bag, bool forceUpdateRecipients = false )
         {
             using ( var activity = ObservabilityHelper.StartActivity( "COMMUNICATION: Entry Wizard > Save As Draft" ) )
             {
                 var communication = SaveCommunication( rockContext, bag );
 
-                if ( bag.IndividualRecipientPersonAliasGuids?.Any() == true )
+                if ( bag.IndividualRecipientPersonAliasGuids?.Any() == true || forceUpdateRecipients )
                 {
                     // Manual recipients list - always save recipients if they are from a manual list;
-                    // recipients from a communication list will only be saved when the communication is sent/scheduled.
+                    // recipients from a communication list will only be saved when the communication is sent, scheduled, or formally saved as a draft.
                     UpdateCommunicationRecipients( rockContext, bag, communication );
                 }
 
@@ -3308,9 +3290,9 @@ namespace Rock.Blocks.Communication
                     // Communication list - refresh using communication logic.
                     communication.RefreshCommunicationRecipientList( rockContext );
                 }
-                
+
                 progressReporter?.UpdateTaskProgress( new TaskActivityProgressUpdateBag { CompletionPercentage = 20m, Message = "Updated recipients..." } );
-                
+
                 // rockContext.SaveChanges() is called deep within the UpdateCommunicationRecipients() call above,
                 // so wait until we get back from that method to add the ID tag.
                 activity?.AddTag( "rock.communication.id", communication.Id );

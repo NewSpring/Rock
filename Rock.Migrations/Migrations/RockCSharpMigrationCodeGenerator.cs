@@ -38,7 +38,7 @@ namespace Rock.Migrations
         ///   <c>true</c> if this instance is frozen; otherwise, <c>false</c>.
         /// </value>
         public bool IsFrozen => true;
-        private const string MigrationTokenOwner = "release-18.0";
+        private const string MigrationTokenOwner = "hotfix-18.2";
 
         /// <summary>
         /// </summary>

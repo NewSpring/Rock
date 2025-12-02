@@ -40,7 +40,7 @@
                               label="Campus Leader" />
 
                 <KeyValueList v-model="serviceTimes"
-                              label="Service Times"
+                              label="Service Times (Legacy)"
                               keyPlaceholder="Day"
                               valuePlaceholder="Time"
                               help="A list of days and times that this campus has services." />
@@ -80,7 +80,7 @@
                     <TextColumn name="Schedule" title="Schedule" field="schedule" />
                     <TextColumn name="Type" title="Type" field="type" />
                     <EditColumn :onClick="onEditScheduleClick" />
-                    <DeleteColumn :onClick="onDeleteScheduleClick"  />
+                    <DeleteColumn :onClick="onDeleteScheduleClick" />
                 </Grid>
             </div>
 
@@ -96,7 +96,7 @@
                     <TextColumn name="Email" title="Email" field="email" />
                     <BooleanColumn name="Public" title="Public" field="public" />
                     <EditColumn :onClick="onEditTopicClick" />
-                    <DeleteColumn :onClick="onDeleteTopicClick"  />
+                    <DeleteColumn :onClick="onDeleteTopicClick" />
                 </Grid>
             </div>
         </div>
@@ -112,9 +112,9 @@
         <SchedulePicker label="Schedule" v-model="schedule" :multiple="false" rules="required" />
 
         <DefinedValuePicker v-model="campusScheduleType"
-                        label="Schedule Type"
-                        :definedTypeGuid="DefinedType.ScheduleType"
-                        rules="required" />
+                            label="Schedule Type"
+                            :definedTypeGuid="DefinedType.ScheduleType"
+                            rules="required" />
     </Modal>
 
     <!-- Campus Topics -->
@@ -123,17 +123,17 @@
            saveText="OK"
            @save="onSaveTopic">
         <DefinedValuePicker v-model="campusTopicType"
-                        label="Topic Type"
-                        :definedTypeGuid="DefinedType.TopicType"
-                        help="A campus can only have one instance of a topic entry."
-                        rules="required" />
+                            label="Topic Type"
+                            :definedTypeGuid="DefinedType.TopicType"
+                            help="A campus can only have one instance of a topic entry."
+                            rules="required" />
 
         <EmailBox v-model="campusTopicEmail"
-                        label="Email"
-                        rules="required" />
+                  label="Email"
+                  rules="required" />
 
         <CheckBox v-model="isCampusTopicPublic"
-                        label="Public" />
+                  label="Public" />
     </Modal>
 </template>
 
@@ -167,7 +167,7 @@
     import { DefinedValue } from "@Obsidian/SystemGuids/definedValue";
     import EmailBox from "@Obsidian/Controls/emailBox.obs";
     import { GridDataBag } from "@Obsidian/ViewModels/Core/Grid/gridDataBag";
-    import  Grid,{ DeleteColumn, EditColumn, TextColumn, BooleanColumn } from "@Obsidian/Controls/grid";
+    import Grid, { DeleteColumn, EditColumn, TextColumn, BooleanColumn } from "@Obsidian/Controls/grid";
 
     const props = defineProps({
         modelValue: {
@@ -282,7 +282,7 @@
     /**
      * Called when the "+" add button on the Campus Schedules grid is clicked.
      */
-     const onAddScheduleClick = (): void => {
+    const onAddScheduleClick = (): void => {
         editingSchedule = null;
         // Default the Schedule Type to the Weekend Service : Copying over the logic from the old Webform Block.
         campusScheduleType.value = defaultScheduleType;
@@ -292,7 +292,7 @@
     /**
      * Called when the "+" add button on the Campus Topics grid is clicked.
      */
-     function onAddTopicClick(): void {
+    function onAddTopicClick(): void {
         campusTopicGuid.value = null;
         campusTopicType.value = null;
         campusTopicEmail.value = "";
@@ -305,7 +305,7 @@
      *
      * @param key The schedule key to be deleted.
      */
-     const onDeleteScheduleClick = (key: string): void => {
+    const onDeleteScheduleClick = (key: string): void => {
         campusSchedules.value = campusSchedules.value.filter(s => s.guid !== key) ?? [];
     };
 
@@ -314,8 +314,8 @@
      *
      * @param key The topic key to be deleted.
      */
-     const onDeleteTopicClick = (key: string): void => {
-        if(campusTopics.value == null) {
+    const onDeleteTopicClick = (key: string): void => {
+        if (campusTopics.value == null) {
             return;
         }
 
@@ -351,11 +351,11 @@
         isTopicsModalVisible.value = true;
     };
 
-     /**
-     * Called when a schedule is ready to be saved.
-     */
-     function onSaveSchedule(): void {
-        if(campusSchedules.value == null) {
+    /**
+    * Called when a schedule is ready to be saved.
+    */
+    function onSaveSchedule(): void {
+        if (campusSchedules.value == null) {
             return;
         }
         // The `editingSchedule` variable happens to be null if a new schedule is being added.
@@ -377,20 +377,20 @@
     }
 
 
-     /**
-     * Called when a topic is ready to be saved.
-     */
-     function onSaveTopic(): void {
-        if(campusTopics.value == null) {
+    /**
+    * Called when a topic is ready to be saved.
+    */
+    function onSaveTopic(): void {
+        if (campusTopics.value == null) {
             return;
         }
         // The `editingTopic` variable happens to be null if a new topic is being added.
         // The "if block" contains the logic to add the new topic if needed.
 
-        let editingTopic = campusTopics.value.find(c => c.type?.value === campusTopicType.value?.value ?? false) || null;
+        let editingTopic = campusTopics.value.find(c => c.type?.value === campusTopicType.value?.value) || null;
 
-        if(editingTopic === null && campusTopicGuid.value !== null) {
-            editingTopic = campusTopics.value.find(c => c.guid === campusTopicGuid.value ?? false) || null;
+        if (editingTopic === null && campusTopicGuid.value !== null) {
+            editingTopic = campusTopics.value.find(c => c.guid === campusTopicGuid.value) || null;
         }
 
         if (editingTopic === null) {

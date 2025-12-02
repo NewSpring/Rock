@@ -500,7 +500,7 @@ namespace Rock.Blocks.Finance
                             : box.Bag.Requester.WorkPhoneNumber.NumberFormatted )
                         : string.Empty;
                     entity.GovernmentId = box.Bag.Requester.GovernmentId;
-                    entity.ConnectionStatusValueId = box.Bag.Requester.ConnectionStatusValueId;
+                    entity.ConnectionStatusValueId = box.Bag.Requester.ConnectionStatus.ConnectionStatusValueId;
 
                     entity.LocationId = null;
                     if ( box.Bag.Requester.Location != null && box.Bag.Requester.Location.AddressFields != null )
@@ -814,13 +814,25 @@ namespace Rock.Blocks.Finance
 
                     var fallbackAddress = GetFallbackAddressControlBag( entity );
 
+                    // Replace this block in BuildPersonBag method:
+
+                    var personConnectionStatus = new ConnectionStatusBag
+                    {
+                        ConnectionStatusValueId = person.ConnectionStatusValueId ?? (entity.ConnectionStatusValueId.HasValue && isRequester
+                                                      ? entity.ConnectionStatusValueId.Value
+                                                      : (int?)null),
+                        ConnectionStatusName = (DefinedTypeCache.Get(Rock.SystemGuid.DefinedType.PERSON_CONNECTION_STATUS.AsGuid()) != null)
+                                                ? DefinedValueCache.Get(person.ConnectionStatusValueId ?? 0)?.Value ?? string.Empty
+                                                : string.Empty,
+                        ConnectionStatusGuid = DefinedValueCache.Get(person.ConnectionStatusValueId ?? 0)?.Guid ?? Guid.Empty
+                    };
+
                     return new PersonBag
                     {
-                        PersonId = person.Id,
+                        PersonIdKey = person.IdKey,
                         PersonAliasId = personAlias.Id,
                         PersonAliasGuid = personAlias.Guid,
-                        ConnectionStatusValueId = person.ConnectionStatusValueId
-                            ?? ( entity.ConnectionStatusValueId.HasValue && isRequester ? entity.ConnectionStatusValueId.Value : ( int? ) null ),
+                        ConnectionStatus = personConnectionStatus,
                         PhotoUrl = person.PhotoUrl ?? "",
                         NickName = person.NickName ?? "",
                         FirstName = !string.IsNullOrEmpty( person.FirstName ) ? person.FirstName : ( isRequester ? entity.FirstName ?? "" : "" ),
@@ -840,10 +852,21 @@ namespace Rock.Blocks.Finance
             // Fallback: Build from entity
             var fallbackLocationBag = GetFallbackLocationBag( entity, LocationService );
 
+            var entityConnectionStatus = new ConnectionStatusBag
+            {
+                ConnectionStatusValueId = entity.ConnectionStatusValueId ?? ( entity.ConnectionStatusValueId.HasValue && isRequester
+                                              ? entity.ConnectionStatusValueId.Value
+                                              : ( int? ) null ),
+                ConnectionStatusName = ( DefinedTypeCache.Get( Rock.SystemGuid.DefinedType.PERSON_CONNECTION_STATUS.AsGuid() ) != null )
+                                        ? DefinedValueCache.Get( entity.ConnectionStatusValueId ?? 0 )?.Value ?? string.Empty
+                                        : string.Empty,
+                ConnectionStatusGuid = DefinedValueCache.Get( entity.ConnectionStatusValueId ?? 0 )?.Guid ?? Guid.Empty
+            };
+
             var requesterBagBuiltFromEntity = new PersonBag
             {
                 PersonAliasId = entity.RequestedByPersonAliasId,
-                ConnectionStatusValueId = entity.ConnectionStatusValueId,
+                ConnectionStatus = entityConnectionStatus,
                 PhotoUrl = "",
                 NickName = "",
                 FirstName = entity.FirstName ?? "",
@@ -904,12 +927,21 @@ namespace Rock.Blocks.Finance
             var phoneNumbers = person.PhoneNumbers.ToList();
             var personLocation = person.GetHomeLocation( RockContext );
 
+            var personConnectionStatus = new ConnectionStatusBag
+            {
+                ConnectionStatusValueId = person.ConnectionStatusValueId ?? ( int? ) null,
+                ConnectionStatusName = ( DefinedTypeCache.Get( Rock.SystemGuid.DefinedType.PERSON_CONNECTION_STATUS.AsGuid() ) != null )
+                                        ? DefinedValueCache.Get( person.ConnectionStatusValueId ?? 0 )?.Value ?? string.Empty
+                                        : string.Empty,
+                ConnectionStatusGuid = DefinedValueCache.Get( person.ConnectionStatusValueId ?? 0 )?.Guid ?? Guid.Empty
+            };
+
             generatedPersonBag = new PersonBag
             {
-                PersonId = person.Id,
+                PersonIdKey = person.IdKey,
                 PersonAliasId = personAlias.Id,
                 PersonAliasGuid = personAlias.Guid != null ? personAlias.Guid : Guid.Empty,
-                ConnectionStatusValueId = person.ConnectionStatusValueId,
+                ConnectionStatus = personConnectionStatus,
                 PhotoUrl = person.PhotoUrl ?? "",
                 NickName = person.NickName ?? "",
                 FirstName = person.FirstName ?? "",
@@ -996,7 +1028,8 @@ namespace Rock.Blocks.Finance
                 {
                     Number = phone.Number,
                     NumberFormatted = phone.NumberFormatted,
-                    CountryCode = phone.CountryCode
+                    CountryCode = phone.CountryCode,
+                    IsNumberFromPersonRecord = true,
                 };
             }
 
@@ -1028,7 +1061,8 @@ namespace Rock.Blocks.Finance
             {
                 Number = number.Trim(),
                 NumberFormatted = numberFormatted.Trim(),
-                CountryCode = countryCode.Trim()
+                CountryCode = countryCode.Trim(),
+                IsNumberFromPersonRecord = false,
             };
         }
 
@@ -1153,9 +1187,14 @@ namespace Rock.Blocks.Finance
                 ? new PhoneNumberBag
                 {
                     Number = phone.Number,
-                    CountryCode = phone.CountryCode
+                    CountryCode = phone.CountryCode,
+                    NumberFormatted = phone.NumberFormatted,
+                    IsNumberFromPersonRecord = true,
                 }
-                : new PhoneNumberBag();
+                : new PhoneNumberBag
+                {
+                    IsNumberFromPersonRecord = false,
+                };
         }
 
         /// <summary>
@@ -1210,7 +1249,7 @@ namespace Rock.Blocks.Finance
         /// person was created or an existing one was found.</param>
         /// <returns>The <see cref="Person"/> object representing the existing person if found, or the newly created person if no
         /// match was found.</returns>
-        private Person FindOrCreatePerson( PersonBag personBag, int? campusId, StringBuilder createRecordNotes )
+        private Person FindOrCreatePerson( PersonBag personBag, int? campusId, StringBuilder createRecordNotes, out bool hasPersonRecordAlready )
         {
             var firstName = personBag.FirstName.Trim();
             var lastName = personBag.LastName.Trim();
@@ -1233,7 +1272,7 @@ namespace Rock.Blocks.Finance
 
                 if ( !person.ConnectionStatusValueId.HasValue )
                 {
-                    person.ConnectionStatusValueId = personBag.ConnectionStatusValueId.Value;
+                    person.ConnectionStatusValueId = personBag.ConnectionStatus.ConnectionStatusValueId.Value;
                 }
 
                 if ( !person.RecordStatusValueId.HasValue )
@@ -1256,11 +1295,14 @@ namespace Rock.Blocks.Finance
                 }
 
                 var group = PersonService.SaveNewPerson( person, RockContext, campusId );
-                createRecordNotes.Append( "Created new person record." );
                 person.PrimaryFamily = group;
+
+                hasPersonRecordAlready = false;
+                createRecordNotes.Append( "Created new person record." );
             }
             else
             {
+                hasPersonRecordAlready = true;
                 createRecordNotes.Append( "Person already exists. Pulled record instead. To update contact information, please update the Person." );
             }
 
@@ -1280,22 +1322,22 @@ namespace Rock.Blocks.Finance
             var phoneNumberService = new PhoneNumberService( RockContext );
             var phoneTypes = new[]
             {
-        new {
-            TypeGuid = Rock.SystemGuid.DefinedValue.PERSON_PHONE_TYPE_HOME.AsGuid(),
-            Number = PhoneNumber.CleanNumber(personBag.HomePhoneNumber.Number),
-            CountryCode = PhoneNumber.CleanNumber(personBag.HomePhoneNumber.CountryCode),
-        },
-        new {
-            TypeGuid = Rock.SystemGuid.DefinedValue.PERSON_PHONE_TYPE_MOBILE.AsGuid(),
-            Number = PhoneNumber.CleanNumber(personBag.CellPhoneNumber.Number),
-            CountryCode = PhoneNumber.CleanNumber(personBag.CellPhoneNumber.CountryCode),
-        },
-        new {
-            TypeGuid = Rock.SystemGuid.DefinedValue.PERSON_PHONE_TYPE_WORK.AsGuid(),
-            Number = PhoneNumber.CleanNumber(personBag.WorkPhoneNumber.Number),
-            CountryCode = PhoneNumber.CleanNumber(personBag.WorkPhoneNumber.CountryCode),
-        }
-    };
+                new {
+                    TypeGuid = Rock.SystemGuid.DefinedValue.PERSON_PHONE_TYPE_HOME.AsGuid(),
+                    Number = PhoneNumber.CleanNumber(personBag.HomePhoneNumber.Number),
+                    CountryCode = PhoneNumber.CleanNumber(personBag.HomePhoneNumber.CountryCode),
+                },
+                new {
+                    TypeGuid = Rock.SystemGuid.DefinedValue.PERSON_PHONE_TYPE_MOBILE.AsGuid(),
+                    Number = PhoneNumber.CleanNumber(personBag.CellPhoneNumber.Number),
+                    CountryCode = PhoneNumber.CleanNumber(personBag.CellPhoneNumber.CountryCode),
+                },
+                new {
+                    TypeGuid = Rock.SystemGuid.DefinedValue.PERSON_PHONE_TYPE_WORK.AsGuid(),
+                    Number = PhoneNumber.CleanNumber(personBag.WorkPhoneNumber.Number),
+                    CountryCode = PhoneNumber.CleanNumber(personBag.WorkPhoneNumber.CountryCode),
+                }
+            };
 
             var phoneNumbersToSave = false;
             foreach ( var phoneTypeInfo in phoneTypes )
@@ -1388,6 +1430,41 @@ namespace Rock.Blocks.Finance
             }
         }
 
+        /// <summary>
+        /// Validates a collection of phone numbers and identifies the first number that fails validation.
+        /// </summary>
+        /// <remarks>Validation is performed by cleaning and formatting each phone number according to its
+        /// country code. The method stops at the first invalid number and returns its value in the out
+        /// parameter.</remarks>
+        /// <param name="phoneNumberBags">A list of phone number bags containing the numbers and associated country codes to validate.</param>
+        /// <param name="numberThatFailedValidation">When this method returns, contains the phone number that failed validation, or an empty string if all
+        /// numbers are valid.</param>
+        /// <returns>true if all phone numbers in the collection pass validation; otherwise, false.</returns>
+        private bool ValidatePhoneNumbers(List<PhoneNumberBag> phoneNumberBags, out string numberThatFailedValidation)
+        {
+            numberThatFailedValidation = string.Empty;
+
+            foreach ( var bag in phoneNumberBags )
+            {
+                if ( bag == null || string.IsNullOrWhiteSpace( bag.Number ) )
+                {
+                    continue;
+                }
+
+                var cleanedPhoneNumber = PhoneNumber.CleanNumber( bag.Number );
+                var formattedPhoneNumber = PhoneNumber.FormattedNumber( bag.CountryCode, cleanedPhoneNumber );
+                var isValidNumber = formattedPhoneNumber != cleanedPhoneNumber && formattedPhoneNumber != "";
+
+                if ( !isValidNumber )
+                {
+                    numberThatFailedValidation = formattedPhoneNumber;
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
         #endregion Helper Methods - Person Creation
 
         #endregion Helper Methods
@@ -1418,18 +1495,36 @@ namespace Rock.Blocks.Finance
                 return actionError;
             }
 
-            RockContext.Entry( entity ).State = System.Data.Entity.EntityState.Detached;
+            RockContext.Entry( entity ).State = EntityState.Detached;
 
             if ( personBag == null )
             {
                 return ActionBadRequest( "PersonBag is required." );
             }
 
-            var createRecordNotes = new StringBuilder();
-            var person = FindOrCreatePerson( personBag, campusId, createRecordNotes );
+            var hasValidPhoneNumbers = ValidatePhoneNumbers( new List<PhoneNumberBag>
+                { 
+                    personBag.HomePhoneNumber,
+                    personBag.CellPhoneNumber,
+                    personBag.WorkPhoneNumber,
+                },
+                out string invalidNumber
+            );
 
-            SavePhoneNumbers( person, personBag );
-            SaveFamilyAddress( person, personBag );
+            if ( !hasValidPhoneNumbers )
+            {
+                var errorPostfix = ( !string.IsNullOrEmpty( invalidNumber ) ? $": {invalidNumber}" : "." );
+                return ActionBadRequest( $"Invalid phone number provided{errorPostfix}" );
+            }
+
+            var createRecordNotes = new StringBuilder();
+            var person = FindOrCreatePerson( personBag, campusId, createRecordNotes, out bool hasRecordAlready );
+
+            if ( !hasRecordAlready )
+            {
+                SavePhoneNumbers( person, personBag );
+                SaveFamilyAddress( person, personBag );
+            }
 
             BuildPersonBag( person.PrimaryAlias.Guid, out var returnPersonBag );
             return ActionOk( new { Person = returnPersonBag, CreateRecordNotes = createRecordNotes.ToString() } );

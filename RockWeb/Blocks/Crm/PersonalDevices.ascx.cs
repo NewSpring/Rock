@@ -48,7 +48,6 @@ namespace RockWeb.Blocks.Crm
         Key = AttributeKey.LavaTemplate,
         Description = "Lava template to use to display content",
         EditorMode = CodeEditorMode.Lava,
-        EditorTheme = CodeEditorTheme.Rock,
         EditorHeight = 400,
         IsRequired = true,
         DefaultValue = CodeEditorValue.LavaTemplate,
