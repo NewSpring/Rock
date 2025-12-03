@@ -40,4 +40,5 @@
 | SixLabors.Imagesharp | < 3.0.0 | License changed. |
 | SixLabors.ImageSharp.Drawing | < 2.0.0 | License changed. |
 | SmtpServer | < 11.0.0 | No longer supports .NET Framework. |
+| WebGrease | = 1.5.2 | The newer version has a bug that throws an exception when minifying our JS files on production builds. |
 | Z.EntityFramework.Plus.EF6 | = 5.1.31 | Newer versions have a bug that causes the global filter on Group and GroupMember to error. |
