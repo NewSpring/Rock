@@ -2,13 +2,18 @@
     <div :id="section.anchor.value"
          class="contentsection"
          :class="additionalSectionClasses">
-        <div v-if="title"
+        <div v-if="hasTitle"
              class="contentsection-header"
              @click="onSectionHeaderClick">
             <div class="contentsection-header-title-and-description">
                 <h5 class="contentsection-header-title">
-                    <i v-if="icon" :class="icon"></i>
-                    {{ title }}
+                    <template v-if="title">
+                        <i v-if="icon" :class="icon"></i>
+                        {{ title }}
+                    </template>
+                    <template v-else>
+                        <slot name="title" />
+                    </template>
                 </h5>
                 <div v-if="$slots.description" class="contentsection-header-description">
                     <slot name="description" />
@@ -78,7 +83,8 @@
 <script setup lang="ts">
     import TransitionVerticalCollapse from "@Obsidian/Controls/transitionVerticalCollapse.obs";
     import { createSection, useSectionContainer } from "@Obsidian/Core/Controls/contentSection";
-    import { computed, onBeforeUnmount, PropType, ref } from "vue";
+    import { isNullOrWhiteSpace } from "@Obsidian/Utility/stringUtils";
+    import { computed, onBeforeUnmount, PropType, ref, useSlots } from "vue";
 
     const props = defineProps({
         /**
@@ -145,6 +151,8 @@
 
     // #region Values
 
+    const slots = useSlots();
+
     const title = computed((): string | undefined => props.title);
     const icon = computed((): string | undefined => props.icon);
     const isCollapsed = ref(props.disableCollapse ? false : props.isCollapsed);
@@ -158,6 +166,8 @@
     // #endregion
 
     // #region Computed Values
+
+    const hasTitle = computed((): boolean => !isNullOrWhiteSpace(props.title) || !!slots.title?.().length);
 
     /**
      * Additional classes to apply to the section based on its state and
