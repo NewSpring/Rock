@@ -1,24 +1,25 @@
 <template>
     <ContentSectionContainer :sidebar="false">
-        <template v-for="group in groups" :key="`${selectedGrouping}-${group.key}`">
+        <template v-for="group in filteredGroups" :key="`${selectedGrouping}-${group.key}`">
             <ContentSection :isCollapsed="group.key === ''">
                 <template #title>
-                    <div class="d-flex justify-content-between">
+                    <div class="d-flex align-items-center">
                         <template v-if="group.type === 'person' && group.person">
                             <PersonAvatar :personIdKey="group.person.idKey ?? ''"
                                           :photoUrl="group.person.photoUrl ?? ''"
                                           :photoSize="24" />
-                            {{ group.person.nickName }} {{ group.person.lastName }}
+                            <span>{{ group.person.nickName }} {{ group.person.lastName }}</span>
                         </template>
                         <template v-else>
-                            {{ group.label }}
+                            <i v-if="group.iconCssClass" :class="group.iconCssClass" class="mr-3"></i>
+                            <span>{{ group.label }}</span>
                         </template>
                     </div>
                 </template>
                 <template #headerActions>
                     <slot name="headerActions" v-bind="{ groupRows: group.gridData.rows }" />
                     <HighlightLabel>
-                        {{ getCountMessage(group.gridData.rows) }}
+                        {{ getCountMessage(group.key, group.gridData.rows) }}
                     </HighlightLabel>
                 </template>
                 <ContentStack>
@@ -55,25 +56,44 @@
             type: Object as PropType<Record<string, unknown>[]>,
             required: true
         },
-        // filteredRows: {
-        //     type: Object as PropType<Record<string, unknown>[]>,
-        //     required: true
-        // }
+        filteredRows: {
+            type: Object as PropType<Record<string, unknown>[]>,
+            required: true
+        }
     });
 
     // const countMessage = ref("");
 
-    const groups = computed(() => {
+    const totalGroupCounts = computed(() => {
+        const map = new Map<string, number>();
+
+        if (!props.groupingKey) {
+            map.set("all", props.rows.length);
+            return map;
+        }
+
+        for (const row of props.rows) {
+            const field = row[props.groupingKey] as GroupingFieldBag;
+            const key = field?.key ?? "";
+
+            map.set(key, (map.get(key) ?? 0) + 1);
+        }
+
+        return map;
+    });
+
+
+    const filteredGroups = computed(() => {
         if (!props.groupingKey) {
             return [{
                 key: "all",
                 label: "All",
-                gridData: { rows: props.rows }
+                gridData: { rows: props.filteredRows }
             }];
         }
 
         return Enumerable
-            .from(props.rows)
+            .from(props.filteredRows)
             .groupBy(r => {
                 const field = r[props.groupingKey] as GroupingFieldBag;
                 return field?.key ?? "";
@@ -106,8 +126,19 @@
     //     }
     // }
 
-    function getCountMessage(rows: Record<string, unknown>[]) {
-        return `${asFormattedString(rows.length)} ${pluralize(props.itemTerm, rows.length)}`;
+    function getCountMessage(key: string | null | undefined, filteredRows: Record<string, unknown>[]): string {
+        if (!key) {
+            return "";
+        }
+
+        const totalGroupCount = totalGroupCounts.value.get(key) ?? 0;
+
+        if (filteredRows.length === totalGroupCount) {
+            return `${asFormattedString(filteredRows.length)} ${pluralize(props.itemTerm, filteredRows.length)}`;
+        }
+        else {
+            return `${asFormattedString(filteredRows.length)} of ${asFormattedString(totalGroupCount)} ${pluralize(props.itemTerm, totalGroupCount)}`;
+        }
     }
 
     // watch(groups, () => {

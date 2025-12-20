@@ -17,6 +17,8 @@
 
                 <div class="panel-header-actions">
 
+                    <slot name="preFilterHeaderActions" />
+
                     <QuickFilter v-model="internalQuickFilterValue"
                                  quickFilterButtonClass="btn-panel-action" />
 

@@ -25,7 +25,7 @@ namespace Rock.Blocks.Engagement
     [Description( "Displays the Connections Hub." )]
     [IconCssClass( "ti ti-list" )]
     [SupportedSiteTypes( Model.SiteType.Web )]
-    [ContextAware( typeof( Campus ) )]
+    [ContextAware( typeof( Campus ), typeof( ConnectionOpportunity ) )]
 
     #region Block Attributes
 
@@ -73,6 +73,7 @@ namespace Rock.Blocks.Engagement
             }
 
             options.Title = connectionType.Name + " Requests";
+            options.IconCssClass = connectionType.IconCssClass;
             options.ConnectionStatusBags = connectionType.ConnectionStatuses
                 .Select( cs => new ConnectionStatusBag
                 {
@@ -87,6 +88,56 @@ namespace Rock.Blocks.Engagement
             return options;
         }
 
+        private GroupingFieldBag GetGroupingFieldBag( int? id, string type, string label, string iconCssClass = null, PersonFieldBag person = null )
+        {
+            if ( !id.HasValue )
+            {
+                if ( type == "person" )
+                {
+                    person = new PersonFieldBag
+                    {
+                        IdKey = string.Empty,
+                        NickName = "Unassigned",
+                        PhotoUrl = Rock.Model.Person.GetPersonNoPictureUrl( new Rock.Model.Person() )
+                    };
+                }
+
+                return new GroupingFieldBag
+                {
+                    Key = "unassigned",
+                    Type = type,
+                    Label = "Unassigned",
+                    Person = person
+                };
+            }
+
+            return new GroupingFieldBag
+            {
+                Key = IdHasher.Instance.GetHash( id.Value ),
+                Type = type,
+                Label = label,
+                IconCssClass = iconCssClass,
+                Person = person
+            };
+        }
+
+        private string GetStateIconCssClass( ConnectionState state )
+        {
+            switch ( state )
+            {
+                case ConnectionState.Active:
+                    return "ti ti-bolt";
+                case ConnectionState.Inactive:
+                    return "ti ti-bolt-off";
+                case ConnectionState.FutureFollowUp:
+                    return "ti ti-calendar-clock";
+                case ConnectionState.Connected:
+                    return "ti ti-circle-check-filled";
+                default:
+                    return "ti ti-bolt";
+            }
+        }
+
         #endregion Methods
 
         #region Block Actions
@@ -98,9 +149,9 @@ namespace Rock.Blocks.Engagement
             if ( connectionType == null )
             {
                 return ActionOk();
-            }   
+            }
 
-            var connectionRequests = new ConnectionRequestService( RockContext ).Queryable()
+            var connectionRequestsQry = new ConnectionRequestService( RockContext ).Queryable()
                 .AsNoTracking()
                 .Where( cr => cr.ConnectionOpportunity.ConnectionTypeId == connectionType.Id )
                 .Select( a => new ConnectionRow
@@ -121,11 +172,6 @@ namespace Rock.Blocks.Engagement
                         Id = a.CampusId,
                         Label = a.Campus != null ? a.Campus.Name : string.Empty
                     },
-                    AssignedGroupGroupingProjection = new GroupingProjection
-                    {
-                        Id = a.AssignedGroupId,
-                        Label = a.AssignedGroup != null ? a.AssignedGroup.Name : string.Empty
-                    },
                     ConnectorPersonProjection = new PersonProjection
                     {
                         NickName = a.ConnectorPersonAlias.Person.NickName,
@@ -138,8 +184,14 @@ namespace Rock.Blocks.Engagement
                         ConnectionStatusValueId = a.ConnectorPersonAlias.Person.ConnectionStatusValueId,
                         Id = a.ConnectorPersonAlias.Person.Id,
                     },
+                    StatusGroupingProjection = new GroupingProjection
+                    {
+                        Id = a.ConnectionStatusId,
+                        Label = a.ConnectionStatus != null ? a.ConnectionStatus.Name : string.Empty
+                    },
                     ConnectionOpportunityId = a.ConnectionOpportunityId,
                     ConnectionOpportunity = a.ConnectionOpportunity.Name,
+                    ConnectionOpportunityIcon = a.ConnectionOpportunity.IconCssClass,
                     ConnectionTypeSource = a.ConnectionTypeSource != null ? a.ConnectionTypeSource.Name : string.Empty,
                     CampusId = a.CampusId,
                     Campus = a.Campus != null ? a.Campus.Name : string.Empty,
@@ -171,10 +223,23 @@ namespace Rock.Blocks.Engagement
                         ConnectionStatusValueId = a.PersonAlias.Person.ConnectionStatusValueId,
                         Id = a.PersonAlias.Person.Id,
                     }
-                } )
-                .ToList();
+                } );
 
-            foreach( var request in connectionRequests )
+            var campusContext = RequestContext.GetContextEntity<Campus>();
+            if ( campusContext != null )
+            {
+                connectionRequestsQry = connectionRequestsQry.Where( c => c.CampusId == campusContext.Id );
+            }
+
+            var opportunityContext = RequestContext.GetContextEntity<ConnectionOpportunity>();
+            if ( opportunityContext != null )
+            {
+                connectionRequestsQry = connectionRequestsQry.Where( c => c.ConnectionOpportunityId == opportunityContext.Id );
+            }
+
+            var connectionRequests = connectionRequestsQry.ToList();
+
+            foreach ( var request in connectionRequests )
             {
                 request.ConnectionStatus = new ConnectionStatusBag
                 {
@@ -210,9 +275,11 @@ namespace Rock.Blocks.Engagement
                     }
                 }
 
+                PersonFieldBag connectorPerson = null;
+
                 if ( request.ConnectorPersonProjection.Id.HasValue )
                 {
-                    request.ConnectorPerson = new PersonFieldBag
+                    connectorPerson = new PersonFieldBag
                     {
                         IdKey = IdHasher.Instance.GetHash( request.ConnectorPersonProjection.Id.Value ),
                         NickName = request.ConnectorPersonProjection.NickName,
@@ -220,8 +287,8 @@ namespace Rock.Blocks.Engagement
                     };
 
 
-                    var connectorInitials = $"{request.ConnectorPerson.NickName.Truncate( 1, false )}{request.ConnectorPerson.LastName.Truncate( 1, false )}";
-                    request.ConnectorPerson.PhotoUrl = Rock.Model.Person.GetPersonPhotoUrl(
+                    var connectorInitials = $"{connectorPerson.NickName.Truncate( 1, false )}{connectorPerson.LastName.Truncate( 1, false )}";
+                    connectorPerson.PhotoUrl = Rock.Model.Person.GetPersonPhotoUrl(
                         connectorInitials,
                         request.ConnectorPersonProjection.PhotoId,
                         request.ConnectorPersonProjection.Age,
@@ -230,112 +297,29 @@ namespace Rock.Blocks.Engagement
                         request.ConnectorPersonProjection.AgeClassification
                     );
 
-                    request.ConnectorGrouping = new GroupingFieldBag
-                    {
-                        Key = request.ConnectorGroupingProjection.Id.HasValue ? IdHasher.Instance.GetHash( request.ConnectorGroupingProjection.Id.Value ) : string.Empty,
-                        Type = "person",
-                        Label = request.ConnectorGroupingProjection.Label,
-                        Person = new PersonFieldBag
-                        {
-                            IdKey = IdHasher.Instance.GetHash( request.ConnectorPersonProjection.Id.Value ),
-                            NickName = request.ConnectorPersonProjection.NickName,
-                            LastName = request.ConnectorPersonProjection.LastName,
-                            PhotoUrl = Rock.Model.Person.GetPersonPhotoUrl(
-                                connectorInitials,
-                                request.ConnectorPersonProjection.PhotoId,
-                                request.ConnectorPersonProjection.Age,
-                                request.ConnectorPersonProjection.Gender ?? Gender.Unknown,
-                                request.ConnectorPersonProjection.RecordTypeValueId,
-                                request.ConnectorPersonProjection.AgeClassification
-                            )
-                        }
-                    };
-
                     if ( request.ConnectorPersonProjection.ConnectionStatusValueId.HasValue )
                     {
                         var connectionStatusValue = DefinedValueCache.Get( request.ConnectorPersonProjection.ConnectionStatusValueId.Value );
                         if ( connectionStatusValue != null )
                         {
-                            request.ConnectorPerson.ConnectionStatus = connectionStatusValue.Value;
+                            connectorPerson.ConnectionStatus = connectionStatusValue.Value;
                         }
                     }
                 }
-                else
-                {
-                    var fakePerson = new Rock.Model.Person();
+                request.ConnectorPerson = connectorPerson;
 
-                    request.ConnectorGrouping = new GroupingFieldBag
-                    {
-                        Key = string.Empty,
-                        Type = "person",
-                        Label = "Unassigned",
-                        Person = new PersonFieldBag
-                        {
-                            IdKey = string.Empty,
-                            NickName = "Unassigned",
-                            PhotoUrl = Rock.Model.Person.GetPersonNoPictureUrl( fakePerson )
-                        }
-                    };
-                }
+                request.ConnectorGrouping = GetGroupingFieldBag( request.ConnectorGroupingProjection.Id, "person", request.ConnectorGroupingProjection.Label, null, connectorPerson );
+                request.OpportunityGrouping = GetGroupingFieldBag( request.OpportunityGroupingProjection.Id, "text", request.OpportunityGroupingProjection.Label, request.ConnectionOpportunityIcon );
+                request.CampusGrouping = GetGroupingFieldBag( request.CampusGroupingProjection.Id, "text", request.CampusGroupingProjection.Label );
+                request.StatusGrouping = GetGroupingFieldBag( request.StatusGroupingProjection.Id, "text", request.StatusGroupingProjection.Label );
 
-                // TODO - Simplify
-
-                if ( request.OpportunityGroupingProjection.Id.HasValue )
+                request.StateGrouping = new GroupingFieldBag
                 {
-                    request.OpportunityGrouping = new GroupingFieldBag
-                    {
-                        Key = IdHasher.Instance.GetHash( request.OpportunityGroupingProjection.Id.Value ),
-                        Type = "text",
-                        Label = request.OpportunityGroupingProjection.Label
-                    };
-                }
-                else
-                {
-                    request.OpportunityGrouping = new GroupingFieldBag
-                    {
-                        Key = string.Empty,
-                        Type = "text",
-                        Label = "Unassigned"
-                    };
-                }
-
-                if ( request.CampusGroupingProjection.Id.HasValue )
-                {
-                    request.CampusGrouping = new GroupingFieldBag
-                    {
-                        Key = IdHasher.Instance.GetHash( request.CampusGroupingProjection.Id.Value ),
-                        Type = "text",
-                        Label = request.CampusGroupingProjection.Label
-                    };
-                }
-                else
-                {
-                    request.CampusGrouping = new GroupingFieldBag
-                    {
-                        Key = string.Empty,
-                        Type = "text",
-                        Label = "Unassigned"
-                    };
-                }
-
-                if ( request.AssignedGroupGroupingProjection.Id.HasValue )
-                {
-                    request.AssignedGroupGrouping = new GroupingFieldBag
-                    {
-                        Key = IdHasher.Instance.GetHash( request.AssignedGroupGroupingProjection.Id.Value ),
-                        Type = "text",
-                        Label = request.AssignedGroupGroupingProjection.Label
-                    };
-                }
-                else
-                {
-                    request.AssignedGroupGrouping = new GroupingFieldBag
-                    {
-                        Key = string.Empty,
-                        Type = "text",
-                        Label = "Unassigned"
-                    };
-                }
+                    Key = request.ConnectionState.ToString(),
+                    Type = "text",
+                    Label = request.ConnectionState.ToString(),
+                    IconCssClass = GetStateIconCssClass( request.ConnectionState )
+                };
             }
 
             var gridDataBag = GetGridBuilder().Build( connectionRequests );
@@ -356,7 +340,8 @@ namespace Rock.Blocks.Engagement
                 .AddField( "connectorGrouping", a => a.ConnectorGrouping )
                 .AddField( "campusGrouping", a => a.CampusGrouping )
                 .AddField( "opportunityGrouping", a => a.OpportunityGrouping )
-                .AddField( "assignedGroupGrouping", a => a.AssignedGroupGrouping )
+                .AddField( "statusGrouping", a => a.StatusGrouping )
+                .AddField( "stateGrouping", a => a.StateGrouping )
                 .AddField( "connectorDetails", a => a.ConnectorPerson )
                 .AddField( "requestDetails", a => a.Person )
                 .AddTextField( "connectionOpportunity", a => a.ConnectionOpportunity )
@@ -383,7 +368,7 @@ namespace Rock.Blocks.Engagement
 
             public GroupingProjection CampusGroupingProjection { get; set; }
 
-            public GroupingProjection AssignedGroupGroupingProjection { get; set; }
+            public GroupingProjection StatusGroupingProjection { get; set; }
 
             public GroupingFieldBag ConnectorGrouping { get; set; }
 
@@ -391,7 +376,9 @@ namespace Rock.Blocks.Engagement
 
             public GroupingFieldBag CampusGrouping { get; set; }
 
-            public GroupingFieldBag AssignedGroupGrouping { get; set; }
+            public GroupingFieldBag StateGrouping { get; set; }
+
+            public GroupingFieldBag StatusGrouping { get; set; }
 
             public PersonProjection ConnectorPersonProjection { get; set; }
 
@@ -404,6 +391,8 @@ namespace Rock.Blocks.Engagement
             public int ConnectionOpportunityId { get; set; }
 
             public string ConnectionOpportunity { get; set; }
+
+            public string ConnectionOpportunityIcon { get; set; }
 
             public string ConnectionTypeSource { get; set; }
 

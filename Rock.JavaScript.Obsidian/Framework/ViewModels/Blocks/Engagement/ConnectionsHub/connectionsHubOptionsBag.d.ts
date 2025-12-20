@@ -27,5 +27,7 @@ import { ConnectionStatusBag } from "@Obsidian/ViewModels/Blocks/Engagement/Conn
 export type ConnectionsHubOptionsBag = {
     connectionStatusBags?: ConnectionStatusBag[] | null;
 
+    iconCssClass?: string | null;
+
     title?: string | null;
 };

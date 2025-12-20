@@ -26,6 +26,8 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
     {
         public string Title { get; set; }
 
+        public string IconCssClass { get; set; }
+
         public List<ConnectionStatusBag> ConnectionStatusBags { get; set; }
     }
 }

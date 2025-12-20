@@ -1,7 +1,20 @@
 <!-- Copyright by the Spark Development Network; Licensed under the Rock Community License -->
 <template>
-    <Panel :title="config.options?.title ?? ''">
-        <template #headerActions>
+    <ContextSlicer title="Filters"
+                   class="mb-spacing-lg"
+                   showCampus>
+        <template #default>
+            <DropDownList v-model="selectedOpportunity"
+                          :items="connectionOpportunities"
+                          blankValue="All Opportunities" />
+        </template>
+    </ContextSlicer>
+
+    <Panel :title="config.options?.title ?? ''"
+           :titleIconCssClass="`${config.options?.iconCssClass ?? ''} panel-icon`"
+           v-model:quickFilterValue="quickFilterValue"
+           hasFullscreen>
+        <template #preFilterHeaderActions>
             <HighlightLabel>
                 {{ countMessage }}
             </HighlightLabel>
@@ -16,6 +29,7 @@
             </div>
         </template>
         <GroupedGrid :rows="gridData?.rows ?? []"
+                     :filteredRows="filteredRows"
                      :groupingKey="selectedGrouping"
                      itemTerm="Request">
             <template #headerActions="{ groupRows }">
@@ -164,6 +178,13 @@
     </Panel>
 </template>
 
+<style>
+/* Temporary fix. See https://app.asana.com/1/20866866924293/project/1208321217019996/task/1212533216082714?focus=true */
+.panel-icon {
+    color: var(--color-interface-stronger) !important;
+}
+</style>
+
 <style scoped>
 .action-toolbar {
     display: flex;
@@ -207,7 +228,7 @@
 </style>
 
 <script setup lang="ts">
-    import { useConfigurationValues, useInvokeBlockAction } from "@Obsidian/Utility/block";
+    import { useBlockBrowserBus, useConfigurationValues, useInvokeBlockAction } from "@Obsidian/Utility/block";
     import { GridDataBag } from "@Obsidian/ViewModels/Core/Grid/gridDataBag";
     import { computed, reactive, ref, watch } from "vue";
     import { ListBlockBox } from "@Obsidian/ViewModels/Blocks/listBlockBox";
@@ -224,18 +245,37 @@
     import { tooltip } from "@Obsidian/Utility/tooltip";
     import { DueStatus } from "@Obsidian/Enums/Connection/dueStatus";
     import { asFormattedString } from "@Obsidian/Utility/numberUtils";
+    import { PersonFieldBag } from "@Obsidian/ViewModels/Core/Grid/personFieldBag";
+    import ContextSlicer from "@Obsidian/Controls/contextSlicer.obs";
+    import { ContextEntityChangedData, Message } from "@Obsidian/Types/Utility/browserBus";
+    import { useContextEntities } from "@Obsidian/Core/Utilities/contextEntity";
+    import { PageMessages } from "@Obsidian/Utility/browserBus";
+    import { areEqual } from "@Obsidian/Utility/guid";
+    import { EntityType } from "@Obsidian/SystemGuids/entityType";
 
     /* =====================================================
      * Configuration & Data Loading
      * ===================================================== */
 
     const config = useConfigurationValues<ListBlockBox<ConnectionsHubOptionsBag>>();
+    console.log("Config: ", config);
     const invokeBlockAction = useInvokeBlockAction();
+    const browserBus = useBlockBrowserBus();
+    const contextEntities = useContextEntities();
+
+    browserBus.subscribe(PageMessages.ContextEntityChanged, async (message: Message<ContextEntityChangedData>) => {
+        if (areEqual(message.data.entityTypeGuid, EntityType.Campus)) {
+            loadGridData();
+        }
+    });
+
     const selectedGrouping = ref<string>("connectorGrouping");
+    const selectedOpportunity = ref();
+    const connectionOpportunities = ref();
 
     // Holds the raw grid data returned from the server
     const gridData = ref<GridDataBag>();
-    const countMessage = ref("");
+    const quickFilterValue = ref("");
 
     async function loadGridData(): Promise<GridDataBag> {
         const result = await invokeBlockAction<GridDataBag>("GetGridData");
@@ -248,7 +288,40 @@
         throw new Error(result.errorMessage ?? "Error loading grid data.");
     }
 
-    loadGridData();
+    const filteredRows = computed(() => {
+        if (!gridData.value?.rows) {
+            return [];
+        }
+        return gridData.value.rows.filter(row => {
+            const value = row["requestDetails"] as PersonFieldBag | undefined;
+
+            if (!value || typeof value !== "object") {
+                return false;
+            }
+
+            return isNullOrWhiteSpace(quickFilterValue.value)
+                || (
+                    (value.nickName ?? "").toLowerCase().includes(
+                        quickFilterValue.value.toLowerCase()
+                    )
+                    || (value.lastName ?? "").toLowerCase().includes(
+                        quickFilterValue.value.toLowerCase()
+                    )
+                );
+        });
+    });
+
+    const countMessage = computed(() => {
+        const totalCount = gridData.value?.rows?.length ?? 0;
+        const filteredCount = filteredRows.value.length;
+
+        if (filteredCount === totalCount) {
+            return `${asFormattedString(totalCount)} Total ${pluralize("Request", totalCount)}`;
+        }
+        else {
+            return `${asFormattedString(filteredCount)} of ${asFormattedString(totalCount)} Total ${pluralize("Request", totalCount)}`;
+        }
+    });
 
     const groupingFields = <ListItemBag[]>[
         {
@@ -262,6 +335,14 @@
         {
             text: "Opportunity",
             value: "opportunityGrouping"
+        },
+        {
+            text: "State",
+            value: "stateGrouping"
+        },
+        {
+            text: "Status",
+            value: "statusGrouping"
         },
     ];
 
@@ -348,12 +429,5 @@
         }
     }
 
-    function updateCountMessage() {
-        const requestCount = gridData.value?.rows?.length ?? 0;
-        countMessage.value = `${asFormattedString(requestCount)} ${pluralize("Request", requestCount)}`;
-    }
-
-    watch(gridData, () => {
-        updateCountMessage();
-    });
+    loadGridData();
 </script>

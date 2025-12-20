@@ -24,6 +24,8 @@
 import { PersonFieldBag } from "@Obsidian/ViewModels/Core/Grid/personFieldBag";
 
 export type GroupingFieldBag = {
+    iconCssClass?: string | null;
+
     key?: string | null;
 
     label?: string | null;

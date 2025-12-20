@@ -28,6 +28,8 @@ namespace Rock.ViewModels.Core.Grid
 
         public string Label { get; set; }
 
+        public string IconCssClass { get; set; }
+
         public PersonFieldBag Person { get; set; }
     }
 }
