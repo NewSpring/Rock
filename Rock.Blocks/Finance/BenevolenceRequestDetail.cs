@@ -125,8 +125,7 @@ namespace Rock.Blocks.Finance
 
         #region Properties
 
-        #region Properties - Services
-
+        // Services
         private PersonAliasService PersonAliasService => new PersonAliasService( RockContext );
         private LocationService LocationService => new LocationService( RockContext );
         private CampusService CampusService => new CampusService( RockContext );
@@ -134,8 +133,6 @@ namespace Rock.Blocks.Finance
         private BenevolenceTypeService BenevolenceTypeService => new BenevolenceTypeService( RockContext );
         private BinaryFileService BinaryFileService => new BinaryFileService( RockContext );
         private BenevolenceRequestDocumentService BenevolenceRequestDocumentService => new BenevolenceRequestDocumentService( RockContext );
-
-        #endregion Properties - Services
 
         #endregion Properties
 
@@ -158,8 +155,6 @@ namespace Rock.Blocks.Finance
             public const string EthnicityOption = "EthnicityOption";
         }
 
-        #region List Source
-
         /// <summary>
         /// Provides a source of predefined list values used for configuration or validation purposes.
         /// </summary>
@@ -169,8 +164,6 @@ namespace Rock.Blocks.Finance
         {
             public const string HIDE_OPTIONAL_REQUIRED = "Hide,Optional,Required";
         }
-
-        #endregion
 
         /// <summary>
         /// Provides a collection of constant keys used for identifying page parameters.
@@ -208,7 +201,22 @@ namespace Rock.Blocks.Finance
             box.NavigationUrls = GetBoxNavigationUrls();
             box.Options = GetBoxOptions( box.IsEditable );
 
+            MinimizeDataBeforeSend( box );
+
             return box;
+        }
+
+        /// <summary>
+        /// Minimizes the data sent to the client by removing unnecessary details from the box and it's contents.
+        /// </summary>
+        /// <param name="box">The box containing the details to minimize.</param>
+        public void MinimizeDataBeforeSend( DetailBlockBox<BenevolenceRequestBag, BenevolenceRequestDetailOptionsBag> box )
+        {
+            // Minimize data sent to client for CaseWorkersByRole
+            foreach ( var requestType in box.Options.BenevolenceRequestTypes )
+            {
+                requestType.Options.AdditionalSettingsJson = string.Empty;
+            }
         }
 
         /// <summary>
@@ -262,16 +270,40 @@ namespace Rock.Blocks.Finance
             options.BenevolenceRequestTypes = BenevolenceTypeService
                 .Queryable()
                 .OrderBy( type => type.Id )
-                .Select( type => new ListItemBag
+                .Select( type => new BenevolenceTypeBag
                 {
-                    Value = type.Id.ToString(),
-                    Text = type.Name,
+                    Id = type.Id,
+                    Name = type.Name,
+                    IsActive = type.IsActive,
+                    LavaDetails = type.RequestLavaTemplate,
+                    Options = new BenevolenceTypeOptionsBag
+                    {
+                        // Grab them in raw form and mutate below
+                        AdditionalSettingsJson = type.AdditionalSettingsJson,
+                        IsShowingFinancialResults = type.ShowFinancialResults,
+                    }
                 } )
                 .ToList();
 
-            options.RequestStatusValues = ( DefinedTypeCache.Get( Rock.SystemGuid.DefinedType.BENEVOLENCE_REQUEST_STATUS.AsGuid() ) != null )
+            // Handle BenevolenceRequestType configurable options including any staging transforms needed on AdditionalSettingsJson
+            var commonMergeFields = new Lava.CommonMergeFieldsOptions();
+            var mergeFields = Lava.LavaHelper.GetCommonMergeFields( null, null, commonMergeFields );
+            mergeFields.Add( "BenevolenceRequest", new BenevolenceRequestService( RockContext ).Get( RequestContext.GetPageParameter( PageParameterKey.BenevolenceRequestId ) ) );
+            foreach ( var requestType in options.BenevolenceRequestTypes )
+            {
+                // Replace the raw LavaDetails above with the merged, ready to display text
+                requestType.LavaDetails = requestType.LavaDetails.ResolveMergeFields( mergeFields );
+
+                // Set the MaximumDocuments per request for the type
+                var maximumDocuments = requestType.Options.AdditionalSettingsJson.FromJsonOrNull<BenevolenceType.AdditionalSettings>()?.MaximumNumberOfDocuments;
+                requestType.Options.MaximumDocuments = maximumDocuments.HasValue
+                    ? maximumDocuments.Value
+                    : 6;
+            }
+
+            options.RequestStatusValues = ( DefinedTypeCache.Get( SystemGuid.DefinedType.BENEVOLENCE_REQUEST_STATUS.AsGuid() ) != null )
                 ? DefinedValueService
-                    .GetByDefinedTypeId( DefinedTypeCache.GetId( Rock.SystemGuid.DefinedType.BENEVOLENCE_REQUEST_STATUS.AsGuid() ).Value )
+                    .GetByDefinedTypeId( DefinedTypeCache.GetId( SystemGuid.DefinedType.BENEVOLENCE_REQUEST_STATUS.AsGuid() ).Value )
                     .OrderBy( definedValue => definedValue.Id )
                     .Select( definedValue => new ListItemBag
                     {
@@ -281,9 +313,9 @@ namespace Rock.Blocks.Finance
                     .ToList()
                 : new List<ListItemBag>();
 
-            options.ConnectionStatusValues = ( DefinedTypeCache.Get( Rock.SystemGuid.DefinedType.PERSON_CONNECTION_STATUS.AsGuid() ) != null )
+            options.ConnectionStatusValues = ( DefinedTypeCache.Get( SystemGuid.DefinedType.PERSON_CONNECTION_STATUS.AsGuid() ) != null )
                 ? DefinedValueService
-                    .GetByDefinedTypeId( DefinedTypeCache.GetId( Rock.SystemGuid.DefinedType.PERSON_CONNECTION_STATUS.AsGuid() ).Value )
+                    .GetByDefinedTypeId( DefinedTypeCache.GetId( SystemGuid.DefinedType.PERSON_CONNECTION_STATUS.AsGuid() ).Value )
                     .OrderBy( definedValue => definedValue.Id )
                     .Select( definedValue => new ListItemBag
                     {
@@ -293,9 +325,9 @@ namespace Rock.Blocks.Finance
                     .ToList()
                 : new List<ListItemBag>();
 
-            options.ResultTypeValues = ( DefinedTypeCache.Get( Rock.SystemGuid.DefinedType.BENEVOLENCE_RESULT_TYPE.AsGuid() ) != null )
+            options.ResultTypeValues = ( DefinedTypeCache.Get( SystemGuid.DefinedType.BENEVOLENCE_RESULT_TYPE.AsGuid() ) != null )
                 ? DefinedValueService
-                    .GetByDefinedTypeId( DefinedTypeCache.GetId( Rock.SystemGuid.DefinedType.BENEVOLENCE_RESULT_TYPE.AsGuid() ).Value )
+                    .GetByDefinedTypeId( DefinedTypeCache.GetId( SystemGuid.DefinedType.BENEVOLENCE_RESULT_TYPE.AsGuid() ).Value )
                     .OrderBy( definedValue => definedValue.Id )
                     .Select( definedValue => new ListItemBag
                     {
@@ -305,7 +337,7 @@ namespace Rock.Blocks.Finance
                     .ToList()
                 : new List<ListItemBag>();
 
-            options.BenevolenceDocumentBinaryFileTypeGuid = Rock.SystemGuid.BinaryFiletype.BENEVOLENCE_REQUEST_DOCUMENTS.AsGuid();
+            options.BenevolenceDocumentBinaryFileTypeGuid = SystemGuid.BinaryFiletype.BENEVOLENCE_REQUEST_DOCUMENTS.AsGuid();
 
             return options;
         }
@@ -453,10 +485,6 @@ namespace Rock.Blocks.Finance
 
             return true;
         }
-
-        #region Helper Methods
-
-        #region Helper Methods - Entity Update
 
         /// <summary>
         /// Updates the properties of the requester in the specified <see cref="BenevolenceRequest"/> entity based on
@@ -671,10 +699,6 @@ namespace Rock.Blocks.Finance
             box.IfValidProperty( nameof( box.Bag.ProvidedNextSteps ), () => entity.ProvidedNextSteps = box.Bag.ProvidedNextSteps );
         }
 
-        #endregion Helper Methods - Entity Update
-
-        #region Helper Methods - Bag Construction
-
         /// <summary>
         /// Gets the entity bag that is common between both view and edit modes.
         /// </summary>
@@ -692,6 +716,23 @@ namespace Rock.Blocks.Finance
                 var requesterPersonBag = BuildPersonBag( entity, entity.RequestedByPersonAliasId ?? 0, entity.GovernmentId );
                 var caseWorkerPersonBag = BuildPersonBag( entity, entity.CaseWorkerPersonAliasId ?? 0, "", isRequester: false );
                 var campus = BuildCampusBag( entity.CampusId ?? 0 );
+
+                // Add workflow info for frontend
+                var workflows = GetAuthorizedManualWorkflows( entity )
+                    .Select( w => new BenevolenceRequestWorkflowBag
+                    {
+                        TypeId = w.WorkflowTypeId,
+                        TypeGuid = w.WorkflowType.Guid,
+                        TypeName = w.WorkflowType.Name,
+                        TriggerType = w.TriggerType,
+                        LaunchUrl = this.GetLinkedPageUrl( AttributeKey.WorkflowEntryPage, new Dictionary<string, string>
+                        {
+                            { "WorkflowTypeId", w.WorkflowTypeId.ToString() },
+                            { "BenevolenceRequestId", entity.IdKey }
+                        }),
+                        iconCssClass = w.WorkflowType.IconCssClass,
+                    })
+                    .ToList();
 
                 return new BenevolenceRequestBag
                 {
@@ -724,7 +765,8 @@ namespace Rock.Blocks.Finance
                             FileName = document.BinaryFile.FileName,
                             IsMarkedForDeletion = false
                         } )
-                        .ToList()
+                        .ToList(),
+                    Workflows = workflows
                 };
             }
 
@@ -818,13 +860,13 @@ namespace Rock.Blocks.Finance
 
                     var personConnectionStatus = new ConnectionStatusBag
                     {
-                        ConnectionStatusValueId = person.ConnectionStatusValueId ?? (entity.ConnectionStatusValueId.HasValue && isRequester
+                        ConnectionStatusValueId = person.ConnectionStatusValueId ?? ( entity.ConnectionStatusValueId.HasValue && isRequester
                                                       ? entity.ConnectionStatusValueId.Value
-                                                      : (int?)null),
-                        ConnectionStatusName = (DefinedTypeCache.Get(Rock.SystemGuid.DefinedType.PERSON_CONNECTION_STATUS.AsGuid()) != null)
-                                                ? DefinedValueCache.Get(person.ConnectionStatusValueId ?? 0)?.Value ?? string.Empty
+                                                      : ( int? ) null ),
+                        ConnectionStatusName = ( DefinedTypeCache.Get( Rock.SystemGuid.DefinedType.PERSON_CONNECTION_STATUS.AsGuid() ) != null )
+                                                ? DefinedValueCache.Get( person.ConnectionStatusValueId ?? 0 )?.Value ?? string.Empty
                                                 : string.Empty,
-                        ConnectionStatusGuid = DefinedValueCache.Get(person.ConnectionStatusValueId ?? 0)?.Guid ?? Guid.Empty
+                        ConnectionStatusGuid = DefinedValueCache.Get( person.ConnectionStatusValueId ?? 0 )?.Guid ?? Guid.Empty
                     };
 
                     return new PersonBag
@@ -1230,10 +1272,6 @@ namespace Rock.Blocks.Finance
             };
         }
 
-        #endregion Helper Methods - Bag Construction
-
-        #region Helper Methods - Person Creation
-
         /// <summary>
         /// Finds an existing person based on the provided information or creates a new person record if no match is
         /// found.
@@ -1440,7 +1478,7 @@ namespace Rock.Blocks.Finance
         /// <param name="numberThatFailedValidation">When this method returns, contains the phone number that failed validation, or an empty string if all
         /// numbers are valid.</param>
         /// <returns>true if all phone numbers in the collection pass validation; otherwise, false.</returns>
-        private bool ValidatePhoneNumbers(List<PhoneNumberBag> phoneNumberBags, out string numberThatFailedValidation)
+        private bool ValidatePhoneNumbers( List<PhoneNumberBag> phoneNumberBags, out string numberThatFailedValidation )
         {
             numberThatFailedValidation = string.Empty;
 
@@ -1465,9 +1503,35 @@ namespace Rock.Blocks.Finance
             return true;
         }
 
-        #endregion Helper Methods - Person Creation
+        /// <summary>
+        /// Gets the authorized manual workflows for the given benevolence request.
+        /// </summary>
+        /// <param name="benevolenceRequest">The benevolence request.</param>
+        /// <returns>A list of authorized manual workflows.</returns>
+        private List<BenevolenceWorkflow> GetAuthorizedManualWorkflows( BenevolenceRequest benevolenceRequest )
+        {
+            if ( benevolenceRequest?.BenevolenceType == null )
+            {
+                return new List<BenevolenceWorkflow>();
+            }
 
-        #endregion Helper Methods
+            var benevolenceWorkflows = benevolenceRequest.BenevolenceType.BenevolenceWorkflows;
+            var manualWorkflows = benevolenceWorkflows
+                .Where( w => w.TriggerType == BenevolenceWorkflowTriggerType.Manual && w.WorkflowType != null )
+                .OrderBy( w => w.WorkflowType.Name )
+                .Distinct();
+
+            var authorizedWorkflows = new List<BenevolenceWorkflow>();
+            foreach ( var manualWorkflow in manualWorkflows )
+            {
+                if ( ( manualWorkflow.WorkflowType.IsActive ?? true ) && manualWorkflow.WorkflowType.IsAuthorized( Authorization.VIEW, RequestContext.CurrentPerson ) )
+                {
+                    authorizedWorkflows.Add( manualWorkflow );
+                }
+            }
+
+            return authorizedWorkflows;
+        }
 
         #endregion Methods
 
@@ -1503,7 +1567,7 @@ namespace Rock.Blocks.Finance
             }
 
             var hasValidPhoneNumbers = ValidatePhoneNumbers( new List<PhoneNumberBag>
-                { 
+                {
                     personBag.HomePhoneNumber,
                     personBag.CellPhoneNumber,
                     personBag.WorkPhoneNumber,

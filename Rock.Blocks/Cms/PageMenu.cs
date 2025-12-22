@@ -24,9 +24,7 @@ using System.Text;
 
 using Rock.Attribute;
 using Rock.Enums.Cms;
-using Rock.Lava;
 using Rock.Model;
-using Rock.Security;
 using Rock.Utility.ExtensionMethods;
 using Rock.Web.Cache;
 
@@ -85,12 +83,6 @@ namespace Rock.Blocks.Cms
         Description = "Flag indicating if current page's QueryString should be used when building URL for child pages",
         DefaultBooleanValue = false,
         Key = AttributeKey.IncludeCurrentQueryString )]
-
-    [BooleanField(
-        "Is Secondary Block",
-        Description = "Flag indicating whether this block is considered secondary and should be hidden when other secondary blocks are hidden.",
-        DefaultBooleanValue = false,
-        Key = AttributeKey.IsSecondaryBlock )]
 
     [KeyValueListField(
         "Include Page List",

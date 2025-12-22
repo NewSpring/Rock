@@ -172,6 +172,7 @@ Did you see those comments ^^^
         }
 
         [TestMethod]
+        [TestCategory( "ShortcodeScopeBehavior" )]
         public void Issue5102_VariableScopingInWorkflowActivateTag()
         {
             /* The WorkflowActivate tag does not allow persistent changes to variables declared outside the block in Fluid.

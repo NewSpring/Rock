@@ -7,11 +7,12 @@
                 <div class="col-md-3">
                     <DropDownList v-model="benevolenceTypeIdString"
                                   label="Request Type"
-                                  :items="benevolenceRequestTypes"
+                                  :items="benevolenceRequestTypeItemBags"
                                   :enhanceForLongLists="false"
                                   :grouped="false"
                                   :multiple="false"
                                   :showBlankItem="true"
+                                  :disabled="isExistingRequest"
                                   rules="required" />
                 </div>
                 <div class="col-md-3">
@@ -197,27 +198,30 @@
                      label="Description of Request"
                      textMode="multiline"
                      rules="required" />
-            <Label class="control-label mt-3">Related Documents</Label>
-            <div class="d-flex flex-row mb-2">
-                <div v-if="requestDocuments.length > 0" class="mr-2">
-                    <div class="d-flex flex-row flex-wrap">
-                        <div v-for="doc in requestDocuments" :key="doc.guid">
-                            <div v-if="doc.isMarkedForDeletion === false" class="fileupload-thumbnail ml-2">
-                                <FileUploader v-model="doc.listItemBag"
-                                              :binaryFileTypeGuid="props.options.benevolenceDocumentBinaryFileTypeGuid"
-                                              :disabled="isSavingAttachment"
-                                              :uploadAsTemporary="true"
-                                              @update:modelValue="updatedModelValue => onRequestDocumentModified(doc, updatedModelValue)"
-                                              @fileRemoved="onRequestDocumentRemoved(doc)" />
+            <div v-if="documentLimit > 0">
+                <Label class="control-label mt-3">Related Documents</Label>
+                <div class="d-flex flex-row mb-2">
+                    <div v-if="requestDocuments.length > 0" class="mr-2">
+                        <div class="d-flex flex-row flex-wrap">
+                            <div v-for="doc in requestDocuments" :key="doc.guid">
+                                <div v-if="doc.isMarkedForDeletion === false" class="fileupload-thumbnail ml-2">
+                                    <FileUploader v-model="doc.listItemBag"
+                                                  :binaryFileTypeGuid="props.options.benevolenceDocumentBinaryFileTypeGuid"
+                                                  :disabled="isSavingAttachment"
+                                                  :uploadAsTemporary="true"
+                                                  @update:modelValue="updatedModelValue => onRequestDocumentModified(doc, updatedModelValue)"
+                                                  @fileRemoved="onRequestDocumentRemoved(doc)" />
+                                </div>
                             </div>
                         </div>
                     </div>
+                    <FileUploader v-if="!isAtDocumentLimit"
+                                  v-model="currentAttachment"
+                                  :binaryFileTypeGuid="props.options.benevolenceDocumentBinaryFileTypeGuid"
+                                  :disabled="isSavingAttachment"
+                                  :uploadAsTemporary="true"
+                                  @update:modelValue="onRequestDocumentAdded" />
                 </div>
-                <FileUploader v-model="currentAttachment"
-                              :binaryFileTypeGuid="props.options.benevolenceDocumentBinaryFileTypeGuid"
-                              :disabled="isSavingAttachment"
-                              :uploadAsTemporary="true"
-                              @update:modelValue="onRequestDocumentAdded" />
             </div>
         </ContentStack>
     </ContentSection>
@@ -296,7 +300,14 @@
 
     const invokeBlockAction = useInvokeBlockAction();
 
+    const isExistingRequest = !!props.modelValue.bag?.benevolenceTypeId;
+
     const benevolenceRequestTypes = ref(props.options.benevolenceRequestTypes ?? []);
+    const benevolenceRequestTypeItemBags = ref<ListItemBag[]>(benevolenceRequestTypes.value.map(type => ({
+        text: type.name ?? "",
+        value: type.id?.toString() ?? ""
+    })));
+
     const caseWorkersByRoleCount = ref(props.options.caseWorkersByRole?.length ?? 0);
     const requestStatusValues = ref(props.options.requestStatusValues ?? []);
     const connectionStatusValues = ref(props.options.connectionStatusValues ?? []);
@@ -352,6 +363,11 @@
     const currentAttachment = ref<ListItemBag | null | undefined>(undefined);
     const isSavingAttachment = ref<boolean>(false);
     const isSavingPersonRecord = ref<boolean>(false);
+
+    const documentLimit = props.options.benevolenceRequestTypes?.find(type => type.id === benevolenceTypeId.value)?.options?.maximumDocuments ?? 6;
+    const isAtDocumentLimit = computed(() => {
+        return requestDocuments.value.filter(doc => doc.isMarkedForDeletion === false).length >= documentLimit;
+    });
 
     const createRecordError = ref<string>("");
     const createRecordNotes = ref<string>("");

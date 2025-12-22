@@ -1003,7 +1003,7 @@ namespace Rock.Blocks.Reporting
         }
 
         /// <summary>
-        ///  Gets the person key field from the hidden key column configuration.
+        ///  Gets the person key field for the provided column configuration, from the corresponding hidden key column configuration.
         /// </summary>
         /// <param name="column">The person column configuration for which to get the key field.</param>
         /// <param name="columnConfigurations">The column configurations to search.</param>
@@ -1019,7 +1019,7 @@ namespace Rock.Blocks.Reporting
             {
                 // Try to find the matching, hidden key column configuration.
                 var hiddenKeyColumn = columnConfigurations
-                    .FirstOrDefault( c => c.Name.ToUpper() == GetHiddenKeyColumnName( c.ActualColumnName ).ToUpper() );
+                    .FirstOrDefault( c => c.Name.ToUpper() == GetHiddenKeyColumnName( column.ActualColumnName ).ToUpper() );
 
                 if ( hiddenKeyColumn?.CamelCaseName.IsNotNullOrWhiteSpace() == true )
                 {

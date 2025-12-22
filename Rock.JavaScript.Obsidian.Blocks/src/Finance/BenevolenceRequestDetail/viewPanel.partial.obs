@@ -41,6 +41,30 @@
                         <ValueDetailList :modelValue="contactInfoRightSideValues" />
                     </div>
                 </div>
+
+                <div v-if="hasAuthorizedManualWorkflows" class="row">
+                    <div class="col-md-12">
+                        <NotificationBox v-if="launchWorkflowError" alertType="danger" class="mt-2">
+                            <strong><i class="ti ti-exclamation-circle"></i> Error Launching Workflow</strong>
+                            <span>{{ launchWorkflowError }}</span>
+                        </NotificationBox>
+                        <dl>
+                            <dt>Available Workflows</dt>
+                            <dd>
+                                <RockButton v-for="workflow in authorizedManualWorkflows"
+                                            class="m-1"
+                                            :key="workflow.typeId"
+                                            :btnType="BtnType.Default"
+                                            :btnSize="BtnSize.ExtraSmall"
+                                            @click="onWorkflowButtonClick(workflow.typeName, workflow.launchUrl)">
+                                    <i :class="workflow.iconCssClass"></i> {{ workflow.typeName }}
+                                </RockButton>
+                            </dd>
+                        </dl>
+                    </div>
+                </div>
+
+                <ValueDetailList :modelValue="contactInfoBottomValues" />
             </ContentStack>
         </ContentSection>
 
@@ -80,7 +104,8 @@
                     </div>
                 </div>
 
-                <BenevolenceResultsList @update:requestResults="onResultsListUpdate"
+                <BenevolenceResultsList v-if="isShowingFinancialInfo"
+                                        @update:requestResults="onResultsListUpdate"
                                         :modelValue="entity"
                                         :isEditable="props.isEditable"
                                         :options="props.options" />
@@ -121,6 +146,7 @@
     import HighlightLabel from "@Obsidian/Controls/highlightLabel.obs";
     import RockButton from "@Obsidian/Controls/rockButton.obs";
     import ValueDetailList from "@Obsidian/Controls/valueDetailList.obs";
+    import NotificationBox from "@Obsidian/Controls/notificationBox.obs";
     import { BenevolenceRequestBag } from "@Obsidian/ViewModels/Blocks/Finance/BenevolenceRequestDetail/benevolenceRequestBag";
     import { PersonBag } from "@Obsidian/ViewModels/Blocks/Finance/BenevolenceRequestDetail/personBag";
     import { BenevolenceResultBag } from "@Obsidian/ViewModels/Blocks/Finance/BenevolenceRequestDetail/benevolenceResultBag";
@@ -132,6 +158,8 @@
     import { BtnSize } from "@Obsidian/Enums/Controls/btnSize";
     import { isNotNullish } from "@Obsidian/Utility/util";
     import { emptyGuid } from "@Obsidian/Utility/guid";
+    import { confirm } from "@Obsidian/Utility/dialogs";
+    import { BenevolenceRequestWorkflowBag } from "@Obsidian/ViewModels/Blocks/Finance/BenevolenceRequestDetail/benevolenceRequestWorkflowBag";
 
     const props = defineProps({
         modelValue: {
@@ -154,6 +182,10 @@
     const emit = defineEmits<{
         (e: "update:requestResults", value: BenevolenceResultBag[]): void,
     }>();
+
+    const launchWorkflowError = ref("");
+
+    // #region Value Builders
 
     /** The values to display full-width at the top of the block. */
     const contactInfoTopValues = computed((): ValueDetailListItem[] => {
@@ -185,7 +217,7 @@
                 valueBuilder.addHtmlValue("Email", `<a href="${window.location.origin}/Communication/?person=${requesterIdKey}">${entity.requester?.email ?? ""}</a>`);
             }
             else {
-                const subject = `Benevolence Request - ${props.options.benevolenceRequestTypes?.find(type => Number(type.value) === entity.benevolenceTypeId)?.text ?? ""}`;
+                const subject = `Benevolence Request - ${props.options.benevolenceRequestTypes?.find(type => Number(type.id) === entity.benevolenceTypeId)?.name ?? ""}`;
                 valueBuilder.addHtmlValue("Email", `<a href="mailto:${entity.requester?.email ?? ""}?subject=${encodeURIComponent(subject)}">${entity.requester?.email ?? ""}</a>`);
             }
         }
@@ -245,6 +277,21 @@
 
         if (!props.modelValue) {
             return valueBuilder.build();
+        }
+
+        return valueBuilder.build();
+    });
+
+
+    const contactInfoBottomValues = computed((): ValueDetailListItem[] => {
+        const valueBuilder = new ValueDetailListItemBuilder();
+
+        if (!props.modelValue) {
+            return valueBuilder.build();
+        }
+
+        if (hasRequestLavaTemplateDetails.value) {
+            valueBuilder.addHtmlValue("", benevolenceRequestTypeLavaDetails);
         }
 
         return valueBuilder.build();
@@ -335,6 +382,8 @@
 
         return valueBuilder.build();
     });
+
+    // #endregion Value Builders
 
     // #region Values
 
@@ -437,6 +486,28 @@
     /** Whether or not the requester has no contact information. */
     const hasNoContactInfo = computed((): boolean => {
         return !hasEmail.value && !hasPhone.value && !hasAddress.value;
+    });
+
+    const requestType = props.options.benevolenceRequestTypes?.find(requestType => requestType.id === entity.benevolenceTypeId);
+
+    const hasAuthorizedManualWorkflows = computed((): boolean => {
+        return props.modelValue?.workflows != null
+            && props.modelValue?.workflows !== undefined
+            && props.modelValue?.workflows.length > 0;
+    });
+    const authorizedManualWorkflows = computed((): BenevolenceRequestWorkflowBag[] => {
+        return props.modelValue?.workflows ?? [];
+    });
+
+    const benevolenceRequestTypeLavaDetails = requestType?.lavaDetails ?? "";
+    const hasRequestLavaTemplateDetails = computed((): boolean => {
+        return benevolenceRequestTypeLavaDetails !== null
+            && benevolenceRequestTypeLavaDetails !== undefined
+            && benevolenceRequestTypeLavaDetails !== "";
+    });
+
+    const isShowingFinancialInfo = computed((): boolean => {
+        return requestType?.options?.isShowingFinancialResults ?? false;
     });
 
     /** Whether or not there are any attributes to display. */
@@ -560,6 +631,19 @@
 
         // Emit the updated entity to the parent
         emit("update:requestResults", newValue);
+    }
+
+    /**
+     * Opens a workflow launch URL in a new tab.
+     * @param url The workflow launch URL.
+     */
+    async function onWorkflowButtonClick(workflowName: string | null | undefined, url: string | null | undefined): Promise<void> {
+        if (!workflowName || !url) {
+            return;
+        }
+
+        await confirm(`A '${workflowName}' workflow has been started.`);
+        window.open(url, "_blank");
     }
 
     // #endregion

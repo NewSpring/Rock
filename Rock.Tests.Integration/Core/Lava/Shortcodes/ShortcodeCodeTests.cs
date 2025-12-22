@@ -73,6 +73,7 @@ Font Bold: true
         }
 
         [TestMethod]
+        [TestCategory( "ShortcodeScopeBehavior" )]
         public void Shortcode_ReferencingItemFromParentScope_CorrectlyResolvesItem()
         {
             var shortcodeTemplate = @"
@@ -270,6 +271,56 @@ Main Output: The Lava command 'execute' is not configured for this template.<br>
         {
             TestHelper.AssertTemplateOutput( "<!--the landing site provided to the scripturize shortcode was not correct-->John 3:16",
                                           "{[ scripturize defaulttranslation:'NLT' landingsite:'InvalidSite' cssclass:'scripture' ]}John 3:16{[ endscripturize ]}" );
+        }
+
+        #endregion
+
+        #region Workflow Activate
+
+        [TestMethod]
+        [DataRow( "Workflow", "some workflow" )]
+        [DataRow( "Activity", "some activity" )]
+        public void WorkflowActivate_WithPreexistingReservedMergeField_SavesAndRestoresMergeFieldValue( string mergeFieldKey, string mergeFieldValue )
+        {
+            var input = $@"
+{{% workflowactivate workflowtype:'51FE9641-FB8F-41BF-B09E-235900C3E53E' %}}
+{{% endworkflowactivate %}}
+Restored Value: {{{{{mergeFieldKey}}}}}";
+
+            var expectedOutput = $"Restored Value: {mergeFieldValue}";
+
+            TestHelper.ExecuteForActiveEngines( ( engine ) =>
+            {
+                var options = new LavaTestRenderOptions()
+                    .WithContextVariable( mergeFieldKey, mergeFieldValue )
+                    .WithEnabledCommands( "workflowactivate" );
+
+                var output = TestHelper.GetTemplateOutput( engine, input, options );
+
+                Assert.Contains( expectedOutput, output, $"Reserved merge field with key '{mergeFieldKey}' was not restored." );
+            } );
+        }
+
+        [TestMethod]
+        public void WorkflowActivate_WithPreexistingErrorMergeField_SavesAndRestoresMergeFieldValue()
+        {
+            var input = @"
+{% workflowactivate workflowtype:'some-invalid-workflow-type-guid' %}
+{% endworkflowactivate %}
+Restored Value: {{Error}}";
+
+            var expectedOutput = $"Restored Value: some error";
+
+            TestHelper.ExecuteForActiveEngines( ( engine ) =>
+            {
+                var options = new LavaTestRenderOptions()
+                    .WithContextVariable( "Error", "some error" )
+                    .WithEnabledCommands( "workflowactivate" );
+
+                var output = TestHelper.GetTemplateOutput( engine, input, options );
+
+                Assert.Contains( expectedOutput, output, $"Reserved merge field with key 'Error' was not restored." );
+            } );
         }
 
         #endregion

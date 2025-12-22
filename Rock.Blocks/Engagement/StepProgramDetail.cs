@@ -2048,7 +2048,7 @@ namespace Rock.Blocks.Engagement
 
             var dateRange = testRange.SelectedDateRange;
 
-            parameters.Add( "StartingStepTypeIds", startingStepTypeIds.ConvertToEntityIdListParameter( "StartingStepTypeIds" ) );
+            parameters.Add( "StartingStepTypeIds", startingStepTypeIds.ConvertToIdListParameter( "StartingStepTypeIds" ) );
 
             if ( dateRange.Start != null )
             {
@@ -2297,6 +2297,12 @@ namespace Rock.Blocks.Engagement
 
                 foreach ( var stepType in stepTypes )
                 {
+                    if ( stepType.IsSystem )
+                    {
+                        errorMessage = $"This program contains the Step Type, '{stepType.Name}', which is a system Step Type and cannot be deleted.";
+                        return;
+                    }
+
                     if ( !stepTypeService.CanDelete( stepType, out errorMessage ) )
                     {
                         return;

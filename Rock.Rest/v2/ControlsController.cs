@@ -4317,6 +4317,41 @@ namespace Rock.Rest.v2
         }
 
         /// <summary>
+        /// Gets a group for the Email Editor control.
+        /// </summary>
+        /// <returns>A <see cref="ListItemBag"/> that represents the group.</returns>
+        [HttpPost]
+        [Route( "EmailEditorGetGroup" )]
+        [Authenticate]
+        [ExcludeSecurityActions( Security.Authorization.EXECUTE_READ, Security.Authorization.EXECUTE_WRITE, Security.Authorization.EXECUTE_UNRESTRICTED_READ, Security.Authorization.EXECUTE_UNRESTRICTED_WRITE )]
+        [ProducesResponse( HttpStatusCode.OK, Type = typeof( ListItemBag ) )]
+        [Rock.SystemGuid.RestActionGuid( "F5BD307A-FC9B-4BC2-ABDA-F338D30264B3" )]
+        public IActionResult EmailEditorGetGroup( [FromBody] EmailEditorGetGroupOptionsBag options )
+        {
+            var grant = SecurityGrant.FromToken( options.SecurityGrantToken );
+
+            // Default security is world view. So we decided
+            // to require a custom security grant in order so that
+            // the API was not just open to the world.
+            if ( grant?.IsAccessGranted( EmailEditorSecurityGrantRule.AccessInstance, Authorization.VIEW ) != true )
+            {
+                return Unauthorized();
+            }
+
+            var group = GroupCache.Get( options.GroupGuid );
+            var groupBag = group?.ToListItemBag();
+
+            if ( groupBag != null )
+            {
+                return Ok( groupBag );
+            }
+            else
+            {
+                return NotFound();
+            }
+        }
+
+        /// <summary>
         /// Updates an email section or creates one if it doesn't exist.
         /// </summary>
         /// <param name="options">The email section to update or create.</param>
@@ -6577,6 +6612,11 @@ namespace Rock.Rest.v2
                         return 0;
                     } )
                     .ToList();
+
+                if ( options.ExcludeAllByDefault && !includedGroupTypeIds.Any() )
+                {
+                    return Ok( new List<TreeItemBag>() );
+                }
 
                 var groupNameList = GroupPickerGetChildrenInternal(
                     options.Guid,

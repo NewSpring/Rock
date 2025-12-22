@@ -193,16 +193,16 @@
     const entityType = propertyRef(props.modelValue.entityType ?? {}, "EntityTypeId");
     const enabledLavaCommands = ref<ListItemBag[]>(props.modelValue.enabledLavaCommands ?? [{ value: "All", text: "All" }]);
     const allowManualRefresh = propertyRef(props.modelValue.allowManualRefresh ?? false, "AllowManualRefresh");
-    const refreshInterval = propertyRef(props.modelValue.refreshIntervalHours, "RefreshIntervalMinutes");
+    const refreshInterval = propertyRef(props.modelValue.refreshIntervalHours, "PersistedScheduleIntervalMinutes");
     const memoryCacheDuration = propertyRef(props.modelValue.memoryCacheDurationHours, "MemoryCacheDurationMS");
     const expiresOn = propertyRef(props.modelValue.expireDateTime ?? "", "ExpireDateTime");
-    const refreshIntervalMinutes = propertyRef(props.modelValue.refreshInterval ?? 1, "RefreshInterval");
+    const persistedScheduleIntervalMinutes = propertyRef(props.modelValue.refreshInterval ?? 1, "RefreshInterval");
     const persistedSchedule = propertyRef(props.modelValue.persistedSchedule ?? "", "PersistedSchedule");
     const persistenceIntervalType = propertyRef(props.modelValue.persistedScheduleIntervalType ?? "", "PersistedScheduleIntervalType");
     const persistedScheduleType = propertyRef(props.modelValue.persistedScheduleType ?? "", "PersistedScheduleType");
     const persistenceType = propertyRef(typeOfPersistence?.value, "PersistenceType");
 
-    const propRefs = [description, isActive, name, accessKey, buildScript, entityType, enabledLavaCommands, allowManualRefresh, refreshInterval, memoryCacheDuration, expiresOn, refreshIntervalMinutes, persistedSchedule, persistenceType, persistedScheduleType, persistenceIntervalType];
+    const propRefs = [description, isActive, name, accessKey, buildScript, entityType, enabledLavaCommands, allowManualRefresh, refreshInterval, memoryCacheDuration, expiresOn, persistedScheduleIntervalMinutes, persistedSchedule, persistenceType, persistedScheduleType, persistenceIntervalType];
 
     const persistenceTypeOptions = [
         { value: "Interval", text: "Interval" },
@@ -272,7 +272,7 @@
             intervalMinutes.value = 12;
             persistedSchedule.value = "";
             selectedNamedSchedule.value = "";
-            refreshIntervalMinutes.value = 1;
+            persistedScheduleIntervalMinutes.value = 1;
         }
         emitUpdate();
     }
@@ -321,7 +321,7 @@
         updateRefValue(refreshInterval, props.modelValue.refreshIntervalHours);
         updateRefValue(memoryCacheDuration, props.modelValue.memoryCacheDurationHours);
         updateRefValue(expiresOn, props.modelValue.expireDateTime ?? "");
-        updateRefValue(refreshIntervalMinutes, props.modelValue.refreshInterval ?? 1);
+        updateRefValue(persistedScheduleIntervalMinutes, props.modelValue.refreshInterval ?? 1);
         updateRefValue(persistedSchedule, props.modelValue.persistedSchedule ?? "");
         updateRefValue(persistenceType, props.modelValue.refreshInterval != null ? "Interval" : "Schedule");
         updateRefValue(persistedScheduleType, props.modelValue.refreshInterval != null ? "Unique" : "NamedSchedule");
@@ -333,7 +333,7 @@
 
     watch(() => intervalMinutes.value, () => {
         if (typeOfPersistence.value === "Interval") {
-            refreshIntervalMinutes.value = intervalMinutes.value;
+            persistedScheduleIntervalMinutes.value = intervalMinutes.value;
             emitUpdate();
         }
     });

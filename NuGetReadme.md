@@ -36,9 +36,10 @@
 | Microsoft.Owin.Security | = 4.2.3 | Microsoft.AspNet.WebApi.OData depends on version less than 4.3.0 and has no update. |
 | OpenTelemetry.Exporter.OpenTelemetryProtocol | = 1.11.1 | gRPC not supported in later versions on .NET Framework. |
 | RestSharp | = 105.2.3 | Breaking changes in update. |
+| RestSharp.Newtonsoft.Json | = 1.0.0 | Some plugins depend on this DLL. |
 | SixLabors.Fonts | < 2.0.0 | License changed. |
 | SixLabors.Imagesharp | < 3.0.0 | License changed. |
 | SixLabors.ImageSharp.Drawing | < 2.0.0 | License changed. |
 | SmtpServer | < 11.0.0 | No longer supports .NET Framework. |
 | WebGrease | = 1.5.2 | The newer version has a bug that throws an exception when minifying our JS files on production builds. |
-| Z.EntityFramework.Plus.EF6 | = 5.1.31 | Newer versions have a bug that causes the global filter on Group and GroupMember to error. |
+| Z.EntityFramework.Plus.EF6 | = 5.1.31 | Newer versions require DbSet properties, see https://github.com/zzzprojects/EntityFramework-Plus/issues/836 |

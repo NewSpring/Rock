@@ -67,7 +67,25 @@
       }
     }
 
+    /*
+      12/15/2025 - JPH
+
+      Many of the following styles - especially those referencing the newly-added .btn-panel-action class - were copied
+      from the corresponding .btn-grid-action rules, so the panel's header actions will match those of the grid's:
+      https://github.com/SparkDevNetwork/Rock/blob/d3b2eddd6b39df240b1a72cde482943979f81821/RockWeb/Styles/styles-v2/rock-components/_grid-obsidian.scss#L82-L105
+
+      We should eventually merge these rules into a common set of rules if possible so we only have to maintain them in
+      a single place.
+
+      Reason: Panel and Grid header action styles should match.
+    */
+
+    .panel-header-actions:not(:has(.action, .btn-panel-action)) {
+      margin-right: var(--spacing-medium);
+    }
+
     .panel-header-actions {
+      height: 100%;
       display: flex;
       align-items: center;
       justify-content: flex-end;
@@ -90,6 +108,32 @@
         }
       }
 
+      .btn-panel-action {
+        height: 56px;
+        width: 56px;
+        margin: 0;
+        border-radius: 0;
+        background-color: transparent;
+        color: var(--color-interface-medium);
+
+        &.btn-add {
+          color: var(--color-info-strong);
+
+          &:hover {
+            color: var(--color-info-strong);
+          }
+        }
+
+        &.active,
+        &:hover {
+          background-color: var(--color-interface-soft);
+          color: var(--color-interface-stronger);
+        }
+      }
+      // If the panel's quick filter has an immediate sibling to the right that's NOT a .btn-panel-action, add a right margin.
+      .quick-filter:has(+ *):not(:has(+ .btn-panel-action)) {
+        margin-right: var(--spacing-medium);
+      }
       // Hide the action buttons on small screens
       @media screen and (max-width: @screen-sm-max) {
         .panel-action-zoom,

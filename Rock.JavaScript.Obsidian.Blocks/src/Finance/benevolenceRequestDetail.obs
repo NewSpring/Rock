@@ -93,7 +93,7 @@
     });
 
     /** The benevolence type of the request. */
-    const benevolenceType = computed(() => {
+    const benevolenceTypeId = computed(() => {
         return benevolenceRequestViewBag.value?.benevolenceTypeId;
     });
 
@@ -168,9 +168,9 @@
 
         // Only show the benevolence type and campus when in view mode
         if (panelMode.value === DetailPanelMode.View) {
-            if (benevolenceType.value) {
+            if (benevolenceTypeId.value) {
                 labels.push({
-                    title: `${config.options?.benevolenceRequestTypes?.find(t => t.value === benevolenceType.value?.toString())?.text ?? benevolenceType.value?.toString()}`,
+                    title: `${config.options?.benevolenceRequestTypes?.find(t => t.id === benevolenceTypeId.value)?.name ?? benevolenceTypeId.value?.toString()}`,
                     type: "default",
                 });
             }

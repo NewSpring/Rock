@@ -8,6 +8,7 @@
                   @update:modelValue="onSelect"
                   :disableFolderSelection="disableFolderSelection"
                   :showChildCount="showChildCount"
+                  :selectFirstByDefault="selectFirstByDefault"
                   :enableDeselect="enableDeselect"
                   autoExpand />
     </div>
@@ -89,6 +90,15 @@
          */
         enableDeselect: {
             type: Boolean,
+            default: false
+        },
+
+        /**
+         * When true, the first item in the list will be automatically selected
+         * if no other item is currently selected.
+         */
+        selectFirstByDefault: {
+            type: Boolean as PropType<boolean>,
             default: false
         }
     });
@@ -225,5 +235,13 @@
 
         // Set the provider to the new one
         itemProvider.value = newProvider;
+
+        internalValues.value = [];
+        if (props.multiple) {
+            emit("update:modelValue", []);
+        }
+        else {
+            emit("update:modelValue", null);
+        }
     });
 </script>
