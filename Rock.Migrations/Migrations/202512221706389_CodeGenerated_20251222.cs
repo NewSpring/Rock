@@ -29,27 +29,6 @@ namespace Rock.Migrations
         /// </summary>
         public override void Up()
         {
-            // Add/Update BlockType 
-            //   Name: Defined Type Detail
-            //   Category: Core
-            //   Path: ~/Blocks/Core/DefinedTypeDetail.ascx
-            //   EntityType: -
-            RockMigrationHelper.UpdateBlockType( "Defined Type Detail", "Displays the details of the given defined type.", "~/Blocks/Core/DefinedTypeDetail.ascx", "Core", "D5EDF24A-0453-4C0D-B7F0-DFAE48F89ED2" );
-
-            // Add/Update BlockType 
-            //   Name: Defined Type List
-            //   Category: Core
-            //   Path: ~/Blocks/Core/DefinedTypeList.ascx
-            //   EntityType: -
-            RockMigrationHelper.UpdateBlockType( "Defined Type List", "Lists all the defined types and allows for managing them and their values.", "~/Blocks/Core/DefinedTypeList.ascx", "Core", "D2C026ED-32F9-4D8F-A904-7ABBA5364D64" );
-
-            // Add/Update BlockType 
-            //   Name: Defined Value List
-            //   Category: Core
-            //   Path: ~/Blocks/Core/DefinedValueList.ascx
-            //   EntityType: -
-            RockMigrationHelper.UpdateBlockType( "Defined Value List", "Block for viewing values for a defined type.", "~/Blocks/Core/DefinedValueList.ascx", "Core", "0E7C1A29-CD6C-4D2D-BC82-80985C9736FA" );
-
             // Attribute for BlockType
             //   BlockType: Persisted Data View List
             //   Category: Reporting
@@ -121,54 +100,6 @@ namespace Rock.Migrations
             //   Category: CMS
             //   Attribute: Additional Content Template
             RockMigrationHelper.AddOrUpdateBlockTypeAttribute( "A279A88E-D4E0-4867-A108-2AA743B3CFD0", "1D0D3794-C210-48A8-8C68-3FBEC08A6BA5", "Additional Content Template", "AdditionalContentTemplate", "Additional Content Template", @"Lava template to use to display additional content on the page. This will be displayed in the sidebar below the section list.", 0, @"", "CBDC5F56-987D-4458-9688-79CE25DAC490" );
-
-            // Attribute for BlockType
-            //   BlockType: Defined Type Detail
-            //   Category: Core
-            //   Attribute: Defined Type
-            RockMigrationHelper.AddOrUpdateBlockTypeAttribute( "D5EDF24A-0453-4C0D-B7F0-DFAE48F89ED2", "BC48720C-3610-4BCF-AE66-D255A17F1CDF", "Defined Type", "DefinedType", "Defined Type", @"If a Defined Type is set, only details for it will be displayed (regardless of the querystring parameters).", 0, @"", "739E0765-6003-43CB-B162-358E1A5EE7DD" );
-
-            // Attribute for BlockType
-            //   BlockType: Defined Type List
-            //   Category: Core
-            //   Attribute: Detail Page
-            RockMigrationHelper.AddOrUpdateBlockTypeAttribute( "D2C026ED-32F9-4D8F-A904-7ABBA5364D64", "BD53F9C9-EBA9-4D3F-82EA-DE5DD34A8108", "Detail Page", "DetailPage", "Detail Page", @"", 0, @"", "CABDA513-0E45-4C8D-9F16-95001E6680EA" );
-
-            // Attribute for BlockType
-            //   BlockType: Defined Type List
-            //   Category: Core
-            //   Attribute: Categories
-            RockMigrationHelper.AddOrUpdateBlockTypeAttribute( "D2C026ED-32F9-4D8F-A904-7ABBA5364D64", "775899FB-AC17-4C2C-B809-CF3A1D2AA4E1", "Categories", "Categories", "Categories", @"If block should only display Defined Types from specific categories, select the categories here.", 1, @"", "24012177-D6E4-4440-BC01-9D6B98864DD6" );
-
-            // Attribute for BlockType
-            //   BlockType: Defined Type List
-            //   Category: Core
-            //   Attribute: core.CustomActionsConfigs
-            RockMigrationHelper.AddOrUpdateBlockTypeAttribute( "D2C026ED-32F9-4D8F-A904-7ABBA5364D64", "9C204CD0-1233-41C5-818A-C5DA439445AA", "core.CustomActionsConfigs", "core.CustomActionsConfigs", "core.CustomActionsConfigs", @"", 0, @"", "B71A7BD8-746D-460B-8FED-D676CC690FB8" );
-
-            // Attribute for BlockType
-            //   BlockType: Defined Type List
-            //   Category: Core
-            //   Attribute: core.EnableDefaultWorkflowLauncher
-            RockMigrationHelper.AddOrUpdateBlockTypeAttribute( "D2C026ED-32F9-4D8F-A904-7ABBA5364D64", "1EDAFDED-DFE6-4334-B019-6EECBA89E05A", "core.EnableDefaultWorkflowLauncher", "core.EnableDefaultWorkflowLauncher", "core.EnableDefaultWorkflowLauncher", @"", 0, @"True", "7862403C-F981-425C-9653-C37EEFD16EBC" );
-
-            // Attribute for BlockType
-            //   BlockType: Defined Value List
-            //   Category: Core
-            //   Attribute: Defined Type
-            RockMigrationHelper.AddOrUpdateBlockTypeAttribute( "0E7C1A29-CD6C-4D2D-BC82-80985C9736FA", "BC48720C-3610-4BCF-AE66-D255A17F1CDF", "Defined Type", "DefinedType", "Defined Type", @"If a Defined Type is set, only its Defined Values will be displayed (regardless of the querystring parameters).", 0, @"", "C8EBFF10-643F-4231-ADB9-0087EE4E47E5" );
-
-            // Attribute for BlockType
-            //   BlockType: Defined Value List
-            //   Category: Core
-            //   Attribute: core.CustomActionsConfigs
-            RockMigrationHelper.AddOrUpdateBlockTypeAttribute( "0E7C1A29-CD6C-4D2D-BC82-80985C9736FA", "9C204CD0-1233-41C5-818A-C5DA439445AA", "core.CustomActionsConfigs", "core.CustomActionsConfigs", "core.CustomActionsConfigs", @"", 0, @"", "AD5DD7C3-872B-49E3-AD4D-331D1095C5F5" );
-
-            // Attribute for BlockType
-            //   BlockType: Defined Value List
-            //   Category: Core
-            //   Attribute: core.EnableDefaultWorkflowLauncher
-            RockMigrationHelper.AddOrUpdateBlockTypeAttribute( "0E7C1A29-CD6C-4D2D-BC82-80985C9736FA", "1EDAFDED-DFE6-4334-B019-6EECBA89E05A", "core.EnableDefaultWorkflowLauncher", "core.EnableDefaultWorkflowLauncher", "core.EnableDefaultWorkflowLauncher", @"", 0, @"True", "7D98E7A7-E417-4415-BEB2-7EE801414C13" );
         }
         
         /// <summary>
@@ -189,79 +120,10 @@ namespace Rock.Migrations
             RockMigrationHelper.DeleteAttribute( "D7B93E80-8C72-44A4-BDDC-956C47D2171B" );
 
             // Attribute for BlockType
-            //   BlockType: Defined Value List
-            //   Category: Core
-            //   Attribute: core.EnableDefaultWorkflowLauncher
-            RockMigrationHelper.DeleteAttribute( "7D98E7A7-E417-4415-BEB2-7EE801414C13" );
-
-            // Attribute for BlockType
-            //   BlockType: Defined Value List
-            //   Category: Core
-            //   Attribute: core.CustomActionsConfigs
-            RockMigrationHelper.DeleteAttribute( "AD5DD7C3-872B-49E3-AD4D-331D1095C5F5" );
-
-            // Attribute for BlockType
-            //   BlockType: Defined Value List
-            //   Category: Core
-            //   Attribute: Defined Type
-            RockMigrationHelper.DeleteAttribute( "C8EBFF10-643F-4231-ADB9-0087EE4E47E5" );
-
-            // Attribute for BlockType
-            //   BlockType: Defined Type List
-            //   Category: Core
-            //   Attribute: core.EnableDefaultWorkflowLauncher
-            RockMigrationHelper.DeleteAttribute( "7862403C-F981-425C-9653-C37EEFD16EBC" );
-
-            // Attribute for BlockType
-            //   BlockType: Defined Type List
-            //   Category: Core
-            //   Attribute: core.CustomActionsConfigs
-            RockMigrationHelper.DeleteAttribute( "B71A7BD8-746D-460B-8FED-D676CC690FB8" );
-
-            // Attribute for BlockType
-            //   BlockType: Defined Type List
-            //   Category: Core
-            //   Attribute: Categories
-            RockMigrationHelper.DeleteAttribute( "24012177-D6E4-4440-BC01-9D6B98864DD6" );
-
-            // Attribute for BlockType
-            //   BlockType: Defined Type List
-            //   Category: Core
-            //   Attribute: Detail Page
-            RockMigrationHelper.DeleteAttribute( "CABDA513-0E45-4C8D-9F16-95001E6680EA" );
-
-            // Attribute for BlockType
-            //   BlockType: Defined Type Detail
-            //   Category: Core
-            //   Attribute: Defined Type
-            RockMigrationHelper.DeleteAttribute( "739E0765-6003-43CB-B162-358E1A5EE7DD" );
-
-            // Attribute for BlockType
             //   BlockType: Page Search
             //   Category: CMS
             //   Attribute: Additional Content Template
             RockMigrationHelper.DeleteAttribute( "CBDC5F56-987D-4458-9688-79CE25DAC490" );
-
-            // Delete BlockType 
-            //   Name: Defined Value List
-            //   Category: Core
-            //   Path: ~/Blocks/Core/DefinedValueList.ascx
-            //   EntityType: -
-            RockMigrationHelper.DeleteBlockType( "0E7C1A29-CD6C-4D2D-BC82-80985C9736FA" );
-
-            // Delete BlockType 
-            //   Name: Defined Type List
-            //   Category: Core
-            //   Path: ~/Blocks/Core/DefinedTypeList.ascx
-            //   EntityType: -
-            RockMigrationHelper.DeleteBlockType( "D2C026ED-32F9-4D8F-A904-7ABBA5364D64" );
-
-            // Delete BlockType 
-            //   Name: Defined Type Detail
-            //   Category: Core
-            //   Path: ~/Blocks/Core/DefinedTypeDetail.ascx
-            //   EntityType: -
-            RockMigrationHelper.DeleteBlockType( "D5EDF24A-0453-4C0D-B7F0-DFAE48F89ED2" );
         }
     }
 }
