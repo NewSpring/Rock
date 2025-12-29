@@ -43,7 +43,7 @@
     import ComponentPropertyPanelBase from "./componentPropertyPanelBase.partial.obs";
     import InnerHtmlProperty from "../properties/innerHtmlProperty.partial.obs";
     import PaddingProperty from "../properties/paddingProperty.partial.obs";
-    import { UsageType } from "../types";
+    import { UsageType } from "../types.partial";
     import { getCodeComponentHelper } from "../utils.partial";
 
     const props = defineProps({

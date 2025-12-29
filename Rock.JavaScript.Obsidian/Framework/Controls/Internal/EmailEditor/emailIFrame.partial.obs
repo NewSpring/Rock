@@ -69,7 +69,7 @@ iframe {
         ReplaceComponentRequest,
         ComponentTypeName
     } from "./types.partial";
-    import { GetHtmlRequest } from "./types";
+    import { GetHtmlRequest } from "./types.partial";
     import { useVModelPassthrough } from "@Obsidian/Utility/component";
     import {
         findDirectChildContaining,

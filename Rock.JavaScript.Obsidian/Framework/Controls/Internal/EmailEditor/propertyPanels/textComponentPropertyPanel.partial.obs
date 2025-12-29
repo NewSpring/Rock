@@ -65,7 +65,7 @@
     import InnerHtmlProperty from "../properties/innerHtmlProperty.partial.obs";
     import PaddingProperty from "../properties/paddingProperty.partial.obs";
     import { createComponentBackgroundColorProvider } from "../providers.partial";
-    import { UsageType } from "../types";
+    import { UsageType } from "../types.partial";
     import { getTextComponentHelper } from "../utils.partial";
     import { Guid } from "@Obsidian/Types";
     import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";

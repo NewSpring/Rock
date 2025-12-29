@@ -823,3 +823,15 @@ export type BodyGlobalProps = {
 };
 
 export type BodyGlobalAdapter = GlobalAdapter<BodyGlobalProps>;
+
+export type GetHtmlRequest = {
+    onSuccess: (response: GetHtmlResponse) => void;
+    onError?: ((error: string) => void) | null | undefined;
+};
+
+export type GetHtmlResponse = {
+    html: string;
+    bodyWidth?: number | null | undefined;
+};
+
+export type UsageType = "template" | "email";
