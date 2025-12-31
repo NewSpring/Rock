@@ -117,7 +117,7 @@
     import PixelBox from "../pixelBox.partial.obs";
     import TextFormatPicker from "../textFormatPicker2.partial.obs";
     import { BorderModel, ButtonGlobalProps, ButtonWidthModel, HorizontalAlignment, LetterCase, ShorthandModel } from "../types.partial";
-    import { createButtonComponentAdapter, createButtonGlobalAdapter, RockCssClassContentEditable } from "../utils.partial";
+    import { buttonComponentAdapter, buttonGlobalAdapter, RockCssClassContentEditable } from "../utils.partial";
     import TextBox from "@Obsidian/Controls/textBox.obs";
     import ShorthandPixelBox from "../shorthandPixelBox.partial.obs";
     import HorizontalAlignmentPicker from "../horizontalAlignmentPicker.partial.obs";
@@ -148,8 +148,6 @@
 
     // #region Values
 
-    const buttonComponentAdapter = createButtonComponentAdapter();
-    const buttonGlobalAdapter = createButtonGlobalAdapter();
     const href = ref<string>("");
     const borderRadiusPx = ref<ShorthandModel<number | null> | null>(null);
     const horizontalAlignment = ref<HorizontalAlignment | "">("");

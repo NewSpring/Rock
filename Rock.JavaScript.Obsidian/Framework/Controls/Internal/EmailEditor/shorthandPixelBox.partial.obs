@@ -243,12 +243,21 @@
             return props.modelValue?.left ?? null;
         },
         set(value: number | null): void {
-            emit("update:modelValue", {
-                top: props.modelValue?.top ?? null,
-                bottom: props.modelValue?.bottom ?? null,
-                left: value,
-                right: props.modelValue?.right ?? null
-            });
+            if (isNullish(value)
+                && isNullish(props.modelValue?.top)
+                && isNullish(props.modelValue?.bottom)
+                && isNullish(props.modelValue?.right)
+            ) {
+                emit("update:modelValue", null);
+            }
+            else {
+                emit("update:modelValue", {
+                    top: props.modelValue?.top ?? null,
+                    bottom: props.modelValue?.bottom ?? null,
+                    left: value,
+                    right: props.modelValue?.right ?? null
+                });
+            }
         }
     });
 
@@ -256,53 +265,49 @@
 
     // #region Values
 
-    const hasInitialShorthand = !isNullish(internalShorthandValue.value);
-    const hasInitialTop = !isNullish(internalTopValue.value);
-    const hasInitialBottom = !isNullish(internalBottomValue.value);
-    const hasInitialLeft = !isNullish(internalLeftValue.value);
-    const hasInitialRight = !isNullish(internalRightValue.value);
-    const hasShorthandOnly = hasInitialShorthand && !hasInitialTop && !hasInitialBottom && !hasInitialRight && !hasInitialLeft;
-
-    const isMoreShown = ref<boolean>(hasShorthandOnly ? false :
-        (internalShorthandValue.value ?? 0) !== (internalTopValue.value ?? 0)
-        || (internalShorthandValue.value ?? 0) !== (internalBottomValue.value ?? 0)
-        || (internalShorthandValue.value ?? 0) !== (internalLeftValue.value ?? 0)
-        || (internalShorthandValue.value ?? 0) !== (internalRightValue.value ?? 0)
-    );
+    // Show more if any of the individual sides differ.
+    const isMoreShown = ref<boolean>(
+        (props.modelValue?.top ?? null) !== (props.modelValue?.bottom ?? null)
+        || (props.modelValue?.top ?? null) !== (props.modelValue?.left ?? null)
+        || (props.modelValue?.top ?? null) !== (props.modelValue?.right ?? null)
+        || (props.modelValue?.bottom ?? null) !== (props.modelValue?.left ?? null)
+        || (props.modelValue?.bottom ?? null) !== (props.modelValue?.right ?? null)
+        || (props.modelValue?.left ?? null) !== (props.modelValue?.right ?? null));
 
     // #endregion Values
 
     // #region Watchers
 
-    watch(isMoreShown, (newValue) => {
-        if (!newValue) {
+    watch(isMoreShown, () => {
+        const isShorthandBeingShown = !isMoreShown.value;
+        if (isShorthandBeingShown) {
             if (!isNullish(internalTopValue.value)
                 || !isNullish(internalBottomValue.value)
                 || !isNullish(internalLeftValue.value)
                 || !isNullish(internalRightValue.value)) {
+                // One of the sides is set and shorthand is being shown,
+                // so set all sides to the largest value of the four sides.
                 internalShorthandValue.value = Math.max(
                     internalTopValue.value ?? 0,
                     internalBottomValue.value ?? 0,
                     internalLeftValue.value ?? 0,
                     internalRightValue.value ?? 0);
             }
-            else {
-                internalShorthandValue.value = null;
-            }
         }
-        else {
-            if (!isNullish(internalShorthandValue.value)) {
-                internalTopValue.value = internalShorthandValue.value;
-                internalBottomValue.value = internalShorthandValue.value;
-                internalLeftValue.value = internalShorthandValue.value;
-                internalRightValue.value = internalShorthandValue.value;
-            }
-            else {
-                internalTopValue.value = null;
-                internalBottomValue.value = null;
-                internalLeftValue.value = null;
-                internalRightValue.value = null;
-            }
+    });
+
+    watch(() => props.modelValue, () => {
+        // Expand all sides when there are any individual values.
+        const hasDifferentIndividualValues =
+            (props.modelValue?.top ?? null) !== (props.modelValue?.bottom ?? null)
+            || (props.modelValue?.top ?? null) !== (props.modelValue?.left ?? null)
+            || (props.modelValue?.top ?? null) !== (props.modelValue?.right ?? null)
+            || (props.modelValue?.bottom ?? null) !== (props.modelValue?.left ?? null)
+            || (props.modelValue?.bottom ?? null) !== (props.modelValue?.right ?? null)
+            || (props.modelValue?.left ?? null) !== (props.modelValue?.right ?? null);
+
+        if (hasDifferentIndividualValues) {
+            isMoreShown.value = true;
         }
     });
 
