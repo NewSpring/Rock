@@ -200,6 +200,7 @@
     import RockLabel from "@Obsidian/Controls/rockLabel.obs";
     import TransitionVerticalCollapse from "@Obsidian/Controls/transitionVerticalCollapse.obs";
     import { toGuidOrNull } from "@Obsidian/Utility/guid";
+    import { Enumerable } from "@Obsidian/Utility/linq";
     import { toNumberOrNull } from "@Obsidian/Utility/numberUtils";
     import { isNullish } from "@Obsidian/Utility/util";
     import { EmailEditorAttendanceOccurrenceBag } from "@Obsidian/ViewModels/Rest/Controls/emailEditorAttendanceOccurrenceBag";
@@ -466,7 +467,29 @@
                 });
 
                 if (result?.isSuccess && result.data) {
-                    serializedOccurrence = serializeAttendanceOccurrence(result.data);
+                    // Update the item and the serialized value.
+                    const newOccurrenceItems = occurrenceItems.value ?? [];
+                    const itemInfo = Enumerable
+                        .from(occurrenceItems.value ?? [])
+                        .where((item) => item.value === serializedOccurrence)
+                        .withIndex()
+                        .select(([item, index]) => ({ item, index }))
+                        .firstOrDefault();
+
+                    const newValue = serializeAttendanceOccurrence(result.data);
+
+                    if (itemInfo) {
+                        occurrenceItems.value = [
+                            ...newOccurrenceItems.slice(0, itemInfo.index),
+                            {
+                                text: itemInfo.item.text,
+                                value: newValue
+                            },
+                            ...newOccurrenceItems.slice(itemInfo.index + 1)
+                        ];
+                    }
+
+                    rsvpOccurrenceValue.value = newValue;
                 }
                 else {
                     console.error(result?.errorMessage ?? "An error occurred while creating the attendance occurrence.");

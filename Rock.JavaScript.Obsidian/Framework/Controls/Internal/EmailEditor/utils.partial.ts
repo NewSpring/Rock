@@ -3486,7 +3486,6 @@ function createRsvpComponentAdapter(): RsvpComponentAdapter {
 
                 // hrefs
                 const commonHrefProps: Record<string, string> = {
-                    p: `{{ Person | PersonActionIdentifier:'RSVP' }}`,
                     AcceptButtonText: localProps.acceptText,
                     AcceptButtonColor: localProps.acceptBackgroundColor ?? "",
                     AcceptButtonFontColor: localProps.acceptTextColor ?? "",
@@ -3500,14 +3499,14 @@ function createRsvpComponentAdapter(): RsvpComponentAdapter {
                         ...commonHrefProps,
                         isAccept: "1"
                     });
-                    rsvpAcceptLink.href = `{{ 'Global' | Attribute:'PublicApplicationRoot' }}RSVP?${queryString}`;
+                    rsvpAcceptLink.href = `{{ 'Global' | Attribute:'PublicApplicationRoot' }}RSVP?p={{ Person | PersonActionIdentifier:'RSVP' }}&${queryString}`;
                 }
                 if (rsvpDeclineLink) {
                     const queryString = new URLSearchParams({
                         ...commonHrefProps,
                         isAccept: "0"
                     });
-                    rsvpDeclineLink.href = `{{ 'Global' | Attribute:'PublicApplicationRoot' }}RSVP?${queryString}`;
+                    rsvpDeclineLink.href = `{{ 'Global' | Attribute:'PublicApplicationRoot' }}RSVP?p={{ Person | PersonActionIdentifier:'RSVP' }}&${queryString}`;
                 }
             }
         },
