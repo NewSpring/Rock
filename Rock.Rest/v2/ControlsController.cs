@@ -6555,6 +6555,11 @@ namespace Rock.Rest.v2
                 }
             }
 
+            if ( options.ExcludeGroupTypes != null && options.ExcludeGroupTypes.Any() )
+            {
+                groupTypes = groupTypes.Where( gt => !options.ExcludeGroupTypes.Contains( gt.Guid ) ).ToList();
+            }
+
             if ( options.OnlyGroupListItems )
             {
                 // get all group types that have the ShowInGroupList flag set
