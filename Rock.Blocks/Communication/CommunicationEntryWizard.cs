@@ -519,7 +519,10 @@ namespace Rock.Blocks.Communication
                 return ActionNotFound();
             }
 
-            if ( !communication.IsAuthorized( Authorization.EDIT, GetCurrentPerson() ) )
+            var currentPerson = GetCurrentPerson();
+            var isAuthorizedEditor = communication.IsAuthorized( Authorization.EDIT, currentPerson );
+            var isCreator = communication.CreatedByPersonAlias != null && currentPerson?.Id != null && communication.CreatedByPersonAlias.PersonId == currentPerson.Id;
+            if ( !isAuthorizedEditor && !isCreator )
             {
                 return ActionForbidden();
             }
@@ -551,8 +554,11 @@ namespace Rock.Blocks.Communication
             {
                 return ActionNotFound();
             }
-
-            if ( !communication.IsAuthorized( Authorization.EDIT, GetCurrentPerson() ) )
+            
+            var currentPerson = GetCurrentPerson();
+            var isAuthorizedEditor = communication.IsAuthorized( Authorization.EDIT, currentPerson );
+            var isCreator = communication.CreatedByPersonAlias != null && currentPerson?.Id != null && communication.CreatedByPersonAlias.PersonId == currentPerson.Id;
+            if ( !isAuthorizedEditor && !isCreator )
             {
                 return ActionForbidden();
             }
