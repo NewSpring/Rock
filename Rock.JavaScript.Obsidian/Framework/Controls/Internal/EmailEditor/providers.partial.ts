@@ -57,7 +57,7 @@ import {
 import { RockColor } from "@Obsidian/Core/Utilities/rockColor";
 import { toGuidOrNull } from "@Obsidian/Utility/guid";
 import { Enumerable } from "@Obsidian/Utility/linq";
-import { isNotNullish, isNullish } from "@Obsidian/Utility/util";
+import { isNullish } from "@Obsidian/Utility/util";
 import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
 import { isHTMLElement } from "@Obsidian/Utility/dom";
 
@@ -1239,7 +1239,7 @@ export function createBackgroundSizeProvider(
                     }
                 })
                 .where(property => property?.property === "background" || property?.property === "background-size")
-                .ofType(isNotNullish)
+                .ofType((property): property is PropertyAndValue => !isNullish(property))
                 .toArray();
 
             const backgroundSize = Enumerable.from(properties).lastOrDefault(property => property.property === "background-size");

@@ -115,9 +115,19 @@
     import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
     import { useSecurityGrantToken } from "@Obsidian/Utility/block";
     import { EmailEditorApi, provideApi } from "./api";
-    import { createBodyGlobalAdapter, createButtonComponentAdapter, createButtonGlobalAdapter, createDividerComponentAdapter, createDividerGlobalAdapter, createImageComponentAdapter, createRsvpComponentAdapter } from "./utils.partial";
-    import { Enumerable } from "@Obsidian/Utility/linq";
-    import { isHTMLElement } from "@Obsidian/Utility/dom";
+    import {
+        bodyGlobalAdapter,
+        buttonComponentAdapter,
+        buttonGlobalAdapter,
+        codeComponentAdapter,
+        dividerComponentAdapter,
+        dividerGlobalAdapter,
+        imageComponentAdapter,
+        rsvpComponentAdapter,
+        textComponentAdapter,
+        titleComponentAdapter,
+        videoComponentAdapter
+    } from "./utils.partial";
 
     defineProps({
         html: {
@@ -202,14 +212,6 @@
     const api = new EmailEditorApi({ securityGrantToken });
     provideApi(api);
 
-    const bodyGlobalAdapter = createBodyGlobalAdapter();
-    const buttonComponentAdapter = createButtonComponentAdapter();
-    const buttonGlobalAdapter = createButtonGlobalAdapter();
-    const rsvpComponentAdapter = createRsvpComponentAdapter();
-    const dividerComponentAdapter = createDividerComponentAdapter();
-    const dividerGlobalAdapter = createDividerGlobalAdapter();
-    const imageComponentAdapter = createImageComponentAdapter();
-
     // #region Values
 
     const selectedComponentElement = ref<HTMLElement | null | undefined>();
@@ -271,31 +273,14 @@
         const { emailDocument: emailDoc, areGlobalDefaultsRequired } = eventArgs;
 
         // Migrate all components in the document.
-
-        Enumerable
-            .from(emailDoc.querySelectorAll(".component-button"))
-            .ofType<HTMLElement>((el): el is HTMLElement => isHTMLElement(el))
-            .forEach((componentElement) => {
-                buttonComponentAdapter.migrateComponent(emailDoc, componentElement);
-            });
-        Enumerable
-            .from(emailDoc.querySelectorAll(".component-rsvp"))
-            .ofType<HTMLElement>((el): el is HTMLElement => isHTMLElement(el))
-            .forEach((componentElement) => {
-                rsvpComponentAdapter.migrateComponent(emailDoc, componentElement);
-            });
-        Enumerable
-            .from(emailDoc.querySelectorAll(".component-divider"))
-            .ofType<HTMLElement>((el): el is HTMLElement => isHTMLElement(el))
-            .forEach((componentElement) => {
-                dividerComponentAdapter.migrateComponent(emailDoc, componentElement);
-            });
-        Enumerable
-            .from(emailDoc.querySelectorAll(".component-image"))
-            .ofType<HTMLElement>((el): el is HTMLElement => isHTMLElement(el))
-            .forEach((componentElement) => {
-                imageComponentAdapter.migrateComponent(emailDoc, componentElement);
-            });
+        titleComponentAdapter.migrateAllComponents(emailDoc);
+        textComponentAdapter.migrateAllComponents(emailDoc);
+        imageComponentAdapter.migrateAllComponents(emailDoc);
+        buttonComponentAdapter.migrateAllComponents(emailDoc);
+        videoComponentAdapter.migrateAllComponents(emailDoc);
+        dividerComponentAdapter.migrateAllComponents(emailDoc);
+        rsvpComponentAdapter.migrateAllComponents(emailDoc);
+        codeComponentAdapter.migrateAllComponents(emailDoc);
 
         // Initialize global props.
 
@@ -332,17 +317,27 @@
     }
 
     function onComponentAdded(event: { componentTypeName: ComponentTypeName; componentElement: HTMLElement }): void {
-        // Apply global props.
         if (emailDocument.value) {
-            if (event.componentTypeName === "button") {
-                buttonGlobalAdapter.writeGlobalProps(emailDocument.value, buttonGlobalProps.value);
-            }
-            else if (event.componentTypeName === "divider") {
-                dividerGlobalAdapter.writeGlobalProps(emailDocument.value, dividerGlobalProps.value);
-            }
+            buttonGlobalAdapter.onComponentAdded({
+                emailDocument: emailDocument.value,
+                componentElement: event.componentElement,
+                componentTypeName: event.componentTypeName,
+                globalProps: buttonGlobalProps.value
+            });
 
-            // Always apply body global props to new components since they may depend on them.
-            bodyGlobalAdapter.writeGlobalProps(emailDocument.value, bodyGlobalProps.value);
+            dividerGlobalAdapter.onComponentAdded({
+                emailDocument: emailDocument.value,
+                componentElement: event.componentElement,
+                componentTypeName: event.componentTypeName,
+                globalProps: dividerGlobalProps.value
+            });
+
+            bodyGlobalAdapter.onComponentAdded({
+                emailDocument: emailDocument.value,
+                componentElement: event.componentElement,
+                componentTypeName: event.componentTypeName,
+                globalProps: bodyGlobalProps.value
+            });
         }
     }
 

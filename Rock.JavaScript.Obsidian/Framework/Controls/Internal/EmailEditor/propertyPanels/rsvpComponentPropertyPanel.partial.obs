@@ -193,7 +193,7 @@
     import AccordionGroup from "../accordionGroup.partial.obs";
     import { useApi } from "../api";
     //import { createButtonWidthValuesProvider } from "../providers.partial";
-    import { createRsvpComponentAdapter } from "../utils.partial";
+    import { rsvpComponentAdapter } from "../utils.partial";
     import DropDownList from "@Obsidian/Controls/dropDownList.obs";
     import GroupPicker from "@Obsidian/Controls/groupPicker.obs";
     import RockButton from "@Obsidian/Controls/rockButton.obs";
@@ -243,7 +243,6 @@
         (e: "migrate", value: Element): void;
     }>();
 
-    const rsvpComponentAdapter = createRsvpComponentAdapter();
     const api = useApi();
 
     // #region Values
