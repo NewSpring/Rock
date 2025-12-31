@@ -1318,7 +1318,7 @@ namespace Rock.Rest.v2
                 return BadRequest();
             }
 
-            var root = Rock.Security.Encryption.DecryptString( options.EncryptedRoot );
+            var root = Rock.Security.Encryption.DecryptString( options.EncryptedRoot, false );
             var fullPath = Path.Combine( root, options.FileName );
             var physicalZipFile = System.Web.HttpContext.Current.Server.MapPath( fullPath );
             var directoryPath = Path.GetDirectoryName( physicalZipFile );
@@ -1396,7 +1396,7 @@ namespace Rock.Rest.v2
 
             try
             {
-                var root = Rock.Security.Encryption.DecryptString( options.EncryptedRoot );
+                var root = Rock.Security.Encryption.DecryptString( options.EncryptedRoot, false );
 
                 if ( options.UserSpecificRoot )
                 {
@@ -1455,7 +1455,7 @@ namespace Rock.Rest.v2
                 {
                     assetStorageProviderId = assetParts[0].AsInteger();
                     var encryptedRoot = assetParts[1].Trim();
-                    var root = Rock.Security.Encryption.DecryptString( encryptedRoot );
+                    var root = Rock.Security.Encryption.DecryptString( encryptedRoot, false );
 
                     // Verify all local roots start with "~/"
                     if ( assetStorageProviderId == 0 && !root.StartsWith( "~/" ) )
