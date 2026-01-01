@@ -24,6 +24,7 @@
                                   :buttonGlobalProps="buttonGlobalProps"
                                   :hasScrollableBody="true"
                                   :ltr="ltr"
+                                  :usageType="usageType"
                                   @clone="$emit('clone')"
                                   @complete="$emit('complete')"
                                   @delete="$emit('delete')"

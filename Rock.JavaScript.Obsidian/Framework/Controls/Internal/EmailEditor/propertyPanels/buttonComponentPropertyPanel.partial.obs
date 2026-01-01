@@ -11,7 +11,8 @@
                 <TextBox v-model="text"
                          label="Button Text" />
 
-                <HrefPicker v-model="href" />
+                <HrefPicker v-model="href"
+                            :usageType="usageType" />
 
                 <div class="row">
                     <div class="col-sm-8">
@@ -121,8 +122,14 @@
     import TextBox from "@Obsidian/Controls/textBox.obs";
     import ShorthandPixelBox from "../shorthandPixelBox.partial.obs";
     import HorizontalAlignmentPicker from "../horizontalAlignmentPicker.partial.obs";
+    import { UsageType } from "../types";
 
     const props = defineProps({
+        buttonGlobalProps: {
+            type: Object as PropType<ButtonGlobalProps>,
+            required: true
+        },
+
         componentElement: {
             type: Object as PropType<HTMLElement>,
             required: true
@@ -130,11 +137,11 @@
 
         ltr: {
             type: Boolean as PropType<boolean>,
-            default: false
+            required: true
         },
 
-        buttonGlobalProps: {
-            type: Object as PropType<ButtonGlobalProps>,
+        usageType: {
+            type: String as PropType<UsageType>,
             required: true
         }
     });
