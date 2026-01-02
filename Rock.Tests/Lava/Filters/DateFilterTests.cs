@@ -1120,7 +1120,7 @@ namespace Rock.Tests.Lava.Filters
         ///   NextStartDateTime: "2026-04-01T12:00:00-07:00"
         ///   EndDateTime( iCal) : "2026-04-01T13:00:00-08:00"  <--
         /// </remarks>
-        [DataTestMethod]
+        [TestMethod]
         [DataRow( @"
 BEGIN:VCALENDAR
 PRODID:-//github.com/SparkDevNetwork/Rock//NONSGML Rock//EN
