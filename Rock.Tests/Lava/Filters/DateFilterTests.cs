@@ -1178,11 +1178,11 @@ End: {{ iCalString | DatesFromICal:1,'enddatetime' | First | ToJSON }}
 
                     if ( !output.Contains( $"Start: \"{rockStartDateTimeString}\"" ) )
                     {
-                        Assert.That.Fail( $"Lava Output\n'{output}' does not contain string 'Start: \"{rockStartDateTimeString}\"'.\n[SystemDateTime = {DateTime.Now:O}, RockDateTime = {_now:O}, Time Zone = {timeZone.DisplayName}]" );
+                        Assert.Fail( $"Lava Output\n'{output}' does not contain string 'Start: \"{rockStartDateTimeString}\"'.\n[SystemDateTime = {DateTime.Now:O}, RockDateTime = {_now:O}, Time Zone = {timeZone.DisplayName}]" );
                     }
                     if ( !output.Contains( $"End: \"{rockEndDateTimeString}\"" ) )
                     {
-                        Assert.That.Fail( $"Lava Output\n'{output}' does not contain string 'End: \"{rockEndDateTimeString}\"'.\n[SystemDateTime = {DateTime.Now:O}, RockDateTime = {_now:O}, Time Zone = {timeZone.DisplayName}]" );
+                        Assert.Fail( $"Lava Output\n'{output}' does not contain string 'End: \"{rockEndDateTimeString}\"'.\n[SystemDateTime = {DateTime.Now:O}, RockDateTime = {_now:O}, Time Zone = {timeZone.DisplayName}]" );
                     }
                 } );
 
