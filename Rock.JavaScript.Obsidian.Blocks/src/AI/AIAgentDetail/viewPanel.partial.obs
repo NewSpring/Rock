@@ -23,16 +23,9 @@
     <Modal v-model="isInstructionsVisible"
            title="Instructions"
            cancelText="Close">
-        <pre class="instructions">{{ props.modelValue?.instructions }}</pre>
+        <pre class="instructions text-wrap text-break">{{ props.modelValue?.instructions }}</pre>
     </Modal>
 </template>
-
-<style scoped>
-.instructions {
-    white-space: pre-wrap;
-    word-break: break-word;
-}
-</style>
 
 <script setup lang="ts">
     import EditSkillList from "./editSkillList.partial.obs";
