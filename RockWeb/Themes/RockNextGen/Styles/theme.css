@@ -22836,6 +22836,41 @@ iframe.email-body {
   margin-top: var(--spacing-xsmall);
 }
 
+.shorthand-property-header {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--color-interface-soft);
+  margin-bottom: var(--spacing-small);
+}
+.shorthand-property-header .shorthand-property-label {
+  font-size: var(--font-size-regular);
+}
+.shorthand-property-header .more-switch {
+  font-size: var(--font-size-small);
+}
+
+.email-editor .side-panel .side-panel-content .flat-panel .btn-panel-action:hover {
+  background-color: transparent;
+  color: var(--color-interface-strong);
+}
+
+.email-editor .side-panel .side-panel-content .flat-panel .flat-panel-body .accordion-group .accordion .panel.panel-flex .panel-header .panel-title {
+  padding-left: var(--spacing-medium);
+}
+
+.btn-line-height {
+  display: inline-flex;
+}
+.btn-line-height.btn-primary svg {
+  stroke: var(--base-interface-softer);
+}
+.btn-line-height svg {
+  stroke: var(--color-interface-strong);
+  stroke-width: 2px;
+}
+
 #emaileditor,
 .panel-fill-body {
   height: calc(100vh - var(--email-editor-offset, 360px));

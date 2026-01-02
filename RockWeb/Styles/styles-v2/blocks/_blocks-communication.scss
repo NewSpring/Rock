@@ -238,6 +238,52 @@ iframe.email-body {
   }
 }
 
+// Shorthand Property Headers
+
+.shorthand-property-header {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--color-interface-soft);
+    margin-bottom: var(--spacing-small);
+
+    .shorthand-property-label {
+    font-size: var(--font-size-regular);
+    }
+
+    .more-switch {
+        font-size: var(--font-size-small);
+    }
+}
+
+// Panel Header Button Adjustments
+
+.email-editor .side-panel .side-panel-content .flat-panel .btn-panel-action:hover {
+  background-color: transparent;
+  color: var(--color-interface-strong);
+}
+
+.email-editor .side-panel .side-panel-content .flat-panel .flat-panel-body .accordion-group .accordion .panel.panel-flex .panel-header .panel-title {
+  padding-left: var(--spacing-medium);
+}
+
+// Custom SVG Icons for Email Builder
+
+.btn-line-height {
+  display: inline-flex;
+
+  &.btn-primary svg {
+    stroke: var(--base-interface-softer);
+  }
+
+  svg {
+    stroke: var(--color-interface-strong);
+    stroke-width: 2px;
+  }
+}
+
+
 // ======================== END EMAIL BUILDER ======================
 
 // ====================== LEGACY EMAIL EDITOR ======================
