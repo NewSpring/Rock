@@ -366,8 +366,6 @@ namespace Rock.Blocks.Engagement
                     SecondaryQualifier = GetStepStatuses( entity.Id ).Find( ss => ss.Id == new StepWorkflowTrigger.StatusChangeTriggerSettings( wt.TypeQualifier ).ToStatusId )?.Guid.ToString(),
                 } ).ToList();
 
-            bag.StatusOptions = new StepStatusService( RockContext ).Queryable().Where( s => s.StepProgramId == entity.Id ).AsEnumerable().ToListItemBagList();
-
             return bag;
         }
 
@@ -474,9 +472,6 @@ namespace Rock.Blocks.Engagement
 
             box.IfValidProperty( nameof( box.Bag.Statuses ),
                 () => SaveStatuses( box.Bag, entity, RockContext ) );
-
-            box.IfValidProperty( nameof( box.Bag.WorkflowTriggers ),
-                () => SaveWorkflowTriggers( box.Bag, entity, RockContext ) );
 
             box.IfValidProperty( nameof( box.Bag.CompletionFlow ),
                 () => entity.CompletionFlow = box.Bag.CompletionFlow.Value );
@@ -664,7 +659,7 @@ namespace Rock.Blocks.Engagement
 
             // Step Statuses: Update modified Statuses
             // The statuses are coming from the frontend already sorted in the correct order.
-            for ( int i = 0; i < bag.Statuses.Count; i++ )  
+            for ( int i = 0; i < bag.Statuses.Count; i++ ) 
             {
                 var stepStatusState = bag.Statuses[i];
                 var stepStatus = entity.StepStatuses.FirstOrDefault( a => a.Guid == stepStatusState.Guid );
@@ -2172,6 +2167,21 @@ namespace Rock.Blocks.Engagement
             {
                 RockContext.SaveChanges();
                 entity.SaveAttributeValues( RockContext );
+
+                /*
+                    1/3/2026 - MSE
+
+                    Newly created Step Statuses can now be selected when configuring Workflow Triggers
+                    before they are saved to the database, rather than limiting selection to
+                    previously persisted statuses only. Because Workflow Triggers serialize
+                    Step Status references using database IDs, the statuses must be saved first
+                    so those IDs exist.
+
+                    Reason: Ensure Workflow Trigger serialization uses valid Step Status IDs.
+                */
+                SaveWorkflowTriggers( box.Bag, entity, RockContext );
+
+                RockContext.SaveChanges();
             } );
 
             SaveAttributes( new StepType().TypeId, "StepProgramId", entity.Id.ToString(), box.Bag.StepProgramAttributes );

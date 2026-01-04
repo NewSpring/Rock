@@ -326,7 +326,6 @@
     const isWorkflowModalOpen = ref(false);
     const triggerType = ref("");
     const triggerTypes = ref(props.options.triggerTypes ?? []);
-    const stepStatusOptions = ref(props.modelValue?.bag?.statusOptions ?? []);
     const primaryQualifier = ref("");
     const secondaryQualifier = ref("");
     const workflow = ref<StepProgramWorkflowTriggerBag>({});
@@ -357,6 +356,13 @@
 
     const statusesGridData: GridDataBag = reactive<GridDataBag>({
         rows: stepStatuses.value.map(x => convertToStatusGridRowItem(x))
+    });
+
+    const stepStatusOptions = computed<ListItemBag[]>(() => {
+        return stepStatuses.value.map(ss => ({
+            text: ss.name ?? "",
+            value: ss.guid
+        }));
     });
 
     const showQualifiers = computed(() => {
