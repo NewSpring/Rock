@@ -22,30 +22,22 @@ using Rock.ViewModels.Utility;
 namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
 {
     /// <summary>
-    /// The additional configuration options for the Connections Hub block.
+    /// 
     /// </summary>
-    public class ConnectionsHubOptionsBag
+    public class ConnectionOpportunityDetailBag
     {
-        public string Title { get; set; }
+        public string IdKey { get; set; }
 
-        public string IconCssClass { get; set; }
+        public List<ListItemBag> Connectors { get; set; }
 
-        public List<ConnectionStatusBag> ConnectionStatusBags { get; set; }
-
-        public List<ListItemBag> ConnectionOpportunities { get; set; }
-
-        public List<ListItemBag> ConnectionStates { get; set; }
-
-        public List<ListItemBag> ConnectionStatuses { get; set; }
-
-        public List<ListItemBag> RequestSourceItems { get; set; }
+        public List<ListItemBag> PlacementGroups { get; set; }
 
         /// <summary>
-        /// Gets or sets the attributes for Connection Request attributes specified at the Connection Type level.
+        /// Gets or sets the attributes for Connection Request attributes specified at the Connection Opportunity level.
         /// </summary>
         /// <value>
         /// The attributes.
         /// </value>
-        public Dictionary<string, PublicAttributeBag> ConnectionTypeRequestAttributes { get; set; }
+        public Dictionary<string, PublicAttributeBag> ConnectionOpportunityRequestAttributes { get; set; }
     }
 }

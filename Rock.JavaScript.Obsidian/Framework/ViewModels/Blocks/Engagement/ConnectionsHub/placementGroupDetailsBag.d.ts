@@ -21,26 +21,14 @@
 // </copyright>
 //
 
-import { ConnectionStatusBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionStatusBag";
 import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
 import { PublicAttributeBag } from "@Obsidian/ViewModels/Utility/publicAttributeBag";
 
-/** The additional configuration options for the Connections Hub block. */
-export type ConnectionsHubOptionsBag = {
-    connectionOpportunities?: ListItemBag[] | null;
+export type PlacementGroupDetailsBag = {
+    /** Gets or sets the group member attributes for the selected placement group. */
+    attributes?: Record<string, PublicAttributeBag> | null;
 
-    connectionStates?: ListItemBag[] | null;
+    groupMemberRoles?: ListItemBag[] | null;
 
-    connectionStatusBags?: ConnectionStatusBag[] | null;
-
-    connectionStatuses?: ListItemBag[] | null;
-
-    /** Gets or sets the attributes for Connection Request attributes specified at the Connection Type level. */
-    connectionTypeRequestAttributes?: Record<string, PublicAttributeBag> | null;
-
-    iconCssClass?: string | null;
-
-    requestSourceItems?: ListItemBag[] | null;
-
-    title?: string | null;
+    groupMemberStatuses?: Record<string, ListItemBag[]> | null;
 };

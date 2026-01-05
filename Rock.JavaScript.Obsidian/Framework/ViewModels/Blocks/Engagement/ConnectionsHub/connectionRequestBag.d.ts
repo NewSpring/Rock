@@ -21,26 +21,34 @@
 // </copyright>
 //
 
-import { ConnectionStatusBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionStatusBag";
+import { ConnectionState } from "@Obsidian/Enums/Connection/connectionState";
+import { GroupMemberStatus } from "@Obsidian/Enums/Group/groupMemberStatus";
 import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
-import { PublicAttributeBag } from "@Obsidian/ViewModels/Utility/publicAttributeBag";
 
-/** The additional configuration options for the Connections Hub block. */
-export type ConnectionsHubOptionsBag = {
-    connectionOpportunities?: ListItemBag[] | null;
+export type ConnectionRequestBag = {
+    comments?: string | null;
 
-    connectionStates?: ListItemBag[] | null;
+    connectionOpportunityGuid?: string | null;
 
-    connectionStatusBags?: ConnectionStatusBag[] | null;
+    /** Gets or sets the attribute values for the Connection Request. */
+    connectionRequestAttributeValues?: Record<string, string> | null;
 
-    connectionStatuses?: ListItemBag[] | null;
+    connectionState?: ConnectionState | null;
 
-    /** Gets or sets the attributes for Connection Request attributes specified at the Connection Type level. */
-    connectionTypeRequestAttributes?: Record<string, PublicAttributeBag> | null;
+    connectionStatusGuid?: string | null;
 
-    iconCssClass?: string | null;
+    connectorPersonAliasGuid?: string | null;
 
-    requestSourceItems?: ListItemBag[] | null;
+    groupMemberRoleGuid?: string | null;
 
-    title?: string | null;
+    groupMemberStatus?: GroupMemberStatus | null;
+
+    placementGroupGuid?: string | null;
+
+    /** Gets or sets the attribute values for the placement group member. */
+    placementGroupMemberAttributeValues?: Record<string, string> | null;
+
+    requester?: ListItemBag | null;
+
+    requestSourceGuid?: string | null;
 };

@@ -29,15 +29,15 @@ using Rock.Data;
 namespace Rock.Model
 {
     /// <summary>
-    /// ConnectionActivityType Service class
+    /// ConnectionTypeSource Service class
     /// </summary>
-    public partial class ConnectionActivityTypeService : Service<ConnectionActivityType>
+    public partial class ConnectionTypeSourceService : Service<ConnectionTypeSource>
     {
         /// <summary>
-        /// Initializes a new instance of the <see cref="ConnectionActivityTypeService"/> class
+        /// Initializes a new instance of the <see cref="ConnectionTypeSourceService"/> class
         /// </summary>
         /// <param name="context">The context.</param>
-        public ConnectionActivityTypeService(RockContext context) : base(context)
+        public ConnectionTypeSourceService(RockContext context) : base(context)
         {
         }
 
@@ -49,21 +49,21 @@ namespace Rock.Model
         /// <returns>
         ///   <c>true</c> if this instance can delete the specified item; otherwise, <c>false</c>.
         /// </returns>
-        public bool CanDelete( ConnectionActivityType item, out string errorMessage )
+        public bool CanDelete( ConnectionTypeSource item, out string errorMessage )
         {
             errorMessage = string.Empty;
 
-            if ( new Service<ConnectionRequestActivity>( Context ).Queryable().Any( a => a.ConnectionActivityTypeId == item.Id ) )
+            if ( new Service<ConnectionRequest>( Context ).Queryable().Any( a => a.ConnectionTypeSourceId == item.Id ) )
             {
-                errorMessage = string.Format( "This {0} is assigned to a {1}.", ConnectionActivityType.FriendlyTypeName, ConnectionRequestActivity.FriendlyTypeName );
+                errorMessage = string.Format( "This {0} is assigned to a {1}.", ConnectionTypeSource.FriendlyTypeName, ConnectionRequest.FriendlyTypeName );
                 return false;
             }
             return true;
         }
     }
 
-    [HasQueryableAttributes( typeof( ConnectionActivityType.ConnectionActivityTypeQueryableAttributeValue ), nameof( ConnectionActivityTypeAttributeValues ) )]
-    public partial class ConnectionActivityType
+    [HasQueryableAttributes( typeof( ConnectionTypeSource.ConnectionTypeSourceQueryableAttributeValue ), nameof( ConnectionTypeSourceAttributeValues ) )]
+    public partial class ConnectionTypeSource
     {
         /// <summary>
         /// Gets the entity attribute values. This should only be used inside
@@ -72,10 +72,10 @@ namespace Rock.Model
         /// or selecting values. Do <b>not</b> use it for accessing the
         /// attributes after the entity has been loaded.
         /// </summary>
-        public virtual ICollection<ConnectionActivityTypeQueryableAttributeValue> ConnectionActivityTypeAttributeValues { get; set; } 
+        public virtual ICollection<ConnectionTypeSourceQueryableAttributeValue> ConnectionTypeSourceAttributeValues { get; set; } 
 
         /// <inheritdoc/>
-        public class ConnectionActivityTypeQueryableAttributeValue : QueryableAttributeValue
+        public class ConnectionTypeSourceQueryableAttributeValue : QueryableAttributeValue
         {
         }
     }
@@ -83,36 +83,36 @@ namespace Rock.Model
     /// <summary>
     /// Generated Extension Methods
     /// </summary>
-    public static partial class ConnectionActivityTypeExtensionMethods
+    public static partial class ConnectionTypeSourceExtensionMethods
     {
         /// <summary>
-        /// Clones this ConnectionActivityType object to a new ConnectionActivityType object
+        /// Clones this ConnectionTypeSource object to a new ConnectionTypeSource object
         /// </summary>
         /// <param name="source">The source.</param>
         /// <param name="deepCopy">if set to <c>true</c> a deep copy is made. If false, only the basic entity properties are copied.</param>
         /// <returns></returns>
-        public static ConnectionActivityType Clone( this ConnectionActivityType source, bool deepCopy )
+        public static ConnectionTypeSource Clone( this ConnectionTypeSource source, bool deepCopy )
         {
             if (deepCopy)
             {
-                return source.Clone() as ConnectionActivityType;
+                return source.Clone() as ConnectionTypeSource;
             }
             else
             {
-                var target = new ConnectionActivityType();
+                var target = new ConnectionTypeSource();
                 target.CopyPropertiesFrom( source );
                 return target;
             }
         }
 
         /// <summary>
-        /// Clones this ConnectionActivityType object to a new ConnectionActivityType object with default values for the properties in the Entity and Model base classes.
+        /// Clones this ConnectionTypeSource object to a new ConnectionTypeSource object with default values for the properties in the Entity and Model base classes.
         /// </summary>
         /// <param name="source">The source.</param>
         /// <returns></returns>
-        public static ConnectionActivityType CloneWithoutIdentity( this ConnectionActivityType source )
+        public static ConnectionTypeSource CloneWithoutIdentity( this ConnectionTypeSource source )
         {
-            var target = new ConnectionActivityType();
+            var target = new ConnectionTypeSource();
             target.CopyPropertiesFrom( source );
 
             target.Id = 0;
@@ -129,20 +129,17 @@ namespace Rock.Model
         }
 
         /// <summary>
-        /// Copies the properties from another ConnectionActivityType object to this ConnectionActivityType object
+        /// Copies the properties from another ConnectionTypeSource object to this ConnectionTypeSource object
         /// </summary>
         /// <param name="target">The target.</param>
         /// <param name="source">The source.</param>
-        public static void CopyPropertiesFrom( this ConnectionActivityType target, ConnectionActivityType source )
+        public static void CopyPropertiesFrom( this ConnectionTypeSource target, ConnectionTypeSource source )
         {
             target.Id = source.Id;
             target.ConnectionTypeId = source.ConnectionTypeId;
             target.ForeignGuid = source.ForeignGuid;
             target.ForeignKey = source.ForeignKey;
-            target.IsActive = source.IsActive;
             target.Name = source.Name;
-            target.PersonNoteCreationBehavior = source.PersonNoteCreationBehavior;
-            target.PersonNoteTypeId = source.PersonNoteTypeId;
             target.CreatedDateTime = source.CreatedDateTime;
             target.ModifiedDateTime = source.ModifiedDateTime;
             target.CreatedByPersonAliasId = source.CreatedByPersonAliasId;

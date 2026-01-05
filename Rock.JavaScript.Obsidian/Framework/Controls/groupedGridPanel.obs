@@ -1,0 +1,248 @@
+<template>
+    <Panel v-model:quickFilterValue="internalQuickFilterValue">
+        <template #preFilterHeaderActions>
+            <HighlightLabel>
+                {{ countMessage }}
+            </HighlightLabel>
+        </template>
+        <template #headerActions>
+            <button v-if="panelSettings"
+                    type="button"
+                    class="btn btn-panel-action"
+                    title="Settings"
+                    @click.prevent.stop="onPanelSettingsClick">
+                <i class="ti ti-adjustments-horizontal"></i>
+            </button>
+            <button v-if="props.onAddItem"
+                    type="button"
+                    class="btn btn-add btn-panel-action"
+                    title="Add a new item. (Alt+N)"
+                    data-shortcut-key="n"
+                    @click.prevent.stop="props.onAddItem">
+                <i class="ti ti-square-plus"></i>
+            </button>
+        </template>
+        <template #preBody>
+            <div class="action-toolbar">
+                <RockLabel>Group By</RockLabel>
+                <div class="col-md-3">
+                    <DropDownList v-model="groupingKey"
+                                  :items="groupingFields" />
+                </div>
+            </div>
+        </template>
+        <ContentSectionContainer :sidebar="false">
+            <template v-for="group in filteredGroups" :key="`${selectedGrouping}-${group.key}`">
+                <ContentSection :isCollapsed="group.key === ''">
+                    <template #title>
+                        <div class="d-flex align-items-center">
+                            <template v-if="group.type === 'person' && group.person">
+                                <PersonAvatar :personIdKey="group.person.idKey ?? ''"
+                                              :photoUrl="group.person.photoUrl ?? ''"
+                                              :photoSize="24" />
+                                <span>{{ group.person.nickName }} {{ group.person.lastName }}</span>
+                            </template>
+                            <template v-else>
+                                <i v-if="group.iconCssClass" :class="group.iconCssClass" class="mr-3"></i>
+                                <span>{{ group.label }}</span>
+                            </template>
+                        </div>
+                    </template>
+                    <template #headerActions>
+                        <slot name="headerActions" v-bind="{ groupRows: group.gridData.rows }" />
+                        <HighlightLabel>
+                            {{ getCountMessage(group.key, group.gridData.rows) }}
+                        </HighlightLabel>
+                    </template>
+                    <ContentStack>
+                        <slot name="grid"
+                              v-bind="{ groupGridData: group.gridData }" />
+                    </ContentStack>
+                </ContentSection>
+            </template>
+        </ContentSectionContainer>
+    </Panel>
+</template>
+
+<style scoped>
+.action-toolbar {
+    display: flex;
+    align-items: center;
+    height: 62px;
+    padding: var(--spacing-tiny) var(--spacing-large);
+    border-bottom: 1px solid var(--color-interface-soft);
+}
+
+.action-toolbar .control-label {
+    font-size: var(--font-size-xsmall);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-interface-stronger);
+}
+</style>
+
+<script setup lang="ts">
+    import { computed, ref, watch, PropType } from "vue";
+    import PersonAvatar from "./personAvatar.obs";
+    import ContentSectionContainer from "./contentSectionContainer.obs";
+    import ContentSection from "./contentSection.obs";
+    import ContentStack from "./contentStack.obs";
+    import HighlightLabel from "./highlightLabel.obs";
+    import { GroupingFieldBag } from "@Obsidian/ViewModels/Core/Grid/groupingFieldBag";
+    import { Enumerable } from "@Obsidian/Utility/linq";
+    import { pluralize } from "@Obsidian/Utility/stringUtils";
+    import { asFormattedString } from "@Obsidian/Utility/numberUtils";
+    import Panel from "./panel.obs";
+    import DropDownList from "./dropDownList.obs";
+    import RockLabel from "./rockLabel.obs";
+    import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
+    import { useVModelPassthrough } from "@Obsidian/Utility/component";
+
+    const props = defineProps({
+        selectedGrouping: {
+            type: String,
+            default: ""
+        },
+        groupingFields: {
+            type: Array as PropType<ListItemBag[]>,
+            default: []
+        },
+        itemTerm: {
+            type: String,
+            default: "Item"
+        },
+        rows: {
+            type: Object as PropType<Record<string, unknown>[]>,
+            required: true
+        },
+        filteredRows: {
+            type: Object as PropType<Record<string, unknown>[]>,
+            required: true
+        },
+        /**
+         * The current text being used for the quick filter search box.
+         * The quick filter will only be shown if this value is not undefined.
+         */
+        quickFilterValue: {
+            type: String as PropType<string | undefined>,
+            default: undefined
+        },
+        /**
+         * The function to call in response to the add button being clicked.
+         * Providing this function will automatically enable the add button.
+         */
+        onAddItem: {
+            type: Function as PropType<(() => void | Promise<void>)>,
+            required: false
+        },
+        panelSettings: {
+            type: Boolean as PropType<boolean>,
+            default: false
+        }
+    });
+
+    const emit = defineEmits([
+        "update:quickFilterValue",
+        "panelSettingsClick"
+    ]);
+
+    const internalQuickFilterValue = useVModelPassthrough(props, "quickFilterValue", emit);
+    const groupingKey = ref(props.selectedGrouping);
+
+    const totalGroupCounts = computed(() => {
+        const map = new Map<string, number>();
+
+        if (!groupingKey.value) {
+            map.set("all", props.rows.length);
+            return map;
+        }
+
+        for (const row of props.rows) {
+            const field = row[groupingKey.value] as GroupingFieldBag;
+            const key = field?.key ?? "";
+
+            map.set(key, (map.get(key) ?? 0) + 1);
+        }
+
+        return map;
+    });
+
+
+    const filteredGroups = computed(() => {
+        if (!groupingKey.value) {
+            return [{
+                key: "all",
+                label: "All",
+                gridData: { rows: props.filteredRows }
+            }];
+        }
+
+        return Enumerable
+            .from(props.filteredRows)
+            .groupBy(r => {
+                const field = r[groupingKey.value] as GroupingFieldBag;
+                return field?.key ?? "";
+            })
+            .select(g => {
+                const rows = g.toArray();
+                const groupingField = rows[0][groupingKey.value] as GroupingFieldBag;
+
+                return {
+                    ...groupingField,
+                    gridData: { rows }
+                };
+            })
+            .toArray();
+    });
+
+    /**
+     * Updates the message that describes the items and how many there are.
+     */
+    // function updateCountMessage(): void {
+    //     // Add back if we care about loading
+    //     // if (loadingData.value) {
+    //     //     countMessage.value = `0 ${pluralize(props.itemTerm)}`;
+    //     // }
+    //     if (props.filteredRows.length === props.rows.length) {
+    //         countMessage.value = `${asFormattedString(props.filteredRows.length)} ${pluralize(props.itemTerm, props.filteredRows.length)}`;
+    //     }
+    //     else {
+    //         countMessage.value = `${asFormattedString(props.filteredRows.length)} of ${asFormattedString(props.rows.length)} ${pluralize(props.itemTerm, props.rows.length)}`;
+    //     }
+    // }
+
+    const countMessage = computed(() => {
+        const totalCount = props.rows?.length ?? 0;
+        const filteredCount = props.filteredRows.length;
+
+        if (filteredCount === totalCount) {
+            return `${asFormattedString(totalCount)} Total ${pluralize("Request", totalCount)}`;
+        }
+        else {
+            return `${asFormattedString(filteredCount)} of ${asFormattedString(totalCount)} Total ${pluralize("Request", totalCount)}`;
+        }
+    });
+
+    function getCountMessage(key: string | null | undefined, filteredRows: Record<string, unknown>[]): string {
+        if (!key) {
+            return "";
+        }
+
+        const totalGroupCount = totalGroupCounts.value.get(key) ?? 0;
+
+        if (filteredRows.length === totalGroupCount) {
+            return `${asFormattedString(filteredRows.length)} ${pluralize(props.itemTerm, filteredRows.length)}`;
+        }
+        else {
+            return `${asFormattedString(filteredRows.length)} of ${asFormattedString(totalGroupCount)} ${pluralize(props.itemTerm, totalGroupCount)}`;
+        }
+    }
+
+    function onPanelSettingsClick(): void {
+        emit("panelSettingsClick");
+    }
+
+    // watch(groups, () => {
+    //     console.log("Updating groupedGrid count.");
+    //     updateCountMessage();
+    // });
+</script>

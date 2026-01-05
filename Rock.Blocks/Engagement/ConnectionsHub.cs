@@ -13,6 +13,12 @@ using Rock.SystemGuid;
 using Rock.ViewModels.Core.Grid;
 using Rock.Utility;
 using System;
+using Rock.ViewModels.Utility;
+using Rock.Security;
+using Rock.ViewModels.Blocks.Engagement.StepTypeDetail;
+using System.Collections.Generic;
+using Rock.Data;
+using Newtonsoft.Json;
 
 namespace Rock.Blocks.Engagement
 {
@@ -85,6 +91,20 @@ namespace Rock.Blocks.Engagement
                 .OrderBy( cs => cs.Order )
                 .ToList();
 
+            options.ConnectionOpportunities = connectionType.ConnectionOpportunities.ToListItemBagList();
+            options.ConnectionStates = typeof( ConnectionState ).ToEnumListItemBag();
+            options.ConnectionStatuses = connectionType.ConnectionStatuses.ToListItemBagList();
+            options.RequestSourceItems = connectionType.ConnectionTypeSources.ToListItemBagList();
+
+            var tempConnectionRequest = new ConnectionRequest
+            {
+                ConnectionTypeId = connectionType.Id
+            };
+
+            tempConnectionRequest.LoadAttributes();
+
+            options.ConnectionTypeRequestAttributes = tempConnectionRequest.GetPublicAttributesForEdit( RequestContext.CurrentPerson );
+
             return options;
         }
 
@@ -136,6 +156,154 @@ namespace Rock.Blocks.Engagement
                 default:
                     return "ti ti-bolt";
             }
+        }
+
+        private bool TryGetEntityForEditAction( string idKey, out ConnectionRequest entity, out BlockActionResult error )
+        {
+            var entityService = new ConnectionRequestService( RockContext );
+            error = null;
+
+            // Determine if we are editing an existing entity or creating a new one.
+            if ( idKey.IsNotNullOrWhiteSpace() )
+            {
+                // If editing an existing entity then load it and make sure it
+                // was found and can still be edited.
+                entity = entityService.Get( idKey, !PageCache.Layout.Site.DisablePredictableIds );
+            }
+            else
+            {
+                entity = new ConnectionRequest();
+                entity.ConnectionTypeId = ConnectionTypeCache.Get( PageParameter( PageParameterKey.ConnectionType ), !PageCache.Layout.Site.DisablePredictableIds )?.Id ?? 0;
+                entityService.Add( entity );
+            }
+
+            if ( entity == null )
+            {
+                error = ActionBadRequest( $"{ConnectionRequest.FriendlyTypeName} not found." );
+                return false;
+            }
+
+            if ( !entity.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson ) )
+            {
+                error = ActionBadRequest( $"Not authorized to edit ${ConnectionRequest.FriendlyTypeName}." );
+                return false;
+            }
+
+            return true;
+        }
+
+        private bool UpdateEntityFromBox( ConnectionRequest entity, ValidPropertiesBox<ConnectionRequestBag> box )
+        {
+            if ( box?.Bag == null || box.ValidProperties == null )
+            {
+                return false;
+            }
+
+            var isConnectionOpportunityValid = box.IfValidProperty( nameof( box.Bag.ConnectionOpportunityGuid ), () =>
+            {
+                var connectionOpportunityId = new ConnectionOpportunityService( RockContext ).GetId( box.Bag.ConnectionOpportunityGuid.AsGuid() );
+
+                if ( !connectionOpportunityId.HasValue )
+                {
+                    return false;
+                }
+
+                entity.ConnectionOpportunityId = connectionOpportunityId.Value;
+                return true;
+            }, true);
+
+            if ( !isConnectionOpportunityValid )
+            {
+                return false;
+            }
+
+            box.IfValidProperty( nameof( box.Bag.Requester ),
+                () => entity.PersonAliasId = box.Bag.Requester.GetEntityId<PersonAlias>( RockContext ).Value );
+
+            box.IfValidProperty( nameof( box.Bag.ConnectorPersonAliasGuid ),
+                () => entity.ConnectorPersonAliasId = new PersonAliasService( RockContext ).GetId( box.Bag.ConnectorPersonAliasGuid.AsGuid() ) );
+
+            box.IfValidProperty( nameof( box.Bag.ConnectionState ), () =>
+            {
+                var state = box.Bag.ConnectionState ?? Rock.Enums.Connection.ConnectionState.Active;
+
+                entity.ConnectionState = ( ConnectionState ) ( int ) state;
+            } );
+
+            var isConnectionStatusValid = box.IfValidProperty( nameof( box.Bag.ConnectionStatusGuid ), () =>
+            {
+                var connectionStatusId = new ConnectionStatusService( RockContext ).GetId( box.Bag.ConnectionStatusGuid.AsGuid() );
+
+                if ( !connectionStatusId.HasValue )
+                {
+                    return false;
+                }
+
+                entity.ConnectionStatusId = connectionStatusId.Value;
+                return true;
+            }, true );
+
+            if ( !isConnectionStatusValid )
+            {
+                return false;
+            }
+
+            box.IfValidProperty( nameof( box.Bag.PlacementGroupGuid ),
+                () => entity.AssignedGroupId = GroupCache.GetId( box.Bag.PlacementGroupGuid.AsGuid() ) );
+
+            box.IfValidProperty( nameof( box.Bag.GroupMemberRoleGuid ),
+                () => entity.AssignedGroupMemberRoleId = GroupTypeRoleCache.GetId( box.Bag.GroupMemberRoleGuid.AsGuid() ) );
+
+            box.IfValidProperty( nameof( box.Bag.GroupMemberStatus ),
+                () => entity.AssignedGroupMemberStatus = box.Bag.GroupMemberStatus );
+
+            box.IfValidProperty( nameof( box.Bag.Comments ),
+                () => entity.Comments = box.Bag.Comments );
+
+            box.IfValidProperty( nameof( box.Bag.RequestSourceGuid ),
+                () => entity.ConnectionTypeSourceId = new ConnectionTypeSourceService( RockContext ).GetId( box.Bag.RequestSourceGuid.AsGuid() ) );
+
+            box.IfValidProperty( nameof( box.Bag.ConnectionRequestAttributeValues ), () =>
+            {
+                entity.LoadAttributes( RockContext );
+                entity.SetPublicAttributeValues( box.Bag.ConnectionRequestAttributeValues, RequestContext.CurrentPerson );
+            } );
+
+            box.IfValidProperty( nameof( box.Bag.PlacementGroupMemberAttributeValues ),
+                () => entity.AssignedGroupMemberAttributeValues = GetGroupMemberAttributeValuesFromBag( box.Bag.PlacementGroupMemberAttributeValues, entity.AssignedGroupId, entity.AssignedGroupMemberRoleId, entity.AssignedGroupMemberStatus ) );
+
+            return true;
+        }
+
+        /// <summary>
+        /// Gets the group member attribute values.
+        /// </summary>
+        /// <returns></returns>
+        private string GetGroupMemberAttributeValuesFromBag( Dictionary<string, string> attributeValues, int? groupId, int? groupMemberRoleId, GroupMemberStatus? groupMemberStatus )
+        {
+            var values = new Dictionary<string, string>();
+
+            if ( !groupId.HasValue || !groupMemberRoleId.HasValue || !groupMemberStatus.HasValue )
+            {
+                return string.Empty;
+            }
+
+            var groupMember = new GroupMember
+            {
+                GroupId = groupId.Value,
+                GroupRoleId = groupMemberRoleId.Value,
+                GroupMemberStatus = groupMemberStatus.Value
+            };
+
+            groupMember.LoadAttributes();
+            groupMember.SetPublicAttributeValues( attributeValues, RequestContext.CurrentPerson );
+
+            foreach ( var attrValue in groupMember.AttributeValues )
+            {
+                values.Add( attrValue.Key, attrValue.Value.Value );
+            }
+
+            return JsonConvert.SerializeObject( values, Formatting.None );
         }
 
         #endregion Methods
@@ -324,6 +492,126 @@ namespace Rock.Blocks.Engagement
 
             var gridDataBag = GetGridBuilder().Build( connectionRequests );
             return ActionOk( gridDataBag );
+        }
+
+        [BlockAction]
+        public BlockActionResult FetchConnectionOpportunityDetails( string connectionOpportunityGuid )
+        {
+            var connectionOpportunity = new ConnectionOpportunityService( RockContext ).Get( connectionOpportunityGuid.AsGuid() );
+            if ( connectionOpportunity == null )
+            {
+                return ActionNotFound();
+            }
+
+            // TODO - Requires additional filtering if we introduce campus filters.
+            var connectors = connectionOpportunity.ConnectionOpportunityConnectorGroups.SelectMany( g => g.ConnectorGroup.Members )
+                .Select( m => new ListItemBag
+                {
+                    Value = m.Person.PrimaryAlias.Guid.ToString(),
+                    Text = m.Person.FullName
+                } )
+                .DistinctBy( i => i.Value )
+                .ToList();
+
+            var placementGroups = connectionOpportunity.ConnectionOpportunityGroups.Select( g => g.Group ).ToListItemBagList();
+
+            var tempConnectionRequest = new ConnectionRequest
+            {
+                ConnectionOpportunityId = connectionOpportunity.Id
+            };
+
+            tempConnectionRequest.LoadAttributes();
+
+            var bag = new ConnectionOpportunityDetailBag
+            {
+                IdKey = IdHasher.Instance.GetHash( connectionOpportunity.Id ),
+                Connectors = connectors,
+                PlacementGroups = placementGroups,
+                ConnectionOpportunityRequestAttributes = tempConnectionRequest.GetPublicAttributesForEdit( RequestContext.CurrentPerson )
+            };
+
+            return ActionOk( bag );
+        }
+
+        [BlockAction]
+        public BlockActionResult FetchPlacementGroupDetails( string connectionOpportunityGuid, string placementGroupGuid )
+        {
+            var connectionOpportunity = new ConnectionOpportunityService( RockContext ).Get( connectionOpportunityGuid.AsGuid() );
+            var placementGroup = new GroupService( RockContext ).Get( placementGroupGuid.AsGuid() );
+
+            if ( connectionOpportunity == null || placementGroup == null )
+            {
+                return ActionNotFound();
+            }
+
+            var configs = new ConnectionOpportunityGroupConfigService( RockContext ).Queryable()
+                .AsNoTracking()
+                .Where( c =>
+                    c.ConnectionOpportunityId == connectionOpportunity.Id &&
+                    c.GroupTypeId == placementGroup.GroupTypeId )
+                .Select( c => new
+                {
+                    Role = c.GroupMemberRole,
+                    Status = c.GroupMemberStatus
+                } )
+                .ToList();
+
+            var tempGroupMember = new GroupMember
+            {
+                GroupId = placementGroup.Id
+            };
+
+            tempGroupMember.LoadAttributes();
+
+            var bag = new PlacementGroupDetailsBag
+            {
+                GroupMemberRoles = configs
+                    .DistinctBy( c => c.Role.Guid )
+                    .Select( c => c.Role.ToListItemBag() )
+                    .ToList(),
+
+                GroupMemberStatuses = configs.GroupBy( c => c.Role.Guid.ToString() )
+                    .ToDictionary(
+                        g => g.Key,
+                        g => g.OrderBy( c => c.Status )
+                            .DistinctBy( c => c.Status )
+                            .Select( c => new ListItemBag
+                            {
+                                Text = c.Status.ToString(),
+                                Value = ( ( int ) c.Status ).ToString()
+                            } )
+                            .ToList()
+                    ),
+
+
+                Attributes = tempGroupMember.GetPublicAttributesForEdit( RequestContext.CurrentPerson )
+            };
+
+            return ActionOk( bag );
+        }
+
+        [BlockAction]
+        public BlockActionResult SaveConnectionRequest( ValidPropertiesBox<ConnectionRequestBag> box )
+        {
+            // No edit mode at the moment.
+            if ( !TryGetEntityForEditAction( null, out var entity, out var actionError ) )
+            {
+                return actionError;
+            }
+
+            // Update the entity instance from the information in the bag.
+            if ( !UpdateEntityFromBox( entity, box ) )
+            {
+                return ActionBadRequest( "Invalid data." );
+            }
+
+            RockContext.WrapTransaction( () =>
+            {
+                RockContext.SaveChanges();
+                entity.SaveAttributeValues( RockContext );
+            } );
+
+            return ActionOk();
         }
 
         #endregion Block Actions

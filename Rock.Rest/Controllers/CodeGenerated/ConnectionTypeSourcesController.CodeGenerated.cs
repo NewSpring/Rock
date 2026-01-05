@@ -21,26 +21,20 @@
 // </copyright>
 //
 
-import { ConnectionStatusBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionStatusBag";
-import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
-import { PublicAttributeBag } from "@Obsidian/ViewModels/Utility/publicAttributeBag";
+using Rock.Model;
+using Rock.SystemGuid;
 
-/** The additional configuration options for the Connections Hub block. */
-export type ConnectionsHubOptionsBag = {
-    connectionOpportunities?: ListItemBag[] | null;
-
-    connectionStates?: ListItemBag[] | null;
-
-    connectionStatusBags?: ConnectionStatusBag[] | null;
-
-    connectionStatuses?: ListItemBag[] | null;
-
-    /** Gets or sets the attributes for Connection Request attributes specified at the Connection Type level. */
-    connectionTypeRequestAttributes?: Record<string, PublicAttributeBag> | null;
-
-    iconCssClass?: string | null;
-
-    requestSourceItems?: ListItemBag[] | null;
-
-    title?: string | null;
-};
+namespace Rock.Rest.Controllers
+{
+    /// <summary>
+    /// ConnectionTypeSources REST API
+    /// </summary>
+    [RestControllerGuid( "9F7651E4-E5E1-4119-9394-86F15D2752EE" )]
+    public partial class ConnectionTypeSourcesController : Rock.Rest.ApiController<Rock.Model.ConnectionTypeSource>
+    {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="ConnectionTypeSourcesController"/> class.
+        /// </summary>
+        public ConnectionTypeSourcesController() : base( new Rock.Model.ConnectionTypeSourceService( new Rock.Data.RockContext() ) ) { } 
+    }
+}

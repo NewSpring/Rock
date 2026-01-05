@@ -21,26 +21,31 @@
 // </copyright>
 //
 
-import { ConnectionStatusBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionStatusBag";
-import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
-import { PublicAttributeBag } from "@Obsidian/ViewModels/Utility/publicAttributeBag";
+/** Type of connection state */
+export const ConnectionState = {
+    /** Active */
+    Active: 0,
 
-/** The additional configuration options for the Connections Hub block. */
-export type ConnectionsHubOptionsBag = {
-    connectionOpportunities?: ListItemBag[] | null;
+    /** Inactive */
+    Inactive: 1,
 
-    connectionStates?: ListItemBag[] | null;
+    /** Future Follow-up */
+    FutureFollowUp: 2,
 
-    connectionStatusBags?: ConnectionStatusBag[] | null;
+    /** Connected */
+    Connected: 3
+} as const;
 
-    connectionStatuses?: ListItemBag[] | null;
+/** Type of connection state */
+export const ConnectionStateDescription: Record<number, string> = {
+    0: "Active",
 
-    /** Gets or sets the attributes for Connection Request attributes specified at the Connection Type level. */
-    connectionTypeRequestAttributes?: Record<string, PublicAttributeBag> | null;
+    1: "Inactive",
 
-    iconCssClass?: string | null;
+    2: "Future Follow Up",
 
-    requestSourceItems?: ListItemBag[] | null;
-
-    title?: string | null;
+    3: "Connected"
 };
+
+/** Type of connection state */
+export type ConnectionState = typeof ConnectionState[keyof typeof ConnectionState];

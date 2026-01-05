@@ -21,26 +21,20 @@
 // </copyright>
 //
 
-import { ConnectionStatusBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionStatusBag";
-import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
-import { PublicAttributeBag } from "@Obsidian/ViewModels/Utility/publicAttributeBag";
+using Rock.Model;
+using Rock.SystemGuid;
 
-/** The additional configuration options for the Connections Hub block. */
-export type ConnectionsHubOptionsBag = {
-    connectionOpportunities?: ListItemBag[] | null;
-
-    connectionStates?: ListItemBag[] | null;
-
-    connectionStatusBags?: ConnectionStatusBag[] | null;
-
-    connectionStatuses?: ListItemBag[] | null;
-
-    /** Gets or sets the attributes for Connection Request attributes specified at the Connection Type level. */
-    connectionTypeRequestAttributes?: Record<string, PublicAttributeBag> | null;
-
-    iconCssClass?: string | null;
-
-    requestSourceItems?: ListItemBag[] | null;
-
-    title?: string | null;
-};
+namespace Rock.Rest.Controllers
+{
+    /// <summary>
+    /// ConnectionRequestStatusHistories REST API
+    /// </summary>
+    [RestControllerGuid( "4B0B9437-C284-4A5F-8155-3EDAD8138D99" )]
+    public partial class ConnectionRequestStatusHistoriesController : Rock.Rest.ApiController<Rock.Model.ConnectionRequestStatusHistory>
+    {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="ConnectionRequestStatusHistoriesController"/> class.
+        /// </summary>
+        public ConnectionRequestStatusHistoriesController() : base( new Rock.Model.ConnectionRequestStatusHistoryService( new Rock.Data.RockContext() ) ) { } 
+    }
+}
