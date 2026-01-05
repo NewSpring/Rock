@@ -16,6 +16,7 @@
 //  + Drawer Pull
 //  + Panel Footer Content
 //  + Panel Help
+//  + Panel Waterfall
 // =============================================================
 
 
@@ -745,3 +746,20 @@
 }
 
 // ===================== END PANEL HELP =====================
+
+// ===================== PANEL WATERFALL =====================
+
+.contentstack-body .panel-waterfall {
+  background-color: transparent;
+  overflow: visible;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+
+  .panel-body {
+    padding: 0;
+  }
+}
+
+// ===================== END PANEL WATERFALL =====================

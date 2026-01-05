@@ -11187,6 +11187,17 @@ ul ul, ol ul, ul ol, ol ol {
   padding: var(--spacing-tiny) var(--spacing-medium);
 }
 
+.contentstack-body .panel-waterfall {
+  background-color: transparent;
+  overflow: visible;
+}
+.contentstack-body .panel-waterfall:last-child {
+  margin-bottom: 0;
+}
+.contentstack-body .panel-waterfall .panel-body {
+  padding: 0;
+}
+
 .grid-overflow {
   overflow-x: auto;
 }
@@ -20055,6 +20066,17 @@ iframe.file-browser {
 
 .help-content {
   padding: var(--spacing-tiny) var(--spacing-medium);
+}
+
+.contentstack-body .panel-waterfall {
+  background-color: transparent;
+  overflow: visible;
+}
+.contentstack-body .panel-waterfall:last-child {
+  margin-bottom: 0;
+}
+.contentstack-body .panel-waterfall .panel-body {
+  padding: 0;
 }
 
 .badge-circle {
