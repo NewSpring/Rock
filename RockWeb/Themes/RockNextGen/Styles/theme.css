@@ -20418,6 +20418,11 @@ li.list-group-item:hover:has(> a) {
   color: var(--color-primary);
   background-color: var(--color-primary-soft);
 }
+.nav-pills > li.active > a, .nav-pills > li.active > a:focus {
+  color: var(--color-primary);
+  background-color: var(--color-primary-soft);
+  border-color: var(--color-primary-soft);
+}
 
 .table-no-border {
   overflow-x: auto;

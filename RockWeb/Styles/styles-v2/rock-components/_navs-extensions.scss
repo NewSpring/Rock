@@ -62,11 +62,19 @@
 .nav-pills {
     > li {
       > a {
-        color: var(--color-interface-strong);
+            color: var(--color-interface-strong);
       }
       > a:hover {
             color: var(--color-primary);
             background-color: var(--color-primary-soft);
+        }
+      &.active > a {
+            &,
+            &:focus {
+                color: var(--color-primary);
+                background-color: var(--color-primary-soft);
+                border-color: var(--color-primary-soft);
+            }
         }
     }
 }
