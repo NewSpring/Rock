@@ -322,12 +322,6 @@
   }
 }
 
-
-// If the panel-block has a panel-header with only a single child in the panel-header-actions, add the right margin.
-/*.panel-block > .panel-header > .panel-header-actions:has(> div:only-child) {
-  margin-right: var(--spacing-medium);
-}*/
-
 // File Asset Manager panel adjustments
 .panel-block:has(.file-asset-manager) {
   margin-top: var(--spacing-medium);
@@ -354,4 +348,20 @@
 
 .panel-sidebar-footer-content {
     grid-column: ~"1 / span 4";
+}
+
+// Panel Waterfall in a Content Section
+
+.contentsection .panel-waterfall {
+  background-color: transparent;
+  overflow: visible; // Allow dropdowns to render outside the panel
+  border-color: transparent;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+
+  .panel-body {
+    padding: 0;
+  }
 }

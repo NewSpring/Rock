@@ -11187,14 +11187,14 @@ ul ul, ol ul, ul ol, ol ol {
   padding: var(--spacing-tiny) var(--spacing-medium);
 }
 
-.contentstack-body .panel-waterfall {
+.contentsection .panel-waterfall {
   background-color: transparent;
   overflow: visible;
 }
-.contentstack-body .panel-waterfall:last-child {
+.contentsection .panel-waterfall:last-child {
   margin-bottom: 0;
 }
-.contentstack-body .panel-waterfall .panel-body {
+.contentsection .panel-waterfall .panel-body {
   padding: 0;
 }
 
@@ -20068,14 +20068,14 @@ iframe.file-browser {
   padding: var(--spacing-tiny) var(--spacing-medium);
 }
 
-.contentstack-body .panel-waterfall {
+.contentsection .panel-waterfall {
   background-color: transparent;
   overflow: visible;
 }
-.contentstack-body .panel-waterfall:last-child {
+.contentsection .panel-waterfall:last-child {
   margin-bottom: 0;
 }
-.contentstack-body .panel-waterfall .panel-body {
+.contentsection .panel-waterfall .panel-body {
   padding: 0;
 }
 

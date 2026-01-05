@@ -749,9 +749,11 @@
 
 // ===================== PANEL WATERFALL =====================
 
-.contentstack-body .panel-waterfall {
+// Panel Waterfall in a Content Section
+
+.contentsection .panel-waterfall {
   background-color: transparent;
-  overflow: visible;
+  overflow: visible; // Allow dropdowns to render outside the panel
 
   &:last-child {
     margin-bottom: 0;
