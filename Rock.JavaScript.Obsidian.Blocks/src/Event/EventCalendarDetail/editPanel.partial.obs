@@ -116,11 +116,10 @@
     import { PublicEditableAttributeBag } from "@Obsidian/ViewModels/Utility/publicEditableAttributeBag";
     import AttributeEditor from "@Obsidian/Controls/attributeEditor.obs";
     import RockForm from "@Obsidian/Controls/rockForm.obs";
-    import { emptyGuid, newGuid, toGuidOrNull } from "@Obsidian/Utility/guid";
+    import { newGuid } from "@Obsidian/Utility/guid";
     import Grid, { TextColumn, DeleteColumn, BooleanColumn, EditColumn, ReorderColumn } from "@Obsidian/Controls/grid";
     import { GridDataBag } from "@Obsidian/ViewModels/Core/Grid/gridDataBag";
     import { FieldType as FieldTypeGuids } from "@Obsidian/SystemGuids/fieldType";
-    import { Guid } from "@Obsidian/Types";
     import { ValidPropertiesBox } from "@Obsidian/ViewModels/Utility/validPropertiesBox";
 
     const props = defineProps({

@@ -153,8 +153,6 @@
     import { AppliesToAgeClassificationDescription } from "@Obsidian/Enums/Group/appliesToAgeClassification";
     import { enumToListItemBag } from "@Obsidian/Utility/enumUtils";
     import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
-    import NotificationBox from "@Obsidian/Controls/notificationBox.obs";
-    import { AlertType } from "@Obsidian/Enums/Controls/alertType";
 
     const props = defineProps({
         modelValue: {

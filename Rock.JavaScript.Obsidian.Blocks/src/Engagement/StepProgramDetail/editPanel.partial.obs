@@ -747,7 +747,7 @@
             if (index !== -1) {
                 // Get the updated WorkflowTrigger and RowItem.
                 let editedStatus = stepStatuses.value.find(a => a.guid === stepStatusGuid.value);
-                let rowItem = statusesGridData.rows.find(x => x.key == stepStatusGuid.value);
+                let rowItem = statusesGridData.rows.find(x => x.key === stepStatusGuid.value);
 
                 if (editedStatus && rowItem) {
                     // Replace old WorkflowTrigger with updated WorkflowTrigger.
