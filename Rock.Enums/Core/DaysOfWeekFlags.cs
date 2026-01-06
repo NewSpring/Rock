@@ -1,4 +1,4 @@
-﻿// <copyright>
+﻿﻿// <copyright>
 // Copyright by the Spark Development Network
 //
 // Licensed under the Rock Community License (the "License");
@@ -16,59 +16,57 @@
 
 using System;
 
-namespace Rock.Utility.Enums
+namespace Rock.Enums.Core
 {
     /// <summary>
-    /// Represents and indicates days of the week as bits that can be combined into a single byte
+    /// Flags enumeration of the days of the week.
     /// </summary>
     [Flags]
-    [Obsolete( "This enum is obsolete, use the one in the Rock.Enums.Core namespace instead." )]
-    [RockObsolete( "19.0" )]
-    public enum DayOfWeekFlag
+    public enum DaysOfWeekFlags
     {
         /// <summary>
-        /// No days of the week
+        /// No days selected.
         /// </summary>
-        None = 0x0000_0000,
+        None = 0x00,
 
         /// <summary>
         /// Sunday
         /// </summary>
-        Sunday = 0x0000_0001,
+        Sunday = 0x01, // 1
 
         /// <summary>
         /// Monday
         /// </summary>
-        Monday = 0x0000_0010,
+        Monday = 0x02, // 2
 
         /// <summary>
         /// Tuesday
         /// </summary>
-        Tuesday = 0x0000_0100,
+        Tuesday = 0x04, // 4
 
         /// <summary>
         /// Wednesday
         /// </summary>
-        Wednesday = 0x0000_1000,
+        Wednesday = 0x08, // 8
 
         /// <summary>
         /// Thursday
         /// </summary>
-        Thursday = 0x0001_0000,
+        Thursday = 0x10, // 16
 
         /// <summary>
         /// Friday
         /// </summary>
-        Friday = 0x0010_0000,
+        Friday = 0x20, // 32
 
         /// <summary>
         /// Saturday
         /// </summary>
-        Saturday = 0x0100_0000,
+        Saturday = 0x40,  // 64
 
         /// <summary>
-        /// All days of the week
+        /// All days of the week.
         /// </summary>
-        All = Sunday | Monday | Tuesday | Wednesday | Thursday | Friday | Saturday
+        All = Sunday | Monday | Tuesday | Wednesday | Thursday | Friday | Saturday,
     }
 }

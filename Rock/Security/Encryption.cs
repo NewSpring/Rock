@@ -250,6 +250,7 @@ namespace Rock.Security
         /// <param name="keyBytes"></param>
         /// <returns></returns>
         [Obsolete( "Do not use this method. It is only for testing v1 encryption." )]
+        [RockObsolete( "18.0" )]
         private static string EncryptStringV1ForTesting( string plainText, byte[] keyBytes )
         {
             if ( string.IsNullOrEmpty( plainText ) )
