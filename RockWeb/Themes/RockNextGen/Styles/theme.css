@@ -22726,6 +22726,109 @@ iframe.email-body {
   border: 1px solid var(--color-interface-soft);
 }
 
+.communication-detail-analytics.contentsection-list {
+  overflow-y: unset;
+}
+
+.communication-detail-no-metrics {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  color: var(--color-interface-medium);
+}
+
+.communication-detail-no-metrics-message {
+  font-size: var(--font-size-xsmall);
+  margin-top: var(--spacing-tiny);
+  text-align: center;
+}
+
+.communication-detail-kpi .kpi {
+  margin: 0;
+}
+
+.communication-detail-performance-chart {
+  height: 450px;
+}
+
+.communication-detail-top-clients,
+.communication-detail-unique-opens-by-age,
+.communication-detail-unique-opens-by-gender {
+  height: 100%;
+}
+
+.communication-detail-top-clients-chart {
+  height: 500px;
+}
+
+.communication-detail-top-clients-overflow-list {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-xsmall);
+}
+
+.communication-detail-top-clients-overflow-list-item {
+  width: 100%;
+  max-width: 690px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.communication-detail-gender-chart,
+.communication-detail-age-chart {
+  height: 350px;
+}
+
+@media (max-width: 1200px) {
+  .communication-detail-gender-chart-section {
+    margin-bottom: var(--spacing-xlarge);
+  }
+}
+.communication-detail-unique-interactions-over-time {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.communication-detail-unique-interactions-over-time-actions {
+  flex: 0 0 auto;
+}
+.communication-detail-unique-interactions-over-time-actions .form-group {
+  margin-bottom: var(--spacing-xsmall);
+}
+
+.communication-detail-unique-interactions-over-time-chart {
+  flex: 1 0 auto;
+}
+
+.communication-detail-sub-header-left,
+.communication-detail-sub-header-right {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-xsmall);
+}
+
+.communication-detail-source-page-button {
+  color: var(--color-primary);
+  font-weight: var(--font-weight-semibold);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-tiny);
+}
+
+.communication-detail-footer-secondary-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xsmall);
+}
+
+.communication-detail .panel .panel-body .panel-scrollable-content {
+  overflow: unset;
+}
+
 .hint {
   background-color: var(--color-interface-soft);
   padding: 0 6px;
