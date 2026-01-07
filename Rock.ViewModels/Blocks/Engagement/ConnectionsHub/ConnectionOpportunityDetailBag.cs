@@ -28,6 +28,8 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
     {
         public string IdKey { get; set; }
 
+        public string DefaultConnectorPersonAliasGuid { get; set; }
+
         public List<ListItemBag> Connectors { get; set; }
 
         public List<ListItemBag> PlacementGroups { get; set; }

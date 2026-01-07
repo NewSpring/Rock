@@ -503,8 +503,12 @@ namespace Rock.Blocks.Engagement
                 return ActionNotFound();
             }
 
-            // TODO - Requires additional filtering if we introduce campus filters.
-            var connectors = connectionOpportunity.ConnectionOpportunityConnectorGroups.SelectMany( g => g.ConnectorGroup.Members )
+            var campusContext = RequestContext.GetContextEntity<Campus>();
+            int? campusId = campusContext?.Id;
+
+            var connectors = connectionOpportunity.ConnectionOpportunityConnectorGroups
+                .Where( g => !campusId.HasValue || !g.CampusId.HasValue || g.CampusId.Value == campusId.Value )
+                .SelectMany( g => g.ConnectorGroup.Members )
                 .Select( m => new ListItemBag
                 {
                     Value = m.Person.PrimaryAlias.Guid.ToString(),
@@ -513,7 +517,40 @@ namespace Rock.Blocks.Engagement
                 .DistinctBy( i => i.Value )
                 .ToList();
 
-            var placementGroups = connectionOpportunity.ConnectionOpportunityGroups.Select( g => g.Group ).ToListItemBagList();
+            var currentPersonAliasGuid = RequestContext.CurrentPerson.PrimaryAlias?.Guid;
+
+            // Add current person to the connector list to mirror Webforms
+            if ( currentPersonAliasGuid.HasValue && !connectors.Any( c => c.Value == currentPersonAliasGuid.Value.ToString() ) )
+            {
+                connectors.Add( new ListItemBag
+                {
+                    Text = RequestContext.CurrentPerson.FullName,
+                    Value = currentPersonAliasGuid.Value.ToString()
+                } );
+            }
+
+            string defaultConnectorPersonAliasGuid = string.Empty;
+
+            if ( campusId.HasValue )
+            {
+                var defaultConnector = connectionOpportunity.ConnectionOpportunityCampuses.Where( c => c.CampusId == campusId.Value && c.DefaultConnectorPersonAliasId.HasValue )
+                    .Select( c => c.DefaultConnectorPersonAlias )
+                    .FirstOrDefault();
+
+                if ( defaultConnector != null )
+                {
+                    defaultConnectorPersonAliasGuid = defaultConnector.Guid.ToString();
+                }
+            }
+
+            var placementGroups = connectionOpportunity.ConnectionOpportunityGroups.Select( g => g.Group )
+                .Where( g => !campusId.HasValue || !g.CampusId.HasValue || g.CampusId.Value == campusId.Value )
+                .Select( g => new ListItemBag
+                {
+                    Text = g.CampusId.HasValue ? $"{g.Name} ({g.Campus.Name})" : $"{g.Name} (No Campus)",
+                    Value = g.Guid.ToString()
+                })
+                .ToList();
 
             var tempConnectionRequest = new ConnectionRequest
             {
@@ -525,6 +562,7 @@ namespace Rock.Blocks.Engagement
             var bag = new ConnectionOpportunityDetailBag
             {
                 IdKey = IdHasher.Instance.GetHash( connectionOpportunity.Id ),
+                DefaultConnectorPersonAliasGuid = defaultConnectorPersonAliasGuid,
                 Connectors = connectors,
                 PlacementGroups = placementGroups,
                 ConnectionOpportunityRequestAttributes = tempConnectionRequest.GetPublicAttributesForEdit( RequestContext.CurrentPerson )
@@ -603,6 +641,13 @@ namespace Rock.Blocks.Engagement
             if ( !UpdateEntityFromBox( entity, box ) )
             {
                 return ActionBadRequest( "Invalid data." );
+            }
+
+            // If there is a campus filter then set the new Connection Request to that campus.
+            var campusContext = RequestContext.GetContextEntity<Campus>();
+            if ( campusContext != null )
+            {
+                entity.CampusId = campusContext.Id;
             }
 
             RockContext.WrapTransaction( () =>

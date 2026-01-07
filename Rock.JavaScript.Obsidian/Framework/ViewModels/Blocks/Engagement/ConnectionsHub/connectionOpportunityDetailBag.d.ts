@@ -30,6 +30,8 @@ export type ConnectionOpportunityDetailBag = {
 
     connectors?: ListItemBag[] | null;
 
+    defaultConnectorPersonAliasGuid?: string | null;
+
     idKey?: string | null;
 
     placementGroups?: ListItemBag[] | null;

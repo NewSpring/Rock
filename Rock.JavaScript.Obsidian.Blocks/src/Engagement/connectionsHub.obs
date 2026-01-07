@@ -443,6 +443,7 @@
 
         if (result.isSuccess) {
             isAddConnectionRequestModalVisible.value = false;
+            loadGridData();
             return;
         }
 

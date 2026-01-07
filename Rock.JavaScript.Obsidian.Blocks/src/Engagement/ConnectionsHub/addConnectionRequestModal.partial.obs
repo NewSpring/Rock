@@ -45,7 +45,8 @@
             <div class="col-md-6">
                 <DropDownList v-model="connectionStatusGuid"
                               :items="props.options.connectionStatuses ?? []"
-                              label="Status" />
+                              label="Status"
+                              :showBlankItem="false" />
             </div>
         </div>
 
@@ -320,8 +321,12 @@
         emit("fetchConnectionOpportunityDetails", connectionOpportunityGuid.value);
     });
 
-    watch(() => props.connectionOpportunityDetails?.connectionOpportunityRequestAttributes, () => {
+    watch(() => props.connectionOpportunityDetails, () => {
         pruneAttributeValues();
+
+        if (isNullOrWhiteSpace(connectorPersonAliasGuid.value)) {
+            connectorPersonAliasGuid.value = props.connectionOpportunityDetails?.defaultConnectorPersonAliasGuid ?? "";
+        }
     });
 
     watch(placementGroupGuid, () => {
