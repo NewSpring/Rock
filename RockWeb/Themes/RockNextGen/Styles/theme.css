@@ -12275,29 +12275,14 @@ ul.rocktree-children {
   border-radius: var(--border-radius-base, 3px);
 }
 .rocktree .rocktree-name i {
-  margin-right: 2px;
+  margin: 0 var(--spacing-tiny);
 }
 .rocktree .rocktree-name:hover {
   color: var(--color-interface-stronger);
+  background-color: var(--color-interface-softer);
 }
-.rocktree .rocktree-name::before {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: -5px;
-  z-index: -1;
-  width: 100vw;
-  content: "";
-  border-radius: var(--rounded-small) 0 0 var(--rounded-small);
-}
-.rocktree .rocktree-name:hover::before {
-  background: var(--color-interface-softer);
-}
-.rocktree .selected {
-  color: var(--color-interface-stronger);
-}
-.rocktree .selected::before {
-  background: var(--color-info-soft) !important;
+.rocktree .rocktree-name.selected {
+  background: var(--color-info-soft);
 }
 .rocktree .disabled {
   cursor: default;

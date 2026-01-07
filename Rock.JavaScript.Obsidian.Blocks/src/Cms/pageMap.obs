@@ -24,16 +24,6 @@
     </Panel>
 </template>
 
-<style scoped>
-:deep(.panel-body .rocktree span:hover) {
-    background-color: var(--base-interface-softer);
-}
-
-:deep(.panel-body .rocktree .rocktree-name.selected) {
-    background-color: var(--color-info-soft);
-}
-</style>
-
 <script setup lang="ts">
     import { ref, computed, onBeforeMount } from "vue";
     import NotificationBox from "@Obsidian/Controls/notificationBox.obs";
