@@ -346,6 +346,8 @@ iframe {
   --font-weight-semibold: 600;
   --font-weight-bold: 700;
   --font-weight-black: 900;
+  --line-height-xloose: 2.0;
+  --line-height-loose: 1.75;
   --line-height-normal: 1.5;
   --line-height-tight: 1.1;
   --line-height-compact: 1.055;
@@ -12217,9 +12219,9 @@ ul.rocklist .rocklist-item.selected {
 ul.rocktree,
 ul.rocktree-children {
   padding: 0;
-  margin-bottom: 30px;
+  margin-bottom: var(--spacing-large);
   font-size: var(--font-size-small);
-  line-height: 30px;
+  line-height: var(--line-height-xloose);
   list-style-type: none;
 }
 
@@ -12252,8 +12254,9 @@ ul.rocktree-children {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
+  width: 24px;
+  height: 24px;
+  line-height: var(--line-height-xloose);
   padding: var(--spacing-tiny);
   font-size: var(--font-size-xsmall);
   cursor: pointer;
@@ -12270,7 +12273,7 @@ ul.rocktree-children {
   flex-grow: 1;
   width: calc(100% - 48px);
   padding: 0 var(--spacing-medium) 0 0;
-  line-height: 30px;
+  line-height: var(--line-height-xloose);
   cursor: pointer;
   border-radius: var(--border-radius-base, 3px);
 }
@@ -12295,7 +12298,7 @@ ul.rocktree-children {
   font-size: var(--font-size-xsmall);
 }
 .rocktree .rocktree-leaf {
-  padding-left: 30px;
+  padding-left: var(--spacing-large);
 }
 .rocktree .label-tree {
   display: inline-block;
@@ -18209,7 +18212,8 @@ iframe.file-browser {
 }
 
 .displaycard-heading-text-description,
-.displaycard-heading-text-description > * {
+.displaycard-heading-text-description > *,
+.displaycard-text {
   font-size: var(--font-size-small);
   /* line-height: var(--line-height-tight) (line-height: 1.1) clips the bottom of "g" and "y"
      for small text, so making a little larger. */
@@ -23095,6 +23099,138 @@ iframe.email-body {
 }
 .panel-workflowitem .list-group-item::before, .panel-workflowitem .list-group-item::after {
   all: unset;
+}
+
+.formlist .formlist-wrapper {
+  gap: var(--spacing-large);
+  display: flex;
+  height: 100%;
+  align-items: stretch;
+}
+.formlist .formlist-aside {
+  width: 320px;
+  border-right: 1px solid var(--color-interface-soft);
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+.formlist .formlist-aside-header {
+  padding: var(--spacing-xsmall) var(--spacing-xsmall) var(--spacing-xsmall) var(--spacing-0, 0);
+  gap: var(--spacing-xsmall);
+  display: flex;
+  flex-direction: column;
+  align-items: start;
+}
+.formlist .formlist-aside-header-actions {
+  padding: var(--spacing-xsmall);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+.formlist .formlist-aside-header-actions span {
+  color: var(--color-interface-medium);
+  font-size: var(--font-size-Small, 14px);
+  font-weight: var(--font-weight-semibold);
+  line-height: 110%;
+  margin-left: var(--spacing-medium);
+}
+.formlist .formlist-aside .picker-body {
+  border: none !important;
+  border-radius: 0 !important;
+  overflow-x: visible !important;
+  overflow-y: auto !important;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: auto !important;
+}
+.formlist .formlist-aside .categoryMenuOptions .dropdown-menu {
+  width: max-content;
+  min-width: unset !important;
+}
+.formlist .formlist-aside .categoryMenuOptions .dropdown-menu li > button {
+  white-space: nowrap;
+}
+.formlist .formlist-aside .categoryMenuOptions .btn-overflow {
+  padding: 0;
+}
+.formlist .formlist-aside ul.rocktree,
+.formlist .formlist-aside ul.rocktree-children {
+  line-height: 45px;
+  font-size: var(--font-size-regular);
+}
+.formlist .formlist-aside .rocktree-name .icon-fw {
+  display: inline-block;
+  width: var(--spacing-large);
+  text-align: center;
+  line-height: 45px;
+  font-size: var(--font-size-regular);
+}
+.formlist .formlist-aside .rocktree-name {
+  line-height: 45px;
+}
+.formlist .formlist-aside .rocktree-name.selected {
+  font-weight: var(--font-weight-semibold);
+}
+.formlist .formlist-main {
+  display: flex;
+  flex-direction: column;
+  flex-basis: 0;
+  flex-grow: 1;
+  padding: var(--spacing-large) var(--spacing-large) var(--spacing-large) 0;
+  min-width: 0;
+}
+.formlist .formlist-main-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  width: 100%;
+  border-bottom: 1px solid var(--color-interface-soft);
+  padding-bottom: var(--spacing-large);
+  margin-bottom: var(--spacing-large);
+}
+.formlist .formlist-main-heading-content {
+  gap: var(--spacing-tiny);
+}
+.formlist .formlist-main-heading-buttons {
+  gap: var(--spacing-tiny);
+}
+.formlist .formlist-main-heading-content-title {
+  line-height: 105.469%;
+}
+.formlist .formlist-main-heading-content-description {
+  font-size: var(--font-size-Small);
+  font-weight: var(--font-weight-regular);
+  line-height: 110%;
+}
+.formlist .formlist-main-heading-content {
+  display: flex;
+  flex-direction: column;
+  align-items: start;
+}
+.formlist .formlist-main-heading-content-title {
+  margin: 0;
+}
+.formlist .formlist-main-heading-content-description {
+  color: var(--color-interface-medium);
+}
+.formlist .formlist-main-heading-buttons {
+  display: flex;
+  align-items: center;
+}
+.formlist .formlist-main-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  width: 100%;
+}
+.formlist .formlist-main-sort {
+  padding: 0;
+}
+.formlist .formlist-main-sort .form-group,
+.formlist .formlist-main-sort .rock-drop-down-list {
+  margin-bottom: 0 !important;
 }
 
 .htmlcontent-edit-header {
