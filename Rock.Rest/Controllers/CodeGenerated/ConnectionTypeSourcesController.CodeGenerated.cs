@@ -29,7 +29,7 @@ namespace Rock.Rest.Controllers
     /// <summary>
     /// ConnectionTypeSources REST API
     /// </summary>
-    [RestControllerGuid( "9F7651E4-E5E1-4119-9394-86F15D2752EE" )]
+    [RestControllerGuid( "78E49E35-01D9-4ED6-AF7A-057915A6701B" )]
     public partial class ConnectionTypeSourcesController : Rock.Rest.ApiController<Rock.Model.ConnectionTypeSource>
     {
         /// <summary>

@@ -18,6 +18,8 @@
 import { Ref } from "vue";
 import { Enumerable } from "@Obsidian/Utility/linq";
 import { Guid } from "@Obsidian/Types";
+import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
+import { FileAsset } from "@Obsidian/ViewModels/Controls/fileAsset";
 
 /**
  * Represents a set of related table elements used for email components.
@@ -421,7 +423,41 @@ export type GlobalAdapter<TGlobalProps> = {
      * @returns
      */
     areGlobalDefaultsNeeded: (emailDocument: Document) => boolean;
+
+    /**
+     * Called when a new component of this type is added to the document.
+     *
+     * @param event The event data for the component addition.
+     */
+    onComponentAdded(event: GlobalAdapterOnComponentAddedEvent<TGlobalProps>): void;
 };
+
+export type GlobalAdapterOnComponentAddedEvent<TGlobalProps> = {
+    /**
+     * The email document where the component was added.
+     */
+    emailDocument: Document;
+
+    /**
+     * The component element that was added.
+     */
+    componentElement: HTMLElement;
+
+    /**
+     * The component type name that was added.
+     */
+    componentTypeName: ComponentTypeName;
+
+    /**
+     * The current global props for the component type.
+     */
+    globalProps: TGlobalProps;
+};
+
+export type GlobalAdapterSnapshot<TGlobalProps> = Omit<
+    GlobalAdapter<TGlobalProps>,
+    "migrateGlobalProps" | "getDefaultGlobalProps" | "areGlobalDefaultsNeeded" | "onComponentAdded"
+>;
 
 /**
  * Generic component adapter for a single component type.
@@ -431,24 +467,38 @@ export type GlobalAdapter<TGlobalProps> = {
 export type ComponentAdapter<TLocalProps> = {
     /**
      * Latest DOM version for component instances of this type.
+     *
      * Stored per node as data-version.
      */
     version: string;
 
     /**
+     * The component type name that this adapter handles.
+     */
+    componentTypeName: ComponentTypeName;
+
+    /**
+     * Migrates all component instance nodes of this type to the latest DOM version.
+     */
+    migrateAllComponents: (emailDocument: Document) => void;
+
+    /**
      * Migrates a single component instance node to the latest DOM version.
+     *
      * Must update data-component-version on the node.
      */
     migrateComponent: (emailDocument: Document, componentElement: HTMLElement) => HTMLElement;
 
     /**
      * Reads local (per instance) props from a migrated component node.
+     *
      * These props will be bound directly to property panel controls.
      */
     readLocalProps: (componentElement: HTMLElement) => TLocalProps;
 
     /**
      * Writes local (per instance) props into a migrated component node.
+     *
      * Called when any bound property panel control changes.
      */
     writeLocalProps: (componentElement: HTMLElement, localProps: TLocalProps) => void;
@@ -457,7 +507,21 @@ export type ComponentAdapter<TLocalProps> = {
      * Creates a new component element for this component type but does not add it to the document.
      */
     createComponentElement: (emailDocument: Document) => HTMLElement;
+
+    /**
+     * Refreshes all local props for instances of this component type in the given email document.
+     *
+     * Useful when global props change that may affect local props.
+     */
+    refreshAllComponents(emailDocument: Document): void;
 };
+
+export type ComponentAdapterVersion<TLocalProps> = Omit<
+    ComponentAdapter<TLocalProps>,
+    // Omit functions that do not need implementations for each adapter version;
+    // i.e., those that will likely be common and should not be duplicated.
+    "migrateComponent" | "componentTypeName" | "migrateAllComponents" | "refreshAllComponents"
+>;
 
 /**
  * Local button props that map directly to your Button component property panel.
@@ -718,3 +782,202 @@ export type DividerComponentAdapter = ComponentAdapter<DividerLocalProps>;
  * Concrete global adapter type alias for the Divider component.
  */
 export type DividerGlobalAdapter = GlobalAdapter<DividerGlobalProps>;
+
+export type ResizeMode = "crop" | "pad" | "stretch";
+
+type ImageSizeResponsive = {
+    readonly type: "responsive";
+};
+
+type ImageSizeOriginal = {
+    readonly type: "original";
+};
+
+type ImageSizeFixed = {
+    readonly type: "fixed";
+
+    /**
+     * These values are for backward compatibility with existing terminology,
+     * but map to these new values in the image component property panel:
+     *
+     * - "crop" == "Cover"
+     * - "pad" == "Contain"
+     * - "stretch" == "Stretch"
+     */
+    resizeMode: ResizeMode;
+    fixedWidthPx: number | null;
+    fixedHeightPx: number | null;
+};
+
+// Use discriminated union for ImageSize so each type can have its own properties.
+export type ImageSizeModel = ImageSizeResponsive | ImageSizeOriginal | ImageSizeFixed;
+
+type ImageSourceFile = {
+    readonly type: "file";
+
+    isHighResolution: boolean;
+    file: ListItemBag | null;
+};
+
+type ImageSourceAsset = {
+    readonly type: "asset";
+
+    asset: FileAsset | null;
+};
+
+export type ImageSourceModel = ImageSourceFile | ImageSourceAsset;
+
+export type ImageLocalProps = {
+    /**
+     * The source of the image along with related properties.
+     */
+    imageSource: ImageSourceModel;
+
+    /**
+     * The alt text for the image if it cannot be displayed.
+     */
+    altText: string;
+
+    /**
+     * The href to navigate to when the image is clicked.
+     */
+    href: string | null;
+
+    /**
+     * The image size mode and related properties.
+     */
+    imageSize: ImageSizeModel;
+
+    /**
+     * Horizontal alignment of the image.
+     */
+    horizontalAlignment: HorizontalAlignment | null;
+
+    /**
+     * Corner radius in pixels for the image.
+     *
+     * Not supported in some versions of Outlook.
+     */
+    borderRadiusPx: ShorthandModel<number | null> | null;
+
+    /**
+     * Outer margin applied around the image.
+     */
+    marginPx: ShorthandModel<number | null> | null;
+
+    /**
+     * Border styling applied to the image.
+     */
+    border: BorderModel | null;
+};
+
+export type ImageComponentAdapter = ComponentAdapter<ImageLocalProps>;
+
+export type BodyGlobalProps = {
+    widthPx: number | null;
+    backgroundColor: string | null;
+    bodyAlignment: HorizontalAlignment | null;
+    border: BorderModel | null;
+    marginPx: ShorthandModel<number | null> | null;
+    paddingPx: ShorthandModel<number | null> | null;
+};
+
+export type BodyGlobalAdapter = GlobalAdapter<BodyGlobalProps>;
+
+export type GetHtmlRequest = {
+    onSuccess: (response: GetHtmlResponse) => void;
+    onError?: ((error: string) => void) | null | undefined;
+};
+
+export type GetHtmlResponse = {
+    html: string;
+    bodyWidth?: number | null | undefined;
+};
+
+export type UsageType = "template" | "email";
+
+export type CodeLocalProps = {
+    html: string;
+    marginPx: ShorthandModel<number | null> | null;
+};
+
+export type CodeComponentAdapter = ComponentAdapter<CodeLocalProps>;
+
+export type TitleLocalProps = {
+    text: string;
+    headingLevel: "h1" | "h2" | "h3" | "h4" | "h5" | "h6";
+    fontFamily: string | null;
+    fontSizePx: number | null;
+    isBold: boolean | null;
+    isUnderlined: boolean | null;
+    isItalicized: boolean | null;
+    letterCase: LetterCase | null;
+    textAlignment: TextAlignment | null;
+    lineHeight: number | null;
+    textColor: string | null;
+    paddingPx: ShorthandModel<number | null> | null;
+    marginPx: ShorthandModel<number | null> | null;
+    border: BorderModel | null;
+    borderRadiusPx: ShorthandModel<number | null> | null;
+};
+
+export type TitleComponentAdapter = ComponentAdapter<TitleLocalProps>;
+
+export type HeadingLevel = "h1" | "h2" | "h3" | "h4" | "h5" | "h6";
+
+export type TextLocalProps = {
+    /**
+     * The text content of the component, typically in HTML format.
+     */
+    html: string;
+
+    fontFamily: string | null;
+    fontSizePx: number | null;
+    isBold: boolean | null;
+    isUnderlined: boolean | null;
+    isItalicized: boolean | null;
+    letterCase: LetterCase | null;
+    textAlignment: TextAlignment | null;
+    lineHeight: number | null;
+    textColor: string | null;
+    backgroundColor: string | null;
+    paddingPx: ShorthandModel<number | null> | null;
+    marginPx: ShorthandModel<number | null> | null;
+    border: BorderModel | null;
+    borderRadiusPx: ShorthandModel<number | null> | null;
+};
+
+export type TextComponentAdapter = ComponentAdapter<TextLocalProps>;
+
+export type VideoLocalProps = {
+    /**
+     * The URL to link the video to when clicked.
+     */
+    href: string | null;
+
+    /**
+     * This is the URL used to generate the preview image for the video.
+     *
+     * It is not directly used in the email, but is stored for reference.
+     */
+    previewImageGeneratorUrl: string | null;
+
+    /**
+     * The file reference for the preview image.
+     *
+     * This is used to construct the actual image URL in the email.
+     */
+    previewImageFile: ListItemBag | null;
+
+    /**
+     * The alt text for the preview image.
+     */
+    previewImageAltText: string | null;
+
+    /**
+     * Space applied around the video component.
+     */
+    paddingPx: ShorthandModel<number | null> | null;
+};
+
+export type VideoComponentAdapter = ComponentAdapter<VideoLocalProps>;

@@ -238,26 +238,33 @@ namespace Rock.Blocks.Engagement
         /// <param name="entityTypeId">The entity type identifier whose attributes are being edited.</param>
         /// <param name="qualifierColumn">The attribute qualifier column.</param>
         /// <param name="qualifierValue">The qualifier value.</param>
-        /// <param name="viewStateAttributes">The attributes as edited in the UI.</param>
-        private void SaveConnectionRequestAttributes( int entityTypeId, string qualifierColumn, string qualifierValue, List<PublicEditableAttributeBag> viewStateAttributes )
+        /// <param name="connectionRequestAttributes">The attributes as edited in the UI.</param>
+        private void SaveConnectionRequestAttributes( int entityTypeId, string qualifierColumn, string qualifierValue, List<PublicEditableAttributeBag> connectionRequestAttributes )
         {
             // Get the existing attributes for this entity type and qualifier value
             var attributeService = new AttributeService( RockContext );
             var attributes = attributeService.GetByEntityTypeQualifier( entityTypeId, qualifierColumn, qualifierValue, true ).ToList();
 
             // Delete any of those attributes that were removed in the UI
-            var selectedAttributeGuids = viewStateAttributes.Select( a => a.Guid );
-            foreach ( var attr in attributes.Where( a => !selectedAttributeGuids.Contains( a.Guid ) ) )
+            var remainingAttributeGuids = connectionRequestAttributes.Select( a => a.Guid );
+            foreach ( var attr in attributes.Where( a => !remainingAttributeGuids.Contains( a.Guid ) ) )
             {
                 attributeService.Delete( attr );
                 RockContext.SaveChanges();
             }
 
-            // Update the Attributes that were assigned in the UI
-            foreach ( var attributeState in viewStateAttributes )
+            // The attributes are coming from the frontend already sorted in the correct order. 
+            int attributeOrder = 0;
+            foreach ( var attrBag in connectionRequestAttributes )
             {
-                Helper.SaveAttributeEdits( attributeState, entityTypeId, qualifierColumn, qualifierValue, RockContext );
+                var attr = Helper.SaveAttributeEdits( attrBag, entityTypeId, qualifierColumn, qualifierValue, RockContext );
+                if ( attr != null )
+                {
+                    attr.Order = attributeOrder++;
+                }
             }
+
+            RockContext.SaveChanges();
         }
 
         /// <summary>
@@ -320,12 +327,10 @@ namespace Rock.Blocks.Engagement
 
                 if ( !existingByKey.TryGetValue( key, out entity ) )
                 {
-                    // Create new entity
                     entity = createNew( bag );
                     service.Add( entity );
                 }
 
-                // Entity exists, update it instead.
                 updateEntity( entity, bag );
             }
         }
@@ -445,7 +450,7 @@ namespace Rock.Blocks.Engagement
                 return null;
             }
 
-            var connectionType = new ConnectionTypeService( RockContext ).Get( PageParameter( PageParameterKey.ConnectionTypeId ).AsInteger() );
+            var connectionType = ConnectionTypeCache.Get( PageParameter( PageParameterKey.ConnectionTypeId ), !PageCache.Layout.Site.DisablePredictableIds );
             string connectionTypeName = null;
             string connectionTypeUrl = null;
             if ( connectionType != null )
@@ -573,16 +578,11 @@ namespace Rock.Blocks.Engagement
                 .AsNoTracking()
                 .Where( wf => wf.ConnectionTypeId == entity.ConnectionTypeId && wf.WorkflowTypeId.HasValue )
                 .OrderBy( wf => wf.WorkflowType.Name )
-                .Select( wf => new ConnectionWorkflowBag
+                .Select( wf => new InheritedConnectionWorkflowBag
                 {
                     Guid = wf.Guid,
                     WorkflowType = wf.WorkflowType != null ? new ListItemBag { Value = wf.WorkflowType.Guid.ToString(), Text = wf.WorkflowType.Name } : null,
                     TriggerType = ( int ) wf.TriggerType,
-                    QualifierValue = wf.QualifierValue,
-                    ManualTriggerFilterConnectionStatusId = wf.ManualTriggerFilterConnectionStatusId,
-                    AppliesToAgeClassification = ( int ) wf.AppliesToAgeClassification,
-                    IncludeDataViewId = wf.IncludeDataView != null ? new ListItemBag { Value = wf.IncludeDataView.Guid.ToString(), Text = wf.IncludeDataView.Name } : null,
-                    ExcludeDataViewId = wf.ExcludeDataView != null ? new ListItemBag { Value = wf.ExcludeDataView.Guid.ToString(), Text = wf.ExcludeDataView.Name } : null
                 } )
                 .ToList();
 
@@ -638,12 +638,6 @@ namespace Rock.Blocks.Engagement
             if ( box.ValidProperties == null )
             {
                 return false;
-            }
-
-            var connectionTypeId = PageParameter( PageParameterKey.ConnectionTypeId ).AsInteger();
-            if ( connectionTypeId > 0 )
-            {
-                entity.ConnectionTypeId = connectionTypeId;
             }
 
             box.IfValidProperty( nameof( box.Bag.Description ),
@@ -730,7 +724,7 @@ namespace Rock.Blocks.Engagement
 
                 entity.Order = maxOrder.HasValue ? maxOrder.Value + 1 : 0;
 
-                var connectionTypeId = PageParameter( PageParameterKey.ConnectionTypeId ).AsInteger();
+                var connectionTypeId = ConnectionTypeCache.Get( PageParameter( PageParameterKey.ConnectionTypeId ), !PageCache.Layout.Site.DisablePredictableIds )?.Id ?? 0;
                 if ( connectionTypeId > 0 )
                 {
                     entity.ConnectionTypeId = connectionTypeId;
@@ -816,13 +810,19 @@ namespace Rock.Blocks.Engagement
             {
                 // Placement Group Configs
                 var configService = new ConnectionOpportunityGroupConfigService( RockContext );
+                var placementGroupConfigs = ( box.Bag.PlacementGroupConfigs ?? new List<PlacementGroupConfigBag>() ).ToList();
+                foreach ( var bag in placementGroupConfigs.Where( b => b.Guid == Guid.Empty ) )
+                {
+                    bag.Guid = Guid.NewGuid();
+                }
+
                 SyncRelatedEntities(
                     configService,
                     configService.Queryable().Where( c => c.ConnectionOpportunityId == entity.Id ),
-                    box.Bag.PlacementGroupConfigs,
+                    placementGroupConfigs,
                     existingKeySelector: cfg => cfg.Guid,
                     incomingKeySelector: bag => bag.Guid,
-                    createNew: bag => new ConnectionOpportunityGroupConfig { Guid = bag.Guid == Guid.Empty ? Guid.NewGuid() : bag.Guid },
+                    createNew: bag => new ConnectionOpportunityGroupConfig { Guid = bag.Guid },
                     updateEntity: ( cfg, bag ) =>
                     {
                         cfg.ConnectionOpportunityId = entity.Id;
@@ -834,13 +834,19 @@ namespace Rock.Blocks.Engagement
 
                 // Placement Groups
                 var groupService = new ConnectionOpportunityGroupService( RockContext );
+                var placementGroups = ( box.Bag.PlacementGroups ?? new List<PlacementGroupBag>() ).ToList();
+                foreach ( var bag in placementGroups.Where( b => b.Guid == Guid.Empty ) )
+                {
+                    bag.Guid = Guid.NewGuid();
+                }
+
                 SyncRelatedEntities(
                     groupService,
                     groupService.Queryable().Where( g => g.ConnectionOpportunityId == entity.Id ),
-                    box.Bag.PlacementGroups,
+                    placementGroups,
                     existingKeySelector: pg => pg.Guid,
                     incomingKeySelector: bag => bag.Guid,
-                    createNew: bag => new ConnectionOpportunityGroup { Guid = bag.Guid == Guid.Empty ? Guid.NewGuid() : bag.Guid },
+                    createNew: bag => new ConnectionOpportunityGroup { Guid = bag.Guid },
                     updateEntity: ( pg, bag ) =>
                     {
                         pg.ConnectionOpportunityId = entity.Id;
@@ -849,13 +855,19 @@ namespace Rock.Blocks.Engagement
 
                 // Connector Groups
                 var connGroupService = new ConnectionOpportunityConnectorGroupService( RockContext );
+                var connectorGroups = ( box.Bag.ConnectorGroups ?? new List<ConnectorGroupBag>() ).ToList();
+                foreach ( var bag in connectorGroups.Where( b => b.Guid == Guid.Empty ) )
+                {
+                    bag.Guid = Guid.NewGuid();
+                }
+
                 SyncRelatedEntities(
                     connGroupService,
                     connGroupService.Queryable().Where( g => g.ConnectionOpportunityId == entity.Id ),
-                    box.Bag.ConnectorGroups,
+                    connectorGroups,
                     existingKeySelector: cg => cg.Guid,
                     incomingKeySelector: bag => bag.Guid,
-                    createNew: bag => new ConnectionOpportunityConnectorGroup { Guid = bag.Guid == Guid.Empty ? Guid.NewGuid() : bag.Guid },
+                    createNew: bag => new ConnectionOpportunityConnectorGroup { Guid = bag.Guid },
                     updateEntity: ( cg, bag ) =>
                     {
                         cg.ConnectionOpportunityId = entity.Id;
@@ -895,24 +907,45 @@ namespace Rock.Blocks.Engagement
                 // Workflows
                 var workflowService = new ConnectionWorkflowService( RockContext );
                 var incomingWorkflows = box.Bag.ConnectionWorkflows ?? new List<ConnectionWorkflowBag>();
+                foreach ( var bag in incomingWorkflows.Where( b => b.Guid == Guid.Empty ) )
+                {
+                    bag.Guid = Guid.NewGuid();
+                }
+
                 SyncRelatedEntities(
                     workflowService,
-                    workflowService.Queryable().Where( w => w.ConnectionOpportunityId == entity.Id ),
+                    workflowService.Queryable().Where( wf => wf.ConnectionOpportunityId == entity.Id ),
                     incomingWorkflows,
                     existingKeySelector: wf => wf.Guid,
                     incomingKeySelector: bag => bag.Guid,
-                    createNew: bag => new ConnectionWorkflow { Guid = bag.Guid == Guid.Empty ? Guid.NewGuid() : bag.Guid },
+                    createNew: bag => new ConnectionWorkflow { Guid = bag.Guid },
                     updateEntity: ( wf, bag ) =>
                     {
                         wf.ConnectionOpportunityId = entity.Id;
                         wf.WorkflowTypeId = bag.WorkflowType.GetEntityId<WorkflowType>( RockContext );
                         wf.TriggerType = ( ConnectionWorkflowTriggerType ) bag.TriggerType;
                         wf.QualifierValue = bag.QualifierValue;
+                        
+                        // These properties are assigned directly as they are gatekept and cleared in the UI if the trigger type is not Manual.
                         wf.ManualTriggerFilterConnectionStatusId = bag.ManualTriggerFilterConnectionStatusId;
                         wf.AppliesToAgeClassification = ( AppliesToAgeClassification ) bag.AppliesToAgeClassification;
                         wf.IncludeDataViewId = bag.IncludeDataViewId.GetEntityId<DataView>( RockContext );
                         wf.ExcludeDataViewId = bag.ExcludeDataViewId.GetEntityId<DataView>( RockContext );
                     } );
+
+                /*
+                     12/19/2025 - MSE
+
+                     The order of the Connection Workflows is stored as a list of wf.WorkflowTypeId
+                     in the AdditionalSettingsJson column on the Connection Opportunity.
+
+                     The frontend already applies the correct sort order when sending the bag, so this logic
+                     preserves that order when saving the values rather than re-sorting them on the server.
+                */
+                if ( incomingWorkflows.Any() )
+                {
+                    entity.SetAdditionalSettings( "WorkflowTypeOrder", incomingWorkflows.Select( wf => wf.WorkflowType.GetEntityId<WorkflowType>( RockContext ) ).ToList() );
+                }
 
                 RockContext.SaveChanges();
                 entity.SaveAttributeValues( RockContext );
@@ -991,108 +1024,6 @@ namespace Rock.Blocks.Engagement
         }
 
         /// <summary>
-        /// Changes the ordered position of a single step type attribute.
-        /// </summary>
-        /// <param name = "key" > The identifier of the step type attribute that will be moved.</param>
-        /// <param name = "beforeKey" > The identifier of the step type attribute it will be placed before.</param>
-        /// <returns>An empty result that indicates if the operation succeeded.</returns>
-        [BlockAction]
-        public BlockActionResult ReorderConnectionRequestAttribute( string key, string beforeKey )
-        {
-            var connectionOpportunity = new ConnectionOpportunityService( RockContext ).Get( PageParameter( PageParameterKey.ConnectionOpportunityId ), !PageCache.Layout.Site.DisablePredictableIds );
-            if ( connectionOpportunity == null )
-            {
-                return ActionBadRequest( "Connection opportunity not found." );
-            }
-
-            var items = GetConnectionRequestAttributes( connectionOpportunity.Id.ToString() );
-
-            if ( !items.ReorderEntity( key, beforeKey ) )
-            {
-                return ActionBadRequest( "Invalid reorder attempt." );
-            }
-
-            RockContext.SaveChanges();
-            return ActionOk();
-        }
-
-        [BlockAction]
-		/// <summary>
-		/// Reorders a workflow relative to another workflow for the current connection opportunity.
-		/// </summary>
-		/// <param name="key">The identifier (Guid string) of the workflow being moved.</param>
-		/// <param name="beforeKey">The identifier (Guid string) of the workflow it should be placed before, or <c>null</c> to move to end.</param>
-		/// <returns>An empty result indicating if the operation succeeded.</returns>
-        public BlockActionResult ReorderConnectionWorkflow( string key, string beforeKey )
-        {
-            var connectionOpportunity = new ConnectionOpportunityService( RockContext ).Get( PageParameter( PageParameterKey.ConnectionOpportunityId ), !PageCache.Layout.Site.DisablePredictableIds );
-            if ( connectionOpportunity == null )
-            {
-                return ActionBadRequest( "Connection opportunity not found." );
-            }
-
-            if ( !Guid.TryParse( key, out var movedGuid ) )
-            {
-                return ActionBadRequest( "Invalid workflow key." );
-            }
-
-            Guid? beforeGuid = beforeKey.IsNotNullOrWhiteSpace() && Guid.TryParse( beforeKey, out var parsed ) ? parsed : ( Guid? ) null;
-            if ( beforeKey.IsNotNullOrWhiteSpace() && !beforeGuid.HasValue )
-            {
-                return ActionBadRequest( "Invalid before key." );
-            }
-
-            var workflows = new ConnectionWorkflowService( RockContext ).Queryable()
-                .AsNoTracking()
-                .Where( wf => wf.ConnectionOpportunityId == connectionOpportunity.Id )
-                .Select( wf => new { wf.Guid, wf.WorkflowTypeId } )
-                .ToList();
-
-            var moved = workflows.FirstOrDefault( wf => wf.Guid == movedGuid );
-            if ( moved == null || !moved.WorkflowTypeId.HasValue )
-            {
-                return ActionBadRequest( "Workflow not found." );
-            }
-
-            var savedOrder = connectionOpportunity.GetAdditionalSettingsOrNull<List<int>>( "WorkflowTypeOrder" ) ?? new List<int>();
-            var orderedIds = workflows
-                .Where( w => w.WorkflowTypeId.HasValue )
-                .Select( w => w.WorkflowTypeId.Value )
-                .OrderBy( id =>
-                {
-                    var idx = savedOrder.IndexOf( id );
-                    return idx == -1 ? int.MaxValue : idx;
-                } )
-                .ToList();
-
-            // Move the requested workflow before the target, or to the end.
-            var movedId = moved.WorkflowTypeId.Value;
-            orderedIds.Remove( movedId );
-            if ( beforeGuid.HasValue )
-            {
-                var before = workflows.FirstOrDefault( wf => wf.Guid == beforeGuid.Value );
-                var insertIndex = before?.WorkflowTypeId.HasValue == true ? orderedIds.IndexOf( before.WorkflowTypeId.Value ) : -1;
-                if ( insertIndex >= 0 )
-                {
-                    orderedIds.Insert( insertIndex, movedId );
-                }
-                else
-                {
-                    orderedIds.Add( movedId );
-                }
-            }
-            else
-            {
-                orderedIds.Add( movedId );
-            }
-
-            connectionOpportunity.SetAdditionalSettings( "WorkflowTypeOrder", orderedIds );
-
-            RockContext.SaveChanges();
-            return ActionOk();
-        }
-
-        /// <summary>
         /// Gets the supplemental data for a new placement group, which we need in order to apply proper filtering logic.
         /// </summary>
         /// <param name="groupGuid">The group unique identifier.</param>
@@ -1125,7 +1056,7 @@ namespace Rock.Blocks.Engagement
 		/// <returns>A result containing a list of qualifier options as <see cref="ListItemBag"/> values.</returns>
         public BlockActionResult GetConnectionWorkflowQualifierOptions( int triggerType )
         {
-            var connectionTypeId = PageParameter( PageParameterKey.ConnectionTypeId ).AsInteger();
+            var connectionType = ConnectionTypeCache.Get( PageParameter( PageParameterKey.ConnectionTypeId ), !PageCache.Layout.Site.DisablePredictableIds );
             var qualifierOptions = new List<ListItemBag>();
 
             var theTriggerType = ( ConnectionWorkflowTriggerType ) triggerType;
@@ -1139,16 +1070,15 @@ namespace Rock.Blocks.Engagement
                     qualifierOptions = new ConnectionStatusService( RockContext )
                         .Queryable()
                         .AsNoTracking()
-                        .Where( stat => stat.ConnectionTypeId == connectionTypeId || stat.ConnectionTypeId == null )
+                        .Where( stat => stat.ConnectionTypeId == connectionType.Id || stat.ConnectionTypeId == null )
                         .OrderBy( stat => stat.Name )
-                        .Select( stat => new ListItemBag { Text = stat.Name, Value = stat.Guid.ToString() } )
+                        .Select( stat => new ListItemBag { Text = stat.Name, Value = stat.Id.ToString() } )
                         .ToList();
 
                     break;
 
                 case ConnectionWorkflowTriggerType.StateChanged:
                     qualifierOptions = typeof( ConnectionState ).ToEnumListItemBag().ToList();
-                    var connectionType = new ConnectionTypeService( RockContext ).Get( connectionTypeId );
                     if ( connectionType != null && !connectionType.EnableFutureFollowup )
                     {
                         var futureFollowUp = ( ( int ) ConnectionState.FutureFollowUp ).ToString();
@@ -1161,7 +1091,7 @@ namespace Rock.Blocks.Engagement
                     qualifierOptions = new ConnectionActivityTypeService( RockContext )
                         .Queryable()
                         .AsNoTracking()
-                        .Where( a => a.ConnectionTypeId == connectionTypeId )
+                        .Where( a => a.ConnectionTypeId == connectionType.Id )
                         .OrderBy( a => a.Name )
                         .Select( a => new ListItemBag { Text = a.Name, Value = a.Guid.ToString() } )
                         .ToList();
@@ -1169,7 +1099,12 @@ namespace Rock.Blocks.Engagement
                     break;
             }
 
-            return ActionOk( new { qualifierOptions } );
+            var response = new ConnectionWorkflowQualifierOptionsResponseBag
+            {
+                QualifierOptions = qualifierOptions
+            };
+
+            return ActionOk( response );
         }
 
         [BlockAction]

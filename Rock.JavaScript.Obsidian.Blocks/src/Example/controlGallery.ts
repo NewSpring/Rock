@@ -133,6 +133,7 @@ import FullscreenGallery from "./ControlGallery/fullscreenGallery.partial.obs";
 import PanelGallery from "./ControlGallery/panelGallery.partial.obs";
 import FileUploaderGallery from "./ControlGallery/fileUploaderGallery.partial.obs";
 import SlidingDateRangePickerGallery from "./ControlGallery/slidingDateRangePickerGallery.partial.obs";
+import DefinedTypePickerGallery from "./ControlGallery/definedTypePickerGallery.partial.obs";
 import DefinedValuePickerGallery from "./ControlGallery/definedValuePickerGallery.partial.obs";
 import EntityTypePickerGallery from "./ControlGallery/entityTypePickerGallery.partial.obs";
 import AchievementTypePickerGallery from "./ControlGallery/achievementTypePickerGallery.partial.obs";
@@ -259,7 +260,6 @@ import BarChartGallery from "./ControlGallery/barChartGallery.partial.obs";
 import PieChartGallery from "./ControlGallery/pieChartGallery.partial.obs";
 import DoughnutChartGallery from "./ControlGallery/doughnutChartGallery.partial.obs";
 import ExperieceModePickerGallery from "./ControlGallery/experienceModePickerGallery.partial.obs";
-import PageTreeGallery from "./ControlGallery/pageTreeGallery.partial.obs";
 import SearchResultsSearchField from "./ControlGallery/searchResultsSearchFieldGallery.partial.obs";
 
 const controlGalleryComponents: Record<string, Component> = [
@@ -306,6 +306,7 @@ const controlGalleryComponents: Record<string, Component> = [
     FileUploaderGallery,
     ImageUploaderGallery,
     SlidingDateRangePickerGallery,
+    DefinedTypePickerGallery,
     DefinedValuePickerGallery,
     CampusPickerGallery,
     EntityTypePickerGallery,
@@ -465,7 +466,6 @@ const controlGalleryComponents: Record<string, Component> = [
     PieChartGallery,
     DoughnutChartGallery,
     ExperieceModePickerGallery,
-    PageTreeGallery,
     SearchResultsSearchField,
 ]
     // Fix vue 3 SFC putting name in __name.

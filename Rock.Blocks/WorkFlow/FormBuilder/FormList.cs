@@ -1,4 +1,4 @@
-﻿// <copyright>
+// <copyright>
 // Copyright by the Spark Development Network
 //
 // Licensed under the Rock Community License (the "License");
@@ -63,6 +63,7 @@ namespace Rock.Blocks.WorkFlow.FormBuilder
 
     // was [Rock.SystemGuid.BlockTypeGuid( "844BEA3B-B79B-40FD-9B05-02420C822840" )]
     [Rock.SystemGuid.BlockTypeGuid( "B7C76420-9B34-422A-B161-87BDB45DD50C" )]
+    [Rock.SystemGuid.EntityTypeGuid( "19A77D95-1FC0-4FC7-9DB1-69D98B367B06")]
     public class FormList : RockBlockType
     {
         #region Keys

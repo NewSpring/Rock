@@ -133,35 +133,17 @@ ul.rocktree-children {
     border-radius: var(--border-radius-base, 3px);
 
     i {
-      margin-right: 2px;
+      margin: 0 var(--spacing-tiny)
     }
 
     &:hover {
-      color: @tree-rollover-color;
+      color: var(--color-interface-stronger);
+      background-color: var(--color-interface-softer);
     }
 
-    &::before {
-      position: absolute;
-      top: 0;
-      bottom: 0;
-      left: -5px;
-      z-index: -1;
-      width: 100vw;
-      content: "";
-      border-radius: 4px 0 0 4px;
-    }
-
-    &:hover::before {
-      background: @tree-rollover-bg;
-    }
-  }
-
-  .selected {
-    color: @tree-selected-color;
-
-    &::before {
-      background: fade(@tree-selected-bg, 10%) !important;
-    }
+    &.selected {
+          background:   var(--color-info-soft);
+        }
   }
 
   .disabled {

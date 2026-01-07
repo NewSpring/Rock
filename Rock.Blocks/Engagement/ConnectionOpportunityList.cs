@@ -117,9 +117,22 @@ namespace Rock.Blocks.Engagement
         /// <returns>A dictionary of key names and URL values.</returns>
         private Dictionary<string, string> GetBoxNavigationUrls()
         {
+            var queryParams = new Dictionary<string, string>
+            {
+                ["ConnectionOpportunityId"] = "((Key))",
+                ["autoEdit"] = "true",
+                ["returnUrl"] = this.GetCurrentPageUrl()
+            };
+
+            var connectionType = ConnectionTypeCache.Get( PageParameter( PageParameterKey.ConnectionTypeId ), !PageCache.Layout.Site.DisablePredictableIds );
+            if ( connectionType != null )
+            {
+                queryParams[PageParameterKey.ConnectionTypeId] = connectionType.IdKey;
+            }
+
             return new Dictionary<string, string>
             {
-                [NavigationUrlKey.DetailPage] = this.GetLinkedPageUrl( AttributeKey.DetailPage, new Dictionary<string, string> { ["ConnectionOpportunityId"] = "((Key))", ["autoEdit"] = "true", ["returnUrl"] = this.GetCurrentPageUrl() } )
+                [NavigationUrlKey.DetailPage] = this.GetLinkedPageUrl( AttributeKey.DetailPage, queryParams )
             };
         }
 

@@ -25,6 +25,7 @@ import { Guid } from "@Obsidian/Types";
 import { ConnectionWorkflowBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionOpportunityDetail/connectionWorkflowBag";
 import { ConnectorGroupBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionOpportunityDetail/connectorGroupBag";
 import { InheritedAttributeBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionOpportunityDetail/inheritedAttributeBag";
+import { InheritedConnectionWorkflowBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionOpportunityDetail/inheritedConnectionWorkflowBag";
 import { PlacementGroupBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionOpportunityDetail/placementGroupBag";
 import { PlacementGroupConfigBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionOpportunityDetail/placementGroupConfigBag";
 import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
@@ -73,7 +74,7 @@ export type ConnectionOpportunityBag = {
     inheritedConnectionRequestAttributes?: InheritedAttributeBag[] | null;
 
     /** Minimal list of workflow types inherited from the connection type. */
-    inheritedConnectionWorkflows?: ConnectionWorkflowBag[] | null;
+    inheritedConnectionWorkflows?: InheritedConnectionWorkflowBag[] | null;
 
     /** Gets or sets a value indicating whether this instance is active. */
     isActive: boolean;

@@ -1,4 +1,4 @@
-﻿// <copyright>
+// <copyright>
 // Copyright by the Spark Development Network
 //
 // Licensed under the Rock Community License (the "License");
@@ -44,6 +44,7 @@ namespace Rock.Blocks.Crm
     [ContextAware( typeof( Person ) )]
     // was [Rock.SystemGuid.BlockTypeGuid( "9A504904-8AF6-4351-AE31-CBC4DB2F55BA" )]
     [Rock.SystemGuid.BlockTypeGuid( "2D90562E-7332-46DB-9100-0C4106151CA1" )]
+    [Rock.SystemGuid.EntityTypeGuid( "5136CA2E-4AB6-4048-A6FC-6A07B03BD6C0")]
     public class PersonalDevices : RockBlockType
     {
         #region Keys

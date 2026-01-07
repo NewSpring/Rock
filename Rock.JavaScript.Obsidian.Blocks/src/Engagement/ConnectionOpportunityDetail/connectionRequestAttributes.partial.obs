@@ -1,10 +1,9 @@
 <!-- Copyright by the Spark Development Network; Licensed under the Rock Community License -->
 <template>
-    <ContentStack v-if="inheritedGridData.rows.length > 0">
-        <NotificationBox :alertType="AlertType.Info">
-            Connection Request Attributes apply to requests within this opportunity. Each request will have its own
-            values for these attributes.
-        </NotificationBox>
+    <ContentStack v-if="inheritedGridData.rows.length > 0" title="Inherited Connection Request Attributes"
+                  description="Connection Request Attributes apply to requests within this opportunity. Each request will have its own
+                  values for these attributes."
+                  headerLocation="top">
 
         <Grid :data="inheritedGridData" keyField="guid" itemTerm="Inherited Attribute" liveUpdates light>
             <TextColumn name="attribute" field="attribute" title="Attribute" />
@@ -20,7 +19,7 @@
         </Grid>
     </ContentStack>
 
-    <ContentStack>
+    <ContentStack title="Configure Connection Request Attributes" description="Configure the connection request attributes that should be available for connection requests associated with this opportunity." headerLocation="top">
         <NotificationBox v-if="inheritedGridData.rows.length == 0" :alertType="AlertType.Info">
             Connection Request Attributes apply to requests within this opportunity. Each request will have its own
             values for these attributes.
@@ -54,7 +53,6 @@
     import { AlertType } from "@Obsidian/Enums/Controls/alertType";
     import { FieldType } from "@Obsidian/SystemGuids/fieldType";
     import { newGuid } from "@Obsidian/Utility/guid";
-    import { useInvokeBlockAction } from "@Obsidian/Utility/block";
     import { PublicEditableAttributeBag } from "@Obsidian/ViewModels/Utility/publicEditableAttributeBag";
     import { InheritedAttributeBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionOpportunityDetail/inheritedAttributeBag";
     import { ConnectionOpportunityDetailOptionsBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionOpportunityDetail/connectionOpportunityDetailOptionsBag";
@@ -90,8 +88,6 @@
     const emit = defineEmits<{
         (e: "update:modelValue", value: PublicEditableAttributeBag[]): void
     }>();
-
-    const invokeBlockAction = useInvokeBlockAction();
 
     // #region Values
 
@@ -177,17 +173,34 @@
     // #endregion Event Handlers
 
     async function onOrderChanged(item: Record<string, unknown>, beforeItem: Record<string, unknown> | null): Promise<boolean> {
-        try {
-            const result = await invokeBlockAction<string>("ReorderConnectionRequestAttribute", {
-                key: item["guid"],
-                beforeKey: beforeItem?.["guid"] ?? null
-            });
-            return result.isSuccess;
-        }
-        catch (error) {
-            console.error("Error reordering connection request attributes:", error);
+        const itemGuid = item["guid"] as string;
+        const beforeItemGuid = beforeItem?.["guid"] as string | null;
+
+        const currentItems = [...(props.modelValue ?? [])];
+        const idx = currentItems.findIndex(i => i.guid === itemGuid);
+
+        if (idx < 0) {
             return false;
         }
+
+        const itemToMove = currentItems.splice(idx, 1)[0];
+
+        if (beforeItemGuid) {
+            const beforeIndex = currentItems.findIndex(i => i.guid === beforeItemGuid);
+            if (beforeIndex < 0) {
+                currentItems.push(itemToMove);
+            }
+            else {
+                currentItems.splice(beforeIndex, 0, itemToMove);
+            }
+        }
+        else {
+            currentItems.push(itemToMove);
+        }
+
+        emit("update:modelValue", currentItems);
+
+        return true;
     }
 
     // #region Watchers

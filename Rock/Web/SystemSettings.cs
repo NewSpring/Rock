@@ -346,7 +346,7 @@ namespace Rock.Web
                 SystemSettingsValues = new ConcurrentDictionary<string, string>()
             };
 
-            using ( var rockContext = new RockContext() )
+            using ( var rockContext = RockApp.Current.CreateRockContext() )
             {
                 var systemSettingAttributes = new AttributeService( rockContext ).GetSystemSettings().ToAttributeCacheList();
 

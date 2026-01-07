@@ -21,17 +21,28 @@
                           rules="required"
                           @blur="onHrefBlurred" />
 
-                <PhoneNumberBox v-if="linkType === 'tel'"
+                <PhoneNumberBox v-else-if="linkType === 'tel'"
                                 v-model="tel"
                                 label="Link"
                                 rules="required"
                                 @blur="onHrefBlurred" />
 
-                <UrlLinkBox v-if="linkType === 'url'"
-                            v-model="url"
+                <template v-else-if="linkType === 'url'">
+                    <TextBox v-model="url"
+                            :help="urlHelpText"
                             label="Link"
-                            :rules="['required', isEmptyOrValidUrl]"
-                            @blur="onHrefBlurred" />
+                            :rules="['required', isEmptyOrValidUrlOrLava]"
+                            @blur="onHrefBlurred">
+                        <template #inputGroupPrepend>
+                            <span class="input-group-addon">
+                                <i class="ti ti-link"></i>
+                            </span>
+                        </template>
+                    </TextBox>
+
+                    <NotificationBox v-if="usageType === 'template'"
+                                     alertType="warning">{{ warningMessage }}</NotificationBox>
+                </template>
             </RockForm>
         </div>
     </div>
@@ -39,18 +50,26 @@
 
 <script setup lang="ts">
     import { nextTick, PropType, ref, watch } from "vue";
+    import { UsageType } from "./types.partial";
     import { get } from "./utils.partial";
     import DropDownList from "@Obsidian/Controls/dropDownList.obs";
     import EmailBox from "@Obsidian/Controls/emailBox.obs";
+    import NotificationBox from "@Obsidian/Controls/notificationBox.obs";
     import PhoneNumberBox from "@Obsidian/Controls/phoneNumberBox.obs";
     import RockForm from "@Obsidian/Controls/rockForm.obs";
-    import UrlLinkBox from "@Obsidian/Controls/urlLinkBox.obs";
-    import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
+    import TextBox from "@Obsidian/Controls/textBox.obs";
+    import { hasLavaCommandFields, hasLavaShortcodeFields, hasLavaVariableFields } from "@Obsidian/Utility/lava";
     import { isNullish } from "@Obsidian/Utility/util";
+    import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
 
     const props = defineProps({
         modelValue: {
             type: String as PropType<string>,
+            required: true
+        },
+
+        usageType: {
+            type: String as PropType<UsageType>,
             required: true
         }
     });
@@ -73,8 +92,11 @@
         {
             value: get<LinkType>("email"),
             text: "Email"
-        },
+        }
     ];
+
+    const urlHelpText = `Enter a URL that begins with "https://" or "http://", or include Lava to dynamically generate the link. <span class="tip tip-lava"></span>`;
+    const warningMessage = `To have Lava processed when the email is sent, wrap it in {% raw %} tags. Otherwise, it will be processed when the email is being authored.`;
 
     // #region Values
 
@@ -84,7 +106,7 @@
     const linkType = ref<LinkType>(getLinkTypeFromHref(initialHref));
     const email = ref<string>(linkType.value === "email" ? initialHref.startsWith("mailto:") ? initialHref.substring(7) : initialHref : "");
     const tel = ref<string>(linkType.value === "tel" ? initialHref.startsWith("tel:") ? initialHref.substring(4) : initialHref : "");
-    const url = ref<string>(linkType.value === "url" ? initialHref.startsWith("http") ? initialHref : `https://${initialHref}` : "https://");
+    const url = ref<string>(linkType.value === "url" ? initialHref : "https://");
 
     // #endregion Values
 
@@ -113,13 +135,11 @@
         else if (type === "tel") {
             return `tel:${sanitizePhoneNumber(phoneNumber)}`;
         }
+        else if (type === "url") {
+            return url;
+        }
         else {
-            if (url.startsWith("http")) {
-                return url;
-            }
-            else {
-                return `https://${url}`;
-            }
+            return "";
         }
     }
 
@@ -129,7 +149,7 @@
      * @param val
      * @returns
      */
-    function isEmptyOrValidUrl(val: unknown): boolean | string {
+    function isEmptyOrValidUrlOrLava(val: unknown): boolean | string {
         if (isNullish(val) || (typeof val === "string" && val === "")) {
             // Allow empty value to be handled by "required" rule.
             return true;
@@ -145,6 +165,10 @@
             }
             catch {
                 /* An appropriate validation error is returned below. */
+            }
+
+            if (hasLavaCommandFields(val) || hasLavaShortcodeFields(val) || hasLavaVariableFields(val)) {
+                return true;
             }
         }
 
@@ -191,7 +215,7 @@
         linkType.value = getLinkTypeFromHref(href);
         email.value = linkType.value === "email" ? href.startsWith("mailto:") ? href.substring(7) : href : "";
         tel.value = linkType.value === "tel" ? href.startsWith("tel:") ? href.substring(4) : href : "";
-        url.value = linkType.value === "url" ? href.startsWith("http") ? href : `https://${href}` : "https://";
+        url.value = linkType.value === "url" ? href : "";
     });
 
     watch([email, tel, url], async () => {

@@ -3,6 +3,7 @@
     <div class="email-editor-wrapper styled-scroll">
         <div class="email-editor">
             <SidePanel v-if="ltr"
+                       v-model:bodyGlobalProps="bodyGlobalProps"
                        v-model:buttonGlobalProps="buttonGlobalProps"
                        v-model:selectedComponentElement="selectedComponentElement"
                        v-model:dividerGlobalProps="dividerGlobalProps"
@@ -44,6 +45,7 @@
             </div>
 
             <SidePanel v-if="!ltr"
+                       v-model:bodyGlobalProps="bodyGlobalProps"
                        v-model:buttonGlobalProps="buttonGlobalProps"
                        v-model:dividerGlobalProps="dividerGlobalProps"
                        v-model:selectedComponentElement="selectedComponentElement"
@@ -106,16 +108,26 @@
     import { PropType, ref, watch } from "vue";
     import EmailDesigner from "./emailDesigner.partial.obs";
     import SidePanel from "./sidePanel.partial.obs";
-    import { ButtonGlobalProps, CloneComponentRequest, CompleteComponentRequest, ComponentTypeDragEndRequest, ComponentTypeDragStartRequest, ComponentTypeName, DeleteComponentRequest, DividerGlobalProps, ReplaceComponentRequest } from "./types.partial";
-    import { GetHtmlRequest, UsageType } from "./types";
+    import { BodyGlobalProps, ButtonGlobalProps, CloneComponentRequest, CompleteComponentRequest, ComponentTypeDragEndRequest, ComponentTypeDragStartRequest, ComponentTypeName, DeleteComponentRequest, DividerGlobalProps, ReplaceComponentRequest } from "./types.partial";
+    import { GetHtmlRequest, UsageType } from "./types.partial";
     import { BinaryFiletype } from "@Obsidian/SystemGuids/binaryFiletype";
     import { Guid } from "@Obsidian/Types";
     import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
     import { useSecurityGrantToken } from "@Obsidian/Utility/block";
     import { EmailEditorApi, provideApi } from "./api";
-    import { createButtonComponentAdapter, createButtonGlobalAdapter, createDividerComponentAdapter, createDividerGlobalAdapter, createRsvpComponentAdapter } from "./utils.partial";
-    import { Enumerable } from "@Obsidian/Utility/linq";
-    import { isHTMLElement } from "@Obsidian/Utility/dom";
+    import {
+        bodyGlobalAdapter,
+        buttonComponentAdapter,
+        buttonGlobalAdapter,
+        codeComponentAdapter,
+        dividerComponentAdapter,
+        dividerGlobalAdapter,
+        imageComponentAdapter,
+        rsvpComponentAdapter,
+        textComponentAdapter,
+        titleComponentAdapter,
+        videoComponentAdapter
+    } from "./utils.partial";
 
     defineProps({
         html: {
@@ -200,12 +212,6 @@
     const api = new EmailEditorApi({ securityGrantToken });
     provideApi(api);
 
-    const buttonComponentAdapter = createButtonComponentAdapter();
-    const buttonGlobalAdapter = createButtonGlobalAdapter();
-    const rsvpComponentAdapter = createRsvpComponentAdapter();
-    const dividerComponentAdapter = createDividerComponentAdapter();
-    const dividerGlobalAdapter = createDividerGlobalAdapter();
-
     // #region Values
 
     const selectedComponentElement = ref<HTMLElement | null | undefined>();
@@ -218,6 +224,7 @@
     const componentTypeDragEndRequest = ref<ComponentTypeDragEndRequest | null | undefined>();
     const replaceComponentRequest = ref<ReplaceComponentRequest | null | undefined>();
 
+    const bodyGlobalProps = ref<BodyGlobalProps>({} as BodyGlobalProps);
     const buttonGlobalProps = ref<ButtonGlobalProps>({} as ButtonGlobalProps);
     const dividerGlobalProps = ref<DividerGlobalProps>({} as DividerGlobalProps);
 
@@ -265,57 +272,41 @@
     function onEmailDocumentUpdated(eventArgs: { emailDocument: Document, areGlobalDefaultsRequired: boolean }): void {
         const { emailDocument: emailDoc, areGlobalDefaultsRequired } = eventArgs;
 
-        // Migrate all button components in the document.
-        Enumerable
-            .from(emailDoc.querySelectorAll(".component-button"))
-            .ofType<HTMLElement>((el): el is HTMLElement => isHTMLElement(el))
-            .forEach((componentElement) => {
-                buttonComponentAdapter.migrateComponent(emailDoc, componentElement);
-            });
+        // Migrate all components in the document.
+        titleComponentAdapter.migrateAllComponents(emailDoc);
+        textComponentAdapter.migrateAllComponents(emailDoc);
+        imageComponentAdapter.migrateAllComponents(emailDoc);
+        buttonComponentAdapter.migrateAllComponents(emailDoc);
+        videoComponentAdapter.migrateAllComponents(emailDoc);
+        dividerComponentAdapter.migrateAllComponents(emailDoc);
+        rsvpComponentAdapter.migrateAllComponents(emailDoc);
+        codeComponentAdapter.migrateAllComponents(emailDoc);
 
-        // Migrate all RSVP components in the document.
-        Enumerable
-            .from(emailDoc.querySelectorAll(".component-rsvp"))
-            .ofType<HTMLElement>((el): el is HTMLElement => isHTMLElement(el))
-            .forEach((componentElement) => {
-                rsvpComponentAdapter.migrateComponent(emailDoc, componentElement);
-            });
+        // Initialize global props.
 
-        Enumerable
-            .from(emailDoc.querySelectorAll(".component-divider"))
-            .ofType<HTMLElement>((el): el is HTMLElement => isHTMLElement(el))
-            .forEach((componentElement) => {
-                dividerComponentAdapter.migrateComponent(emailDoc, componentElement);
-            });
+        if (areGlobalDefaultsRequired || bodyGlobalAdapter.areGlobalDefaultsNeeded(emailDoc)) {
+            bodyGlobalProps.value = bodyGlobalAdapter.getDefaultGlobalProps();
+            bodyGlobalAdapter.writeGlobalProps(emailDoc, bodyGlobalProps.value);
+        }
+        else {
+            bodyGlobalAdapter.migrateGlobalProps(emailDoc);
+            bodyGlobalProps.value = bodyGlobalAdapter.readGlobalProps(emailDoc);
+        }
 
-        // Initialize global button props or migrate existing ones.
         if (areGlobalDefaultsRequired || buttonGlobalAdapter.areGlobalDefaultsNeeded(emailDoc)) {
-            // This occurs for a new document
-            // or one that did not previously have global button props
-            // and needs the default values.
             buttonGlobalProps.value = buttonGlobalAdapter.getDefaultGlobalProps();
             buttonGlobalAdapter.writeGlobalProps(emailDoc, buttonGlobalProps.value);
         }
         else {
-            // This occurs when loading an existing document
-            // that already has global button props
-            // and may need to be migrated.
             buttonGlobalAdapter.migrateGlobalProps(emailDoc);
             buttonGlobalProps.value = buttonGlobalAdapter.readGlobalProps(emailDoc);
         }
 
-        // Initialize global divider props or migrate existing ones.
         if (areGlobalDefaultsRequired || dividerGlobalAdapter.areGlobalDefaultsNeeded(emailDoc)) {
-            // This occurs for a new document
-            // or one that did not previously have global divider props
-            // and needs the default values.
             dividerGlobalProps.value = dividerGlobalAdapter.getDefaultGlobalProps();
             dividerGlobalAdapter.writeGlobalProps(emailDoc, dividerGlobalProps.value);
         }
         else {
-            // This occurs when loading an existing document
-            // that already has global divider props
-            // and may need to be migrated.
             dividerGlobalAdapter.migrateGlobalProps(emailDoc);
             dividerGlobalProps.value = dividerGlobalAdapter.readGlobalProps(emailDoc);
         }
@@ -326,20 +317,39 @@
     }
 
     function onComponentAdded(event: { componentTypeName: ComponentTypeName; componentElement: HTMLElement }): void {
-        // Apply global props.
         if (emailDocument.value) {
-            if (event.componentTypeName === "button") {
-                buttonGlobalAdapter.writeGlobalProps(emailDocument.value, buttonGlobalProps.value);
-            }
-            else if (event.componentTypeName === "divider") {
-                dividerGlobalAdapter.writeGlobalProps(emailDocument.value, dividerGlobalProps.value);
-            }
+            buttonGlobalAdapter.onComponentAdded({
+                emailDocument: emailDocument.value,
+                componentElement: event.componentElement,
+                componentTypeName: event.componentTypeName,
+                globalProps: buttonGlobalProps.value
+            });
+
+            dividerGlobalAdapter.onComponentAdded({
+                emailDocument: emailDocument.value,
+                componentElement: event.componentElement,
+                componentTypeName: event.componentTypeName,
+                globalProps: dividerGlobalProps.value
+            });
+
+            bodyGlobalAdapter.onComponentAdded({
+                emailDocument: emailDocument.value,
+                componentElement: event.componentElement,
+                componentTypeName: event.componentTypeName,
+                globalProps: bodyGlobalProps.value
+            });
         }
     }
 
     // #endregion Event Handlers
 
     // #region Watchers
+
+    watch(bodyGlobalProps, (newValue) => {
+        if (emailDocument.value) {
+            bodyGlobalAdapter.writeGlobalProps(emailDocument.value, newValue);
+        }
+    });
 
     watch(buttonGlobalProps, (newValue) => {
         if (emailDocument.value) {

@@ -1388,7 +1388,7 @@ namespace Rock.Rest.v2
                 return BadRequest();
             }
 
-            var root = Rock.Security.Encryption.DecryptString( options.EncryptedRoot );
+            var root = Rock.Security.Encryption.DecryptString( options.EncryptedRoot, false );
             var fullPath = Path.Combine( root, options.FileName );
             var physicalZipFile = System.Web.HttpContext.Current.Server.MapPath( fullPath );
             var directoryPath = Path.GetDirectoryName( physicalZipFile );
@@ -1466,7 +1466,7 @@ namespace Rock.Rest.v2
 
             try
             {
-                var root = Rock.Security.Encryption.DecryptString( options.EncryptedRoot );
+                var root = Rock.Security.Encryption.DecryptString( options.EncryptedRoot, false );
 
                 if ( options.UserSpecificRoot )
                 {
@@ -1525,7 +1525,7 @@ namespace Rock.Rest.v2
                 {
                     assetStorageProviderId = assetParts[0].AsInteger();
                     var encryptedRoot = assetParts[1].Trim();
-                    var root = Rock.Security.Encryption.DecryptString( encryptedRoot );
+                    var root = Rock.Security.Encryption.DecryptString( encryptedRoot, false );
 
                     // Verify all local roots start with "~/"
                     if ( assetStorageProviderId == 0 && !root.StartsWith( "~/" ) )
@@ -4103,6 +4103,61 @@ namespace Rock.Rest.v2
 
         #endregion
 
+        #region Defined Type Picker
+
+        /// <summary>
+        /// Gets the defined types that can be displayed in the defined type picker.
+        /// </summary>
+        /// <param name="options">The options that describe which items to load.</param>
+        /// <returns>A List of <see cref="ListItemBag"/> objects that represent defined types.</returns>
+        [HttpPost]
+        [Route( "DefinedTypePickerGetDefinedTypes" )]
+        [Authenticate]
+        [ExcludeSecurityActions( Security.Authorization.EXECUTE_READ, Security.Authorization.EXECUTE_WRITE, Security.Authorization.EXECUTE_UNRESTRICTED_READ, Security.Authorization.EXECUTE_UNRESTRICTED_WRITE )]
+        [ProducesResponse( HttpStatusCode.OK, Type = typeof( List<ListItemBag> ) )]
+        [Rock.SystemGuid.RestActionGuid( "50319D0D-7399-43C7-8239-495E11CA958A" )]
+        public IActionResult DefinedTypePickerGetDefinedTypes( [FromBody] DefinedTypePickerGetDefinedTypesOptionsBag options )
+        {
+            var definedTypes = DefinedTypeCache.All()
+                .Where( dt => dt.IsAuthorized( Rock.Security.Authorization.VIEW, RockRequestContext.CurrentPerson ) )
+                .ToList();
+
+            if ( options.DefinedTypes != null && options.DefinedTypes.Count > 0 )
+            {
+                definedTypes = definedTypes.Where( dt => options.DefinedTypes.Contains( dt.Guid ) ).ToList();
+            }
+
+            if ( options.ExcludeDefinedTypes != null && options.ExcludeDefinedTypes.Any() )
+            {
+                definedTypes = definedTypes.Where( dt => !options.ExcludeDefinedTypes.Contains( dt.Guid ) ).ToList();
+            }
+
+            if ( options.IsSortedByName )
+            {
+                definedTypes = definedTypes.OrderBy( dt => dt.Name ).ToList();
+            }
+            else
+            {
+                // Matches the ordering of the DefinedTypeList block
+                definedTypes = definedTypes
+                    .OrderBy( dt => dt.Category?.Name ?? string.Empty )
+                    .ThenBy( dt => dt.Name )
+                    .ToList();
+            }
+
+            var results = definedTypes
+                .Select( dt => new ListItemBag
+                {
+                    Value = dt.Guid.ToString(),
+                    Text = dt.Name
+                } )
+                .ToList();
+
+            return Ok( results );
+        }
+
+        #endregion
+
         #region Defined Value Picker
 
         /// <summary>
@@ -6553,6 +6608,11 @@ namespace Rock.Rest.v2
                     var groupType = GroupTypeCache.Get( groupTypeGuid );
                     groupTypes.Add( groupType );
                 }
+            }
+
+            if ( options.ExcludeGroupTypes != null && options.ExcludeGroupTypes.Any() )
+            {
+                groupTypes = groupTypes.Where( gt => !options.ExcludeGroupTypes.Contains( gt.Guid ) ).ToList();
             }
 
             if ( options.OnlyGroupListItems )

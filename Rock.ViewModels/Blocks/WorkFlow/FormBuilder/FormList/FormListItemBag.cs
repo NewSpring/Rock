@@ -19,6 +19,9 @@ using System;
 
 namespace Rock.ViewModels.Blocks.WorkFlow.FormBuilder.FormList
 {
+    /// <summary>
+    /// 
+    /// </summary>
 	public class FormListItemBag
 	{
 		/// <summary>

@@ -33,7 +33,7 @@
                 </div>
                 <div class="row">
                     <div class="col-md-12">
-                        <CampusPicker label="Campus" v-model="campuses" displayStyle="condensed" multiple />
+                        <CampusPicker label="Campuses" v-model="campuses" displayStyle="condensed" multiple />
                     </div>
                 </div>
             </div>
@@ -57,7 +57,7 @@
         <!-- Opportunity Attributes -->
         <ContentSection v-if="hasAttributes" title="Opportunity Attributes" icon="ti ti-tool">
             <ContentStack title="Opportunity Attributes"
-                          description="Configure the attributes specifically related to this connection opportunity. (These were configured on the Connection Type Detail page).">
+                          description="Configure the attributes specifically related to this connection opportunity. These are managed in the Connection Type settings.">
                 <div class="opportunity-attributes-style">
                     <AttributeValuesContainer v-model="attributeValues" :attributes="attributes" isEditMode
                                               :numberOfColumns="1" />
@@ -87,10 +87,9 @@
         <!-- Workflows -->
         <ContentSection title="Workflows" icon="ti ti-settings-automation">
             <Workflows v-model="connectionWorkflows"
-                       :inheritedConnectionWorkflows="props.modelValue.bag?.inheritedConnectionWorkflows ?? []"
+                       :inheritedConnectionWorkflows="inheritedConnectionWorkflows"
                        :connectionTypeName="props.modelValue.bag?.connectionTypeName ?? ''"
-                       :connectionTypeUrl="props.modelValue.bag?.connectionTypeUrl ?? ''"
-                       :options="props.options" />
+                       :connectionTypeUrl="props.modelValue.bag?.connectionTypeUrl ?? ''" :options="props.options" />
         </ContentSection>
 
         <!-- Advanced Settings -->
@@ -194,6 +193,7 @@
     const connectorGroups = ref(props.modelValue.bag?.connectorGroups ?? []);
     const defaultConnectorsForCampus = ref<Record<Guid, ListItemBag>>(props.modelValue.bag?.defaultConnectors ?? {});
     const connectionWorkflows = ref(props.modelValue.bag?.connectionWorkflows ?? []);
+    const inheritedConnectionWorkflows = ref(props.modelValue.bag?.inheritedConnectionWorkflows ?? []);
 
     // Merge fields available to the Summary and Details HtmlEditors
     const editorMergeFields = [
@@ -263,6 +263,7 @@
         updateRefValue(connectorGroups, props.modelValue.bag?.connectorGroups ?? []);
         updateRefValue(defaultConnectorsForCampus, props.modelValue.bag?.defaultConnectors ?? {});
         updateRefValue(connectionWorkflows, props.modelValue.bag?.connectionWorkflows ?? []);
+        updateRefValue(inheritedConnectionWorkflows, props.modelValue.bag?.inheritedConnectionWorkflows ?? []);
         updateRefValue(showStatusOnTransfer, props.modelValue.bag?.showStatusOnTransfer ?? false);
         updateRefValue(showCampusOnTransfer, props.modelValue.bag?.showCampusOnTransfer ?? false);
         updateRefValue(showConnectButton, props.modelValue.bag?.showConnectButton ?? false);

@@ -123,7 +123,7 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionOpportunityDetail
         /// <summary>
         /// Minimal list of workflow types inherited from the connection type.
         /// </summary>
-        public List<ConnectionWorkflowBag> InheritedConnectionWorkflows { get; set; }
+        public List<InheritedConnectionWorkflowBag> InheritedConnectionWorkflows { get; set; }
 
         /// <summary>
         /// List of all the campuses that this connection opportunity relates to.

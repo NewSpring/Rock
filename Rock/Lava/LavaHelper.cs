@@ -25,8 +25,6 @@ using System.Web;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
-using OpenXmlPowerTools;
-
 using Rock.Communication.Chat;
 using Rock.Data;
 using Rock.Model;
@@ -45,12 +43,6 @@ namespace Rock.Lava
     public static class LavaHelper
     {
         /// <summary>
-        /// The merge field prefix for internal merge fields. These merge fields
-        /// will be marked as internal so they are not available to Lava template
-        /// itself but can be used by filters and such.
-        /// </summary>
-        internal static readonly string InternalMergeFieldPrefix = "$_";
-
         /// <summary>
         /// This is used by <see cref="IsLavaProperty(PropertyInfo)"/> method
         /// to cache information calculated about a property. Since there is really

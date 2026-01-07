@@ -52,7 +52,7 @@
     import AccordionGroup from "../accordionGroup.partial.obs";
     import Accordion from "../accordion.partial.obs";
     import ComponentPropertyPanelBase from "./componentPropertyPanelBase.partial.obs";
-    import { createDividerComponentAdapter, createDividerGlobalAdapter } from "../utils.partial";
+    import { dividerComponentAdapter, dividerGlobalAdapter } from "../utils.partial";
     import { BorderStyle, DividerGlobalProps, HorizontalAlignment, ShorthandModel } from "../types.partial";
     import BorderStylePicker from "../borderStylePicker.partial.obs";
     import PixelBox from "../pixelBox.partial.obs";
@@ -84,9 +84,6 @@
         (e: "delete"): void;
         (e: "migrate", value: Element): void;
     }>();
-
-    const dividerComponentAdapter = createDividerComponentAdapter();
-    const dividerGlobalAdapter = createDividerGlobalAdapter();
 
     // #region Values
 

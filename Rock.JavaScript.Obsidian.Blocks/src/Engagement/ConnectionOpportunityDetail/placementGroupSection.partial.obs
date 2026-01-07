@@ -37,6 +37,7 @@
                                      @update:modelValue="val => thePlacementGroupCfg.groupMemberRole = (Array.isArray(val) ? (val[0] ?? null) : val)"
                                      label="Group Role"
                                      :groupTypeGuid="thePlacementGroupCfg.groupType?.value ?? null"
+                                     :hideGroupTypePicker="true"
                                      rules="required"
                                      help="The role that the person will hold upon being connected" />
                 </div>
@@ -108,7 +109,6 @@
     import GroupRolePicker from "@Obsidian/Controls/groupRolePicker.obs";
     import GroupTypePicker from "@Obsidian/Controls/groupTypePicker.obs";
     import Toggle from "@Obsidian/Controls/toggle.obs";
-    import { GroupType } from "@Obsidian/SystemGuids/groupType";
     import { enumToListItemBag } from "@Obsidian/Utility/enumUtils";
     import { newGuid } from "@Obsidian/Utility/guid";
     import { PlacementGroupConfigBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionOpportunityDetail/placementGroupConfigBag";
@@ -140,8 +140,7 @@
     function createNewConfig(): PlacementGroupConfigBag {
         return {
             guid: newGuid(),
-            // Default to general group type so that a Group Type Picker doesn't render again also within <GroupRolePicker />
-            groupType: { text: "General Group", value: GroupType.GrouptypeGeneral },
+            groupType: null,
             groupMemberRole: null,
             groupMemberStatus: GroupMemberStatus.Active,
             useAllGroupsOfType: false

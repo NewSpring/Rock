@@ -58,7 +58,7 @@
                         <ContentStack>
                             <span v-html="shortcode.documentation"></span>
 
-                            <div class="lava-shortcode-edit-disabled-notification-box">
+                            <div class="lava-shortcode-edit-disabled-notification-box mt-spacing-lg">
                                 <NotificationBox v-if="isNullOrWhiteSpace(shortcode.idKey) && shortcode.isSystem" alertType="info">
                                     This shortcode is defined in code (versus being stored in the database) and therefore can not be modified.
                                 </NotificationBox>
@@ -70,12 +70,6 @@
         </div>
     </Panel>
 </template>
-
-<style scoped>
-.lava-shortcode-edit-disabled-notification-box {
-    margin-top: var(--spacing-large);
-}
-</style>
 
 <script setup lang="ts">
     import { onConfigurationValuesChanged, useConfigurationValues, useInvokeBlockAction, useReloadBlock } from "@Obsidian/Utility/block";

@@ -1,10 +1,7 @@
 <!-- Copyright by the Spark Development Network; Licensed under the Rock Community License -->
 <template>
     <!-- Inherited Workflows from Connection Type -->
-    <ContentStack v-if="inheritedGridData.rows.length > 0">
-        <NotificationBox :alertType="AlertType.Info">
-            Workflows listed here are inherited from this opportunity's associated Connection Type.
-        </NotificationBox>
+    <ContentStack title="Inherited Workflows" description="Workflows listed here are inherited from this opportunity's associated Connection Type." headerLocation="top" v-if="inheritedGridData.rows.length > 0">
 
         <Grid :data="inheritedGridData" keyField="guid" itemTerm="Inherited Workflow" liveUpdates light>
             <TextColumn name="workflowType"
@@ -27,7 +24,7 @@
     </ContentStack>
 
     <!-- Opportunity-Specific Workflows -->
-    <ContentStack>
+    <ContentStack title="Configure Workflows" description="Configure the workflows that should be launched for connection requests associated with this opportunity." headerLocation="top">
         <Grid :data="gridData"
               keyField="guid"
               itemTerm="Workflow"
@@ -103,7 +100,8 @@
                                      :modelValue="theConnectionWorkflow.manualTriggerFilterConnectionStatusId?.toString()"
                                      @update:modelValue="val => theConnectionWorkflow.manualTriggerFilterConnectionStatusId = val ? Number(val) : null"
                                      :items="qualifierOptions"
-                                     :horizontal="true" />
+                                     :horizontal="true"
+                                     help="Filters workflows to display based on the current status of the connection request." />
                 </div>
             </div>
             <div class="row">
@@ -112,21 +110,24 @@
                                      :modelValue="theConnectionWorkflow.appliesToAgeClassification?.toString()"
                                      @update:modelValue="val => theConnectionWorkflow.appliesToAgeClassification = val ? Number(val) : 0"
                                      :items="appliesToAgeClassificationOptions"
-                                     :horizontal="true" />
+                                     :horizontal="true"
+                                     help="Restrict this workflow to requests for people of a certain age classification (All, Adults, Children)." />
                 </div>
 
                 <div class="col-md-4">
                     <DataViewPicker label="Include Data View Filter"
                                     v-model="theConnectionWorkflow.includeDataViewId"
                                     :displayOnlyPersisted="true"
-                                    :showBlankItem="true" />
+                                    :showBlankItem="true"
+                                    help="Only show this workflow for requests where the person is included in this Data View. Leave blank for no filter." />
                 </div>
 
                 <div class="col-md-4">
                     <DataViewPicker label="Exclude Data View Filter"
                                     v-model="theConnectionWorkflow.excludeDataViewId"
                                     :displayOnlyPersisted="true"
-                                    :showBlankItem="true" />
+                                    :showBlankItem="true"
+                                    help="Hide this workflow for requests where the person is included in this Data View. Leave blank for no filter." />
                 </div>
             </div>
         </section>
@@ -146,12 +147,12 @@
     import DataViewPicker from "@Obsidian/Controls/dataViewPicker.obs";
     import { ConnectionOpportunityDetailOptionsBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionOpportunityDetail/connectionOpportunityDetailOptionsBag";
     import { ConnectionWorkflowBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionOpportunityDetail/connectionWorkflowBag";
+    import { InheritedConnectionWorkflowBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionOpportunityDetail/inheritedConnectionWorkflowBag";
+    import { ConnectionWorkflowQualifierOptionsResponseBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionOpportunityDetail/connectionWorkflowQualifierOptionsResponseBag";
     import { ConnectionWorkflowTriggerTypeDescription, ConnectionWorkflowTriggerType } from "@Obsidian/Enums/Connection/connectionWorkflowTriggerType";
     import { AppliesToAgeClassificationDescription } from "@Obsidian/Enums/Group/appliesToAgeClassification";
     import { enumToListItemBag } from "@Obsidian/Utility/enumUtils";
     import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
-    import NotificationBox from "@Obsidian/Controls/notificationBox.obs";
-    import { AlertType } from "@Obsidian/Enums/Controls/alertType";
 
     const props = defineProps({
         modelValue: {
@@ -159,7 +160,7 @@
             required: true
         },
         inheritedConnectionWorkflows: {
-            type: Array as PropType<ConnectionWorkflowBag[]>,
+            type: Array as PropType<InheritedConnectionWorkflowBag[]>,
             required: false,
             default: () => []
         },
@@ -271,6 +272,14 @@
         const secondary = secondaryQualifier.value ?? "";
         theConnectionWorkflow.value.qualifierValue = `|${primary}|${secondary}|`;
 
+        // These properties are only relevant for Workflows with "Manual" trigger type
+        if (theConnectionWorkflow.value.triggerType !== ConnectionWorkflowTriggerType.Manual) {
+            theConnectionWorkflow.value.manualTriggerFilterConnectionStatusId = null;
+            theConnectionWorkflow.value.appliesToAgeClassification = 0;
+            theConnectionWorkflow.value.includeDataViewId = null;
+            theConnectionWorkflow.value.excludeDataViewId = null;
+        }
+
         const current = props.modelValue ?? [];
         const idx = current.findIndex(wf => wf.guid === theConnectionWorkflow.value?.guid);
 
@@ -290,38 +299,52 @@
     // #endregion Event Handlers
 
     async function onOrderChanged(item: Record<string, unknown>, beforeItem: Record<string, unknown> | null): Promise<boolean> {
-        try {
-            const result = await invokeBlockAction<string>("ReorderConnectionWorkflow", {
-                key: item["guid"],
-                beforeKey: beforeItem?.["guid"] ?? null
-            });
-            return result.isSuccess;
-        }
-        catch (error) {
-            console.error("Error reordering connection workflows:", error);
+        const itemGuid = item["guid"] as string;
+        const beforeItemGuid = beforeItem?.["guid"] as string | null;
+
+        const currentItems = [...(props.modelValue ?? [])];
+        const idx = currentItems.findIndex(i => i.guid === itemGuid);
+
+        if (idx < 0) {
             return false;
         }
+
+        const itemToMove = currentItems.splice(idx, 1)[0];
+
+        if (beforeItemGuid) {
+            const beforeIndex = currentItems.findIndex(i => i.guid === beforeItemGuid);
+            if (beforeIndex < 0) {
+                currentItems.push(itemToMove);
+            }
+            else {
+                currentItems.splice(beforeIndex, 0, itemToMove);
+            }
+        }
+        else {
+            currentItems.push(itemToMove);
+        }
+
+        emit("update:modelValue", currentItems);
+        return true;
     }
 
     // #region Watchers
 
     watch(() => theConnectionWorkflow.value?.triggerType, async (trigger) => {
+        qualifierOptions.value = [];
+
         if (trigger === ConnectionWorkflowTriggerType.StatusChanged
             || trigger === ConnectionWorkflowTriggerType.StateChanged
             || trigger === ConnectionWorkflowTriggerType.ActivityAdded
             || trigger === ConnectionWorkflowTriggerType.Manual) {
-            try {
-                const result = await invokeBlockAction<{ qualifierOptions: ListItemBag[] }>("GetConnectionWorkflowQualifierOptions", {
-                    triggerType: trigger
-                });
-                qualifierOptions.value = (result.isSuccess && result.data) ? (result.data.qualifierOptions ?? []) : [];
+
+            const response = await invokeBlockAction<ConnectionWorkflowQualifierOptionsResponseBag>("GetConnectionWorkflowQualifierOptions", {
+                triggerType: trigger
+            });
+
+            if (response.isSuccess && response.data) {
+                qualifierOptions.value = response.data.qualifierOptions ?? [];
             }
-            catch {
-                qualifierOptions.value = [];
-            }
-        }
-        else {
-            qualifierOptions.value = [];
         }
 
         if (trigger === ConnectionWorkflowTriggerType.ActivityAdded) {

@@ -29,7 +29,7 @@ namespace Rock.Rest.Controllers
     /// <summary>
     /// ConnectionRequestStatusHistories REST API
     /// </summary>
-    [RestControllerGuid( "4B0B9437-C284-4A5F-8155-3EDAD8138D99" )]
+    [RestControllerGuid( "B38150F7-F42B-41D9-8D0D-95B95530CD5A" )]
     public partial class ConnectionRequestStatusHistoriesController : Rock.Rest.ApiController<Rock.Model.ConnectionRequestStatusHistory>
     {
         /// <summary>
