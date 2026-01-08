@@ -144,8 +144,7 @@ namespace RockWeb.Blocks.Administration
         protected override void OnInit( EventArgs e )
         {
             var page = new PageService( new RockContext() )
-                .GetQueryableByKey( PageParameter( "Page" ), !PageCache.Layout.Site.DisablePredictableIds )
-                .FirstOrDefault();
+                .Get( PageParameter( "Page" ), !PageCache.Layout.Site.DisablePredictableIds );
 
             var isCreatingNewPage = PageParameter( "Page" ) == "0";
             var pageIdHasValue = page != null;
@@ -685,9 +684,7 @@ namespace RockWeb.Blocks.Administration
             var contextService = new PageContextService( rockContext );
 
             int? pageId = pageService
-                .GetQueryableByKey( hfPageId.Value, !PageCache.Layout.Site.DisablePredictableIds )
-                .Select( p => ( int? ) p.Id )
-                .FirstOrDefault();
+                .Get( PageParameter( "Page" ), !PageCache.Layout.Site.DisablePredictableIds )?.Id;
 
             var isCreatingNewPage = PageParameter( "Page" ) == "0";
 
@@ -696,12 +693,14 @@ namespace RockWeb.Blocks.Administration
                 throw new Exception( "Page ID is not valid" );
             }
 
-            var page = new Rock.Model.Page();
-            if ( !isCreatingNewPage )
+            var page = isCreatingNewPage
+                ? new Rock.Model.Page()
+                : pageService.Get( pageId.Value );
+
+            if ( isCreatingNewPage )
             {
-                page = pageService.Get( pageId.Value );
+                pageService.Add( page );
             }
-            pageService.Add( page );
 
             // validate/check for removed routes
             var editorRoutes = tbPageRoute.Text.SplitDelimitedValues().Distinct();
