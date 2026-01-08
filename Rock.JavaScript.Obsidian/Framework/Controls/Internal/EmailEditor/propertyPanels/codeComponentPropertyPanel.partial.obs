@@ -20,6 +20,9 @@
                 <p class="text-muted text-sm mb-3">
                     *Keep in mind: Most email clients do not support interactive elements like JavaScript or Flash. Use basic HTML for higher likelihood of compatibility
                 </p>
+
+                <NotificationBox v-if="usageType === 'template'"
+                                 alertType="warning">{{ warningMessage }}</NotificationBox>
             </div>
         </div>
 
@@ -44,6 +47,7 @@
         removeRockContentEditableEventListener
     } from "../utils.partial";
     import CodeEditor from "@Obsidian/Controls/codeEditor.obs";
+    import NotificationBox from "@Obsidian/Controls/notificationBox.obs";
 
     const props = defineProps({
         componentElement: {
@@ -63,7 +67,7 @@
 
         usageType: {
             type: String as PropType<UsageType>,
-            default: "email" as const
+            required: true
         }
     });
 
@@ -73,6 +77,8 @@
         (e: "delete"): void;
         (e: "migrate", value: Element): void;
     }>();
+
+    const warningMessage = `To have Lava processed when the email is sent, wrap it in {% raw %} tags. Otherwise, it will be processed when the email is being authored.`;
 
     // #region Values
 
