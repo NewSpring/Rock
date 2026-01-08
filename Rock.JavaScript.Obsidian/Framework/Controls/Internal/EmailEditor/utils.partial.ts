@@ -2357,7 +2357,7 @@ function createTextComponentAdapter(): TextComponentAdapter {
 }
 
 function createCodeComponentAdapter(): CodeComponentAdapter {
-    const componentVersions = ["v0", "v2-alpha", "v17.3-alpha"] as const;
+    const componentVersions = ["v0", "v2-alpha", "v17.3-alpha", "v18.2"] as const;
     type ComponentVersion = (typeof componentVersions)[number];
 
     const defaultLocalProps: CodeLocalProps = {
@@ -2470,6 +2470,60 @@ function createCodeComponentAdapter(): CodeComponentAdapter {
             createComponentElement(emailDocument: Document): HTMLElement {
                 const componentElement = adapters["v2-alpha"].createComponentElement(emailDocument);
                 componentElement.setAttribute("data-version", "v17.3-alpha");
+                return componentElement;
+            },
+
+            readLocalProps(componentElement: HTMLElement): CodeLocalProps {
+                return adapters["v2-alpha"].readLocalProps(componentElement);
+            },
+
+            writeLocalProps(componentElement: HTMLElement, localProps: CodeLocalProps): void {
+                adapters["v2-alpha"].writeLocalProps(componentElement, localProps);
+            }
+        },
+
+        /**
+         * Same as v2-alpha, but adds the global font to the styling.
+         */
+        "v18.2": {
+            version: "v18.2",
+
+            createComponentElement(emailDocument: Document): HTMLElement {
+                const componentElement = createHtmlElement(emailDocument, `
+<table class="component component-code margin-wrapper margin-wrapper-for-code"
+       data-state="component"
+       data-version="v18.2"
+       border="0"
+       cellpadding="0"
+       cellspacing="0"
+       role="presentation"
+       width="100%">
+    <tbody>
+        <tr>
+            <td>
+                <table border="0" cellpadding="0" cellspacing="0" width="100%" role="presentation" class="border-wrapper border-wrapper-for-code" style="border-collapse: separate !important;">
+                    <tbody>
+                        <tr>
+                            <td style="overflow: hidden;">
+                                <table border="0" cellpadding="0" cellspacing="0" width="100%" role="presentation" class="padding-wrapper padding-wrapper-for-code">
+                                    <tbody>
+                                        <tr>
+                                            <td>
+                                                <div class="content-wrapper content-wrapper-for-code ${RockCssClassContentEditable} ${GlobalCssClasses.fontGlobal}"></div>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </td>
+        </tr>
+    </tbody>
+</table>`);
+                adapters["v2-alpha"].writeLocalProps(componentElement, defaultLocalProps);
+
                 return componentElement;
             },
 

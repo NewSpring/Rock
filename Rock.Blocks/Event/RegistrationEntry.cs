@@ -3448,6 +3448,7 @@ namespace Rock.Blocks.Event
                 {
                     var totalFeeQuantity = 0;
                     var feeItemModels = feeModel.FeeItems.ToList();
+                    var isFeeUsageAutoReduced = false;
 
                     for ( var i = 0; i < feeItemModels.Count; i++ )
                     {
@@ -3473,18 +3474,21 @@ namespace Rock.Blocks.Event
                         if ( countRemaining.HasValue && countRemaining < quantity )
                         {
                             quantity = countRemaining.Value;
+                            isFeeUsageAutoReduced = true;
                         }
 
                         // Don't allow selecting more than 1 if not allowed
                         if ( !feeModel.AllowMultiple && quantity > 1 )
                         {
                             quantity = 1;
+                            isFeeUsageAutoReduced = true;
                         }
 
                         // Don't allow selecting any if other items of this fee are already selected
                         if ( !feeModel.AllowMultiple && totalFeeQuantity > 0 )
                         {
                             quantity = 0;
+                            isFeeUsageAutoReduced = true;
                         }
 
                         // Check if the item is selected (either actually selected or not allowed to be selected)
@@ -3498,6 +3502,21 @@ namespace Rock.Blocks.Event
 
                                 registrant.Fees.Remove( registrantFee );
                                 registrantFeeService.Delete( registrantFee );
+                            }
+
+                            if ( feeModel.IsRequired )
+                            {
+                                var feeDescription = feeModel.FeeItems.Count > 1 && !StringComparer.OrdinalIgnoreCase.Equals( feeItemModel.Name, feeModel.Name )
+                                    ? $"{feeModel.Name} ({feeItemModel.Name})"
+                                    : feeItemModel.Name.IsNotNullOrWhiteSpace()
+                                        ? feeItemModel.Name
+                                        : feeModel.Name;
+
+                                var cannotAccommodateQuantitySuffix = isFeeUsageAutoReduced
+                                        ? $", but is no longer available{( feeModel.AllowMultiple ? " in the selected quantity" : string.Empty )}"
+                                        : string.Empty;
+
+                                throw new InvalidOperationException( $"{feeDescription} is required{cannotAccommodateQuantitySuffix}." );
                             }
 
                             continue;
