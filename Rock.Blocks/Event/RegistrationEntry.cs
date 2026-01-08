@@ -3449,6 +3449,7 @@ namespace Rock.Blocks.Event
                     var totalFeeQuantity = 0;
                     var feeItemModels = feeModel.FeeItems.ToList();
                     var isFeeUsageAutoReduced = false;
+                    var hasRequiredFeeItem = false;
 
                     for ( var i = 0; i < feeItemModels.Count; i++ )
                     {
@@ -3492,7 +3493,14 @@ namespace Rock.Blocks.Event
                         }
 
                         // Check if the item is selected (either actually selected or not allowed to be selected)
-                        if ( quantity < 1 )
+                        if ( quantity >= 1 )
+                        {
+                            if ( feeModel.IsRequired )
+                            {
+                                hasRequiredFeeItem = true;
+                            }
+                        }
+                        else if ( quantity < 1 )
                         {
                             // The item is not selected, so remove it if it already exists
                             if ( registrantFee != null )
@@ -3502,21 +3510,6 @@ namespace Rock.Blocks.Event
 
                                 registrant.Fees.Remove( registrantFee );
                                 registrantFeeService.Delete( registrantFee );
-                            }
-
-                            if ( feeModel.IsRequired )
-                            {
-                                var feeDescription = feeModel.FeeItems.Count > 1 && !StringComparer.OrdinalIgnoreCase.Equals( feeItemModel.Name, feeModel.Name )
-                                    ? $"{feeModel.Name} ({feeItemModel.Name})"
-                                    : feeItemModel.Name.IsNotNullOrWhiteSpace()
-                                        ? feeItemModel.Name
-                                        : feeModel.Name;
-
-                                var cannotAccommodateQuantitySuffix = isFeeUsageAutoReduced
-                                        ? $", but is no longer available{( feeModel.AllowMultiple ? " in the selected quantity" : string.Empty )}"
-                                        : string.Empty;
-
-                                throw new InvalidOperationException( $"{feeDescription} is required{cannotAccommodateQuantitySuffix}." );
                             }
 
                             continue;
@@ -3547,6 +3540,15 @@ namespace Rock.Blocks.Event
 
                         History.EvaluateChange( registrantChanges, feeName + " Cost", registrantFee.Cost, feeItemModel.Cost );
                         registrantFee.Cost = feeItemModel.Cost;
+                    }
+
+                    if ( !hasRequiredFeeItem )
+                    {
+                        var cannotAccommodateQuantitySuffix = isFeeUsageAutoReduced
+                                ? $", but is no longer available{( feeModel.AllowMultiple ? " in the selected quantity" : string.Empty )}"
+                                : string.Empty;
+
+                        throw new InvalidOperationException( $"{feeModel.Name} is required{cannotAccommodateQuantitySuffix}." );
                     }
                 }
             }
