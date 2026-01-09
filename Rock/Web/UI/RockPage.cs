@@ -805,7 +805,7 @@ namespace Rock.Web.UI
             {
                 try
                 {
-                    RequestContext.PrepareRequestForPage( _pageCache );
+                    RequestContext.PrepareRequestForPage( _pageCache, PageReference );
                 }
                 catch
                 {
@@ -1693,7 +1693,7 @@ Rock.settings.initialize({{
                 }
 
                 // Add configuration specific to Rock Page to the observability activity.
-                RockPageHelper.ConfigureActivity( Activity.Current, RequestContext, PageReference, IsPostBack );
+                RockPageHelper.ConfigureActivity( Activity.Current, RequestContext, IsPostBack );
             }
         }
 
