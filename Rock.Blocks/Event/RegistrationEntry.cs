@@ -2688,6 +2688,7 @@ namespace Rock.Blocks.Event
 
             if ( string.IsNullOrWhiteSpace( cleanNumber ) || numberType == null )
             {
+                // TODO: Figure out why phone numbers are prevented from being cleared out here and update comment with "why".
                 return;
             }
 
@@ -4180,12 +4181,107 @@ namespace Rock.Blocks.Event
                 }
             }
 
-            // Determine the starting point. External registration updates are
-            // currently only supported if we are not doing inline signatures.
-            var allowExternalRegistrationUpdates = context.RegistrationSettings.AllowExternalRegistrationUpdates && !context.RegistrationSettings.IsInlineSignatureRequired;
+            /*
+                JMH - 1/9/2026
+
+                Track whether any required fees are missing so the fee selection step is shown to the registrar
+                when necessary. This is critical when a registrant is moved off the waitlist and the registrar
+                must complete the registration and select applicable fees.
+
+                Previously, if a signature document was involved, the block always advanced directly to the
+                final step. This caused required fees to be skipped. The block now prioritizes fee selection,
+                even if it requires the signature document to be re-signed.
+             */
+            var requiredFees = fees.Where( fee => fee.IsRequired ).ToList();
+            var isAnyRequiredFeeMissing = requiredFees.Any( requiredFee =>
+            {
+                var isAnyRegistrantMissingTheRequiredFee = session.Registrants.Any( registrant =>
+                    !registrant.FeeItemQuantities.ContainsKey( requiredFee.Guid )
+                );
+
+                if ( isAnyRegistrantMissingTheRequiredFee )
+                {
+                    return true;
+                }
+
+                var doesAnyRegistrantNotHaveAnyOfTheRequiredFee = session.Registrants.Any( registrant =>
+                    registrant.FeeItemQuantities[requiredFee.Guid] <= 0
+                );
+
+                if ( doesAnyRegistrantNotHaveAnyOfTheRequiredFee )
+                {
+                    return true;
+                }
+
+                return false;
+            } );
+
+            /*
+                JMH - 1/9/2026
+
+                Handle registration fields that are configured to be visible only for non waitlist registrants.
+                When a registrar indicates that registrants are on the waitlist, or when capacity forces them
+                onto the waitlist, these fields are intentionally hidden, regardless of whether they are required,
+                and will have no values.
+
+                If a registrant is later moved off the waitlist, the registrar must be prompted to complete the
+                registration and provide values for any newly visible fields. Previously, if a signature document
+                was present, the block forced the registrar directly to the final step, causing these fields
+                to be skipped. The block now ensures all applicable fields are shown before finalizing, even if
+                this requires the signature document to be re-signed.
+             */
+            var nonWaitListRegistrants = session.Registrants
+                .Where( r => !r.IsOnWaitList )
+                .ToList();
+            var formFieldsShownOnlyToNonWaitListRegistrants = context.RegistrationSettings.Forms
+                .SelectMany( f => f.Fields.Where( ff => !ff.ShowOnWaitlist ) )
+                .ToDictionary( f => f.Guid, f => f );
+            var isAnyFieldShownOnlyToNonWaitListRegistrantsMissingAValue =
+                formFieldsShownOnlyToNonWaitListRegistrants.Any( formField =>
+                    nonWaitListRegistrants.Any( registrant =>
+                    {
+                        var isNonWaitListRegistrantMissingFormFieldShownOnlyToNonWaitListRegistrants =
+                            !registrant.FieldValues.ContainsKey( formField.Key );
+
+                        // If the registrant is missing the field entirely, then we know it's missing.
+                        if ( isNonWaitListRegistrantMissingFormFieldShownOnlyToNonWaitListRegistrants )
+                        {
+                            return true;
+                        }
+
+                        var fieldValue = registrant.FieldValues[formField.Key].ToStringSafe();
+                        var isNonWaitListRegistrantMissingValueForFieldShownOnlyToNonWaitListRegistrants = fieldValue.IsNullOrWhiteSpace();
+
+                        // If the field value is empty, then we know it's missing.
+                        if ( isNonWaitListRegistrantMissingValueForFieldShownOnlyToNonWaitListRegistrants )
+                        {
+                            return true;
+                        }
+
+                        // Some field values are stored as a ListItemBag in JSON format.
+                        // A field with a ListItemBag value is considered empty if its value property is empty.
+                        var fieldValueAsListItemBag = fieldValue.FromJsonOrNull<ListItemBag>();
+                        if ( fieldValueAsListItemBag != null && fieldValueAsListItemBag.Value.IsNullOrWhiteSpace() )
+                        {
+                            return true;
+                        }
+
+                        // This field has a value.
+                        return false;
+                    } )
+                );
+
+            // Determine the starting point. 
+            var allowExternalRegistrationUpdates =
+                // External registration updates are supported if enabled and we are not doing inline signatures...
+                ( context.RegistrationSettings.AllowExternalRegistrationUpdates && !context.RegistrationSettings.IsInlineSignatureRequired )
+                // - OR - if there are any required fees that need to be selected by the registrar (signature doc will need to be signed again, if present)
+                || isAnyRequiredFeeMissing
+                // - OR - if there are any fields that need entry for non-waitlist registrants (signature doc will need to be signed again, if present)
+                || isAnyFieldShownOnlyToNonWaitListRegistrantsMissingAValue;
             var allowRegistrationUpdates = !isExistingRegistration || allowExternalRegistrationUpdates;
-            var startAtBeginning = !isExistingRegistration ||
-                ( allowExternalRegistrationUpdates && PageParameter( PageParameterKey.StartAtBeginning ).AsBoolean() );
+            var startAtBeginning = !isExistingRegistration
+                || ( allowExternalRegistrationUpdates && PageParameter( PageParameterKey.StartAtBeginning ).AsBoolean() );
 
             // Adjust the spots remaining if this is an existing registration. Add to the Spots remaining the number of registrants that are not on the waitlist.
             var adjustedSpotsRemaining = isExistingRegistration && session != null
