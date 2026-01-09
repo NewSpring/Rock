@@ -30,6 +30,8 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
 
         public string IconCssClass { get; set; }
 
+        public string ConnectionTypeIdKey { get; set; }
+
         public List<ConnectionStatusBag> ConnectionStatusBags { get; set; }
 
         public List<ListItemBag> ConnectionOpportunities { get; set; }
@@ -39,6 +41,8 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
         public List<ListItemBag> ConnectionStatuses { get; set; }
 
         public List<ListItemBag> RequestSourceItems { get; set; }
+
+        public ConnectionOpportunityDetailBag ConnectionOpportunityDetailsFromFilter { get; set; }
 
         /// <summary>
         /// Gets or sets the attributes for Connection Request attributes specified at the Connection Type level.

@@ -9,7 +9,7 @@
             {{ errorMessage }}
         </NotificationBox>
 
-        <div class="row">
+        <div class="row" v-if="isNullOrWhiteSpace(connectionOpportunityGuid) || !props.isConnectionOpportunityFilterSelected">
             <div class="col-md-6">
                 <DropDownList v-model="connectionOpportunityGuid"
                               :items="props.options.connectionOpportunities ?? []"
@@ -163,6 +163,11 @@
 
         options: {
             type: Object as PropType<ConnectionsHubOptionsBag>,
+            required: true
+        },
+
+        isConnectionOpportunityFilterSelected: {
+            type: Boolean as PropType<boolean>,
             required: true
         },
 

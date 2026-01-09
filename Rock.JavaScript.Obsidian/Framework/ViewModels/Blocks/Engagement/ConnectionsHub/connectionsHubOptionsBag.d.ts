@@ -21,6 +21,7 @@
 // </copyright>
 //
 
+import { ConnectionOpportunityDetailBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionOpportunityDetailBag";
 import { ConnectionStatusBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionStatusBag";
 import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
 import { PublicAttributeBag } from "@Obsidian/ViewModels/Utility/publicAttributeBag";
@@ -29,11 +30,15 @@ import { PublicAttributeBag } from "@Obsidian/ViewModels/Utility/publicAttribute
 export type ConnectionsHubOptionsBag = {
     connectionOpportunities?: ListItemBag[] | null;
 
+    connectionOpportunityDetailsFromFilter?: ConnectionOpportunityDetailBag | null;
+
     connectionStates?: ListItemBag[] | null;
 
     connectionStatusBags?: ConnectionStatusBag[] | null;
 
     connectionStatuses?: ListItemBag[] | null;
+
+    connectionTypeIdKey?: string | null;
 
     /** Gets or sets the attributes for Connection Request attributes specified at the Connection Type level. */
     connectionTypeRequestAttributes?: Record<string, PublicAttributeBag> | null;

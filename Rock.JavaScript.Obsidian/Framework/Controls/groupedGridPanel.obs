@@ -1,11 +1,11 @@
 <template>
     <Panel v-model:quickFilterValue="internalQuickFilterValue">
-        <template #preFilterHeaderActions>
+        <template #headerActions>
             <HighlightLabel>
                 {{ countMessage }}
             </HighlightLabel>
         </template>
-        <template #headerActions>
+        <template #postFilterHeaderActions>
             <button v-if="panelSettings"
                     type="button"
                     class="btn btn-panel-action"
@@ -23,17 +23,19 @@
             </button>
         </template>
         <template #preBody>
-            <div class="action-toolbar">
-                <RockLabel>Group By</RockLabel>
-                <div class="col-md-3">
-                    <DropDownList v-model="groupingKey"
-                                  :items="groupingFields" />
+            <slot name="preBody">
+                <div class="action-toolbar">
+                    <RockLabel>Group By</RockLabel>
+                    <div class="col-md-3">
+                        <DropDownList v-model="groupingKey"
+                                      :items="groupingFields" />
+                    </div>
                 </div>
-            </div>
+            </slot>
         </template>
         <ContentSectionContainer :sidebar="false">
             <template v-for="group in filteredGroups" :key="`${selectedGrouping}-${group.key}`">
-                <ContentSection :isCollapsed="group.key === ''">
+                <ContentSection :isCollapsed="group.key === 'unassigned'">
                     <template #title>
                         <div class="d-flex align-items-center">
                             <template v-if="group.type === 'person' && group.person">
@@ -56,7 +58,7 @@
                     </template>
                     <ContentStack>
                         <slot name="grid"
-                              v-bind="{ groupGridData: group.gridData }" />
+                              v-bind="{ group }" />
                     </ContentStack>
                 </ContentSection>
             </template>
@@ -191,6 +193,7 @@
                     gridData: { rows }
                 };
             })
+            .orderBy(g => g.key === "unassigned" ? 0 : 1)
             .toArray();
     });
 

@@ -5,14 +5,14 @@
                    showCampus>
         <template #default>
             <DropDownList v-model="selectedOpportunity"
-                          :items="connectionOpportunities"
+                          :items="box.options?.connectionOpportunities ?? []"
                           blankValue="All Opportunities" />
         </template>
     </ContextSlicer>
 
     <GroupedGridPanel v-model:quickFilterValue="quickFilterValue"
-                      :title="config.options?.title ?? ''"
-                      :titleIconCssClass="`${config.options?.iconCssClass ?? ''} panel-icon`"
+                      :title="box.options?.title ?? ''"
+                      :titleIconCssClass="`${box.options?.iconCssClass ?? ''} panel-icon`"
                       :rows="gridData?.rows ?? []"
                       :filteredRows="filteredRows"
                       :groupingKey="selectedGrouping"
@@ -21,6 +21,35 @@
                       hasFullscreen
                       panelSettings
                       :onAddItem="onAddItem">
+        <template #preBody v-if="hasAnySelectedKeys">
+            <div class="py-spacing-xs px-spacing-lg bg-info-soft border-bottom d-flex align-items-center justify-content-between">
+                <div class="d-flex align-items-center gap-lg">
+                    <div class="d-flex align-items-center gap-tiny">
+                        <RockLabel class="text-info-strong">Selected</RockLabel>
+                        <Badge class="bg-info-strong">{{ allSelectedKeys.length }}</Badge>
+                    </div>
+                    <DropDownList v-model="selectedAction"
+                                  :items="actionItems"
+                                  :showBlankItem="false" />
+                    <!-- TODO - Should this only be displayed when we are reassigning? -->
+                    <div class="d-flex align-items-center gap-xs">
+                        <div class="d-flex align-items-center gap-xs">
+                            <RockLabel class="text-info-strong">Assign To: </RockLabel>
+                            <DropDownList v-model="assignTo"
+                                          :items="assignToItems"
+                                          :showBlankItem="false" />
+                        </div>
+                        <RockButton class="bg-info-strong text-interface-softest">
+                            Save
+                        </RockButton>
+                    </div>
+                </div>
+                <div class="border-left border-info pl-spacing-md">
+                    <RockButton>SMS</RockButton>
+                    <RockButton>Email</RockButton>
+                </div>
+            </div>
+        </template>
         <template #headerActions="{ groupRows }">
             <HighlightLabel labelType="warning">
                 {{ getDueSoonCount(groupRows) }} Due Soon
@@ -29,9 +58,9 @@
                 {{ getOverdueCount(groupRows) }} Overdue
             </HighlightLabel>
         </template>
-        <template #grid="{ groupGridData }">
-            <Grid :definition="config.gridDefinition ?? undefined"
-                  :data="groupGridData"
+        <template #grid="{ group }">
+            <Grid :definition="box.gridDefinition ?? undefined"
+                  :data="group.gridData"
                   keyField="idKey"
                   liveUpdates
                   :isTitleHidden="true"
@@ -41,7 +70,8 @@
                   :showMergeTemplate="false"
                   :isCountMessageVisible="false"
                   :hideFilterHeaderRow="true"
-                  light>
+                  light
+                  @selectedKeysChanged="state => onSelectedKeysChanged(group.key, state)">
 
                 <SelectColumn />
 
@@ -166,9 +196,10 @@
 
     <AddConnectionRequestModalPartial v-model="newConnectionRequest"
                                       v-model:visible="isAddConnectionRequestModalVisible"
-                                      :options="config.options ?? {}"
+                                      :options="box.options ?? {}"
                                       :connectionOpportunityDetails="connectionOpportunityDetails"
                                       :placementGroupDetails="placementGroupDetails"
+                                      :isConnectionOpportunityFilterSelected="hasSelectedOpportunity"
                                       @fetchConnectionOpportunityDetails="fetchConnectionOpportunityDetails"
                                       @fetchPlacementGroupDetails="fetchPlacementGroupDetails" />
 </template>
@@ -199,6 +230,22 @@
     gap: 2px;
 }
 
+.gap-tiny {
+    gap: var(--spacing-tiny)
+}
+
+.gap-xs {
+    gap: var(--spacing-xsmall);
+}
+
+.gap-lg {
+    gap: var(--spacing-large);
+}
+
+.ddl-min-width {
+    min-width: 150px;
+}
+
 .activity-date {
     color: var(--color-interface-strong);
 }
@@ -209,7 +256,7 @@
 </style>
 
 <script setup lang="ts">
-    import { useBlockBrowserBus, useConfigurationValues, useInvokeBlockAction } from "@Obsidian/Utility/block";
+    import { useBlockBrowserBus, useConfigurationValues, useInvokeBlockAction, usePersonPreferences } from "@Obsidian/Utility/block";
     import { GridDataBag } from "@Obsidian/ViewModels/Core/Grid/gridDataBag";
     import { computed, reactive, ref, watch } from "vue";
     import { ListBlockBox } from "@Obsidian/ViewModels/Blocks/listBlockBox";
@@ -229,21 +276,27 @@
     import { ContextEntityChangedData, Message } from "@Obsidian/Types/Utility/browserBus";
     import { useContextEntities } from "@Obsidian/Core/Utilities/contextEntity";
     import { PageMessages } from "@Obsidian/Utility/browserBus";
-    import { areEqual } from "@Obsidian/Utility/guid";
+    import { areEqual, toGuidOrNull } from "@Obsidian/Utility/guid";
     import { EntityType } from "@Obsidian/SystemGuids/entityType";
     import { ConnectionRequestBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionRequestBag";
     import { ConnectionOpportunityDetailBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionOpportunityDetailBag";
     import { PlacementGroupDetailsBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/placementGroupDetailsBag";
     import { PublicAttributeBag } from "@Obsidian/ViewModels/Utility/publicAttributeBag";
     import { ValidPropertiesBox } from "@Obsidian/ViewModels/Utility/validPropertiesBox";
+    import { PreferenceKey } from "./ConnectionsHub/types.partial";
+    import { IGridState } from "@Obsidian/Types/Controls/grid";
+    import RockLabel from "@Obsidian/Controls/rockLabel.obs";
+    import Badge from "@Obsidian/Controls/badge.obs";
+    import RockButton from "@Obsidian/Controls/rockButton.obs";
 
     /* =====================================================
      * Configuration & Data Loading
      * ===================================================== */
 
-    const config = useConfigurationValues<ListBlockBox<ConnectionsHubOptionsBag>>();
-    console.log("Config: ", config);
+    const box = useConfigurationValues<ListBlockBox<ConnectionsHubOptionsBag>>();
+    console.log("box: ", box);
     const invokeBlockAction = useInvokeBlockAction();
+    const preferences = usePersonPreferences().blockPreferences;
     const browserBus = useBlockBrowserBus();
     const contextEntities = useContextEntities();
 
@@ -254,13 +307,42 @@
     });
 
     const selectedGrouping = ref<string>("connectorGrouping");
-    const selectedOpportunity = ref();
-    const connectionOpportunities = ref();
+    const internalSelectedOpportunity = ref(preferences.getValue(getConnectionOpportunityFilterKey()));
 
-    const newConnectionRequest = ref<ValidPropertiesBox<ConnectionRequestBag>>({ bag: {} as ConnectionRequestBag });
+    const newConnectionRequest = ref<ValidPropertiesBox<ConnectionRequestBag>>({ bag: { connectionOpportunityGuid: internalSelectedOpportunity.value } as ConnectionRequestBag });
     const isAddConnectionRequestModalVisible = ref(false);
-    const connectionOpportunityDetails = ref<ConnectionOpportunityDetailBag>();
+    const connectionOpportunityDetails = ref<ConnectionOpportunityDetailBag>(box.options?.connectionOpportunityDetailsFromFilter ?? {});
     const placementGroupDetails = ref<PlacementGroupDetailsBag>();
+    const selectedKeys = ref<Record<string, string[]>>({});
+    const selectedAction = ref();
+
+    const assignTo = ref();
+    const assignToItems = [
+        {
+            text: "Ted Decker",
+            value: "Ted Decker"
+        },
+        {
+            text: "VeryLongFirstName Decker",
+            value: "VeryLongFirstName Decker"
+        },
+    ];
+
+    // TODO Change items based on sequential mode.
+    const actionItems = [
+        {
+            text: "Reassign",
+            value: "Reassign"
+        },
+        {
+            text: "Change Status",
+            value: "Change Status"
+        },
+        {
+            text: "Reassign",
+            value: "reassign"
+        },
+    ];
 
     // Holds the raw grid data returned from the server
     const gridData = ref<GridDataBag>();
@@ -276,6 +358,19 @@
 
         throw new Error(result.errorMessage ?? "Error loading grid data.");
     }
+
+    // Computed setter normalizes v-model updates so the dropdown’s blank "All Opportunities" value is never stored in component state.
+    const selectedOpportunity = computed({
+        get: () => internalSelectedOpportunity.value,
+        set: value => {
+            internalSelectedOpportunity.value = toGuidOrNull(value) ?? "";
+        }
+    });
+
+    const hasSelectedOpportunity = computed(() => !isNullOrWhiteSpace(selectedOpportunity.value));
+
+    const allSelectedKeys = computed(() => Object.values(selectedKeys.value).flat());
+    const hasAnySelectedKeys = computed(() => allSelectedKeys.value.length > 0);
 
     const filteredRows = computed(() => {
         if (!gridData.value?.rows) {
@@ -395,6 +490,18 @@
         ).length;
     }
 
+    /**
+     * Gets the preference key for the connection opportunity filter.
+     *
+     * @returns The connection opportunity filter preference key.
+     */
+    function getConnectionOpportunityFilterKey(): string {
+        if (box.options?.connectionTypeIdKey) {
+            return PreferenceKey.ConnectionmOpportunityFilterConnectionTypeIdKey.replace("{0}", box.options.connectionTypeIdKey);
+        }
+        return "";
+    }
+
     function toNullableString(value: unknown): string | null {
         return isNullOrWhiteSpace(value) ? null : value as string;
     }
@@ -411,6 +518,18 @@
         isAddConnectionRequestModalVisible.value = true;
     }
 
+    /**
+     * Called when the individual changes which rows are selected.
+     *
+     * @param state The state object that describes the grid.
+     */
+    function onSelectedKeysChanged(key: string | null | undefined, state: IGridState): void {
+        if (!key) {
+            return;
+        }
+        selectedKeys.value[key] = [...state.selectedKeys];
+    }
+
     async function fetchConnectionOpportunityDetails(connectionOpportunityGuid: string): Promise<void> {
         const result = await invokeBlockAction<ConnectionOpportunityDetailBag>("FetchConnectionOpportunityDetails", {
             connectionOpportunityGuid: connectionOpportunityGuid
@@ -420,7 +539,7 @@
             connectionOpportunityDetails.value = result.data;
         }
         else {
-            connectionOpportunityDetails.value = undefined;
+            connectionOpportunityDetails.value = {};
         }
     }
 
@@ -449,6 +568,19 @@
 
         console.error(result.errorMessage);
     }
+
+    watch(selectedOpportunity, async () => {
+        preferences.setValue(getConnectionOpportunityFilterKey(), selectedOpportunity.value);
+
+        await preferences.save();
+
+        newConnectionRequest.value.bag = {
+            connectionOpportunityGuid: selectedOpportunity.value
+        };
+        await fetchConnectionOpportunityDetails(selectedOpportunity.value);
+
+        loadGridData();
+    });
 
     watch(newConnectionRequest, () => {
         saveNewConnectionRequest();
