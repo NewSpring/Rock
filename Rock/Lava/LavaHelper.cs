@@ -43,7 +43,6 @@ namespace Rock.Lava
     public static class LavaHelper
     {
         /// <summary>
-        /// <summary>
         /// This is used by <see cref="IsLavaProperty(PropertyInfo)"/> method
         /// to cache information calculated about a property. Since there is really
         /// no sane way for an existing type to have it's attributes modified

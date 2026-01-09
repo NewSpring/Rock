@@ -843,9 +843,22 @@ namespace Rock.Data
 
                     using ( var activity = ObservabilityHelper.StartActivity( "Processing Change Monitors" ) )
                     {
+                        var hasTriggers = false;
+
                         foreach ( var item in updatedItems )
                         {
-                            Core.Automation.Triggers.EntityChangeMonitor.ProcessEntity( item );
+                            if ( Core.Automation.Triggers.EntityChangeMonitor.ProcessEntity( item ) )
+                            {
+                                hasTriggers = true;
+                            }
+                        }
+
+                        // If we don't have any triggers then don't record the
+                        // activity since it will just add noise to record the
+                        // few nanoseconds that have elapsed.
+                        if ( activity != null && !hasTriggers )
+                        {
+                            activity.IsAllDataRequested = false;
                         }
                     }
 
