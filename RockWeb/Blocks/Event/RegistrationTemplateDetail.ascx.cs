@@ -56,7 +56,6 @@ namespace RockWeb.Blocks.Event
         Key = AttributeKey.DefaultConfirmationEmail,
         Description = "The default Confirmation Email Template value to use for a new template",
         EditorMode = CodeEditorMode.Lava,
-        EditorTheme = CodeEditorTheme.Rock,
         EditorHeight = 300,
         IsRequired = false,
         Order = 1,
@@ -162,7 +161,6 @@ namespace RockWeb.Blocks.Event
         Key = AttributeKey.DefaultReminderEmail,
         Description = "The default Reminder Email Template value to use for a new template",
         EditorMode = CodeEditorMode.Lava,
-        EditorTheme = CodeEditorTheme.Rock,
         EditorHeight = 300,
         IsRequired = false,
         Order = 2,
@@ -230,7 +228,6 @@ namespace RockWeb.Blocks.Event
         Key = AttributeKey.DefaultSuccessText,
         Description = "The success text default to use for a new template",
         EditorMode = CodeEditorMode.Lava,
-        EditorTheme = CodeEditorTheme.Rock,
         EditorHeight = 300,
         IsRequired = false,
         Order = 3,
@@ -326,7 +323,6 @@ namespace RockWeb.Blocks.Event
         Key = AttributeKey.DefaultPaymentReminderEmail,
         Description = "The default Payment Reminder Email Template value to use for a new template",
         EditorMode = CodeEditorMode.Lava,
-        EditorTheme = CodeEditorTheme.Rock,
         EditorHeight = 300,
         IsRequired = false,
         Order = 4,
@@ -387,7 +383,6 @@ namespace RockWeb.Blocks.Event
         Key = AttributeKey.DefaultWaitListTransitionEmail,
         Description = "The default Wait List Transition Email Template value to use for a new template",
         EditorMode = CodeEditorMode.Lava,
-        EditorTheme = CodeEditorTheme.Rock,
         EditorHeight = 300,
         IsRequired = false,
         Order = 5,
@@ -1072,10 +1067,8 @@ The logged-in person's information will be used to complete the registrar inform
                 registrationTemplate = registrationTemplateService.Get( registrationTemplateId.Value );
             }
 
-            var newTemplate = false;
             if ( registrationTemplate == null )
             {
-                newTemplate = true;
                 registrationTemplate = new RegistrationTemplate();
             }
 
