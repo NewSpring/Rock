@@ -15,5 +15,6 @@
 // </copyright>
 
 export const enum PreferenceKey {
-    ConnectionmOpportunityFilterConnectionTypeIdKey = "ConnectionOpportunityFilter_ConnectionTypeIdKey_{0}"
+    ConnectionmOpportunityFilterConnectionTypeIdKey = "ConnectionOpportunityFilter_ConnectionTypeIdKey_{0}",
+    SelectedGroupByMode = "SelectedGroupByMode"
 }

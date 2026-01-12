@@ -15,7 +15,6 @@ using Rock.Utility;
 using System;
 using Rock.ViewModels.Utility;
 using Rock.Security;
-using Rock.ViewModels.Blocks.Engagement.StepTypeDetail;
 using System.Collections.Generic;
 using Rock.Data;
 using Newtonsoft.Json;
@@ -56,6 +55,7 @@ namespace Rock.Blocks.Engagement
         private static class PreferenceKey
         {
             public const string ConnectionmOpportunityFilterConnectionTypeIdKey = "ConnectionOpportunityFilter_ConnectionTypeIdKey_{0}";
+            public const string SelectedGroupByMode = "SelectedGroupByMode";
         }
 
         #endregion Keys
@@ -110,6 +110,30 @@ namespace Rock.Blocks.Engagement
             // When we are in add mode then we ignore "Connected". This will need to be updated if this list is used elsewhere.
             ignoredConnectionStates.Add( ConnectionState.Connected );
 
+            var connectors = connectionType.ConnectionOpportunities
+                .SelectMany( o => o.ConnectionOpportunityConnectorGroups )
+                .SelectMany( g => g.ConnectorGroup.Members )
+                .DistinctBy( m => m.Person.PrimaryAlias.Guid )
+                .Select( m => new ListItemBag
+                {
+                    Value = m.Person.PrimaryAlias.Guid.ToString(),
+                    Text = m.Person.FullName
+                } )
+                .ToList();
+
+            var currentPersonAliasGuid = RequestContext.CurrentPerson.PrimaryAlias?.Guid;
+
+            // Add current person to the connector list to mirror Webforms
+            if ( currentPersonAliasGuid.HasValue && !connectors.Any( c => c.Value == currentPersonAliasGuid.Value.ToString() ) )
+            {
+                connectors.Add( new ListItemBag
+                {
+                    Text = RequestContext.CurrentPerson.FullName,
+                    Value = currentPersonAliasGuid.Value.ToString()
+                } );
+            }
+
+            options.AllPossibleConnectors = connectors;
             options.ConnectionOpportunities = connectionType.ConnectionOpportunities.ToListItemBagList();
             options.ConnectionStates = typeof( ConnectionState )
                 .ToEnumListItemBag()
@@ -418,6 +442,49 @@ namespace Rock.Blocks.Engagement
             return JsonConvert.SerializeObject( values, Formatting.None );
         }
 
+        private bool CanUpdateConnectionRequest( List<int> connectionRequestIds, ConnectionTypeCache connectionType, out List<ConnectionRequest> connectionRequests )
+        {
+            var userCanEditConnectionRequest = false;
+            var connectionOpportunityFilter = GetConnectionOpportunityFilter( connectionType.IdKey );
+            connectionRequests = null;
+
+            List<ConnectionOpportunity> connectionOpportunities = new List<ConnectionOpportunity>();
+            if ( connectionOpportunityFilter.HasValue )
+            {
+                var connectionOpportunity = new ConnectionOpportunityService( RockContext ).Get( connectionOpportunityFilter.Value );
+                connectionOpportunities.Add( connectionOpportunity );
+            }
+            else
+            {
+                // TODO - Check with Observability, this sql might be ugly. Potentially query for Connection Opportunities from Connection Requests first.
+                // Get all the Connection Opportunities that have any of the Connection Requests in them.
+                connectionOpportunities = new ConnectionOpportunityService( RockContext )
+                    .Queryable()
+                    .Where( o =>
+                        o.ConnectionTypeId == connectionType.Id &&
+                        o.ConnectionRequests.Any( r => connectionRequestIds.Contains( r.Id ) ) )
+                    .ToList();
+            }
+
+            if ( connectionType != null && connectionType.EnableRequestSecurity )
+            {
+                connectionRequests = new ConnectionRequestService( RockContext ).GetByIds( connectionRequestIds ).ToList();
+                userCanEditConnectionRequest = connectionRequests.All( cr => cr.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson ) );
+            }
+            else
+            {
+                userCanEditConnectionRequest = connectionOpportunities.All( co => co.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson ) );
+            }
+
+            // TODO - Mirroring Webforms logic where we will check by Connector Groups if user can't already edit.
+            //if ( !userCanEditConnectionRequest )
+            //{
+            //    var campuses = CampusCache.All().Where( c => c.IsActive ?? true ).ToList();
+            //}
+
+            return userCanEditConnectionRequest;
+        }
+
         #endregion Methods
 
         #region Block Actions
@@ -711,6 +778,57 @@ namespace Rock.Blocks.Engagement
                 RockContext.SaveChanges();
                 entity.SaveAttributeValues( RockContext );
             } );
+
+            return ActionOk();
+        }
+
+        [BlockAction]
+        public BlockActionResult ReassignConnector( List<string> connectionRequestIdKeys, string connectorPersonAliasGuid )
+        {
+            var connectionType = ConnectionTypeCache.Get( PageParameter( PageParameterKey.ConnectionType ), !PageCache.Layout.Site.DisablePredictableIds );
+            if ( connectionType == null )
+            {
+                // TODO - determine if we throw an exception
+                return ActionOk();
+            }
+
+            var connectionRequestIds = connectionRequestIdKeys
+                .Select( key => Rock.Utility.IdHasher.Instance.GetId( key ) )
+                .Where( id => id.HasValue )
+                .Select( id => id.Value )
+                .ToList();
+
+            List<ConnectionRequest> connectionRequests = null;
+
+            RockContext.SqlLogging( true );
+
+            var canUpdateRequest = CanUpdateConnectionRequest( connectionRequestIds, connectionType, out connectionRequests );
+
+            if ( !canUpdateRequest )
+            {
+                return ActionBadRequest( "Not authorized to reassign connector for one or more selected connection requests." );
+            }
+
+            var newConnectorPersonAliasId = new PersonAliasService( RockContext ).GetId( connectorPersonAliasGuid.AsGuid() );
+            if ( !newConnectorPersonAliasId.HasValue )
+            {
+                return ActionBadRequest( "Invalid connector." );
+            }
+
+            if ( connectionRequests == null )
+            {
+                connectionRequests = new ConnectionRequestService( RockContext ).GetByIds( connectionRequestIds ).ToList();
+            }
+
+            // Can't use Bulk Update becase we need the Save Hook logic to run.
+            foreach ( var connectionRequest in connectionRequests )
+            {
+                connectionRequest.ConnectorPersonAliasId = newConnectorPersonAliasId.Value;
+            }
+
+            RockContext.SaveChanges();
+
+            RockContext.SqlLogging( false );
 
             return ActionOk();
         }

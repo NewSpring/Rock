@@ -28,6 +28,8 @@ import { PublicAttributeBag } from "@Obsidian/ViewModels/Utility/publicAttribute
 
 /** The additional configuration options for the Connections Hub block. */
 export type ConnectionsHubOptionsBag = {
+    allPossibleConnectors?: ListItemBag[] | null;
+
     connectionOpportunities?: ListItemBag[] | null;
 
     connectionOpportunityDetailsFromFilter?: ConnectionOpportunityDetailBag | null;

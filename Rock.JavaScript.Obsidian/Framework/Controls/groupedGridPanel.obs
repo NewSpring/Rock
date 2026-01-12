@@ -24,7 +24,7 @@
         </template>
         <template #preBody>
             <slot name="preBody">
-                <div class="action-toolbar">
+                <div class="py-spacing-xs px-spacing-lg border-bottom d-flex align-items-center">
                     <RockLabel>Group By</RockLabel>
                     <div class="col-md-3">
                         <DropDownList v-model="groupingKey"
@@ -58,7 +58,7 @@
                     </template>
                     <ContentStack>
                         <slot name="grid"
-                              v-bind="{ group }" />
+                              v-bind="{ group, setGridRef }" />
                     </ContentStack>
                 </ContentSection>
             </template>
@@ -66,24 +66,10 @@
     </Panel>
 </template>
 
-<style scoped>
-.action-toolbar {
-    display: flex;
-    align-items: center;
-    height: 62px;
-    padding: var(--spacing-tiny) var(--spacing-large);
-    border-bottom: 1px solid var(--color-interface-soft);
-}
-
-.action-toolbar .control-label {
-    font-size: var(--font-size-xsmall);
-    font-weight: var(--font-weight-bold);
-    color: var(--color-interface-stronger);
-}
-</style>
+<style scoped></style>
 
 <script setup lang="ts">
-    import { computed, ref, watch, PropType } from "vue";
+    import { computed, ref, watch, PropType, ComponentPublicInstance } from "vue";
     import PersonAvatar from "./personAvatar.obs";
     import ContentSectionContainer from "./contentSectionContainer.obs";
     import ContentSection from "./contentSection.obs";
@@ -100,7 +86,7 @@
     import { useVModelPassthrough } from "@Obsidian/Utility/component";
 
     const props = defineProps({
-        selectedGrouping: {
+        groupingKey: {
             type: String,
             default: ""
         },
@@ -144,11 +130,54 @@
 
     const emit = defineEmits([
         "update:quickFilterValue",
+        "update:groupingKey",
         "panelSettingsClick"
     ]);
 
     const internalQuickFilterValue = useVModelPassthrough(props, "quickFilterValue", emit);
-    const groupingKey = ref(props.selectedGrouping);
+    const groupingKey = useVModelPassthrough(props, "groupingKey", emit);
+
+    //TODO - Determine if this is the correct spot for the interface
+    // interface IClearableGrid {
+    //     clearSelectedKeys: () => void;
+    // }
+
+    // const registeredGrids = new Set<IClearableGrid>();
+
+    // function setGridRef(el: IClearableGrid): void {
+    //     if (el) {
+    //         registeredGrids.add(el);
+    //     }
+    // }
+
+    // function clearSelectedKeys(): void {
+    //     registeredGrids.forEach(grid => {
+    //         grid.clearSelectedKeys();
+    //     });
+    // }
+
+    // Temporary hack
+    type ClearableGridInstance = ComponentPublicInstance<{ clearSelectedKeys: () => void }>;
+
+    const registeredGrids = new Set<ClearableGridInstance>();
+
+    function setGridRef(el: Element | ComponentPublicInstance | null): void {
+        if (el && typeof el === "object" && "clearSelectedKeys" in el) {
+            registeredGrids.add(el as ClearableGridInstance);
+        }
+    }
+
+    function clearSelectedKeys(): void {
+        registeredGrids.forEach(grid => {
+            grid.clearSelectedKeys();
+        });
+    }
+
+    defineExpose({
+        clearSelectedKeys
+    });
+
+
 
     const totalGroupCounts = computed(() => {
         const map = new Map<string, number>();
@@ -243,9 +272,4 @@
     function onPanelSettingsClick(): void {
         emit("panelSettingsClick");
     }
-
-    // watch(groups, () => {
-    //     console.log("Updating groupedGrid count.");
-    //     updateCountMessage();
-    // });
 </script>

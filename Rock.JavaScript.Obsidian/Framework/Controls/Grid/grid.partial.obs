@@ -599,7 +599,8 @@
     defineExpose({
         deleteRow,
         rowUpdated,
-        rowsUpdated
+        rowsUpdated,
+        clearSelectedKeys
     });
 
     // #endregion
@@ -1834,6 +1835,13 @@
         selectedRowCount.value = gridState.selectedKeys.length;
 
         emit("selectedKeysChanged", gridState);
+    }
+
+    /**
+     * Clears all selected keys
+     */
+    function clearSelectedKeys(): void {
+        gridState.selectedKeys = [];
     }
 
     /**

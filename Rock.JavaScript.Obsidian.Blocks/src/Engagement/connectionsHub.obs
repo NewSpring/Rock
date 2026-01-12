@@ -11,11 +11,12 @@
     </ContextSlicer>
 
     <GroupedGridPanel v-model:quickFilterValue="quickFilterValue"
+                      v-model:groupingKey="selectedGrouping"
+                      ref="groupedGridPanel"
                       :title="box.options?.title ?? ''"
                       :titleIconCssClass="`${box.options?.iconCssClass ?? ''} panel-icon`"
                       :rows="gridData?.rows ?? []"
                       :filteredRows="filteredRows"
-                      :groupingKey="selectedGrouping"
                       :groupingFields="groupingFields"
                       itemTerm="Request"
                       hasFullscreen
@@ -30,13 +31,16 @@
                     </div>
                     <DropDownList v-model="selectedAction"
                                   :items="actionItems"
+                                  inputClasses="dropdown-min-width"
                                   :showBlankItem="false" />
                     <!-- TODO - Should this only be displayed when we are reassigning? -->
                     <div class="d-flex align-items-center gap-xs">
                         <div class="d-flex align-items-center gap-xs">
                             <RockLabel class="text-info-strong">Assign To: </RockLabel>
                             <DropDownList v-model="assignTo"
-                                          :items="assignToItems"
+                                          :items="allPossibleConnectors"
+                                          enhanceForLongLists
+                                          inputClasses="dropdown-min-width"
                                           :showBlankItem="false" />
                         </div>
                         <RockButton class="bg-info-strong text-interface-softest">
@@ -44,9 +48,18 @@
                         </RockButton>
                     </div>
                 </div>
-                <div class="border-left border-info pl-spacing-md">
-                    <RockButton>SMS</RockButton>
-                    <RockButton>Email</RockButton>
+                <div class="d-flex align-items-center gap-md">
+                    <div class="border-left border-info pl-spacing-md d-flex align-items-center gap-xs">
+                        <RockButton @click="showSMSModal"><i class="ti ti-message-circle-plus pr-spacing-tiny"></i>SMS</RockButton>
+                        <RockButton @click="showEmailModal"><i class="ti ti-mail-plus pr-spacing-tiny"></i>Email</RockButton>
+                    </div>
+                    <div class="border-left border-info pl-spacing-md d-flex align-items-center gap-md">
+                        <RockButton><i class="ti ti-plus pr-spacing-tiny"></i>Log Activity</RockButton>
+                        <div class="d-flex align-items-center gap-sm">
+                            <i class="ti ti-dots-vertical"></i>
+                            <i class="ti ti-x cursor-pointer" @click="clearAllSelections"></i>
+                        </div>
+                    </div>
                 </div>
             </div>
         </template>
@@ -58,8 +71,9 @@
                 {{ getOverdueCount(groupRows) }} Overdue
             </HighlightLabel>
         </template>
-        <template #grid="{ group }">
+        <template #grid="{ group, setGridRef }">
             <Grid :definition="box.gridDefinition ?? undefined"
+                  :ref="setGridRef"
                   :data="group.gridData"
                   keyField="idKey"
                   liveUpdates
@@ -194,14 +208,19 @@
         </template>
     </GroupedGridPanel>
 
-    <AddConnectionRequestModalPartial v-model="newConnectionRequest"
-                                      v-model:visible="isAddConnectionRequestModalVisible"
-                                      :options="box.options ?? {}"
-                                      :connectionOpportunityDetails="connectionOpportunityDetails"
-                                      :placementGroupDetails="placementGroupDetails"
-                                      :isConnectionOpportunityFilterSelected="hasSelectedOpportunity"
-                                      @fetchConnectionOpportunityDetails="fetchConnectionOpportunityDetails"
-                                      @fetchPlacementGroupDetails="fetchPlacementGroupDetails" />
+    <AddConnectionRequestModal v-model="newConnectionRequest"
+                               v-model:visible="isAddConnectionRequestModalVisible"
+                               :options="box.options ?? {}"
+                               :connectionOpportunityDetails="connectionOpportunityDetails"
+                               :placementGroupDetails="placementGroupDetails"
+                               :isConnectionOpportunityFilterSelected="hasSelectedOpportunity"
+                               @fetchConnectionOpportunityDetails="fetchConnectionOpportunityDetails"
+                               @fetchPlacementGroupDetails="fetchPlacementGroupDetails" />
+
+    <SendSMSModal v-model:visible="isSendSMSModalVisible"
+                  :selectedKeys="allSelectedKeys" />
+    <SendEmailModal v-model:visible="isSendEmailModalVisible"
+                    :selectedKeys="allSelectedKeys" />
 </template>
 
 <style>
@@ -231,11 +250,19 @@
 }
 
 .gap-tiny {
-    gap: var(--spacing-tiny)
+    gap: var(--spacing-tiny);
 }
 
 .gap-xs {
     gap: var(--spacing-xsmall);
+}
+
+.gap-sm {
+    gap: var(--spacing-small);
+}
+
+.gap-md {
+    gap: var(--spacing-medium);
 }
 
 .gap-lg {
@@ -252,6 +279,10 @@
 
 .activity-count {
     color: var(--color-interface-medium);
+}
+
+:deep(.dropdown-min-width) {
+    min-width: var(--vs-dropdown-min-width);
 }
 </style>
 
@@ -270,7 +301,7 @@
     import { RockDateTime } from "@Obsidian/Utility/rockDateTime";
     import { tooltip } from "@Obsidian/Utility/tooltip";
     import { DueStatus } from "@Obsidian/Enums/Connection/dueStatus";
-    import AddConnectionRequestModalPartial from "./ConnectionsHub/addConnectionRequestModal.partial.obs";
+    import AddConnectionRequestModal from "./ConnectionsHub/addConnectionRequestModal.partial.obs";
     import { PersonFieldBag } from "@Obsidian/ViewModels/Core/Grid/personFieldBag";
     import ContextSlicer from "@Obsidian/Controls/contextSlicer.obs";
     import { ContextEntityChangedData, Message } from "@Obsidian/Types/Utility/browserBus";
@@ -288,6 +319,8 @@
     import RockLabel from "@Obsidian/Controls/rockLabel.obs";
     import Badge from "@Obsidian/Controls/badge.obs";
     import RockButton from "@Obsidian/Controls/rockButton.obs";
+    import SendEmailModal from "./ConnectionsHub/sendEmailModal.partial.obs";
+    import SendSMSModal from "./ConnectionsHub/sendSMSModal.partial.obs";
 
     /* =====================================================
      * Configuration & Data Loading
@@ -306,7 +339,7 @@
         }
     });
 
-    const selectedGrouping = ref<string>("connectorGrouping");
+    const selectedGrouping = ref<string>(preferences.getValue(PreferenceKey.SelectedGroupByMode));
     const internalSelectedOpportunity = ref(preferences.getValue(getConnectionOpportunityFilterKey()));
 
     const newConnectionRequest = ref<ValidPropertiesBox<ConnectionRequestBag>>({ bag: { connectionOpportunityGuid: internalSelectedOpportunity.value } as ConnectionRequestBag });
@@ -316,17 +349,13 @@
     const selectedKeys = ref<Record<string, string[]>>({});
     const selectedAction = ref();
 
+    const groupedGridPanel = ref();
+
+    const isSendSMSModalVisible = ref(false);
+    const isSendEmailModalVisible = ref(false);
+
     const assignTo = ref();
-    const assignToItems = [
-        {
-            text: "Ted Decker",
-            value: "Ted Decker"
-        },
-        {
-            text: "VeryLongFirstName Decker",
-            value: "VeryLongFirstName Decker"
-        },
-    ];
+    const allPossibleConnectors = ref(box.options?.allPossibleConnectors ?? []);
 
     // TODO Change items based on sequential mode.
     const actionItems = [
@@ -530,6 +559,24 @@
         selectedKeys.value[key] = [...state.selectedKeys];
     }
 
+    function showSMSModal(): void {
+        isSendSMSModalVisible.value = true;
+    }
+
+    function showEmailModal(): void {
+        isSendEmailModalVisible.value = true;
+    }
+
+    function clearAllSelections() {
+        console.log("clearing: ", groupedGridPanel.value);
+        groupedGridPanel.value.clearSelectedKeys();
+        // gridRefs.value.forEach(grid => {
+        //     console.log("clearning for grid: ", grid);
+        //     grid.clearSelectedKeys();
+        // });
+    }
+
+
     async function fetchConnectionOpportunityDetails(connectionOpportunityGuid: string): Promise<void> {
         const result = await invokeBlockAction<ConnectionOpportunityDetailBag>("FetchConnectionOpportunityDetails", {
             connectionOpportunityGuid: connectionOpportunityGuid
@@ -584,6 +631,12 @@
 
     watch(newConnectionRequest, () => {
         saveNewConnectionRequest();
+    });
+
+    watch(selectedGrouping, async () => {
+        preferences.setValue(PreferenceKey.SelectedGroupByMode, selectedGrouping.value);
+
+        await preferences.save();
     });
 
     loadGridData();
