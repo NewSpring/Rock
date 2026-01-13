@@ -333,6 +333,11 @@ namespace Rock.SystemGuid
         public const string UPDATE_MEDIA_ELEMENT_USAGE = "32d0cb70-d4ef-4ac2-8693-bfdfe9e5233e";
 
         /// <summary>
+        /// The <see cref="Rock.Jobs.UpdateOutreachToolboxTouchpoints"/> job.
+        /// </summary>
+        public const string UPDATE_OUTREACH_TOOLBOX_TOUCHPOINTS = "06320140-a5ff-46fa-9ee5-41f747bbc542";
+
+        /// <summary>
         /// The <see cref="Rock.Jobs.UpdatePersistedAttributeValues">Update Persisted Attribute Values</see> job.
         /// </summary>
         public const string UPDATE_PERSISTED_ATTRIBUTE_VALUE = "A7DDA4B0-BA1D-49F1-8749-5E7A9876AE70";
