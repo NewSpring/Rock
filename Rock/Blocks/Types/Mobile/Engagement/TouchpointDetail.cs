@@ -348,6 +348,28 @@ namespace Rock.Blocks.Types.Mobile.Engagement
         }
 
         /// <summary>
+        /// Updates touchpoint scheduled date.
+        /// </summary>
+        /// <param name="idKey"></param>
+        /// <param name="scheduleDate"></param>
+        /// <returns></returns>
+        [BlockAction]
+        public BlockActionResult UpdateScheduledDate( string idKey, DateTime scheduleDate )
+        {
+            ContactTouchpointService contactTouchpointService = new ContactTouchpointService( RockContext );
+            var touchpoint = contactTouchpointService.Get( idKey );
+            if ( touchpoint == null )
+            {
+                return ActionNotFound( "Touchpoint not found." );
+            }
+
+            touchpoint.ScheduledDateTime = scheduleDate;
+            RockContext.SaveChanges();
+
+            return ActionOk();
+        }
+
+        /// <summary>
         /// Updates the contact prayer detail.
         /// </summary>
         /// <param name="updateContactPrayerBag"></param>
