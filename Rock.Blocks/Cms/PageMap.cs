@@ -394,7 +394,7 @@ namespace Rock.Blocks.Cms
                     qryParams.Add( PageParameterKey.ExpandedIds, string.Join( ",", expandedIds ) );
                 }
 
-                return this.GetCurrentPageUrl( qryParams, skipExistingParameters: true );
+                return this.GetCurrentPageUrl( skipExistingParameters: true, qryParams );
             }
 
             compiledError = MergeErrorPouch( compiledError, new ErrorPouch()
