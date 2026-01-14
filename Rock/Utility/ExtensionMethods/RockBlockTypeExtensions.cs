@@ -116,31 +116,7 @@ namespace Rock
         [RockObsolete( "19.0" )]
         public static string GetCurrentPageUrl( this RockBlockType block, IDictionary<string, string> queryParams = null )
         {
-            var parameters = queryParams != null ? new Dictionary<string, string>( queryParams ) : new Dictionary<string, string>();
-
-            // Add in the original page parameters if they have not already
-            // been set in the new query parameters.
-            foreach ( var qp in block.RequestContext.GetPageParameters() )
-            {
-                // Skip any page parameters that are internal usage.
-                if ( qp.Key == "PageId" )
-                {
-                    continue;
-                }
-
-                parameters.TryAdd( qp.Key, qp.Value );
-            }
-
-            var pageReference = new Rock.Web.PageReference( block.PageCache.Guid.ToString(), parameters );
-
-            if ( pageReference.PageId > 0 )
-            {
-                return pageReference.BuildUrl();
-            }
-            else
-            {
-                return string.Empty;
-            }
+            return GetCurrentPageUrl( block, queryParams, skipExistingParameters: false );
         }
 
         /// <summary>
