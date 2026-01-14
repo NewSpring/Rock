@@ -119,7 +119,7 @@ namespace Rock
         /// <returns>A string representing the URL to the current <see cref="Rock.Model.Page"/>.</returns>
         public static string GetCurrentPageUrl( this RockBlockType block, IDictionary<string, string> queryParams = null )
         {
-            return GetCurrentPageUrl( block, skipExistingParameters: false, queryParams );
+            return GetCurrentPageUrl( block, queryParams, skipExistingParameters: false );
         }
 
         /// <summary>
@@ -127,6 +127,13 @@ namespace Rock
         /// and any necessary query parameters.
         /// </summary>
         /// <param name="block">The block to get instance data from.</param>
+        /// <param name="queryParams">
+        ///   Any query string parameters that should be included in the built URL.
+        ///   If any of these parameters is also supplied by the current page's URL,
+        ///   when <paramref name="skipExistingParameters"/> is <see langword="true"/>,
+        ///   the value from <paramref name="queryParams"/> will be used instead of
+        ///   the existing value in the current page's URL.
+        /// </param>
         /// <param name="skipExistingParameters">
         ///  <para>
         ///    If <see langword="true"/>, parameters already included in the current page's URL will be dropped.
@@ -138,15 +145,8 @@ namespace Rock
         ///   <paramref name="queryParams"/> will be used instead of the existing value in the current page's URL.
         ///  </para>
         /// </param>
-        /// <param name="queryParams">
-        ///   Any query string parameters that should be included in the built URL.
-        ///   If any of these parameters is also supplied by the current page's URL,
-        ///   when <paramref name="skipExistingParameters"/> is <see langword="true"/>,
-        ///   the value from <paramref name="queryParams"/> will be used instead of
-        ///   the existing value in the current page's URL.
-        /// </param>
         /// <returns>A string representing the URL to the current <see cref="Rock.Model.Page"/>.</returns>
-        public static string GetCurrentPageUrl( this RockBlockType block, bool skipExistingParameters, IDictionary<string, string> queryParams = null )
+        public static string GetCurrentPageUrl( this RockBlockType block, IDictionary<string, string> queryParams, bool skipExistingParameters )
         {
             var parameters = queryParams != null ? new Dictionary<string, string>( queryParams ) : new Dictionary<string, string>();
 
