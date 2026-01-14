@@ -583,5 +583,10 @@ namespace Rock.SystemGuid
         /// The job to run Post v18.1 Data Migrations to add indexes to improve communication prep performance.
         /// </summary>
         public const string DATA_MIGRATIONS_181_ADD_INDEXES_FOR_COMMUNICATION_PREP = "88C42A48-6713-4CB1-BF6B-A12AB2E292E7";
+
+        /// <summary>
+        /// The job to run Post v19.0 Data Migrations to add an index to ensure the Communication Unsubscribe Report performs efficiently.
+        /// </summary>
+        public const string DATA_MIGRATIONS_190_ADD_COMMUNICATION_UNSUBSCRIBE_REPORT_INDEX = "ECBC94C0-7646-491E-A804-1CA228F0FFAD";
     }
 }
