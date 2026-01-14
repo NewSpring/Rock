@@ -1,10 +1,7 @@
 <!-- Copyright by the Spark Development Network; Licensed under the Rock Community License -->
 <template>
     <!-- Inherited Workflows from Connection Type -->
-    <ContentStack v-if="inheritedGridData.rows.length > 0">
-        <NotificationBox :alertType="AlertType.Info">
-            Workflows listed here are inherited from this opportunity's associated Connection Type.
-        </NotificationBox>
+    <ContentStack title="Inherited Workflows" description="Workflows listed here are inherited from this opportunity's associated Connection Type." headerLocation="top" v-if="inheritedGridData.rows.length > 0">
 
         <Grid :data="inheritedGridData" keyField="guid" itemTerm="Inherited Workflow" liveUpdates light>
             <TextColumn name="workflowType"
@@ -27,7 +24,7 @@
     </ContentStack>
 
     <!-- Opportunity-Specific Workflows -->
-    <ContentStack>
+    <ContentStack title="Configure Workflows" description="Configure the workflows that should be launched for connection requests associated with this opportunity." headerLocation="top">
         <Grid :data="gridData"
               keyField="guid"
               itemTerm="Workflow"
@@ -156,8 +153,6 @@
     import { AppliesToAgeClassificationDescription } from "@Obsidian/Enums/Group/appliesToAgeClassification";
     import { enumToListItemBag } from "@Obsidian/Utility/enumUtils";
     import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
-    import NotificationBox from "@Obsidian/Controls/notificationBox.obs";
-    import { AlertType } from "@Obsidian/Enums/Controls/alertType";
 
     const props = defineProps({
         modelValue: {

@@ -153,7 +153,7 @@
     import HorizontalAlignmentPicker from "../horizontalAlignmentPicker.partial.obs";
     import ShorthandPixelBox from "../shorthandPixelBox.partial.obs";
     import { BorderModel, HorizontalAlignment, ImageSizeModel, ImageSourceModel, ResizeMode, ShorthandModel } from "../types.partial";
-    import { createImageComponentAdapter, get } from "../utils.partial";
+    import { imageComponentAdapter, get } from "../utils.partial";
     import AssetPicker from "@Obsidian/Controls/Internal/assetPicker.obs";
     import ButtonGroup from "@Obsidian/Controls/buttonGroup.obs";
     import DropDownList from "@Obsidian/Controls/dropDownList.obs";
@@ -179,8 +179,6 @@
     });
 
     defineEmits<{ (e: "clone"): void; (e: "complete"): void; (e: "delete"): void; (e: "migrate", value: Element): void }>();
-
-    const imageComponentAdapter = createImageComponentAdapter();
 
     // #region Constants
 

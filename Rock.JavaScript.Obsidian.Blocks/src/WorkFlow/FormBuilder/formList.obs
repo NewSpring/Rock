@@ -1,11 +1,11 @@
 <!-- Copyright by the Spark Development Network; Licensed under the Rock Community License -->
 <template>
     <Block title="Form Builder">
-        <div class="panel-flex-fill-body">
-            <div class="form-list-wrapper d-flex h-100 align-items-stretch styled-scroll">
-                <aside class="form-list-aside d-flex flex-column flex-shrink-0">
-                    <div class="aside-header d-flex flex-column align-items-start">
-                        <div class="aside-header-actions d-flex justify-content-between align-items-center w-100">
+        <div class="panel-flex-fill-body formlist">
+            <div class="formlist-wrapper styled-scroll">
+                <aside class="formlist-aside">
+                    <div class="formlist-aside-header">
+                        <div class="formlist-aside-header-actions">
                             <span>Form Categories</span>
                             <div v-if="config.canAddNewCategory" class="categoryMenuOptions">
                                 <DropDownMenu :items="categoryMenuOptions" align="right" class="d-flex" />
@@ -15,20 +15,20 @@
                     <CategoryTree v-model="selectedCategory" :entityTypeGuid="EntityType.WorkflowType"
                                   selectFirstByDefault />
                 </aside>
-                <main class="form-list-main d-flex flex-column flex-eq min-width-0 p-spacing-lg mt-spacing-lg">
+                <main class="formlist-main">
                     <NotificationBox v-if="config.errorMessage || errorMessage" alertType="danger">
                         {{ config.errorMessage || errorMessage }}
                     </NotificationBox>
                     <!-- ===== DEFAULT FORM LIST VIEW ===== -->
                     <section v-if="blockState === BlockState.FormList">
                         <div
-                             class="form-list-heading d-flex justify-content-between align-items-end w-100 border-bottom pb-spacing-lg mb-spacing-lg">
-                            <div class="heading-text d-flex flex-column align-items-start">
-                                <h4 class="form-title m-0">{{ headerTitle }}</h4>
-                                <span v-if="headerDescription" class="form-description text-muted">{{ headerDescription
+                             class="formlist-main-heading">
+                            <div class="formlist-main-heading-content">
+                                <h4 class="formlist-main-heading-content-title">{{ headerTitle }}</h4>
+                                <span v-if="headerDescription" class="formlist-main-heading-content-description">{{ headerDescription
                                 }}</span>
                             </div>
-                            <div class="heading-buttons d-flex align-items-center">
+                            <div class="formlist-main-heading-buttons">
                                 <SecurityButton v-if="canDeleteCategory" :entityTypeIdKey="EntityType.Category"
                                                 :entityIdKey="selectedCategory?.value ?? ''"
                                                 :title="selectedCategory?.text ?? 'Category'" :btnSize="BtnSize.ExtraSmall" />
@@ -50,8 +50,8 @@
                             </div>
                         </div>
                         <DisplayCardContainer>
-                            <div class="form-list-actions d-flex justify-content-between align-items-end w-100">
-                                <div class="form-list-sort col-md-4">
+                            <div class="formlist-main-actions">
+                                <div class="formlist-main-sort col-md-4">
                                     <DropDownList label="Sort By" v-model="sortBy" :items="sortByOptions" />
                                 </div>
                                 <RockButton v-if="canEditCategory" @click="onAddForm" isSquare btnType="primary">
@@ -63,10 +63,11 @@
                                          :badgeType="BadgeType.Info" :primaryActions="getPrimaryActions(form)"
                                          :secondaryActions="getSecondaryActions(form)">
                                 <template #middleSection>
-                                    <div v-if="form.createdByPersonName"
-                                         class="dateInfo d-flex align-items-center text-muted flex-shrink-0">
-                                        <i class="ti ti-calendar-plus"></i>
-                                        <span>{{ getCreatedByText(form) }}</span>
+                                    <div v-if="form.createdByPersonName">
+                                        <small class="displaycard-text">
+                                            <i class="ti ti-calendar-plus"></i>
+                                            {{ getCreatedByText(form) }}
+                                        </small>
                                     </div>
                                 </template>
                             </DisplayCard>
@@ -90,116 +91,6 @@
         </div>
     </Block>
 </template>
-
-<style scoped>
-.form-list-wrapper {
-    gap: var(--spacing-large);
-}
-
-.heading-text {
-    gap: var(--spacing-tiny);
-}
-
-.heading-buttons {
-    gap: var(--spacing-tiny);
-}
-
-.form-title {
-    line-height: 105.469%;
-}
-
-.form-description {
-    font-size: var(--font-size-Small);
-    font-weight: var(--font-weight-regular);
-    line-height: 110%;
-}
-
-.form-list-aside {
-    width: 320px;
-    border-right: 1px solid var(--color-interface-soft);
-    min-height: 0;
-}
-
-.aside-header {
-    padding: var(--spacing-xsmall) var(--spacing-xsmall) var(--spacing-xsmall) var(--spacing-0, 0);
-    gap: var(--spacing-xsmall);
-}
-
-.aside-header-actions {
-    padding: var(--spacing-xsmall);
-}
-
-.aside-header-actions span {
-    color: var(--color-interface-medium);
-    font-size: var(--font-size-Small, 14px);
-    font-weight: var(--font-weight-semibold);
-    line-height: 110%;
-    margin-left: var(--spacing-medium);
-}
-
-.form-list-sort {
-    padding: 0;
-}
-
-/* Overrides the margin bottom set on the DropDownList used for Sorting */
-.form-list-sort :deep(.form-group),
-.form-list-sort :deep(.rock-drop-down-list) {
-    margin-bottom: 0 !important;
-}
-
-.dateInfo {
-    gap: var(--spacing-tiny);
-    white-space: nowrap;
-    min-width: fit-content;
-}
-
-/* Overrides the styles on the CategoryTree picker container, viewable within categoryTree.obs */
-aside :deep(.picker-body) {
-    border: none !important;
-    border-radius: 0 !important;
-    overflow-x: visible !important;
-    overflow-y: auto !important;
-    flex: 1 1 auto;
-    min-height: 0;
-    height: auto !important;
-}
-
-/* Increase vertical spacing for CategoryTree rows */
-aside :deep(ul.rocktree),
-aside :deep(ul.rocktree-children) {
-    line-height: 45px;
-    font-size: var(--font-size-regular);
-}
-
-aside :deep(.rocktree-name .icon-fw) {
-    display: inline-block;
-    width: var(--spacing-large);
-    text-align: center;
-    line-height: 45px;
-    font-size: var(--font-size-regular);
-}
-
-aside :deep(.rocktree-name) {
-    line-height: 45px;
-}
-
-aside :deep(.rocktree-name.selected) {
-    font-weight: var(--font-weight-semibold);
-}
-
-.categoryMenuOptions :deep(.dropdown-menu) {
-    width: max-content;
-    min-width: unset !important;
-}
-
-.categoryMenuOptions :deep(.dropdown-menu li > button) {
-    white-space: nowrap;
-}
-
-.categoryMenuOptions :deep(.btn-overflow) {
-    padding: 0;
-}
-</style>
 
 <script setup lang="ts">
     import { ref, computed, watch } from "vue";

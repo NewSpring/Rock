@@ -967,6 +967,16 @@
             isLoadingMediumOptions.value = true;
 
             if (mediumOptions.value) {
+                // The medium options have already been loaded, but ensure the "From" address and name are set.
+                // These fields might be read-only in Simple mode, so we need to verify they have values.
+                if (!internalFromAddress.value) {
+                    internalFromAddress.value = mediumOptions.value.fromAddress ?? "";
+                }
+
+                if (!internalFromName.value) {
+                    internalFromName.value = mediumOptions.value.fromName ?? "";
+                }
+
                 return;
             }
 

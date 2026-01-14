@@ -28,7 +28,7 @@ iframe {
     } from "./providers.partial";
     import {
         checkDropzoneSize,
-        createBodyGlobalAdapter,
+        bodyGlobalAdapter,
         createComponentElement,
         createComponentElementPlaceholder,
         EmptyDropzoneSvgPixelWidth,
@@ -69,7 +69,7 @@ iframe {
         ReplaceComponentRequest,
         ComponentTypeName
     } from "./types.partial";
-    import { GetHtmlRequest } from "./types";
+    import { GetHtmlRequest } from "./types.partial";
     import { useVModelPassthrough } from "@Obsidian/Utility/component";
     import {
         findDirectChildContaining,
@@ -162,7 +162,7 @@ iframe {
 
     // Component types that have adapters available.
     // Eventually, all component types should have adapters.
-    const adapterComponentTypes: ComponentTypeName[] = ["button", "rsvp", "divider", "image"];
+    const adapterComponentTypes: ComponentTypeName[] = ["button", "rsvp", "divider", "image", "text", "video", "code", "title"];
 
     // #region Values
 
@@ -540,7 +540,8 @@ iframe {
             const html = `${doctypeText}\n${finalHtmlOuterHtml}`;
 
             // Get the global body width from the source document that is attached to the iframe.
-            const bodyWidth = createBodyGlobalAdapter().readGlobalProps(sourceDoc).widthPx;
+            // This width is used by some callers to generate preview images.
+            const bodyWidth = bodyGlobalAdapter.readGlobalProps(sourceDoc).widthPx;
 
             options.onSuccess({
                 html,

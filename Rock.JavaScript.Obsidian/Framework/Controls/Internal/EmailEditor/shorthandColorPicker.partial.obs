@@ -55,25 +55,6 @@
     </TransitionVerticalCollapse>
 </template>
 
-<style scoped>
-.shorthand-property-header {
-    display: flex;
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: center;
-    border-bottom: 1px solid var(--color-interface-soft);
-    margin-bottom: var(--spacing-small);
-}
-
-.shorthand-property-label {
-    font-size: var(--font-size-regular);
-}
-
-.more-switch {
-    font-size: var(--font-size-small);
-}
-</style>
-
 <script setup lang="ts">
     import { computed, PropType, ref, watch } from "vue";
     import { ShorthandModel } from "./types.partial";
@@ -81,7 +62,6 @@
     import InlineSwitch from "@Obsidian/Controls/inlineSwitch.obs";
     import RockLabel from "@Obsidian/Controls/rockLabel.obs";
     import TransitionVerticalCollapse from "@Obsidian/Controls/transitionVerticalCollapse.obs";
-    import { isNullish } from "@Obsidian/Utility/util";
 
     const props = defineProps({
         modelValue: {
@@ -246,45 +226,48 @@
 
     // #region Values
 
+    // Show more if any of the individual sides differ.
     const isMoreShown = ref<boolean>(
-        (internalShorthandValue.value ?? "") !== (internalTopValue.value ?? "")
-        || (internalShorthandValue.value ?? "") !== (internalBottomValue.value ?? "")
-        || (internalShorthandValue.value ?? "") !== (internalLeftValue.value ?? "")
-        || (internalShorthandValue.value ?? "") !== (internalRightValue.value ?? "")
-    );
+        (props.modelValue?.top ?? "") !== (props.modelValue?.bottom ?? "")
+        || (props.modelValue?.top ?? "") !== (props.modelValue?.left ?? "")
+        || (props.modelValue?.top ?? "") !== (props.modelValue?.right ?? "")
+        || (props.modelValue?.bottom ?? "") !== (props.modelValue?.left ?? "")
+        || (props.modelValue?.bottom ?? "") !== (props.modelValue?.right ?? "")
+        || (props.modelValue?.left ?? "") !== (props.modelValue?.right ?? ""));
 
     // #endregion Values
 
     // #region Watchers
 
-    watch(isMoreShown, (newValue) => {
-        if (!newValue) {
-            if (!isNullish(internalTopValue.value)
-                || !isNullish(internalBottomValue.value)
-                || !isNullish(internalLeftValue.value)
-                || !isNullish(internalRightValue.value)) {
+    watch(isMoreShown, () => {
+        const isShorthandBeingShown = !isMoreShown.value;
+        if (isShorthandBeingShown) {
+            if (internalTopValue.value
+                || internalBottomValue.value
+                || internalLeftValue.value
+                || internalRightValue.value) {
+                // One of the sides is set and shorthand is being shown,
+                // so set shorthand to the first non-empty side.
                 internalShorthandValue.value = internalTopValue.value
                     || internalBottomValue.value
                     || internalLeftValue.value
                     || internalRightValue.value;
             }
-            else {
-                internalShorthandValue.value = "";
-            }
         }
-        else {
-            if (!isNullish(internalShorthandValue.value)) {
-                internalTopValue.value = internalShorthandValue.value;
-                internalBottomValue.value = internalShorthandValue.value;
-                internalLeftValue.value = internalShorthandValue.value;
-                internalRightValue.value = internalShorthandValue.value;
-            }
-            else {
-                internalTopValue.value = "";
-                internalBottomValue.value = "";
-                internalLeftValue.value = "";
-                internalRightValue.value = "";
-            }
+    });
+
+    watch(() => props.modelValue, () => {
+        // Expand all sides when there are any individual values.
+        const hasDifferentIndividualValues =
+            (props.modelValue?.top ?? "") !== (props.modelValue?.bottom ?? "")
+            || (props.modelValue?.top ?? "") !== (props.modelValue?.left ?? "")
+            || (props.modelValue?.top ?? "") !== (props.modelValue?.right ?? "")
+            || (props.modelValue?.bottom ?? "") !== (props.modelValue?.left ?? "")
+            || (props.modelValue?.bottom ?? "") !== (props.modelValue?.right ?? "")
+            || (props.modelValue?.left ?? "") !== (props.modelValue?.right ?? "");
+
+        if (hasDifferentIndividualValues) {
+            isMoreShown.value = true;
         }
     });
 

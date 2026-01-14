@@ -23,15 +23,19 @@
         </Grid>
     </ContentStack>
 
-    <ContentStack title="Default Connectors" v-if="renderDefaultConnectorSection" description="Optionally select a default connector for each campus. New requests from that campus will automatically use this connector.">
+    <ContentStack title="Default Connectors" v-if="renderDefaultConnectorSection" headerLocation="top" description="Optionally select a default connector for each campus. New requests from that campus will automatically use this connector.">
         <template v-for="campus in props.campuses">
             <div v-if="defaultConnectorOptionsForCampus[campus.value ?? '']?.length" :key="campus.value ?? ''" class="mb-3">
-                <DropDownList
-                              :modelValue="defaultConnectorsForCampus?.[campus.value ?? '']?.value ?? ''"
-                              @update:modelValue="val => updateDefaultConnector(campus.value ?? '', val)"
-                              :items="defaultConnectorOptionsForCampus[campus.value ?? ''] ?? []"
-                              :label="`${campus.text} Default Connector`"
-                              :placeholder="`Select default connector for ${campus.text}`" />
+                <div class="row">
+                    <div class="col-md-3">
+                        <DropDownList
+                                    :modelValue="defaultConnectorsForCampus?.[campus.value ?? '']?.value ?? ''"
+                                    @update:modelValue="val => updateDefaultConnector(campus.value ?? '', val)"
+                                    :items="defaultConnectorOptionsForCampus[campus.value ?? ''] ?? []"
+                                    :label="`${campus.text} Default Connector`"
+                                    :placeholder="`Select default connector for ${campus.text}`" />
+                    </div>
+                </div>
             </div>
         </template>
     </ContentStack>

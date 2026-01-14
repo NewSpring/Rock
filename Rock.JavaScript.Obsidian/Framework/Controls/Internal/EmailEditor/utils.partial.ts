@@ -60,6 +60,18 @@ import {
     BodyGlobalProps,
     TextAlignment,
     GlobalAdapterSnapshot,
+    CodeComponentAdapter,
+    CodeLocalProps,
+    ComponentAdapterVersion,
+    TitleComponentAdapter,
+    TitleLocalProps,
+    ComponentAdapter,
+    GlobalAdapter,
+    TextComponentAdapter,
+    TextLocalProps,
+    VideoLocalProps,
+    VideoComponentAdapter,
+    GlobalAdapterOnComponentAddedEvent,
 } from "./types.partial";
 import { isElement, isHTMLElement, isHTMLTableElement, replaceTagName } from "@Obsidian/Utility/dom";
 import { newGuid, toGuidOrNull } from "@Obsidian/Utility/guid";
@@ -787,28 +799,23 @@ export function createComponentElement(document: Document, componentTypeName: Ed
     //  - Global style defaults are maintained in the emailIFrame.partial.obs file.
     switch (componentTypeName) {
         case "title": {
-            const { createComponentElement } = getTitleComponentHelper();
-            return createComponentElement();
+            return titleComponentAdapter.createComponentElement(document);
         }
 
         case "video": {
-            const { createComponentElement } = getVideoComponentHelper();
-            return createComponentElement();
+            return videoComponentAdapter.createComponentElement(document);
         }
 
         case "button": {
-            const buttonAdapter = createButtonComponentAdapter();
-            return buttonAdapter.createComponentElement(document);
+            return buttonComponentAdapter.createComponentElement(document);
         }
 
         case "text": {
-            const { createComponentElement } = getTextComponentHelper();
-            return createComponentElement();
+            return textComponentAdapter.createComponentElement(document);
         }
 
         case "divider": {
-            const adapter = createDividerComponentAdapter();
-            return adapter.createComponentElement(document);
+            return dividerComponentAdapter.createComponentElement(document);
         }
 
         case "message": {
@@ -821,18 +828,15 @@ export function createComponentElement(document: Document, componentTypeName: Ed
         }
 
         case "image": {
-            const adapter = createImageComponentAdapter();
-            return adapter.createComponentElement(document);
+            return imageComponentAdapter.createComponentElement(document);
         }
 
         case "code": {
-            const { createComponentElement } = getCodeComponentHelper();
-            return createComponentElement();
+            return codeComponentAdapter.createComponentElement(document);
         }
 
         case "rsvp": {
-            const adapter = createRsvpComponentAdapter();
-            return adapter.createComponentElement(document);
+            return rsvpComponentAdapter.createComponentElement(document);
         }
 
         // Section Components
@@ -1623,843 +1627,920 @@ export function compareComponentVersions(v1: string, v2: string): number {
 
 // #region Components
 
-export function getVideoComponentHelper(): ComponentMigrationHelper & {
-    getElements(componentElement: Element): ComponentStructure | null;
-    createComponentElement(): HTMLElement;
-} {
-    const latestVersion = "v17.3-alpha" as const;
-
-    return {
-        getElements(componentElement: Element): ComponentStructure | null {
-            if (!componentElement.classList.contains("component-video")) {
-                throw new Error(`Element is not a video component element: ${componentElement.outerHTML}`);
-            }
-
-            return findComponentInnerWrappers(componentElement);
-        },
-
-        createComponentElement(): HTMLElement {
-            const componentElements = createComponent(
-                "video",
-                latestVersion,
-                `<a href=""><img src="/Assets/Images/video-placeholder.jpg" data-imgcsswidth="full" style="width: 100%;"></a>`
-            );
-            // Image component needs a line-height of 0 to remove extra space under image.
-            componentElements.marginWrapper.borderWrapper.paddingWrapper.td.style.lineHeight = "0";
-            return componentElements.marginWrapper.table;
-        },
-
-        isMigrationRequired(componentElement: Element): boolean {
-            if (!componentElement.classList.contains("component-video")) {
-                throw new Error(`Element is not a video component element: ${componentElement.outerHTML}`);
-            }
-
-            const versionNumber = getComponentVersionNumber(componentElement);
-
-            return !versionNumber || compareComponentVersions(versionNumber, latestVersion) < 0;
-        },
-
-        migrate(oldComponentElement: Element): Element {
-            if (!oldComponentElement.classList.contains("component-video")) {
-                throw new Error(`Element is not a video component element: ${oldComponentElement.outerHTML}`);
-            }
-
-            if (!this.isMigrationRequired(oldComponentElement)) {
-                return oldComponentElement;
-            }
-
-            const migrations = [
-                function v0ToV2Alpha(componentElement: Element): Element {
-                    const anchor = componentElement.querySelector("a");
-                    const img = anchor?.querySelector("img");
-
-                    if (!anchor || !img) {
-                        throw new Error("Invalid video component structure: missing <a> or <img>.");
-                    }
-
-                    const href = anchor.getAttribute("href") ?? "";
-                    const src = img.getAttribute("src") ?? "";
-                    const style = img.getAttribute("style") ?? "";
-                    const dataImgCssWidth = img.getAttribute("data-imgcsswidth") ?? "";
-
-                    // Prepare the new component
-                    const newComponent = document.createElement("table");
-                    newComponent.setAttribute("border", "0");
-                    newComponent.setAttribute("cellpadding", "0");
-                    newComponent.setAttribute("cellspacing", "0");
-                    newComponent.setAttribute("width", "100%");
-                    newComponent.setAttribute("role", "presentation");
-                    newComponent.className = "margin-wrapper margin-wrapper-for-video component component-video";
-                    newComponent.setAttribute("data-state", "component");
-
-                    setComponentVersionNumber(newComponent, "v2-alpha");
-
-                    // Preserve any known metadata (no parsing, just forwarding)
-                    const filename = img.getAttribute("data-image-filename");
-                    const guid = img.getAttribute("data-image-guid");
-                    const sourceUrl = componentElement.getAttribute("data-image-source-video-url");
-
-                    if (filename) newComponent.setAttribute("data-image-filename", filename);
-                    if (guid) newComponent.setAttribute("data-image-guid", guid);
-                    if (sourceUrl) newComponent.setAttribute("data-image-source-video-url", sourceUrl);
-
-                    // Create the v2-alpha structure
-                    newComponent.innerHTML =
-                        `<tbody>
-    <tr>
-        <td>
-            <table border="0" cellpadding="0" cellspacing="0" width="100%" role="presentation" class="border-wrapper border-wrapper-for-video" style="border-collapse: separate !important;">
-                <tbody>
-                    <tr>
-                        <td style="overflow: hidden;">
-                            <table border="0" cellpadding="0" cellspacing="0" width="100%" role="presentation" class="padding-wrapper padding-wrapper-for-video">
-                                <tbody>
-                                    <tr>
-                                        <td style="line-height: 0;">
-                                            <a href="${href}">
-                                                <img src="${src}" ${dataImgCssWidth ? `data-imgcsswidth="${dataImgCssWidth}"` : ""} style="${style}">
-                                            </a>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-        </td>
-    </tr>
-</tbody>`;
-
-                    return newComponent;
-                },
-
-                // eslint-disable-next-line @typescript-eslint/naming-convention
-                function v2AlphaToV17_3Alpha(componentElement: Element): Element {
-                    const versionNumber = getComponentVersionNumber(componentElement);
-                    if (!versionNumber) {
-                        // This shouldn't occur unless the v0 migration was skipped or modified incorrectly.
-                        throw new Error("Component version number is missing.");
-                    }
-
-                    if (compareComponentVersions(versionNumber, "v17.3-alpha") >= 0) {
-                        return componentElement; // Already migrated
-                    }
-
-                    // Bump version.
-                    setComponentVersionNumber(componentElement, "v17.3-alpha");
-
-                    return componentElement;
-                }
-            ];
-
-
-            // Run migrations.
-            return migrations.reduce((component, migrate) => migrate(component), oldComponentElement);
-        },
-
-        get latestVersion(): string {
-            return latestVersion;
-        }
-    };
-}
-
-type TitleComponentStructure = ComponentStructure & {
-    readonly headingEl: HTMLHeadElement | null;
-    readonly borderEl: HTMLElement;
-    readonly marginEl: HTMLElement;
-    readonly paddingEl: HTMLElement;
-};
-
-export type SupportedHeadingLevel = "h1" | "h2" | "h3";
-export const SupportedHeadingLevels: SupportedHeadingLevel[] = ["h1", "h2", "h3"];
-
-export function getTitleComponentHelper(): ComponentMigrationHelper & {
-    getElements(componentElement: Element): TitleComponentStructure | null;
-    createComponentElement(): HTMLElement;
-    setCssClasses(componentElements: TitleComponentStructure): void;
-} {
-    const latestVersion = "v17.3-alpha" as const;
-
-
-    const helper = {
-        createComponentElement(): HTMLElement {
-            const component = createComponent(
-                "title",
-                latestVersion,
-                `<h1 class="${RockCssClassContentEditable}" style="margin: 0;">Title</h1>`
-            );
-
-            const componentElements = helper.getElements(component.marginWrapper.table);
-
-            if (!componentElements) {
-                throw new Error("Failed to create title component element. Structure is invalid.");
-            }
-
-            // Set CSS classes to enable global and component-specific styles.
-            helper.setCssClasses(componentElements);
-
-            return componentElements.marginWrapper.table;
-        },
-
-        getElements(componentElement: Element): TitleComponentStructure | null {
-            if (!componentElement.classList.contains("component-title")) {
-                throw new Error(`Element is not a title component element: ${componentElement.outerHTML}`);
-            }
-
-            const wrappers = findComponentInnerWrappers(componentElement);
-
-            if (!wrappers) {
-                return null;
-            }
-
-            return {
-                ...wrappers,
-
-                get headingEl(): HTMLHeadingElement | null {
-                    return (wrappers.marginWrapper.borderWrapper.paddingWrapper.td.querySelector(SupportedHeadingLevels.join(", ")) ?? null) as HTMLHeadingElement | null;
-                },
-
-                get marginEl(): HTMLElement {
-                    return wrappers.marginWrapper.td;
-                },
-
-                get borderEl(): HTMLElement {
-                    return wrappers.marginWrapper.borderWrapper.td;
-                },
-
-                get paddingEl(): HTMLElement {
-                    return wrappers.marginWrapper.borderWrapper.paddingWrapper.td;
-                }
-            };
-        },
-
-        setCssClasses(componentElements: TitleComponentStructure): void {
-            // CSS classes are set based on the heading level.
-            const headingLevel = (componentElements.headingEl?.tagName.toLowerCase() ?? "h1") as SupportedHeadingLevel;
-
-            // Wrapper classes.
-
-            const marginWrapperTable = componentElements.marginWrapper.table;
-            Enumerable
-                .from(SupportedHeadingLevels)
-                .select(level => getMarginWrapperTableCssClass("title", `-${level}`))
-                .forEach(cssClass => marginWrapperTable.classList.remove(cssClass));
-            marginWrapperTable.classList.add(getMarginWrapperTableCssClass("title", `-${headingLevel}`));
-
-            const borderWrapperTable = componentElements.marginWrapper.borderWrapper.table;
-            Enumerable
-                .from(SupportedHeadingLevels)
-                .select(level => getBorderWrapperTableCssClass("title", `-${level}`))
-                .forEach(cssClass => borderWrapperTable.classList.remove(cssClass));
-            borderWrapperTable.classList.add(getBorderWrapperTableCssClass("title", `-${headingLevel}`));
-
-            const paddingWrapperTable = componentElements.marginWrapper.borderWrapper.paddingWrapper.table;
-            Enumerable
-                .from(SupportedHeadingLevels)
-                .select(level => getPaddingWrapperTableCssClass("title", `-${level}`))
-                .forEach(cssClass => paddingWrapperTable.classList.remove(cssClass));
-            paddingWrapperTable.classList.add(getPaddingWrapperTableCssClass("title", `-${headingLevel}`));
-
-            // Style classes.
-
-            function getMarginClass(level: SupportedHeadingLevel): string {
-                switch (level) {
-                    case "h1": return GlobalCssClasses.marginHeading1;
-                    case "h2": return GlobalCssClasses.marginHeading2;
-                    case "h3": return GlobalCssClasses.marginHeading3;
-                    default: throw new Error(`Unsupported heading level: ${level}`);
-                }
-            }
-
-            function getBorderClass(level: SupportedHeadingLevel): string {
-                switch (level) {
-                    case "h1": return GlobalCssClasses.borderHeading1;
-                    case "h2": return GlobalCssClasses.borderHeading2;
-                    case "h3": return GlobalCssClasses.borderHeading3;
-                    default: throw new Error(`Unsupported heading level: ${level}`);
-                }
-            }
-
-            function getPaddingClass(level: SupportedHeadingLevel): string {
-                switch (level) {
-                    case "h1": return GlobalCssClasses.paddingHeading1;
-                    case "h2": return GlobalCssClasses.paddingHeading2;
-                    case "h3": return GlobalCssClasses.paddingHeading3;
-                    default: throw new Error(`Unsupported heading level: ${level}`);
-                }
-            }
-
-            function getFontClass(level: SupportedHeadingLevel): string {
-                switch (level) {
-                    case "h1": return GlobalCssClasses.fontHeading1;
-                    case "h2": return GlobalCssClasses.fontHeading2;
-                    case "h3": return GlobalCssClasses.fontHeading3;
-                    default: throw new Error(`Unsupported heading level: ${level}`);
-                }
-            }
-
-            const marginWrapperTd = componentElements.marginWrapper.td;
-            Enumerable
-                .from(SupportedHeadingLevels)
-                .select(level => getMarginClass(level))
-                .forEach(cssClass => marginWrapperTd.classList.remove(cssClass));
-            marginWrapperTd.classList.add(getMarginClass(headingLevel));
-
-            const borderWrapperTd = componentElements.marginWrapper.borderWrapper.td;
-            Enumerable
-                .from(SupportedHeadingLevels)
-                .select(level => getBorderClass(level))
-                .forEach(cssClass => borderWrapperTd.classList.remove(cssClass));
-            borderWrapperTd.classList.add(getBorderClass(headingLevel));
-
-            const paddingWrapperTd = componentElements.marginWrapper.borderWrapper.paddingWrapper.td;
-            Enumerable
-                .from(SupportedHeadingLevels)
-                .select(level => getPaddingClass(level))
-                .forEach(cssClass => paddingWrapperTd.classList.remove(cssClass));
-            paddingWrapperTd.classList.add(getPaddingClass(headingLevel));
-
-            const headingEl = componentElements.headingEl;
-            if (headingEl) {
-                Enumerable
-                    .from(SupportedHeadingLevels)
-                    .select(level => getFontClass(level))
-                    .forEach(cssClass => headingEl.classList.remove(cssClass));
-
-                // Also add the global font class so the global font can affect the heading.
-                headingEl.classList.add(GlobalCssClasses.fontGlobal, getFontClass(headingLevel));
-            }
-        },
-
-        isMigrationRequired(componentElement: Element): boolean {
-            if (!componentElement.classList.contains("component-title")) {
-                throw new Error(`Element is not a title component element: ${componentElement.outerHTML}`);
-            }
-
-            const versionNumber = getComponentVersionNumber(componentElement);
-
-            if (!versionNumber) {
-                return true;
-            }
-
-            const comparison = compareComponentVersions(versionNumber, latestVersion);
-
-            if (comparison < 0) {
-                return true;
-            }
-
-            return false;
-        },
-
-        migrate(oldComponentElement: Element): Element {
-            if (!oldComponentElement.classList.contains("component-title")) {
-                throw new Error(`Element is not a title component element: ${oldComponentElement.outerHTML}`);
-            }
-
-            if (!helper.isMigrationRequired(oldComponentElement)) {
-                return oldComponentElement;
-            }
-
-            // Migrations should be in chronological order
-            // and should not use helper methods or variables that
-            // can change.
-            const migrations = [
-                function v0ToV2Alpha(componentElement: Element): Element {
-                    if (getComponentVersionNumber(componentElement)) {
-                        return componentElement; // Already migrated
-                    }
-
-                    const heading = (componentElement.querySelector("h1, h2, h3, h4, h5, h6") ?? null) as HTMLHeadingElement | null;
-                    if (!heading) {
-                        throw new Error("Heading tag not found in title component.");
-                    }
-
-                    const headingTag = heading.tagName.toLowerCase();
-                    const headingText = heading.textContent || "";
-                    const style = heading.style;
-
-                    // Extract and remove margin/padding
-                    const simulatedMargin = style.margin || "";
-                    const contentPadding = style.padding || "";
-
-                    // Remove margin and padding from style to preserve the rest
-                    const cleanStyle: string[] = [];
-                    for (const prop of heading.style) {
-                        if (prop !== "margin" && prop !== "padding") {
-                            cleanStyle.push(`${prop}: ${style.getPropertyValue(prop)};`);
-                        }
-                    }
-                    // Always override margin to 0 on heading
-                    cleanStyle.push("margin: 0px;");
-
-                    const version = "v2-alpha";
-
-                    const wrapper = document.createElement("table");
-                    wrapper.setAttribute("border", "0");
-                    wrapper.setAttribute("cellpadding", "0");
-                    wrapper.setAttribute("cellspacing", "0");
-                    wrapper.setAttribute("width", "100%");
-                    wrapper.setAttribute("role", "presentation");
-                    wrapper.className = `margin-wrapper margin-wrapper-for-title component component-title margin-wrapper-for-title-${headingTag}`;
-                    wrapper.setAttribute("data-state", "component");
-                    setComponentVersionNumber(wrapper, version); // Ensure version tracking
-
-                    const wrapperPaddingAttr = simulatedMargin ? ` style="padding: ${simulatedMargin};"` : "";
-                    const innerTdPaddingAttr = contentPadding ? ` style="padding: ${contentPadding};"` : "";
-
-                    wrapper.innerHTML = `
-                        <tbody><tr><td${wrapperPaddingAttr}>
-                            <table border="0" cellpadding="0" cellspacing="0" width="100%" role="presentation"
-                                class="border-wrapper border-wrapper-for-title border-wrapper-for-title-${headingTag}"
-                                style="border-collapse: separate !important;">
-                                <tbody><tr><td style="overflow: hidden;">
-                                    <table border="0" cellpadding="0" cellspacing="0" width="100%" role="presentation"
-                                        class="padding-wrapper padding-wrapper-for-title padding-wrapper-for-title-${headingTag}">
-                                        <tbody><tr><td${innerTdPaddingAttr}>
-                                            <${headingTag} class="rock-content-editable" style="${cleanStyle.join(" ")}">${headingText}</${headingTag}>
-                                        </td></tr></tbody>
-                                    </table>
-                                </td></tr></tbody>
-                            </table>
-                        </td></tr></tbody>
-                    `;
-
-                    return wrapper;
-                },
-
-                // eslint-disable-next-line @typescript-eslint/naming-convention
-                function v2AlphaToV17_3Alpha(componentElement: Element): Element {
-                    const versionNumber = getComponentVersionNumber(componentElement);
-                    if (!versionNumber) {
-                        // This shouldn't occur unless the v0 migration was skipped or modified incorrectly.
-                        throw new Error("Component version number is missing.");
-                    }
-
-                    if (compareComponentVersions(versionNumber, "v17.3-alpha") >= 0) {
-                        return componentElement; // Already migrated
-                    }
-
-                    const heading = (componentElement.querySelector("h1, h2, h3, h4, h5, h6") ?? null) as HTMLHeadingElement | null;
-                    if (!heading) {
-                        throw new Error("Heading tag not found in title component.");
-                    }
-
-                    const headingTag = heading.tagName.toLowerCase();
-                    const cssClasses = headingTag === "h1"
-                        ? {
-                            margin: "margin-heading-1",
-                            border: "border-heading-1",
-                            padding: "padding-heading-1",
-                            font: "font-heading-1"
-                        }
-                        : headingTag === "h2"
-                            ? {
-                                margin: "margin-heading-2",
-                                border: "border-heading-2",
-                                padding: "padding-heading-2",
-                                font: "font-heading-2"
-                            }
-                            : {
-                                margin: "margin-heading-3",
-                                border: "border-heading-3",
-                                padding: "padding-heading-3",
-                                font: "font-heading-3"
-                            };
-
-                    // Add the CSS classes.
-                    const marginWrapperTd = componentElement.querySelector(":scope > tbody > tr > td");
-                    if (marginWrapperTd) {
-                        marginWrapperTd.classList.add(cssClasses.margin);
-
-                        const borderWrapperTd = marginWrapperTd.querySelector(".border-wrapper > tbody > tr > td");
-                        if (borderWrapperTd) {
-                            borderWrapperTd.classList.add(cssClasses.border);
-
-                            const paddingWrapperTd = borderWrapperTd.querySelector(".padding-wrapper > tbody > tr > td");
-                            if (paddingWrapperTd) {
-                                paddingWrapperTd.classList.add(cssClasses.padding);
-
-                                // Add the font class to the heading element.
-                                heading.classList.add("font-global", cssClasses.font);
-                            }
-                        }
-                    }
-
-                    setComponentVersionNumber(componentElement, "v17.3-alpha"); // Ensure version tracking
-
-                    return componentElement;
-                }
-            ];
-
-            // Run migrations.
-            return migrations.reduce((component, migrate) => migrate(component), oldComponentElement);
-        },
-
-        get latestVersion(): string {
-            return latestVersion;
-        }
+function createVideoComponentAdapter(): VideoComponentAdapter {
+    const componentVersions = ["v0", "v2-alpha", "v17.3-alpha"] as const;
+    type ComponentVersion = typeof componentVersions[number];
+
+    const attributeNames = {
+        dataImageSourceVideoUrl: "data-image-source-video-url",
+        dataImageGuid: "data-image-guid",
+        dataImageFilename: "data-image-filename"
+    } as const;
+
+    const placeholderImageSrc = "/Assets/Images/video-placeholder.jpg";
+
+    const defaultLocalProps: VideoLocalProps = {
+        href: null,
+        previewImageGeneratorUrl: null,
+        previewImageAltText: null,
+        previewImageFile: null,
+        paddingPx: null
     };
 
-    return helper;
-}
+    const adapters: Record<ComponentVersion, ComponentAdapterVersion<VideoLocalProps>> = {
+        "v0": {
+            version: "v0",
 
-type TextComponentStructure = ComponentStructure & {
-    readonly contentWrapper: HTMLHeadElement | null;
-    readonly borderEl: HTMLElement;
-    readonly marginEl: HTMLElement;
-    readonly paddingEl: HTMLElement;
-};
+            createComponentElement(_emailDocument: Document): HTMLElement {
+                throw new Error("Cannot create v0 video component.");
+            },
 
-export function getTextComponentHelper(): ComponentMigrationHelper & {
-    getElements(componentElement: Element): TextComponentStructure | null;
-    createComponentElement(): HTMLElement;
-} {
-    const latestVersion = "v17.3-alpha" as const;
+            readLocalProps(componentElement: HTMLElement): VideoLocalProps {
+                const anchor = componentElement.querySelector("a");
 
-    const helper = {
-        createComponentElement(): HTMLElement {
-            const componentStructure = createComponent(
-                "text",
-                latestVersion,
-                // Wrap component in a content-wrapper so the wrapper can be styled.
-                // It's important that no whitespace is left around the editable area.
-                `<div class="content-wrapper content-wrapper-for-text ${RockCssClassContentEditable}"><p style="margin: 0;">Let's see what you have to say!</p></div>`
-            );
-
-            const componentElements = helper.getElements(componentStructure.marginWrapper.table);
-
-            if (!componentElements) {
-                throw new Error("Failed to create text component element. Structure is invalid.");
-            }
-
-            // Set CSS classes to enable global and component-specific styles.
-            componentElements.marginEl.classList.add(GlobalCssClasses.marginParagraph);
-            componentElements.borderEl.classList.add(GlobalCssClasses.borderParagraph);
-            componentElements.paddingEl.classList.add(GlobalCssClasses.paddingParagraph);
-            componentElements.contentWrapper?.classList.add(GlobalCssClasses.fontGlobal, GlobalCssClasses.fontParagraph);
-
-            return componentElements.marginWrapper.table;
-        },
-
-        getElements(componentElement: Element): TextComponentStructure | null {
-            if (!componentElement.classList.contains("component-text")) {
-                throw new Error(`Element is not a text component element: ${componentElement.outerHTML}`);
-            }
-
-            const wrappers = findComponentInnerWrappers(componentElement);
-
-            if (wrappers) {
                 return {
-                    ...wrappers,
+                    href: anchor?.getAttribute("href") ?? null,
+                    previewImageGeneratorUrl: null, // v0 didn't store the preview image generator URL
 
-                    get contentWrapper(): HTMLElement | null {
-                        return wrappers.marginWrapper.borderWrapper.paddingWrapper.td.querySelector(getContentWrapperSelector("text")) as HTMLElement | null;
-                    },
-
-                    get marginEl(): HTMLElement {
-                        return wrappers.marginWrapper.td;
-                    },
-
-                    get borderEl(): HTMLElement {
-                        return wrappers.marginWrapper.borderWrapper.td;
-                    },
-
-                    get paddingEl(): HTMLElement {
-                        return wrappers.marginWrapper.borderWrapper.paddingWrapper.td;
-                    }
+                    // not supported in v0
+                    previewImageAltText: null,
+                    previewImageFile: null,
+                    paddingPx: null
                 };
-            }
-            else {
-                return null;
+            },
+
+            writeLocalProps(_componentElement: HTMLElement, _localProps: VideoLocalProps): VideoLocalProps {
+                throw new Error("Cannot write local props for v0 video component.");
             }
         },
 
-        isMigrationRequired(componentElement: Element): boolean {
-            if (!componentElement.classList.contains("component-text")) {
-                throw new Error(`Element is not a text component element: ${componentElement.outerHTML}`);
-            }
+        "v2-alpha": {
+            version: "v2-alpha",
 
-            const versionNumber = getComponentVersionNumber(componentElement);
-
-            return !versionNumber || compareComponentVersions(versionNumber, latestVersion) < 0;
-        },
-
-        migrate(oldComponentElement: Element): Element {
-            if (!oldComponentElement.classList.contains("component-text")) {
-                throw new Error(`Element is not a text component element: ${oldComponentElement.outerHTML}`);
-            }
-
-            if (!helper.isMigrationRequired(oldComponentElement)) {
-                return oldComponentElement;
-            }
-
-            // Migrations should be in chronological order
-            // and should not use helper methods or variables that
-            // can change.
-            const migrations = [
-                function v0ToV2Alpha(componentElement: Element): Element {
-                    if (getComponentVersionNumber(componentElement)) {
-                        return componentElement; // Already migrated
-                    }
-
-                    // Create the new root table element
-                    const newRoot = document.createElement("table");
-                    newRoot.setAttribute("border", "0");
-                    newRoot.setAttribute("cellpadding", "0");
-                    newRoot.setAttribute("cellspacing", "0");
-                    newRoot.setAttribute("width", "100%");
-                    newRoot.setAttribute("role", "presentation");
-                    newRoot.classList.add("margin-wrapper", "component", "component-text");
-                    newRoot.setAttribute("data-state", "component");
-                    setComponentVersionNumber(newRoot, "v2-alpha"); // Ensure version tracking
-
-                    // Check for `.js-component-text-wrapper`
-                    const oldWrapper = (componentElement.querySelector(".js-component-text-wrapper") ?? null) as HTMLElement | null;
-
-                    // Start building the inner structure
-                    let innerStructure = `
-                        <tbody><tr><td>
-                            <table border="0" cellpadding="0" cellspacing="0" width="100%" role="presentation" class="border-wrapper" style="border-collapse: separate !important;">
-                                <tbody><tr><td`;
-
-                    let padding = "";
-                    if (oldWrapper) {
-                        // Extract styles from `.js-component-text-wrapper`
-                        const backgroundColor = (componentElement as HTMLElement).style.backgroundColor || "";
-                        const borderWidth = oldWrapper.style.borderWidth || "";
-                        const borderColor = oldWrapper.style.borderColor || "";
-                        const borderStyle = oldWrapper.style.borderStyle || "";
-                        padding = oldWrapper.style.padding || "";
-
-                        // Apply inline styles for full "v0" migration
-                        let inlineStyle = "";
-                        if (backgroundColor) inlineStyle += `background-color: ${backgroundColor}; `;
-                        if (borderWidth) inlineStyle += `border-width: ${borderWidth}; `;
-                        if (borderColor) inlineStyle += `border-color: ${borderColor}; `;
-                        if (borderStyle) inlineStyle += `border-style: ${borderStyle}; `;
-
-                        innerStructure += inlineStyle ? ` style="${inlineStyle.trim()}"` : "";
-                    }
-
-                    innerStructure += `>
-                                    <table border="0" cellpadding="0" cellspacing="0" width="100%" role="presentation" class="padding-wrapper">
-                                        <tbody><tr><td`;
-
-                    if (oldWrapper) {
-                        // Apply padding style if `.js-component-text-wrapper` existed
-                        innerStructure += padding ? ` style="padding: ${padding};"` : "";
-                    }
-
-                    innerStructure += `>
-                                            <div class="content-wrapper content-wrapper-for-text rock-content-editable"></div>
-                                        </td></tr></tbody>
-                                    </table>
-                                </td></tr></tbody>
-                            </table>
-                        </td></tr></tbody>
-                    `;
-
-                    // Set the new structure
-                    newRoot.innerHTML = innerStructure;
-
-                    // Move existing content into `.rock-content-editable`
-                    const newContentContainer = newRoot.querySelector(".rock-content-editable") as HTMLElement;
-                    if (oldWrapper) {
-                        // Move children of `.js-component-text-wrapper`
-                        oldWrapper.childNodes.forEach(node => newContentContainer.appendChild(node.cloneNode(true)));
-                    }
-                    else {
-                        // Move children of the original `.component-text` (simple case)
-                        componentElement.childNodes.forEach(node => newContentContainer.appendChild(node.cloneNode(true)));
-                    }
-
-                    return newRoot;
-                },
-
-                // eslint-disable-next-line @typescript-eslint/naming-convention
-                function v2AlphaToV17_3Alpha(componentElement: Element): Element {
-                    const versionNumber = getComponentVersionNumber(componentElement);
-                    if (!versionNumber) {
-                        // This shouldn't occur unless the v0 migration was skipped or modified incorrectly.
-                        throw new Error("Component version number is missing.");
-                    }
-
-                    if (compareComponentVersions(versionNumber, "v17.3-alpha") >= 0) {
-                        return componentElement; // Already migrated
-                    }
-
-                    const contentWrapper = componentElement.querySelector(".content-wrapper-for-text");
-
-                    if (!contentWrapper) {
-                        throw new Error("Content wrapper not found in text component.");
-                    }
-
-                    // Add the CSS classes.
-                    const marginWrapperTd = componentElement.querySelector(":scope > tbody > tr > td");
-                    if (marginWrapperTd) {
-                        marginWrapperTd.classList.add("margin-paragraph");
-
-                        const borderWrapperTd = marginWrapperTd.querySelector(".border-wrapper > tbody > tr > td");
-                        if (borderWrapperTd) {
-                            borderWrapperTd.classList.add("border-paragraph");
-
-                            const paddingWrapperTd = borderWrapperTd.querySelector(".padding-wrapper > tbody > tr > td");
-                            if (paddingWrapperTd) {
-                                paddingWrapperTd.classList.add("padding-paragraph");
-
-                                // Add the font class to the content wrapper element.
-                                contentWrapper.classList.add("font-global", "font-paragraph");
-                            }
-                        }
-                    }
-
-                    setComponentVersionNumber(componentElement, "v17.3-alpha"); // Ensure version tracking
-
-                    return componentElement;
-                }
-            ];
-
-            // Run migrations.
-            return migrations.reduce((component, migrate) => migrate(component), oldComponentElement);
-        },
-
-        get latestVersion(): string {
-            return latestVersion;
-        }
-    };
-
-    return helper;
-}
-
-export function getCodeComponentHelper(): ComponentMigrationHelper & {
-    getElements(componentElement: Element): ComponentStructure & { readonly contentWrapper: HTMLElement | null; } | null
-    createComponentElement(): HTMLElement;
-} {
-    const latestVersion = "v17.3-alpha" as const;
-
-    return {
-        createComponentElement(): HTMLElement {
-            const componentElements = createComponent(
-                "code",
-                latestVersion,
-                // Wrap component in a content-wrapper so the wrapper can be styled.
-                // It's important that no whitespace is left around the editable area.
-                `<div class="content-wrapper content-wrapper-for-code ${RockCssClassContentEditable}">Add your code here...</div>`
-            );
-            return componentElements.marginWrapper.table;
-        },
-
-        getElements(componentElement: Element): ComponentStructure & { readonly contentWrapper: HTMLElement | null; } | null {
-            if (!componentElement.classList.contains("component-code")) {
-                throw new Error(`Element is not a code component element: ${componentElement.outerHTML}`);
-            }
-
-            const wrappers = findComponentInnerWrappers(componentElement);
-
-            if (wrappers) {
-                return {
-                    ...wrappers,
-
-                    get contentWrapper(): HTMLElement | null {
-                        const searchFromElement = wrappers.marginWrapper.borderWrapper.paddingWrapper.td;
-                        return (searchFromElement.querySelector(getContentWrapperSelector("code")) ?? null) as HTMLElement | null;
-                    }
-                };
-            }
-
-            return wrappers;
-        },
-
-        isMigrationRequired(componentElement: Element): boolean {
-            if (!componentElement.classList.contains("component-code")) {
-                throw new Error(`Element is not a code component element: ${componentElement.outerHTML}`);
-            }
-
-            const versionNumber = getComponentVersionNumber(componentElement);
-
-            return !versionNumber || compareComponentVersions(versionNumber, latestVersion) < 0;
-        },
-
-        migrate(oldComponentElement: Element): Element {
-            if (!oldComponentElement.classList.contains("component-code")) {
-                throw new Error(`Element is not a code component element: ${oldComponentElement.outerHTML}`);
-            }
-
-            if (!this.isMigrationRequired(oldComponentElement)) {
-                return oldComponentElement;
-            }
-
-            const migrations = [
-                function v0ToV2Alpha(componentElement: Element): Element {
-                    if (!componentElement.classList.contains("component-code")) {
-                        throw new Error("Element is not a code component.");
-                    }
-
-                    const newComponentElement = document.createElement("table");
-                    newComponentElement.setAttribute("border", "0");
-                    newComponentElement.setAttribute("cellpadding", "0");
-                    newComponentElement.setAttribute("cellspacing", "0");
-                    newComponentElement.setAttribute("width", "100%");
-                    newComponentElement.setAttribute("role", "presentation");
-                    newComponentElement.className = "margin-wrapper margin-wrapper-for-code component component-code";
-                    newComponentElement.setAttribute("data-state", "component");
-
-                    // Ensure version tracking.
-                    setComponentVersionNumber(newComponentElement, "v2-alpha");
-
-                    const margin = (componentElement as HTMLElement).style.margin || "";
-
-                    newComponentElement.innerHTML = `
-                    <tbody><tr><td${margin ? ` style="padding: ${margin};"` : ""}>
-                        <table border="0" cellpadding="0" cellspacing="0" width="100%" role="presentation" class="border-wrapper border-wrapper-for-code" style="border-collapse: separate !important;">
-                            <tbody><tr><td style="overflow: hidden;">
-                                <table border="0" cellpadding="0" cellspacing="0" width="100%" role="presentation" class="padding-wrapper padding-wrapper-for-code">
-                                    <tbody><tr><td>
-                                        <div class="content-wrapper content-wrapper-for-code rock-content-editable"></div>
-                                    </td></tr></tbody>
+            createComponentElement(emailDocument: Document): HTMLElement {
+                const componentElement = createHtmlElement(emailDocument, `
+<table class="component component-video margin-wrapper margin-wrapper-for-video"
+       data-state="component"
+       data-version="v2-alpha"
+       border="0"
+       cellpadding="0"
+       cellspacing="0"
+       role="presentation"
+       width="100%">
+    <tbody>
+        <tr>
+            <td>
+                <table class="border-wrapper border-wrapper-for-video"
+                       border="0"
+                       cellpadding="0"
+                       cellspacing="0"
+                       role="presentation"
+                       width="100%"
+                       style="border-collapse: separate !important;">
+                    <tbody>
+                        <tr>
+                            <td style="overflow: hidden;">
+                                <table class="padding-wrapper padding-wrapper-for-video"
+                                       border="0"
+                                       cellpadding="0"
+                                       cellspacing="0"
+                                       role="presentation"
+                                       width="100%">
+                                    <tbody>
+                                        <tr>
+                                            <td style="line-height: 0;">
+                                                <a href="">
+                                                    <img src="" data-imgcsswidth="full" style="width: 100%">
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    </tbody>
                                 </table>
-                            </td></tr></tbody>
-                        </table>
-                    </td></tr></tbody>
-                `;
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </td>
+        </tr>
+    </tbody>
+</table>
+`);
 
-                    const contentContainer = newComponentElement.querySelector(".rock-content-editable") as HTMLElement;
-                    contentContainer.innerHTML = componentElement.innerHTML;
+                adapters["v2-alpha"].writeLocalProps(componentElement, defaultLocalProps);
 
-                    return newComponentElement;
-                },
+                return componentElement;
+            },
 
-                // eslint-disable-next-line @typescript-eslint/naming-convention
-                function v2AlphaToV17_3Alpha(componentElement: Element): Element {
-                    const versionNumber = getComponentVersionNumber(componentElement);
-                    if (!versionNumber) {
-                        // This shouldn't occur unless the v0 migration was skipped or modified incorrectly.
-                        throw new Error("Component version number is missing.");
-                    }
+            readLocalProps(componentElement: HTMLElement): VideoLocalProps {
+                const paddingWrapperForVideoTd = componentElement.querySelector(".padding-wrapper-for-video > tbody > tr > td") as HTMLElement | null;
+                const anchor = paddingWrapperForVideoTd?.querySelector("a");
+                const img = anchor?.querySelector("img");
 
-                    if (compareComponentVersions(versionNumber, "v17.3-alpha") >= 0) {
-                        return componentElement; // Already migrated
-                    }
+                const previewImageFileGuid = toGuidOrNull(componentElement.getAttribute(attributeNames.dataImageGuid));
 
-                    // Bump version.
-                    setComponentVersionNumber(componentElement, "v17.3-alpha");
+                return {
+                    href: anchor?.getAttribute("href") ?? null,
+                    previewImageGeneratorUrl: componentElement.getAttribute(attributeNames.dataImageSourceVideoUrl),
+                    previewImageFile: previewImageFileGuid
+                        ? {
+                            value: previewImageFileGuid,
+                            text: componentElement.getAttribute(attributeNames.dataImageFilename)
+                        }
+                        : null,
+                    previewImageAltText: img?.getAttribute("alt") ?? null,
+                    paddingPx: getStylePaddingPx(paddingWrapperForVideoTd?.style)
+                };
+            },
 
-                    return componentElement;
-                }
-            ];
+            writeLocalProps(componentElement: HTMLElement, localProps: VideoLocalProps): void {
+                const paddingWrapperForVideoTd = componentElement.querySelector(".padding-wrapper-for-video > tbody > tr > td") as HTMLElement | null;
+                const anchor = paddingWrapperForVideoTd?.querySelector("a");
+                const img = anchor?.querySelector("img");
 
-            // Run migrations.
-            return migrations.reduce((component, migrate) => migrate(component), oldComponentElement as Element);
+                const constructedPreviewImageUrl = localProps.previewImageFile?.value
+                    ? (() => {
+                        const queryStringParameters: string[] = [];
+
+                        queryStringParameters.push(`isBinaryFile=T`);
+                        queryStringParameters.push(`guid=${localProps.previewImageFile?.value}`);
+                        queryStringParameters.push(`fileName=${localProps.previewImageFile?.text}`);
+
+                        return `/GetImage.ashx?${queryStringParameters.join("&")}`;
+                    })()
+                    : placeholderImageSrc;
+
+                setAttributePropertyValue(img, "src", constructedPreviewImageUrl);
+                setAttributePropertyValue(componentElement, attributeNames.dataImageSourceVideoUrl, localProps.previewImageGeneratorUrl);
+
+                setAttributePropertyValue(anchor, "href", localProps.href);
+                setAttributePropertyValue(img, "alt", localProps.previewImageAltText);
+                setStylePaddingPx(paddingWrapperForVideoTd?.style, localProps.paddingPx);
+
+                // previewImageFile (used for populating the ImageUploader)
+                setAttributePropertyValue(componentElement, attributeNames.dataImageGuid, localProps.previewImageFile?.value);
+                setAttributePropertyValue(componentElement, attributeNames.dataImageFilename, localProps.previewImageFile?.text);
+            }
         },
 
-        get latestVersion(): string {
-            return latestVersion;
+        /**
+         * Version v17.3-alpha is identical to v2-alpha in structure and local props; just a version bump.
+         */
+        "v17.3-alpha": {
+            version: "v17.3-alpha",
+
+            createComponentElement(emailDocument: Document): HTMLElement {
+                const componentElement = adapters["v2-alpha"].createComponentElement(emailDocument);
+                setComponentVersionNumber(componentElement, "v17.3-alpha");
+                return componentElement;
+            },
+
+            readLocalProps(componentElement: HTMLElement): VideoLocalProps {
+                return adapters["v2-alpha"].readLocalProps(componentElement);
+            },
+
+            writeLocalProps(componentElement: HTMLElement, localProps: VideoLocalProps): void {
+                adapters["v2-alpha"].writeLocalProps(componentElement, localProps);
+            }
+        }
+    };
+
+    return createComponentAdapter(adapters, componentVersions, "video");
+}
+
+function createTitleComponentAdapter(): TitleComponentAdapter {
+    const componentVersions = ["v2-alpha", "v17.3-alpha"] as const;
+    type ComponentVersion = typeof componentVersions[number];
+
+    const defaultLocalProps: TitleLocalProps = {
+        text: "Title",
+        headingLevel: "h1",
+        fontFamily: null,
+        fontSizePx: null,
+        isBold: null,
+        isUnderlined: null,
+        isItalicized: null,
+        letterCase: null,
+        textAlignment: null,
+        lineHeight: null,
+        textColor: null,
+        paddingPx: null,
+        marginPx: null,
+        border: null,
+        borderRadiusPx: null
+    };
+
+    const adapters: Record<ComponentVersion, ComponentAdapterVersion<TitleLocalProps>> = {
+        // FYI, no "v0" adapter for "title" component since this is a new component introduced in the Obsidian Email Editor.
+
+        "v2-alpha": {
+            version: "v2-alpha",
+
+            createComponentElement(emailDocument: Document): HTMLElement {
+                const componentElement = createHtmlElement(emailDocument, `
+<table class="component component-title margin-wrapper margin-wrapper-for-title"
+       data-state="component"
+       data-version="v2-alpha"
+       border="0"
+       cellpadding="0"
+       cellspacing="0"
+       role="presentation"
+       width="100%">
+    <tbody>
+        <tr>
+            <td>
+                <table class="border-wrapper border-wrapper-for-title"
+                       border="0"
+                       cellpadding="0"
+                       cellspacing="0"
+                       role="presentation"
+                       width="100%"
+                       style="border-collapse: separate !important;">
+                    <tbody>
+                        <tr>
+                            <td style="overflow: hidden;">
+                                <table border="0" cellpadding="0" cellspacing="0" width="100%" role="presentation"
+                                    class="padding-wrapper padding-wrapper-for-title">
+                                    <tbody>
+                                        <tr>
+                                            <td>
+                                                <h1 class="font-global rock-content-editable" style="margin: 0"></h1>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </td>
+        </tr>
+    </tbody>
+</table>
+`);
+
+                adapters["v2-alpha"].writeLocalProps(componentElement, defaultLocalProps);
+
+                return componentElement;
+            },
+
+            writeLocalProps(componentElement: HTMLElement, localProps: TitleLocalProps): void {
+                const marginWrapperForTitle = componentElement;
+                const marginWrapperForTitleTd = marginWrapperForTitle.querySelector(":scope > tbody > tr > td") as HTMLTableCellElement | null;
+                const borderWrapperForTitle = marginWrapperForTitleTd?.querySelector(":scope > .border-wrapper-for-title") as HTMLElement | null;
+                const borderWrapperForTitleTd = borderWrapperForTitle?.querySelector(":scope > tbody > tr > td") as HTMLTableCellElement | null;
+                const paddingWrapperForTitle = borderWrapperForTitleTd?.querySelector(":scope > .padding-wrapper-for-title") as HTMLElement | null;
+                const paddingWrapperForTitleTd = paddingWrapperForTitle?.querySelector(":scope > tbody > tr > td") as HTMLTableCellElement | null;
+                let headingEl = paddingWrapperForTitleTd?.querySelector("h1, h2, h3, h4, h5, h6") as HTMLHeadElement | null | undefined;
+
+                if (!headingEl) {
+                    throw new Error("Heading tag not found in title component.");
+                }
+
+                headingEl.textContent = localProps.text;
+
+                if (headingEl.tagName.toLowerCase() !== localProps.headingLevel) {
+                    headingEl = replaceTagName(headingEl, localProps.headingLevel);
+                }
+
+                headingEl.className = headingEl.className.replace(/font-heading-(1|2|3|4|5|6)/g, "");
+                headingEl.classList.add(`font-heading-${localProps.headingLevel.charAt(1)}`);
+
+                if (marginWrapperForTitle) {
+                    marginWrapperForTitle.className = marginWrapperForTitle.className.replace(/margin-wrapper-for-title-(h1|h2|h3|h4|h5|h6)/g, "");
+                    marginWrapperForTitle.classList.add(`margin-wrapper-for-title-${localProps.headingLevel}`);
+                }
+
+                if (marginWrapperForTitleTd) {
+                    marginWrapperForTitleTd.className = marginWrapperForTitleTd.className.replace(/margin-heading-(1|2|3|4|5|6)/g, "");
+                    marginWrapperForTitleTd.classList.add(`margin-heading-${localProps.headingLevel.charAt(1)}`);
+                }
+
+                if (borderWrapperForTitle) {
+                    borderWrapperForTitle.className = borderWrapperForTitle.className.replace(/border-wrapper-for-title-(h1|h2|h3|h4|h5|h6)/g, "");
+                    borderWrapperForTitle.classList.add(`border-wrapper-for-title-${localProps.headingLevel}`);
+                }
+
+                if (borderWrapperForTitleTd) {
+                    borderWrapperForTitleTd.className = borderWrapperForTitleTd.className.replace(/border-heading-(1|2|3|4|5|6)/g, "");
+                    borderWrapperForTitleTd.classList.add(`border-heading-${localProps.headingLevel.charAt(1)}`);
+                }
+
+                if (paddingWrapperForTitle) {
+                    paddingWrapperForTitle.className = paddingWrapperForTitle.className.replace(/padding-wrapper-for-title-(h1|h2|h3|h4|h5|h6)/g, "");
+                    paddingWrapperForTitle.classList.add(`padding-wrapper-for-title-${localProps.headingLevel}`);
+                }
+
+                if (paddingWrapperForTitleTd) {
+                    paddingWrapperForTitleTd.className = paddingWrapperForTitleTd.className.replace(/padding-heading-(1|2|3|4|5|6)/g, "");
+                    paddingWrapperForTitleTd.classList.add(`padding-heading-${localProps.headingLevel.charAt(1)}`);
+                }
+
+                setStylePropertyValue(headingEl.style, "font-family", localProps.fontFamily);
+                setStyleFontSizePx(headingEl.style, localProps.fontSizePx);
+                setStyleIsBold(headingEl.style, localProps.isBold);
+                setStyleIsUnderlined(headingEl.style, localProps.isUnderlined);
+                setStyleIsItalicized(headingEl.style, localProps.isItalicized);
+                setStyleLetterCase(headingEl.style, localProps.letterCase);
+                setStyleTextAlignment(headingEl.style, localProps.textAlignment);
+                setStyleLineHeight(headingEl.style, localProps.lineHeight);
+                setStylePropertyValue(headingEl.style, "color", localProps.textColor);
+                setStylePaddingPx(paddingWrapperForTitleTd?.style, localProps.paddingPx);
+                setStylePaddingPx(marginWrapperForTitleTd?.style, localProps.marginPx);
+                setStyleBorder(borderWrapperForTitleTd?.style, localProps.border);
+                setStyleBorderRadiusPx(borderWrapperForTitleTd?.style, localProps.borderRadiusPx);
+            },
+
+            readLocalProps(componentElement: HTMLElement): TitleLocalProps {
+                const marginWrapperForTitle = componentElement;
+                const marginWrapperForTitleTd = marginWrapperForTitle.querySelector(":scope > tbody > tr > td") as HTMLTableCellElement | null;
+                const borderWrapperForTitle = marginWrapperForTitleTd?.querySelector(":scope > .border-wrapper-for-title") as HTMLElement | null | undefined;
+                const borderWrapperForTitleTd = borderWrapperForTitle?.querySelector(":scope > tbody > tr > td") as HTMLTableCellElement | null | undefined;
+                const paddingWrapperForTitle = borderWrapperForTitleTd?.querySelector(":scope > .padding-wrapper-for-title") as HTMLElement | null | undefined;
+                const paddingWrapperForTitleTd = paddingWrapperForTitle?.querySelector(":scope > tbody > tr > td") as HTMLTableCellElement | null | undefined;
+                const headingEl = paddingWrapperForTitleTd?.querySelector("h1, h2, h3, h4, h5, h6") as HTMLHeadElement | null | undefined;
+
+                return {
+                    text: headingEl?.textContent ?? "",
+                    headingLevel: headingEl?.tagName.toLowerCase() as "h1" | "h2" | "h3" | "h4" | "h5" | "h6" ?? "h1",
+                    fontFamily: getStylePropertyValueOrNull(headingEl?.style, "font-family"),
+                    fontSizePx: getStyleFontSizePx(headingEl?.style),
+                    isBold: getStyleIsBold(headingEl?.style),
+                    isUnderlined: getStyleIsUnderlined(headingEl?.style),
+                    isItalicized: getStyleIsItalicized(headingEl?.style),
+                    letterCase: getStyleLetterCase(headingEl?.style),
+                    textAlignment: getStyleTextAlignment(headingEl?.style),
+                    lineHeight: getStyleLineHeight(headingEl?.style),
+                    textColor: getStylePropertyValueOrNull(headingEl?.style, "color"),
+                    paddingPx: getStylePaddingPx(paddingWrapperForTitleTd?.style),
+                    marginPx: getStylePaddingPx(marginWrapperForTitleTd?.style),
+                    border: getStyleBorder(borderWrapperForTitleTd?.style),
+                    borderRadiusPx: getStyleBorderRadiusPx(borderWrapperForTitleTd?.style)
+                };
+            }
+        },
+
+        /**
+         * Version bump only.
+         */
+        "v17.3-alpha": {
+            version: "v17.3-alpha",
+
+            createComponentElement(): HTMLElement {
+                const componentElement = adapters["v2-alpha"].createComponentElement(document);
+                setComponentVersionNumber(componentElement, "v17.3-alpha");
+                return componentElement;
+            },
+
+            readLocalProps(componentElement: HTMLElement): TitleLocalProps {
+                return adapters["v2-alpha"].readLocalProps(componentElement);
+            },
+
+            writeLocalProps(componentElement: HTMLElement, localProps: TitleLocalProps): void {
+                adapters["v2-alpha"].writeLocalProps(componentElement, localProps);
+            }
+        }
+    };
+
+    return createComponentAdapter(adapters, componentVersions, "title");
+}
+
+function createComponentAdapter<TProps, TVersion extends string>(
+    adapters: Record<TVersion, ComponentAdapterVersion<TProps>>,
+    componentVersions: readonly TVersion[],
+    componentTypeName: ComponentTypeName
+): ComponentAdapter<TProps> {
+    const latestVersion = getLatestVersion(componentVersions);
+
+    const latestAdapter = adapters[latestVersion];
+
+    if (!latestAdapter) {
+        throw new Error(`Latest adapter for version ${latestVersion} is not defined.`);
+    }
+
+    function migrateComponent(emailDocument: Document, componentElement: HTMLElement): HTMLElement {
+        const adapter = adapters[getComponentVersion(componentElement, componentVersions)];
+
+        if (adapter === latestAdapter || compareComponentVersions(adapter.version, latestAdapter.version) >= 0) {
+            return componentElement; // No migration needed
+        }
+
+        const localProps = adapter.readLocalProps(componentElement);
+        const newComponentElement = latestAdapter.createComponentElement(emailDocument);
+        latestAdapter.writeLocalProps(newComponentElement, localProps);
+        componentElement.replaceWith(newComponentElement);
+        return newComponentElement;
+    }
+
+    return {
+        ...latestAdapter,
+
+        componentTypeName,
+
+        migrateComponent,
+
+        migrateAllComponents(emailDocument: Document): void {
+            Enumerable
+                .from(emailDocument.querySelectorAll(`.component-${componentTypeName}:not([data-version="${latestVersion}"])`))
+                .ofType<HTMLElement>((el): el is HTMLElement => isHTMLElement(el))
+                .forEach((componentElement) => {
+                    migrateComponent(emailDocument, componentElement);
+                });
+        },
+
+        refreshAllComponents(emailDocument: Document): void {
+            Enumerable
+                .from(emailDocument.querySelectorAll(`.component-${componentTypeName}[data-version="${latestVersion}"]`))
+                .ofType<HTMLElement>((el): el is HTMLElement => isHTMLElement(el))
+                .forEach((componentElement) => {
+                    const localProps = latestAdapter.readLocalProps(componentElement);
+                    latestAdapter.writeLocalProps(componentElement, localProps);
+                });
         }
     };
 }
 
-export function createDividerGlobalAdapter(): DividerGlobalAdapter {
+function createTextComponentAdapter(): TextComponentAdapter {
+    const componentVersions = ["v0", "v2-alpha", "v17.3-alpha"] as const;
+    type ComponentVersion = typeof componentVersions[number];
+
+    // Local settings should only be used for per-component customization or where there isn't a global alternative.
+    // Local settings can make global updates more difficult because they override global styles on a per-component basis
+    // i.e., you'd have to update each component individually in the editor to change a global style rather than use the global settings.
+    const defaultLocalProps: TextLocalProps = {
+        html: `<p style="margin: 0;">Let's see what you have to say!</p>`,
+        fontFamily: null,
+        fontSizePx: null,
+        isBold: null,
+        isUnderlined: null,
+        isItalicized: null,
+        letterCase: null,
+        textAlignment: null,
+        lineHeight: null,
+        textColor: null,
+        backgroundColor: null,
+        paddingPx: null,
+        marginPx: null,
+        border: null,
+        borderRadiusPx: null
+    };
+
+    const adapters: Record<ComponentVersion, ComponentAdapterVersion<TextLocalProps>> = {
+        "v0": {
+            version: "v0",
+
+            createComponentElement(_emailDocument: Document): HTMLElement {
+                throw new Error("v0 adapter is not implemented. Text component was introduced in v2-alpha.");
+            },
+
+            readLocalProps(componentElement: HTMLElement): TextLocalProps {
+                // Check for `.js-component-text-wrapper`
+                const jsComponentTextWrapper = componentElement.querySelector(".js-component-text-wrapper") as HTMLElement | null;
+
+                return {
+                    // Move children of `.js-component-text-wrapper`
+                    // or if `.js-component-text-wrapper` is not present,
+                    // move children of the original `.component-text` (simple case)
+                    html: jsComponentTextWrapper?.innerHTML ?? componentElement.innerHTML,
+
+                    border: getStyleBorder(jsComponentTextWrapper?.style),
+                    paddingPx: getStylePaddingPx(jsComponentTextWrapper?.style),
+                    backgroundColor: getStylePropertyValueOrNull(componentElement.style, "background-color"),
+                    lineHeight: getStyleLineHeight(componentElement.style),
+
+                    // Not supported in v0
+                    borderRadiusPx: null,
+                    fontFamily: null,
+                    fontSizePx: null,
+                    isBold: null,
+                    isItalicized: null,
+                    isUnderlined: null,
+                    letterCase: null,
+                    marginPx: null,
+                    textAlignment: null,
+                    textColor: null
+                };
+            },
+
+            writeLocalProps(_componentElement: HTMLElement, _localProps: TextLocalProps): void {
+                throw new Error("v0 adapter is not implemented. Text component was introduced in v2-alpha.");
+            }
+        },
+
+        "v2-alpha": {
+            version: "v2-alpha",
+
+            createComponentElement(emailDocument: Document): HTMLElement {
+                const componentElement = createHtmlElement(emailDocument, `
+<table class="component component-text margin-wrapper"
+       data-state="component"
+       data-version="v2-alpha"
+       border="0"
+       cellpadding="0"
+       cellspacing="0"
+       role="presentation"
+       width="100%">
+    <tbody>
+        <tr>
+            <td>
+                <table class="border-wrapper"
+                       border="0"
+                       cellpadding="0"
+                       cellspacing="0"
+                       role="presentation"
+                       width="100%"
+                       style="border-collapse: separate !important;">
+                    <tbody>
+                        <tr>
+                            <td style="overflow: hidden;">
+                                <table class="padding-wrapper"
+                                       border="0"
+                                       cellpadding="0"
+                                       cellspacing="0"
+                                       role="presentation"
+                                       width="100%">
+                                    <tbody>
+                                        <tr>
+                                            <td>
+                                                <div class="content-wrapper content-wrapper-for-text ${RockCssClassContentEditable}"></div>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </td>
+        </tr>
+    </tbody>
+</table>
+`);
+
+                adapters["v2-alpha"].writeLocalProps(componentElement, defaultLocalProps);
+
+                return componentElement;
+            },
+
+            readLocalProps(componentElement: HTMLElement): TextLocalProps {
+                const marginWrapperForTextTd = componentElement.querySelector(":scope > tbody > tr > td") as HTMLTableCellElement | null;
+                const borderWrapperForTextTd = marginWrapperForTextTd?.querySelector(".border-wrapper > tbody > tr > td") as HTMLTableCellElement | null | undefined;
+                const paddingWrapperForTextTd = borderWrapperForTextTd?.querySelector(".padding-wrapper > tbody > tr > td") as HTMLTableCellElement | null | undefined;
+                const contentWrapperForText = paddingWrapperForTextTd?.querySelector(".content-wrapper-for-text") as HTMLElement | null | undefined;
+
+                return {
+                    html: contentWrapperForText?.innerHTML ?? "",
+                    fontFamily: getStylePropertyValueOrNull(contentWrapperForText?.style, "font-family"),
+                    fontSizePx: getStyleFontSizePx(contentWrapperForText?.style),
+                    isBold: getStyleIsBold(contentWrapperForText?.style),
+                    isUnderlined: getStyleIsUnderlined(contentWrapperForText?.style),
+                    isItalicized: getStyleIsItalicized(contentWrapperForText?.style),
+                    letterCase: getStyleLetterCase(contentWrapperForText?.style),
+                    textAlignment: getStyleTextAlignment(contentWrapperForText?.style),
+                    lineHeight: getStyleLineHeight(contentWrapperForText?.style),
+                    textColor: getStylePropertyValueOrNull(contentWrapperForText?.style, "color"),
+                    backgroundColor: getStylePropertyValueOrNull(paddingWrapperForTextTd?.style, "background-color"),
+                    paddingPx: getStylePaddingPx(paddingWrapperForTextTd?.style),
+                    marginPx: getStylePaddingPx(marginWrapperForTextTd?.style), // Use padding for "margin".
+                    border: getStyleBorder(borderWrapperForTextTd?.style),
+                    borderRadiusPx: getStyleBorderRadiusPx(borderWrapperForTextTd?.style)
+                };
+            },
+
+            writeLocalProps(componentElement: HTMLElement, localProps: TextLocalProps): void {
+                const marginWrapperForTextTd = componentElement.querySelector(":scope > tbody > tr > td") as HTMLTableCellElement | null;
+                const borderWrapperForTextTd = marginWrapperForTextTd?.querySelector(".border-wrapper > tbody > tr > td") as HTMLTableCellElement | null | undefined;
+                const paddingWrapperForTextTd = borderWrapperForTextTd?.querySelector(".padding-wrapper > tbody > tr > td") as HTMLTableCellElement | null | undefined;
+                const contentWrapperForText = paddingWrapperForTextTd?.querySelector(".content-wrapper-for-text") as HTMLElement | null | undefined;
+
+                if (contentWrapperForText) {
+                    contentWrapperForText.innerHTML = localProps.html;
+                }
+                setStylePropertyValue(contentWrapperForText?.style, "font-family", localProps.fontFamily);
+                setStyleFontSizePx(contentWrapperForText?.style, localProps.fontSizePx);
+                setStyleIsBold(contentWrapperForText?.style, localProps.isBold);
+                setStyleIsUnderlined(contentWrapperForText?.style, localProps.isUnderlined);
+                setStyleIsItalicized(contentWrapperForText?.style, localProps.isItalicized);
+                setStyleLetterCase(contentWrapperForText?.style, localProps.letterCase);
+                setStyleTextAlignment(contentWrapperForText?.style, localProps.textAlignment);
+                setStyleLineHeight(contentWrapperForText?.style, localProps.lineHeight);
+                setStylePropertyValue(contentWrapperForText?.style, "color", localProps.textColor);
+
+                // backgroundColor
+                setStylePropertyValue(paddingWrapperForTextTd?.style, "background-color", localProps.backgroundColor);
+                setAttributePropertyValue(componentElement, "data-component-background-color", localProps.backgroundColor ? "true" : null);
+                setAttributePropertyValue(paddingWrapperForTextTd, "bgcolor", toBgcolorAttributeValue(localProps.backgroundColor));
+
+                setStylePaddingPx(paddingWrapperForTextTd?.style, localProps.paddingPx);
+                setStylePaddingPx(marginWrapperForTextTd?.style, localProps.marginPx); // Use padding for "margin".
+                setStyleBorder(borderWrapperForTextTd?.style, localProps.border);
+                setStyleBorderRadiusPx(borderWrapperForTextTd?.style, localProps.borderRadiusPx);
+            }
+        },
+
+        /**
+         * Added "-for-text" CSS classes for better specificity as well as some global font classes.
+         */
+        "v17.3-alpha": {
+            version: "v17.3-alpha",
+
+            createComponentElement(emailDocument: Document): HTMLElement {
+                const componentElement = createHtmlElement(emailDocument, `
+<table class="component component-text margin-wrapper margin-wrapper-for-text"
+       data-state="component"
+       data-version="v17.3-alpha"
+       border="0"
+       cellpadding="0"
+       cellspacing="0"
+       role="presentation"
+       width="100%">
+    <tbody>
+        <tr>
+            <td class="${GlobalCssClasses.marginParagraph}">
+                <table class="border-wrapper border-wrapper-for-text"
+                       border="0"
+                       cellpadding="0"
+                       cellspacing="0"
+                       role="presentation"
+                       width="100%"
+                       style="border-collapse: separate !important;">
+                    <tbody>
+                        <tr>
+                            <td class="${GlobalCssClasses.borderParagraph}"
+                                style="overflow: hidden;">
+                                <table class="padding-wrapper padding-wrapper-for-text"
+                                       border="0"
+                                       cellpadding="0"
+                                       cellspacing="0"
+                                       role="presentation"
+                                       width="100%">
+                                    <tbody>
+                                        <tr>
+                                            <td class="${GlobalCssClasses.paddingParagraph}">
+                                                <div class="content-wrapper content-wrapper-for-text ${RockCssClassContentEditable} ${GlobalCssClasses.fontGlobal} ${GlobalCssClasses.fontParagraph}"></div>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </td>
+        </tr>
+    </tbody>
+</table>
+`);
+
+                adapters["v17.3-alpha"].writeLocalProps(componentElement, defaultLocalProps);
+
+                return componentElement;
+            },
+
+            readLocalProps(componentElement: HTMLElement): TextLocalProps {
+                const marginWrapperForTextTd = componentElement.querySelector(":scope > tbody > tr > td") as HTMLTableCellElement | null;
+                const borderWrapperForTextTd = componentElement.querySelector(".border-wrapper-for-text > tbody > tr > td") as HTMLTableCellElement | null;
+                const paddingWrapperForTextTd = componentElement.querySelector(".padding-wrapper-for-text > tbody > tr > td") as HTMLTableCellElement | null;
+                const contentWrapperForText = componentElement.querySelector(".content-wrapper-for-text") as HTMLElement | null;
+
+                return {
+                    html: contentWrapperForText?.innerHTML ?? "",
+                    fontFamily: getStylePropertyValueOrNull(contentWrapperForText?.style, "font-family"),
+                    fontSizePx: getStyleFontSizePx(contentWrapperForText?.style),
+                    isBold: getStyleIsBold(contentWrapperForText?.style),
+                    isUnderlined: getStyleIsUnderlined(contentWrapperForText?.style),
+                    isItalicized: getStyleIsItalicized(contentWrapperForText?.style),
+                    letterCase: getStyleLetterCase(contentWrapperForText?.style),
+                    textAlignment: getStyleTextAlignment(contentWrapperForText?.style),
+                    lineHeight: getStyleLineHeight(contentWrapperForText?.style),
+                    textColor: getStylePropertyValueOrNull(contentWrapperForText?.style, "color"),
+                    backgroundColor: getStylePropertyValueOrNull(paddingWrapperForTextTd?.style, "background-color"),
+                    paddingPx: getStylePaddingPx(paddingWrapperForTextTd?.style),
+                    marginPx: getStylePaddingPx(marginWrapperForTextTd?.style), // Use padding for "margin".
+                    border: getStyleBorder(borderWrapperForTextTd?.style),
+                    borderRadiusPx: getStyleBorderRadiusPx(borderWrapperForTextTd?.style)
+                };
+            },
+
+            writeLocalProps(componentElement: HTMLElement, localProps: TextLocalProps): void {
+                const marginWrapperForTextTd = componentElement.querySelector(":scope > tbody > tr > td") as HTMLTableCellElement | null;
+                const borderWrapperForTextTd = marginWrapperForTextTd?.querySelector(".border-wrapper-for-text > tbody > tr > td") as HTMLTableCellElement | null | undefined;
+                const paddingWrapperForTextTd = borderWrapperForTextTd?.querySelector(".padding-wrapper-for-text > tbody > tr > td") as HTMLTableCellElement | null | undefined;
+                const contentWrapperForText = paddingWrapperForTextTd?.querySelector(".content-wrapper-for-text") as HTMLElement | null | undefined;
+
+                if (contentWrapperForText) {
+                    contentWrapperForText.innerHTML = localProps.html;
+                }
+                setStylePropertyValue(contentWrapperForText?.style, "font-family", localProps.fontFamily);
+                setStyleFontSizePx(contentWrapperForText?.style, localProps.fontSizePx);
+                setStyleIsBold(contentWrapperForText?.style, localProps.isBold);
+                setStyleIsUnderlined(contentWrapperForText?.style, localProps.isUnderlined);
+                setStyleIsItalicized(contentWrapperForText?.style, localProps.isItalicized);
+                setStyleLetterCase(contentWrapperForText?.style, localProps.letterCase);
+                setStyleTextAlignment(contentWrapperForText?.style, localProps.textAlignment);
+                setStyleLineHeight(contentWrapperForText?.style, localProps.lineHeight);
+                setStylePropertyValue(contentWrapperForText?.style, "color", localProps.textColor);
+
+                // backgroundColor
+                setStylePropertyValue(paddingWrapperForTextTd?.style, "background-color", localProps.backgroundColor);
+                setAttributePropertyValue(componentElement, "data-component-background-color", localProps.backgroundColor ? "true" : null); // null will remove the attribute and let the global style apply.
+                setAttributePropertyValue(paddingWrapperForTextTd, "bgcolor", toBgcolorAttributeValue(localProps.backgroundColor));
+
+                setStylePaddingPx(paddingWrapperForTextTd?.style, localProps.paddingPx);
+                setStylePaddingPx(marginWrapperForTextTd?.style, localProps.marginPx); // Use padding for "margin".
+                setStyleBorder(borderWrapperForTextTd?.style, localProps.border);
+                setStyleBorderRadiusPx(borderWrapperForTextTd?.style, localProps.borderRadiusPx);
+            }
+        }
+    };
+
+    return createComponentAdapter(adapters, componentVersions, "text");
+}
+
+function createCodeComponentAdapter(): CodeComponentAdapter {
+    const componentVersions = ["v0", "v2-alpha", "v17.3-alpha", "v18.2"] as const;
+    type ComponentVersion = (typeof componentVersions)[number];
+
+    const defaultLocalProps: CodeLocalProps = {
+        html: "Add your code here...",
+        marginPx: createShorthandModel(1)
+    };
+
+    const adapters: Record<ComponentVersion, ComponentAdapterVersion<CodeLocalProps>> = {
+        /**
+         * Initial WebForms version of the "code" component.
+         */
+        "v0": {
+            version: "v0",
+
+            createComponentElement(emailDocument: Document): HTMLElement {
+                const componentElement = createHtmlElement(emailDocument, `
+<div class="component component-code" data-state="component"></div>`);
+
+                adapters["v0"].writeLocalProps(componentElement, defaultLocalProps);
+
+                return componentElement;
+            },
+
+            readLocalProps(componentElement: HTMLElement): CodeLocalProps {
+                return {
+                    html: componentElement.innerHTML,
+                    marginPx: getStyleMarginPx(componentElement.style)
+                };
+            },
+
+            writeLocalProps(componentElement: HTMLElement, localProps: CodeLocalProps): void {
+                componentElement.innerHTML = localProps.html;
+                setStyleMarginPx(componentElement.style, localProps.marginPx);
+            }
+        },
+
+        /**
+         * Introduces the Obsidian-based "code" component structure.
+         */
+        "v2-alpha": {
+            version: "v2-alpha",
+
+            createComponentElement(emailDocument: Document): HTMLElement {
+                const componentElement = createHtmlElement(emailDocument, `
+<table class="component component-code margin-wrapper margin-wrapper-for-code"
+       data-state="component"
+       data-version="v2-alpha"
+       border="0"
+       cellpadding="0"
+       cellspacing="0"
+       role="presentation"
+       width="100%">
+    <tbody>
+        <tr>
+            <td>
+                <table border="0" cellpadding="0" cellspacing="0" width="100%" role="presentation" class="border-wrapper border-wrapper-for-code" style="border-collapse: separate !important;">
+                    <tbody>
+                        <tr>
+                            <td style="overflow: hidden;">
+                                <table border="0" cellpadding="0" cellspacing="0" width="100%" role="presentation" class="padding-wrapper padding-wrapper-for-code">
+                                    <tbody>
+                                        <tr>
+                                            <td>
+                                                <div class="content-wrapper content-wrapper-for-code rock-content-editable"></div>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </td>
+        </tr>
+    </tbody>
+</table>`);
+                adapters["v2-alpha"].writeLocalProps(componentElement, defaultLocalProps);
+
+                return componentElement;
+            },
+
+            readLocalProps(componentElement: HTMLElement): CodeLocalProps {
+                const marginWrapperForCodeTd = componentElement.querySelector(":scope > tbody > tr > td") as HTMLElement | null;
+                const contentWrapperForCode = componentElement.querySelector(".content-wrapper-for-code") as HTMLElement | null;
+
+                return {
+                    html: contentWrapperForCode?.innerHTML ?? "",
+                    marginPx: getStylePaddingPx(marginWrapperForCodeTd?.style)
+                };
+            },
+
+            writeLocalProps(componentElement: HTMLElement, localProps: CodeLocalProps): void {
+                const marginWrapperForCodeTd = componentElement.querySelector(":scope > tbody > tr > td") as HTMLElement | null;
+                const contentWrapperForCode = componentElement.querySelector(".content-wrapper-for-code") as HTMLElement | null;
+
+                if (contentWrapperForCode) {
+                    contentWrapperForCode.innerHTML = localProps.html;
+                }
+
+                setStylePaddingPx(marginWrapperForCodeTd?.style, localProps.marginPx);
+            }
+        },
+
+        /**
+         * Same as v2-alpha, but updates the version number to v17.3-alpha.
+         */
+        "v17.3-alpha": {
+            version: "v17.3-alpha",
+
+            createComponentElement(emailDocument: Document): HTMLElement {
+                const componentElement = adapters["v2-alpha"].createComponentElement(emailDocument);
+                componentElement.setAttribute("data-version", "v17.3-alpha");
+                return componentElement;
+            },
+
+            readLocalProps(componentElement: HTMLElement): CodeLocalProps {
+                return adapters["v2-alpha"].readLocalProps(componentElement);
+            },
+
+            writeLocalProps(componentElement: HTMLElement, localProps: CodeLocalProps): void {
+                adapters["v2-alpha"].writeLocalProps(componentElement, localProps);
+            }
+        },
+
+        /**
+         * Same as v2-alpha, but adds the global font to the styling.
+         */
+        "v18.2": {
+            version: "v18.2",
+
+            createComponentElement(emailDocument: Document): HTMLElement {
+                const componentElement = createHtmlElement(emailDocument, `
+<table class="component component-code margin-wrapper margin-wrapper-for-code"
+       data-state="component"
+       data-version="v18.2"
+       border="0"
+       cellpadding="0"
+       cellspacing="0"
+       role="presentation"
+       width="100%">
+    <tbody>
+        <tr>
+            <td>
+                <table border="0" cellpadding="0" cellspacing="0" width="100%" role="presentation" class="border-wrapper border-wrapper-for-code" style="border-collapse: separate !important;">
+                    <tbody>
+                        <tr>
+                            <td style="overflow: hidden;">
+                                <table border="0" cellpadding="0" cellspacing="0" width="100%" role="presentation" class="padding-wrapper padding-wrapper-for-code">
+                                    <tbody>
+                                        <tr>
+                                            <td>
+                                                <div class="content-wrapper content-wrapper-for-code ${RockCssClassContentEditable} ${GlobalCssClasses.fontGlobal}"></div>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </td>
+        </tr>
+    </tbody>
+</table>`);
+                adapters["v2-alpha"].writeLocalProps(componentElement, defaultLocalProps);
+
+                return componentElement;
+            },
+
+            readLocalProps(componentElement: HTMLElement): CodeLocalProps {
+                return adapters["v2-alpha"].readLocalProps(componentElement);
+            },
+
+            writeLocalProps(componentElement: HTMLElement, localProps: CodeLocalProps): void {
+                adapters["v2-alpha"].writeLocalProps(componentElement, localProps);
+            }
+        }
+    };
+
+    return createComponentAdapter(adapters, componentVersions, "code");
+}
+
+function createDividerGlobalAdapter(): DividerGlobalAdapter {
     const globalVersions = ["v0", "v17.3-alpha", "v18.2"] as const;
     type DividerGlobalVersion = (typeof globalVersions)[number];
 
@@ -2484,6 +2565,16 @@ export function createDividerGlobalAdapter(): DividerGlobalAdapter {
             left: 0,
             right: 0
         }
+    };
+
+    // Props for deletion of global settings.
+    const deleteGlobalProps: DividerGlobalProps = {
+        color: null,
+        horizontalAlignment: null,
+        marginPx: null,
+        style: null,
+        thicknessPx: null,
+        widthPercent: null
     };
 
     function getGlobalVersion(emailDocument: Document): DividerGlobalVersion {
@@ -2773,43 +2864,22 @@ export function createDividerGlobalAdapter(): DividerGlobalAdapter {
         }
     };
 
-    const latestAdapter = adapters[getLatestVersion(globalVersions)];
 
-    return {
-        ...latestAdapter,
-
-        areGlobalDefaultsNeeded(emailDocument: Document): boolean {
-            return compareComponentVersions(getGlobalVersion(emailDocument), "v0") === 0;
-        },
-
-        getDefaultGlobalProps(): DividerGlobalProps {
-            return defaultGlobalProps;
-        },
-
-        migrateGlobalProps(emailDocument: Document): DividerGlobalProps {
-            const adapter = adapters[getGlobalVersion(emailDocument)];
-            const thisAdapter = latestAdapter;
-            const globalProps = adapter.readGlobalProps(emailDocument);
-
-            if (compareComponentVersions(adapter.version, thisAdapter.version) >= 0) {
-                // Already on this or a newer version; no migration needed.
-                return globalProps;
+    return createGlobalAdapter(
+        adapters,
+        globalVersions,
+        getGlobalVersion,
+        defaultGlobalProps,
+        deleteGlobalProps,
+        {
+            onComponentAdded(adapter, event) {
+                if (event.componentTypeName === "divider") {
+                    // When a new divider component is added, ensure it uses the current global props.
+                    adapter.writeGlobalProps(event.emailDocument, event.globalProps);
+                }
             }
-
-            // Clear the global props using the old adapter (to clean up any old styles),
-            // and restore them using the new adapter.
-            adapter.writeGlobalProps(emailDocument, {
-                color: null,
-                horizontalAlignment: null,
-                marginPx: null,
-                style: null,
-                thicknessPx: null,
-                widthPercent: null
-            });
-            thisAdapter.writeGlobalProps(emailDocument, globalProps);
-            return thisAdapter.readGlobalProps(emailDocument);
-        },
-    };
+        }
+    );
 }
 
 function getComponentVersion<T extends string>(componentElement: HTMLElement, componentVersions: readonly T[]): T {
@@ -2822,10 +2892,9 @@ function getComponentVersion<T extends string>(componentElement: HTMLElement, co
     return getEarliestVersion(componentVersions);
 }
 
-export function createDividerComponentAdapter(): DividerComponentAdapter {
+function createDividerComponentAdapter(): DividerComponentAdapter {
     const componentVersions = ["v0", "v17.3-alpha", "v18.2"] as const;
     type DividerComponentVersion = (typeof componentVersions)[number];
-    const latestVersion: DividerComponentVersion = getLatestVersion(componentVersions);
 
     const dividerDatasetKeys = {
         COMPONENT_HORIZONTAL_ALIGNMENT: "data-component-horizontal-alignment",
@@ -2834,7 +2903,7 @@ export function createDividerComponentAdapter(): DividerComponentAdapter {
 
     // Define the adapters for each version and we'll only return the latest.
     // These are used for both component migration and global props migration.
-    const adapters: Record<DividerComponentVersion, DividerComponentAdapter> = {
+    const adapters: Record<DividerComponentVersion, ComponentAdapterVersion<DividerLocalProps>> = {
         "v0": {
             version: "v0",
 
@@ -2857,11 +2926,6 @@ export function createDividerComponentAdapter(): DividerComponentAdapter {
 
                 adapters["v0"].writeLocalProps(componentElement, defaultLocalProps);
 
-                return componentElement;
-            },
-
-            migrateComponent(_emailDocument: Document, componentElement: HTMLElement): HTMLElement {
-                // No migration needed for v0.
                 return componentElement;
             },
 
@@ -3008,29 +3072,9 @@ export function createDividerComponentAdapter(): DividerComponentAdapter {
                 setStylePropertyValue(borderWrapperTable?.style, "width", toPercentageStringValueOrNull(localProps.widthPercent));
                 setAttributePropertyValue(borderWrapperTable, "width", toPercentageStringValueOrNull(localProps.widthPercent));
                 setAttributePropertyValue(componentElement, dividerDatasetKeys.COMPONENT_WIDTH, !isNullish(localProps.widthPercent) ? "true" : null);
-            },
-
-            migrateComponent(emailDocument: Document, componentElement: HTMLElement): HTMLElement {
-                const version = getComponentVersion(componentElement, componentVersions);
-                const thisAdapter = adapters["v17.3-alpha"];
-                const adapter = adapters[version];
-
-                if (thisAdapter === adapter || compareComponentVersions(adapter.version, thisAdapter.version) >= 0) {
-                    // Already on this or a later version; no migration needed.
-                    return componentElement;
-                }
-
-                // Get the props of the current version,
-                // create a new component element at the latest version,
-                // and write the old props to the new element.
-                const localProps = adapter.readLocalProps(componentElement);
-                const newComponentElement = thisAdapter.createComponentElement(emailDocument);
-                thisAdapter.writeLocalProps(newComponentElement, localProps);
-                componentElement.replaceWith(newComponentElement);
-
-                return newComponentElement;
             }
         },
+
         "v18.2": {
             version: "v18.2",
 
@@ -3189,32 +3233,11 @@ export function createDividerComponentAdapter(): DividerComponentAdapter {
                 setStylePropertyValue(borderWrapperTable?.style, "width", toPercentageStringValueOrNull(localProps.widthPercent));
                 setAttributePropertyValue(borderWrapperTable, "width", toPercentageStringValueOrNull(localProps.widthPercent));
                 setAttributePropertyValue(componentElement, dividerDatasetKeys.COMPONENT_WIDTH, !isNullish(localProps.widthPercent) ? "true" : null);
-            },
-
-            migrateComponent(emailDocument: Document, componentElement: HTMLElement): HTMLElement {
-                const version = getComponentVersion(componentElement, componentVersions);
-                const thisAdapter = adapters["v18.2"];
-                const adapter = adapters[version];
-
-                if (thisAdapter === adapter || compareComponentVersions(adapter.version, thisAdapter.version) >= 0) {
-                    // Already on this or a later version; no migration needed.
-                    return componentElement;
-                }
-
-                // Get the props of the current version,
-                // create a new component element at the latest version,
-                // and write the old props to the new element.
-                const localProps = adapter.readLocalProps(componentElement);
-                const newComponentElement = thisAdapter.createComponentElement(emailDocument);
-                thisAdapter.writeLocalProps(newComponentElement, localProps);
-                componentElement.replaceWith(newComponentElement);
-
-                return newComponentElement;
             }
         }
     };
 
-    return adapters[latestVersion];
+    return createComponentAdapter(adapters, componentVersions, "divider");
 }
 
 function getLatestVersion<T extends string>(versions: readonly T[] | T[]): T {
@@ -3225,360 +3248,346 @@ function getEarliestVersion<T extends string>(versions: readonly T[] | T[]): T {
     return Enumerable.from(versions).aggregate((v1, v2) => compareComponentVersions(v1, v2) < 0 ? v1 : v2, "v9999" as T);
 }
 
-export function createRsvpComponentAdapter(): RsvpComponentAdapter {
+function createRsvpComponentAdapter(): RsvpComponentAdapter {
     const componentVersions = ["v0", "v2-alpha", "v17.3-alpha"] as const;
-
     type RsvpComponentVersion = typeof componentVersions[number];
 
-    const LATEST_VERSION = getLatestVersion(componentVersions);
-
-    // These are for reading local component properties for each version.
-    const localPropReaders: Record<RsvpComponentVersion, (componentElement: HTMLElement) => RsvpLocalProps> = {
-        "v0": (componentElement: HTMLElement): RsvpLocalProps => {
-            const rsvpInnerwrap = componentElement.querySelector(".rsvp-innerwrap") as HTMLElement | null;
-            const acceptButtonShell = componentElement.querySelector(".accept-button-shell") as HTMLElement | null;
-            const rsvpAcceptLink = componentElement.querySelector(".rsvp-accept-link") as HTMLElement | null;
-            const rsvpAcceptContent = componentElement.querySelector(".rsvp-accept-content") as HTMLElement | null;
-            const declineButtonShell = componentElement.querySelector(".decline-button-shell") as HTMLElement | null;
-            const rsvpDeclineLink = componentElement.querySelector(".rsvp-decline-link") as HTMLElement | null;
-            const rsvpGroupIdEl = componentElement.querySelector(".rsvp-group-id") as HTMLInputElement | null;
-            const rsvpOccurrenceValueEl = componentElement.querySelector(".rsvp-occurrence-value") as HTMLInputElement | null;
-
-            return {
-                blockPaddingPx: null, // not supported in v0
-                blockHorizontalAlignment: toHorizontalAlignmentOrNull(rsvpInnerwrap?.getAttribute("align")),
-                fontFamily: getStylePropertyValueOrNull(rsvpAcceptLink?.style, "font-family"),
-                fontSizePx: getStyleFontSizePx(rsvpAcceptLink?.style),
-                isBold: getStyleIsBold(rsvpAcceptLink?.style),
-                isUnderlined: getStyleIsUnderlined(rsvpAcceptLink?.style),
-                isItalicized: null, // not supported in v0
-                letterCase: null, // not supported in v0
-                lineHeight: null, // not supported in v0
-                buttonPaddingPx: getStylePaddingPx(rsvpAcceptContent?.style),
-                buttonBorderRadiusPx: null, // not supported in v0
-                acceptText: rsvpAcceptLink?.textContent || "Accept",
-                acceptWidth: null, // not supported in v0
-                acceptBackgroundColor: getStylePropertyValueOrNull(acceptButtonShell?.style, "background-color"),
-                acceptTextColor: getStylePropertyValueOrNull(rsvpAcceptLink?.style, "color"),
-                isDeclineHidden: getStylePropertyValueOrNull(declineButtonShell?.style, "display") === "none",
-                declineText: rsvpDeclineLink?.textContent || "Decline",
-                declineWidth: null, // not supported in v0
-                declineBackgroundColor: getStylePropertyValueOrNull(declineButtonShell?.style, "background-color"),
-                declineTextColor: getStylePropertyValueOrNull(rsvpDeclineLink?.style, "color"),
-                rsvpGroupGuid: rsvpGroupIdEl?.value || null,
-                rsvpOccurrenceValue: rsvpOccurrenceValueEl?.value || null
-            };
-        },
-        "v2-alpha": (componentElement: HTMLElement): RsvpLocalProps => {
-            const rsvpInnerwrap = componentElement.querySelector(".rsvp-innerwrap") as HTMLElement | null;
-            const rsvpAcceptLink = componentElement.querySelector(".rsvp-accept-link") as HTMLElement | null;
-            const rsvpDeclineLink = componentElement.querySelector(".rsvp-decline-link") as HTMLElement | null;
-            const rsvpGroupIdEl = componentElement.querySelector(".rsvp-group-id") as HTMLInputElement | null;
-            const rsvpOccurrenceValueEl = componentElement.querySelector(".rsvp-occurrence-value") as HTMLInputElement | null;
-            const acceptButtonShell = componentElement.querySelector(".accept-button-shell") as HTMLElement | null;
-            const declineButtonShell = componentElement.querySelector(".decline-button-shell") as HTMLElement | null;
-
-            const acceptButtonShellAttrWidth = acceptButtonShell?.getAttribute("width") || "";
-            const acceptWidthFixedPx = toPixelNumericValueOrNull(acceptButtonShell?.style.width || rsvpAcceptLink?.style.width);
-            const acceptWidthIsFull = acceptButtonShellAttrWidth === "100%" || acceptButtonShell?.style.width === "100%";
-            const acceptWidthIsFixed = !isNullish(acceptWidthFixedPx);
-
-            const declineButtonShellAttrWidth = declineButtonShell?.getAttribute("width") || "";
-            const declineWidthFixedPx = toPixelNumericValueOrNull(declineButtonShell?.style.width || rsvpDeclineLink?.style.width);
-            const declineWidthIsFull = declineButtonShellAttrWidth === "100%" || declineButtonShell?.style.width === "100%";
-            const declineWidthIsFixed = !isNullish(declineWidthFixedPx);
-
-            return {
-                blockPaddingPx: getStylePaddingPx(componentElement.style),
-                blockHorizontalAlignment: toHorizontalAlignmentOrNull(rsvpInnerwrap?.getAttribute("align")),
-                fontFamily: getStylePropertyValueOrNull(rsvpAcceptLink?.style, "font-family"),
-                fontSizePx: getStyleFontSizePx(rsvpAcceptLink?.style),
-                isBold: getStyleIsBold(rsvpAcceptLink?.style),
-                isUnderlined: getStyleIsUnderlined(rsvpAcceptLink?.style),
-                isItalicized: getStyleIsItalicized(rsvpAcceptLink?.style),
-                letterCase: getStyleLetterCase(rsvpAcceptLink?.style),
-                lineHeight: getStyleLineHeight(rsvpAcceptLink?.style),
-                buttonPaddingPx: getStylePaddingPx(rsvpAcceptLink?.style),
-                buttonBorderRadiusPx: getStyleBorderRadiusPx(acceptButtonShell?.style),
-                acceptText: rsvpAcceptLink?.textContent || "Accept",
-                acceptWidth: acceptWidthIsFull
-                    ? {
-                        mode: "full",
-                        fixedWidthPx: null
-                    }
-                    : acceptWidthIsFixed
-                        ? {
-                            mode: "fixed",
-                            fixedWidthPx: acceptWidthFixedPx!
-                        }
-                        : null,
-                acceptBackgroundColor: getStylePropertyValueOrNull(acceptButtonShell?.style, "background-color"),
-                acceptTextColor: getStylePropertyValueOrNull(rsvpAcceptLink?.style, "color"),
-                isDeclineHidden: getStylePropertyValueOrNull(declineButtonShell?.style, "display") === "none",
-                declineText: rsvpDeclineLink?.textContent || "Decline",
-                declineWidth: declineWidthIsFull
-                    ? {
-                        mode: "full",
-                        fixedWidthPx: null
-                    }
-                    : declineWidthIsFixed
-                        ? {
-                            mode: "fixed",
-                            fixedWidthPx: declineWidthFixedPx!
-                        }
-                        : null,
-                declineBackgroundColor: getStylePropertyValueOrNull(declineButtonShell?.style, "background-color"),
-                declineTextColor: getStylePropertyValueOrNull(rsvpDeclineLink?.style, "color"),
-                rsvpGroupGuid: rsvpGroupIdEl?.value || null,
-                rsvpOccurrenceValue: rsvpOccurrenceValueEl?.value || null
-            };
-        },
-        "v17.3-alpha": (componentElement: HTMLElement): RsvpLocalProps => {
-            // v17.3-alpha uses the same structure as v2-alpha; it was only a version bump.
-            // FYI, Don't do version bumps any more to keep things simpler.
-            return localPropReaders["v2-alpha"](componentElement);
-        }
+    // Use global props instead of local props when possible.
+    const defaultLocalProps: RsvpLocalProps = {
+        blockPaddingPx: null,
+        blockHorizontalAlignment: "center",
+        fontFamily: FontFamilies.Arial,
+        fontSizePx: 16,
+        isBold: true,
+        isUnderlined: false,
+        isItalicized: null,
+        letterCase: null,
+        lineHeight: null,
+        buttonPaddingPx: createShorthandModel(15),
+        buttonBorderRadiusPx: createShorthandModel(3),
+        acceptText: "Accept",
+        acceptWidth: null,
+        acceptBackgroundColor: "#16C98D",
+        acceptTextColor: "#FFFFFF",
+        isDeclineHidden: false,
+        declineText: "Decline",
+        declineWidth: null,
+        declineBackgroundColor: "#D4442E",
+        declineTextColor: "#FFFFFF",
+        rsvpGroupGuid: null,
+        rsvpOccurrenceValue: null
     };
 
-    function createEmptyComponentElement(emailDocument: Document): HTMLElement {
-        const div = emailDocument.createElement("div");
-        div.classList.add("component", "component-rsvp");
-        setComponentVersionNumber(div, "v17.3-alpha");
-        div.dataset.state = "component";
-        div.innerHTML =
-            `<table class="rsvp-outerwrap" border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%" style="min-width: 100%;">
-                <tbody>
-                    <tr>
-                        <td class="rsvp-innerwrap" valign="top" style="padding: 0;">
-                            <table border="0" cellpadding="0" cellspacing="0" role="presentation">
-                                <tbody>
-                                    <tr>
-                                        <td>
-                                            <table class="accept-button-shell" border="0" cellpadding="0" cellspacing="0" role="presentation" style="border-collapse: separate; display: inline-table;">
-                                                <tbody>
-                                                    <tr>
-                                                        <td class="rsvp-accept-content" align="center" valign="middle">
-                                                            <a class="rsvp-accept-link ${RockCssClassContentEditable}" rel="noopener noreferrer" style="display: inline-block; letter-spacing: normal; text-align: center;"></a>
-                                                        </td>
-                                                    </tr>
-                                                </tbody>
-                                            </table>
-                                        </td>
-                                        <td>
-                                            <table class="decline-button-shell" border="0" cellpadding="0" cellspacing="0" role="presentation" style="border-collapse: separate;">
-                                                <tbody>
-                                                    <tr>
-                                                        <td class="rsvp-decline-content" align="center" valign="middle">
-                                                            <a class="rsvp-decline-link ${RockCssClassContentEditable}" rel="noopener noreferrer" style="display: inline-block; letter-spacing: normal; text-align: center;"></a>
-                                                        </td>
-                                                    </tr>
-                                                </tbody>
-                                            </table>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-            <input type="hidden" class="rsvp-group-id">
-            <input type="hidden" class="rsvp-occurrence-value">`;
-        return div;
-    }
+    const adapters: Record<RsvpComponentVersion, ComponentAdapterVersion<RsvpLocalProps>> = {
+        "v0": {
+            version: "v0",
 
-    function getComponentVersion(componentElement: HTMLElement): RsvpComponentVersion {
-        const versionNumber = getComponentVersionNumber(componentElement);
+            createComponentElement(_emailDocument: Document): HTMLElement {
+                throw new Error("Rsvp component version v0 does not support creating new component elements.");
+            },
 
-        if (!versionNumber || !componentVersions.includes(versionNumber as RsvpComponentVersion)) {
-            return "v0";
-        }
+            readLocalProps(componentElement: HTMLElement): RsvpLocalProps {
+                const rsvpInnerwrap = componentElement.querySelector(".rsvp-innerwrap") as HTMLElement | null;
+                const acceptButtonShell = componentElement.querySelector(".accept-button-shell") as HTMLElement | null;
+                const rsvpAcceptLink = componentElement.querySelector(".rsvp-accept-link") as HTMLElement | null;
+                const rsvpAcceptContent = componentElement.querySelector(".rsvp-accept-content") as HTMLElement | null;
+                const declineButtonShell = componentElement.querySelector(".decline-button-shell") as HTMLElement | null;
+                const rsvpDeclineLink = componentElement.querySelector(".rsvp-decline-link") as HTMLElement | null;
+                const rsvpGroupIdEl = componentElement.querySelector(".rsvp-group-id") as HTMLInputElement | null;
+                const rsvpOccurrenceValueEl = componentElement.querySelector(".rsvp-occurrence-value") as HTMLInputElement | null;
 
-        return versionNumber as RsvpComponentVersion;
-    }
+                return {
+                    blockPaddingPx: null, // not supported in v0
+                    blockHorizontalAlignment: toHorizontalAlignmentOrNull(rsvpInnerwrap?.getAttribute("align")),
+                    fontFamily: getStylePropertyValueOrNull(rsvpAcceptLink?.style, "font-family"),
+                    fontSizePx: getStyleFontSizePx(rsvpAcceptLink?.style),
+                    isBold: getStyleIsBold(rsvpAcceptLink?.style),
+                    isUnderlined: getStyleIsUnderlined(rsvpAcceptLink?.style),
+                    isItalicized: null, // not supported in v0
+                    letterCase: null, // not supported in v0
+                    lineHeight: null, // not supported in v0
+                    buttonPaddingPx: getStylePaddingPx(rsvpAcceptContent?.style),
+                    buttonBorderRadiusPx: null, // not supported in v0
+                    acceptText: rsvpAcceptLink?.textContent || "Accept",
+                    acceptWidth: null, // not supported in v0
+                    acceptBackgroundColor: getStylePropertyValueOrNull(acceptButtonShell?.style, "background-color"),
+                    acceptTextColor: getStylePropertyValueOrNull(rsvpAcceptLink?.style, "color"),
+                    isDeclineHidden: getStylePropertyValueOrNull(declineButtonShell?.style, "display") === "none",
+                    declineText: rsvpDeclineLink?.textContent || "Decline",
+                    declineWidth: null, // not supported in v0
+                    declineBackgroundColor: getStylePropertyValueOrNull(declineButtonShell?.style, "background-color"),
+                    declineTextColor: getStylePropertyValueOrNull(rsvpDeclineLink?.style, "color"),
+                    rsvpGroupGuid: rsvpGroupIdEl?.value || null,
+                    rsvpOccurrenceValue: rsvpOccurrenceValueEl?.value || null
+                };
+            },
 
-    const adapter: RsvpComponentAdapter = {
-        version: LATEST_VERSION,
-
-        createComponentElement(emailDocument: Document): HTMLElement {
-            const componentElement = createEmptyComponentElement(emailDocument);
-
-            // Use global props instead of local props when possible.
-            const localPropDefaults: RsvpLocalProps = {
-                blockPaddingPx: null,
-                blockHorizontalAlignment: "center",
-                fontFamily: FontFamilies.Arial,
-                fontSizePx: 16,
-                isBold: true,
-                isUnderlined: false,
-                isItalicized: null,
-                letterCase: null,
-                lineHeight: null,
-                buttonPaddingPx: createShorthandModel(15),
-                buttonBorderRadiusPx: createShorthandModel(3),
-                acceptText: "Accept",
-                acceptWidth: null,
-                acceptBackgroundColor: "#16C98D",
-                acceptTextColor: "#FFFFFF",
-                isDeclineHidden: false,
-                declineText: "Decline",
-                declineWidth: null,
-                declineBackgroundColor: "#D4442E",
-                declineTextColor: "#FFFFFF",
-                rsvpGroupGuid: null,
-                rsvpOccurrenceValue: null
-            };
-
-            adapter.writeLocalProps(componentElement, localPropDefaults);
-
-            // Global props will be applied after the component is added to the email DOM.
-            return componentElement;
-        },
-
-        // Local Props
-        readLocalProps(componentElement: HTMLElement): RsvpLocalProps {
-            return localPropReaders[getComponentVersion(componentElement)](componentElement);
-        },
-        writeLocalProps(componentElement: HTMLElement, localProps: RsvpLocalProps): void {
-            const rsvpInnerwrap = componentElement.querySelector(".rsvp-innerwrap") as HTMLElement | null;
-            const rsvpAcceptLink = componentElement.querySelector("a.rsvp-accept-link") as HTMLAnchorElement | null;
-            const rsvpDeclineLink = componentElement.querySelector("a.rsvp-decline-link") as HTMLAnchorElement | null;
-            const acceptButtonShell = componentElement.querySelector(".accept-button-shell") as HTMLElement | null;
-            const declineButtonShell = componentElement.querySelector(".decline-button-shell") as HTMLElement | null;
-            const declineButtonShellParent = declineButtonShell?.parentElement;
-            const rsvpGroupIdEl = componentElement.querySelector(".rsvp-group-id") as HTMLInputElement | null;
-            const rsvpOccurrenceValueEl = componentElement.querySelector(".rsvp-occurrence-value") as HTMLInputElement | null;
-
-            setStylePaddingPx(componentElement.style, localProps.blockPaddingPx);
-            setAttributePropertyValue(rsvpInnerwrap, "align", localProps.blockHorizontalAlignment ?? "center"); // this might need to set the text-align inline style as well.
-            setStylePropertyValue(rsvpAcceptLink?.style, "font-family", localProps.fontFamily);
-            setStylePropertyValue(rsvpDeclineLink?.style, "font-family", localProps.fontFamily);
-            setStyleFontSizePx(rsvpAcceptLink?.style, localProps.fontSizePx);
-            setStyleFontSizePx(rsvpDeclineLink?.style, localProps.fontSizePx);
-            setStyleIsBold(rsvpAcceptLink?.style, localProps.isBold);
-            setStyleIsBold(rsvpDeclineLink?.style, localProps.isBold);
-            setStyleIsUnderlined(rsvpAcceptLink?.style, localProps.isUnderlined);
-            setStyleIsUnderlined(rsvpDeclineLink?.style, localProps.isUnderlined);
-            setStyleIsItalicized(rsvpAcceptLink?.style, localProps.isItalicized);
-            setStyleIsItalicized(rsvpDeclineLink?.style, localProps.isItalicized);
-            setStyleLetterCase(rsvpAcceptLink?.style, localProps.letterCase);
-            setStyleLetterCase(rsvpDeclineLink?.style, localProps.letterCase);
-            setStyleLineHeight(rsvpAcceptLink?.style, localProps.lineHeight);
-            setStyleLineHeight(rsvpDeclineLink?.style, localProps.lineHeight);
-            setStylePaddingPx(rsvpAcceptLink?.style, localProps.buttonPaddingPx);
-            setStylePaddingPx(rsvpDeclineLink?.style, localProps.buttonPaddingPx);
-
-            // border radius
-            setStyleBorderRadiusPx(acceptButtonShell?.style, localProps.buttonBorderRadiusPx);
-            setStyleBorderRadiusPx(rsvpAcceptLink?.style, localProps.buttonBorderRadiusPx);
-            setStyleBorderRadiusPx(declineButtonShell?.style, localProps.buttonBorderRadiusPx);
-            setStyleBorderRadiusPx(rsvpDeclineLink?.style, localProps.buttonBorderRadiusPx);
-
-            if (rsvpAcceptLink) {
-                rsvpAcceptLink.textContent = localProps.acceptText;
-                rsvpAcceptLink.title = localProps.acceptText;
-            }
-
-            // accept width
-            if (localProps.acceptWidth?.mode === "full") {
-                setAttributePropertyValue(acceptButtonShell, "width", "100%");
-                setStylePropertyValue(acceptButtonShell?.style, "width", "100%");
-            }
-            else if (localProps.acceptWidth?.mode === "fixed") {
-                setAttributePropertyValue(acceptButtonShell, "width", localProps.acceptWidth.fixedWidthPx); // no "px" in the attribute
-                setStylePropertyValue(acceptButtonShell?.style, "width", toPixelStringValueOrNull(localProps.acceptWidth.fixedWidthPx));
-            }
-            else {
-                // default and "fitToText"
-                setAttributePropertyValue(acceptButtonShell, "width", null);
-                setStylePropertyValue(acceptButtonShell?.style, "width", null);
-            }
-
-            setStylePropertyValue(acceptButtonShell?.style, "background-color", localProps.acceptBackgroundColor);
-            setStylePropertyValue(rsvpAcceptLink?.style, "color", localProps.acceptTextColor);
-
-            // decline is hidden
-            setStylePropertyValue(declineButtonShell?.style, "display", localProps.isDeclineHidden ? "none" : "inline-table");
-            setStylePaddingPx(declineButtonShellParent?.style, !localProps.isDeclineHidden ? { left: 10, top: null, right: null, bottom: null } : null);
-
-            if (rsvpDeclineLink) {
-                rsvpDeclineLink.textContent = localProps.declineText;
-                rsvpDeclineLink.title = localProps.declineText;
-            }
-
-            // decline width
-            if (localProps.declineWidth?.mode === "full") {
-                setAttributePropertyValue(declineButtonShell, "width", "100%");
-                setStylePropertyValue(declineButtonShell?.style, "width", "100%");
-            }
-            else if (localProps.declineWidth?.mode === "fixed") {
-                setAttributePropertyValue(declineButtonShell, "width", localProps.declineWidth.fixedWidthPx); // no "px" in the attribute
-                setStylePropertyValue(declineButtonShell?.style, "width", toPixelStringValueOrNull(localProps.declineWidth.fixedWidthPx));
-            }
-            else {
-                // default and "fitToText"
-                setAttributePropertyValue(declineButtonShell, "width", null);
-                setStylePropertyValue(declineButtonShell?.style, "width", null);
-            }
-
-            setStylePropertyValue(declineButtonShell?.style, "background-color", localProps.declineBackgroundColor);
-            setStylePropertyValue(rsvpDeclineLink?.style, "color", localProps.declineTextColor);
-
-            // group occurrence
-            if (rsvpGroupIdEl) {
-                rsvpGroupIdEl.value = localProps.rsvpGroupGuid || "";
-            }
-            if (rsvpOccurrenceValueEl) {
-                rsvpOccurrenceValueEl.value = localProps.rsvpOccurrenceValue || "";
-            }
-
-            // hrefs
-            const commonHrefProps: Record<string, string> = {
-                p: `{{ Person | PersonActionIdentifier:'RSVP' }}`,
-                AcceptButtonText: localProps.acceptText,
-                AcceptButtonColor: localProps.acceptBackgroundColor ?? "",
-                AcceptButtonFontColor: localProps.acceptTextColor ?? "",
-                DeclineButtonText: localProps.declineText,
-                DeclineButtonColor: localProps.declineBackgroundColor ?? "",
-                DeclineButtonFontColor: localProps.declineTextColor ?? "",
-                AttendanceOccurrenceId: Enumerable.from((localProps.rsvpOccurrenceValue ?? "").split("|")).firstOrDefault("")
-            };
-            if (rsvpAcceptLink) {
-                const queryString = new URLSearchParams({
-                    ...commonHrefProps,
-                    isAccept: "1"
-                });
-                rsvpAcceptLink.href = `{{ 'Global' | Attribute:'PublicApplicationRoot' }}RSVP?${queryString}`;
-            }
-            if (rsvpDeclineLink) {
-                const queryString = new URLSearchParams({
-                    ...commonHrefProps,
-                    isAccept: "0"
-                });
-                rsvpDeclineLink.href = `{{ 'Global' | Attribute:'PublicApplicationRoot' }}RSVP?${queryString}`;
+            writeLocalProps(_componentElement: HTMLElement, _localProps: RsvpLocalProps): void {
+                throw new Error("Rsvp component version v0 does not support writing local props.");
             }
         },
 
-        migrateComponent(emailDocument: Document, componentElement: HTMLElement): HTMLElement {
-            const componentVersion = getComponentVersion(componentElement);
-            if (componentVersion === LATEST_VERSION) {
-                // No migration needed; already at latest version.
+        "v2-alpha": {
+            version: "v2-alpha",
+
+            readLocalProps(componentElement: HTMLElement): RsvpLocalProps {
+                const rsvpInnerwrap = componentElement.querySelector(".rsvp-innerwrap") as HTMLElement | null;
+                const rsvpAcceptLink = componentElement.querySelector(".rsvp-accept-link") as HTMLElement | null;
+                const rsvpDeclineLink = componentElement.querySelector(".rsvp-decline-link") as HTMLElement | null;
+                const rsvpGroupIdEl = componentElement.querySelector(".rsvp-group-id") as HTMLInputElement | null;
+                const rsvpOccurrenceValueEl = componentElement.querySelector(".rsvp-occurrence-value") as HTMLInputElement | null;
+                const acceptButtonShell = componentElement.querySelector(".accept-button-shell") as HTMLElement | null;
+                const declineButtonShell = componentElement.querySelector(".decline-button-shell") as HTMLElement | null;
+
+                const acceptButtonShellAttrWidth = acceptButtonShell?.getAttribute("width") || "";
+                const acceptWidthFixedPx = toPixelNumericValueOrNull(acceptButtonShell?.style.width || rsvpAcceptLink?.style.width);
+                const acceptWidthIsFull = acceptButtonShellAttrWidth === "100%" || acceptButtonShell?.style.width === "100%";
+                const acceptWidthIsFixed = !isNullish(acceptWidthFixedPx);
+
+                const declineButtonShellAttrWidth = declineButtonShell?.getAttribute("width") || "";
+                const declineWidthFixedPx = toPixelNumericValueOrNull(declineButtonShell?.style.width || rsvpDeclineLink?.style.width);
+                const declineWidthIsFull = declineButtonShellAttrWidth === "100%" || declineButtonShell?.style.width === "100%";
+                const declineWidthIsFixed = !isNullish(declineWidthFixedPx);
+
+                return {
+                    blockPaddingPx: getStylePaddingPx(componentElement.style),
+                    blockHorizontalAlignment: toHorizontalAlignmentOrNull(rsvpInnerwrap?.getAttribute("align")),
+                    fontFamily: getStylePropertyValueOrNull(rsvpAcceptLink?.style, "font-family"),
+                    fontSizePx: getStyleFontSizePx(rsvpAcceptLink?.style),
+                    isBold: getStyleIsBold(rsvpAcceptLink?.style),
+                    isUnderlined: getStyleIsUnderlined(rsvpAcceptLink?.style),
+                    isItalicized: getStyleIsItalicized(rsvpAcceptLink?.style),
+                    letterCase: getStyleLetterCase(rsvpAcceptLink?.style),
+                    lineHeight: getStyleLineHeight(rsvpAcceptLink?.style),
+                    buttonPaddingPx: getStylePaddingPx(rsvpAcceptLink?.style),
+                    buttonBorderRadiusPx: getStyleBorderRadiusPx(acceptButtonShell?.style),
+                    acceptText: rsvpAcceptLink?.textContent || "Accept",
+                    acceptWidth: acceptWidthIsFull
+                        ? {
+                            mode: "full",
+                            fixedWidthPx: null
+                        }
+                        : acceptWidthIsFixed
+                            ? {
+                                mode: "fixed",
+                                fixedWidthPx: acceptWidthFixedPx!
+                            }
+                            : null,
+                    acceptBackgroundColor: getStylePropertyValueOrNull(acceptButtonShell?.style, "background-color"),
+                    acceptTextColor: getStylePropertyValueOrNull(rsvpAcceptLink?.style, "color"),
+                    isDeclineHidden: getStylePropertyValueOrNull(declineButtonShell?.style, "display") === "none",
+                    declineText: rsvpDeclineLink?.textContent || "Decline",
+                    declineWidth: declineWidthIsFull
+                        ? {
+                            mode: "full",
+                            fixedWidthPx: null
+                        }
+                        : declineWidthIsFixed
+                            ? {
+                                mode: "fixed",
+                                fixedWidthPx: declineWidthFixedPx!
+                            }
+                            : null,
+                    declineBackgroundColor: getStylePropertyValueOrNull(declineButtonShell?.style, "background-color"),
+                    declineTextColor: getStylePropertyValueOrNull(rsvpDeclineLink?.style, "color"),
+                    rsvpGroupGuid: rsvpGroupIdEl?.value || null,
+                    rsvpOccurrenceValue: rsvpOccurrenceValueEl?.value || null
+                };
+            },
+
+            createComponentElement(emailDocument: Document): HTMLElement {
+                const componentElement = emailDocument.createElement("div");
+                componentElement.classList.add("component", "component-rsvp");
+                setComponentVersionNumber(componentElement, "v2-alpha");
+                componentElement.dataset.state = "component";
+                componentElement.innerHTML =
+                    `<table class="rsvp-outerwrap" border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%" style="min-width: 100%;">
+                        <tbody>
+                            <tr>
+                                <td class="rsvp-innerwrap" valign="top" style="padding: 0;">
+                                    <table border="0" cellpadding="0" cellspacing="0" role="presentation">
+                                        <tbody>
+                                            <tr>
+                                                <td>
+                                                    <table class="accept-button-shell" border="0" cellpadding="0" cellspacing="0" role="presentation" style="border-collapse: separate; display: inline-table;">
+                                                        <tbody>
+                                                            <tr>
+                                                                <td class="rsvp-accept-content" align="center" valign="middle">
+                                                                    <a class="rsvp-accept-link ${RockCssClassContentEditable}" rel="noopener noreferrer" style="display: inline-block; letter-spacing: normal; text-align: center;"></a>
+                                                                </td>
+                                                            </tr>
+                                                        </tbody>
+                                                    </table>
+                                                </td>
+                                                <td>
+                                                    <table class="decline-button-shell" border="0" cellpadding="0" cellspacing="0" role="presentation" style="border-collapse: separate;">
+                                                        <tbody>
+                                                            <tr>
+                                                                <td class="rsvp-decline-content" align="center" valign="middle">
+                                                                    <a class="rsvp-decline-link ${RockCssClassContentEditable}" rel="noopener noreferrer" style="display: inline-block; letter-spacing: normal; text-align: center;"></a>
+                                                                </td>
+                                                            </tr>
+                                                        </tbody>
+                                                    </table>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <input type="hidden" class="rsvp-group-id">
+                    <input type="hidden" class="rsvp-occurrence-value">`;
+
+                adapters["v17.3-alpha"].writeLocalProps(componentElement, defaultLocalProps);
+
                 return componentElement;
+            },
+
+            writeLocalProps(componentElement: HTMLElement, localProps: RsvpLocalProps): void {
+                const rsvpInnerwrap = componentElement.querySelector(".rsvp-innerwrap") as HTMLElement | null;
+                const rsvpAcceptLink = componentElement.querySelector("a.rsvp-accept-link") as HTMLAnchorElement | null;
+                const rsvpDeclineLink = componentElement.querySelector("a.rsvp-decline-link") as HTMLAnchorElement | null;
+                const acceptButtonShell = componentElement.querySelector(".accept-button-shell") as HTMLElement | null;
+                const declineButtonShell = componentElement.querySelector(".decline-button-shell") as HTMLElement | null;
+                const declineButtonShellParent = declineButtonShell?.parentElement;
+                const rsvpGroupIdEl = componentElement.querySelector(".rsvp-group-id") as HTMLInputElement | null;
+                const rsvpOccurrenceValueEl = componentElement.querySelector(".rsvp-occurrence-value") as HTMLInputElement | null;
+
+                setStylePaddingPx(componentElement.style, localProps.blockPaddingPx);
+                setAttributePropertyValue(rsvpInnerwrap, "align", localProps.blockHorizontalAlignment ?? "center"); // this might need to set the text-align inline style as well.
+                setStylePropertyValue(rsvpAcceptLink?.style, "font-family", localProps.fontFamily);
+                setStylePropertyValue(rsvpDeclineLink?.style, "font-family", localProps.fontFamily);
+                setStyleFontSizePx(rsvpAcceptLink?.style, localProps.fontSizePx);
+                setStyleFontSizePx(rsvpDeclineLink?.style, localProps.fontSizePx);
+                setStyleIsBold(rsvpAcceptLink?.style, localProps.isBold);
+                setStyleIsBold(rsvpDeclineLink?.style, localProps.isBold);
+                setStyleIsUnderlined(rsvpAcceptLink?.style, localProps.isUnderlined);
+                setStyleIsUnderlined(rsvpDeclineLink?.style, localProps.isUnderlined);
+                setStyleIsItalicized(rsvpAcceptLink?.style, localProps.isItalicized);
+                setStyleIsItalicized(rsvpDeclineLink?.style, localProps.isItalicized);
+                setStyleLetterCase(rsvpAcceptLink?.style, localProps.letterCase);
+                setStyleLetterCase(rsvpDeclineLink?.style, localProps.letterCase);
+                setStyleLineHeight(rsvpAcceptLink?.style, localProps.lineHeight);
+                setStyleLineHeight(rsvpDeclineLink?.style, localProps.lineHeight);
+                setStylePaddingPx(rsvpAcceptLink?.style, localProps.buttonPaddingPx);
+                setStylePaddingPx(rsvpDeclineLink?.style, localProps.buttonPaddingPx);
+
+                // border radius
+                setStyleBorderRadiusPx(acceptButtonShell?.style, localProps.buttonBorderRadiusPx);
+                setStyleBorderRadiusPx(rsvpAcceptLink?.style, localProps.buttonBorderRadiusPx);
+                setStyleBorderRadiusPx(declineButtonShell?.style, localProps.buttonBorderRadiusPx);
+                setStyleBorderRadiusPx(rsvpDeclineLink?.style, localProps.buttonBorderRadiusPx);
+
+                if (rsvpAcceptLink) {
+                    rsvpAcceptLink.textContent = localProps.acceptText;
+                    rsvpAcceptLink.title = localProps.acceptText;
+                }
+
+                // accept width
+                if (localProps.acceptWidth?.mode === "full") {
+                    setAttributePropertyValue(acceptButtonShell, "width", "100%");
+                    setStylePropertyValue(acceptButtonShell?.style, "width", "100%");
+                }
+                else if (localProps.acceptWidth?.mode === "fixed") {
+                    setAttributePropertyValue(acceptButtonShell, "width", localProps.acceptWidth.fixedWidthPx); // no "px" in the attribute
+                    setStylePropertyValue(acceptButtonShell?.style, "width", toPixelStringValueOrNull(localProps.acceptWidth.fixedWidthPx));
+                }
+                else {
+                    // default and "fitToText"
+                    setAttributePropertyValue(acceptButtonShell, "width", null);
+                    setStylePropertyValue(acceptButtonShell?.style, "width", null);
+                }
+
+                setStylePropertyValue(acceptButtonShell?.style, "background-color", localProps.acceptBackgroundColor);
+                setStylePropertyValue(rsvpAcceptLink?.style, "color", localProps.acceptTextColor);
+
+                // decline is hidden
+                setStylePropertyValue(declineButtonShell?.style, "display", localProps.isDeclineHidden ? "none" : "inline-table");
+                setStylePaddingPx(declineButtonShellParent?.style, !localProps.isDeclineHidden ? { left: 10, top: null, right: null, bottom: null } : null);
+
+                if (rsvpDeclineLink) {
+                    rsvpDeclineLink.textContent = localProps.declineText;
+                    rsvpDeclineLink.title = localProps.declineText;
+                }
+
+                // decline width
+                if (localProps.declineWidth?.mode === "full") {
+                    setAttributePropertyValue(declineButtonShell, "width", "100%");
+                    setStylePropertyValue(declineButtonShell?.style, "width", "100%");
+                }
+                else if (localProps.declineWidth?.mode === "fixed") {
+                    setAttributePropertyValue(declineButtonShell, "width", localProps.declineWidth.fixedWidthPx); // no "px" in the attribute
+                    setStylePropertyValue(declineButtonShell?.style, "width", toPixelStringValueOrNull(localProps.declineWidth.fixedWidthPx));
+                }
+                else {
+                    // default and "fitToText"
+                    setAttributePropertyValue(declineButtonShell, "width", null);
+                    setStylePropertyValue(declineButtonShell?.style, "width", null);
+                }
+
+                setStylePropertyValue(declineButtonShell?.style, "background-color", localProps.declineBackgroundColor);
+                setStylePropertyValue(rsvpDeclineLink?.style, "color", localProps.declineTextColor);
+
+                // group occurrence
+                if (rsvpGroupIdEl) {
+                    rsvpGroupIdEl.value = localProps.rsvpGroupGuid || "";
+                }
+                if (rsvpOccurrenceValueEl) {
+                    rsvpOccurrenceValueEl.value = localProps.rsvpOccurrenceValue || "";
+                }
+
+                // hrefs
+                const commonHrefProps: Record<string, string> = {
+                    AcceptButtonText: localProps.acceptText,
+                    AcceptButtonColor: localProps.acceptBackgroundColor ?? "",
+                    AcceptButtonFontColor: localProps.acceptTextColor ?? "",
+                    DeclineButtonText: localProps.declineText,
+                    DeclineButtonColor: localProps.declineBackgroundColor ?? "",
+                    DeclineButtonFontColor: localProps.declineTextColor ?? "",
+                    AttendanceOccurrenceId: Enumerable.from((localProps.rsvpOccurrenceValue ?? "").split("|")).firstOrDefault("")
+                };
+                if (rsvpAcceptLink) {
+                    const queryString = new URLSearchParams({
+                        ...commonHrefProps,
+                        isAccept: "1"
+                    });
+                    rsvpAcceptLink.href = `{{ 'Global' | Attribute:'PublicApplicationRoot' }}RSVP?p={{ Person | PersonActionIdentifier:'RSVP' }}&${queryString}`;
+                }
+                if (rsvpDeclineLink) {
+                    const queryString = new URLSearchParams({
+                        ...commonHrefProps,
+                        isAccept: "0"
+                    });
+                    rsvpDeclineLink.href = `{{ 'Global' | Attribute:'PublicApplicationRoot' }}RSVP?p={{ Person | PersonActionIdentifier:'RSVP' }}&${queryString}`;
+                }
             }
+        },
 
-            // Copy the local props to the new component element.
-            const localProps = localPropReaders[componentVersion](componentElement);
-            const newComponentElement = createEmptyComponentElement(emailDocument);
-            adapter.writeLocalProps(newComponentElement, localProps);
+        /**
+         * v17.3-alpha uses the same structure as v2-alpha; it was only a version bump.
+         */
+        "v17.3-alpha": {
+            version: "v17.3-alpha",
 
-            // Replace the old component element in the document.
-            componentElement.replaceWith(newComponentElement);
+            createComponentElement(emailDocument: Document): HTMLElement {
+                const componentElement = adapters["v2-alpha"].createComponentElement(emailDocument);
+                setComponentVersionNumber(componentElement, "v17.3-alpha");
+                return componentElement;
+            },
 
-            return newComponentElement;
+            readLocalProps(componentElement: HTMLElement): RsvpLocalProps {
+                return adapters["v2-alpha"].readLocalProps(componentElement);
+            },
+
+            writeLocalProps(componentElement: HTMLElement, localProps: RsvpLocalProps): void {
+                adapters["v2-alpha"].writeLocalProps(componentElement, localProps);
+            }
         }
     };
 
-    return adapter;
+    return createComponentAdapter(adapters, componentVersions, "rsvp");
 }
 
 type RowComponentStructure = ComponentStructure & {
@@ -4067,10 +4076,9 @@ function addOrUpdateMetaTag(emailDocument: Document, name: string, content: stri
     metaTag.setAttribute("content", content);
 }
 
-export function createBodyGlobalAdapter(): BodyGlobalAdapter {
+function createBodyGlobalAdapter(): BodyGlobalAdapter {
     const globalVersions = ["v0", "v17.3-alpha", "v18.2"] as const;
     type BodyGlobalVersion = (typeof globalVersions)[number];
-    const latestVersion = getLatestVersion<BodyGlobalVersion>(globalVersions);
 
     const attributeValues = {
         META_NAME_GLOBAL_BODY_VERSION: "x-rock-global-body-version"
@@ -4083,6 +4091,16 @@ export function createBodyGlobalAdapter(): BodyGlobalAdapter {
         border: null,
         marginPx: null,
         paddingPx: createShorthandModel(24)
+    };
+
+    // Props for deletion of global settings.
+    const deleteGlobalProps: BodyGlobalProps = {
+        widthPx: null,
+        backgroundColor: null,
+        bodyAlignment: null,
+        border: null,
+        marginPx: null,
+        paddingPx: null
     };
 
     function getGlobalVersion(emailDocument: Document): BodyGlobalVersion {
@@ -4292,6 +4310,9 @@ export function createBodyGlobalAdapter(): BodyGlobalAdapter {
                     updatedRules.push(mediaRule);
                 }
 
+                // If the body width changed, we need to update dependent components to reflect the new width.
+                imageComponentAdapter.refreshAllComponents(emailDocument);
+
                 // backgroundColor
                 setStylePropertyValue(paddingWrapperForRowTdWithoutBackgroundColorRule.style, "background-color", globalProps.backgroundColor);
                 let backgroundColor = globalProps.backgroundColor;
@@ -4334,53 +4355,31 @@ export function createBodyGlobalAdapter(): BodyGlobalAdapter {
         }
     };
 
-    const latestAdapter = adapters[latestVersion];
-
-    return {
-        ...latestAdapter,
-
-        areGlobalDefaultsNeeded(emailDocument: Document): boolean {
-            return compareComponentVersions(getGlobalVersion(emailDocument), "v0") === 0;
-        },
-
-        getDefaultGlobalProps(): BodyGlobalProps {
-            return defaultGlobalProps;
-        },
-
-        migrateGlobalProps(emailDocument: Document): void {
-            const adapter = adapters[getGlobalVersion(emailDocument)];
-
-            if (adapter === latestAdapter || compareComponentVersions(adapter.version, latestAdapter.version) >= 0) {
-                // Already on this or later version.
-                return;
+    return createGlobalAdapter(
+        adapters,
+        globalVersions,
+        getGlobalVersion,
+        defaultGlobalProps,
+        deleteGlobalProps,
+        {
+            onComponentAdded(adapter, onComponentAddedEvent) {
+                // Always write the latest global props when any component is added.
+                adapter.writeGlobalProps(onComponentAddedEvent.emailDocument, onComponentAddedEvent.globalProps);
             }
-
-            // Clear old props first
-            const globalProps = adapter.readGlobalProps(emailDocument);
-            adapter.writeGlobalProps(emailDocument, {
-                widthPx: null,
-                backgroundColor: null,
-                bodyAlignment: null,
-                border: null,
-                marginPx: null,
-                paddingPx: null
-            });
-
-            latestAdapter.writeGlobalProps(emailDocument, globalProps);
         }
-    };
+    );
 }
 
-export function createImageComponentAdapter(): ImageComponentAdapter {
+function createImageComponentAdapter(): ImageComponentAdapter {
     const componentVersions = ["v0", "v18-alpha", "v18.2"] as const;
     type ImageComponentVersion = (typeof componentVersions)[number];
-    const latestVersion = getLatestVersion<ImageComponentVersion>(componentVersions);
     const placeholderImageSrc = "/Assets/Images/image-placeholder.jpg";
 
-    const bodyGlobalAdapter = createBodyGlobalAdapter();
-
     const attributeNames = {
-        // Asset keys (don't change the letter case of these values)
+        dataImageOriginalHeight: "data-image-original-height",
+        dataImageOriginalWidth: "data-image-original-width",
+
+        // File keys (don't change the letter case of these values)
         dataImageWidth: "data-image-width",
         dataImageId: "data-image-id",
         dataImageHeight: "data-image-height",
@@ -4399,7 +4398,24 @@ export function createImageComponentAdapter(): ImageComponentAdapter {
         dataImageUrl: "data-image-url"
     } as const;
 
-    const adapters: Record<ImageComponentVersion, ImageComponentAdapter> = {
+    const defaultLocalProps: ImageLocalProps = {
+        imageSource: {
+            type: "file",
+            file: null,
+            isHighResolution: false
+        },
+        altText: "",
+        href: null,
+        imageSize: { type: "responsive" },
+        horizontalAlignment: "left",
+        borderRadiusPx: null,
+        border: null,
+        marginPx: null
+    };
+
+    const tempImageLoaders = new WeakMap<HTMLElement, HTMLImageElement>();
+
+    const adapters: Record<ImageComponentVersion, ComponentAdapterVersion<ImageLocalProps>> = {
         /*
             Changes:
             - Initial version that mirrors the functionality of the WebForms version.
@@ -4409,11 +4425,6 @@ export function createImageComponentAdapter(): ImageComponentAdapter {
 
             createComponentElement(): HTMLElement {
                 throw new Error("Cannot create image component with version 'v0'.");
-            },
-
-            migrateComponent(_emailDocument: Document, componentElement: HTMLElement): HTMLElement {
-                // This is the base version; no migration needed.
-                return componentElement;
             },
 
             readLocalProps(componentElement: HTMLElement): ImageLocalProps {
@@ -4559,47 +4570,15 @@ export function createImageComponentAdapter(): ImageComponentAdapter {
                 // Apply default local props before returning the element.
                 // If there are any global properties to set, prefer to set shared properties there rather than here,
                 // otherwise each component instance will have to be updated manually in the UI when global defaults change.
-                const adapter = adapters["v18.2"];
-                const defaultLocalProps: ImageLocalProps = {
-                    imageSource: {
-                        type: "file",
-                        file: null,
-                        isHighResolution: false
-                    },
-                    altText: "",
-                    href: null,
-                    imageSize: { type: "responsive" },
-                    horizontalAlignment: null,
-                    borderRadiusPx: null,
-                    border: null,
-                    marginPx: null
-                };
-                adapter.writeLocalProps(componentElement, defaultLocalProps);
+                adapters["v18-alpha"].writeLocalProps(componentElement, defaultLocalProps);
 
                 return componentElement;
-            },
-
-            migrateComponent(emailDocument: Document, componentElement: HTMLElement): HTMLElement {
-                const adapter = adapters[getComponentVersion<ImageComponentVersion>(componentElement, componentVersions)];
-                const thisAdapter = adapters["v18-alpha"];
-
-                if (adapter === thisAdapter || compareComponentVersions(adapter.version, thisAdapter.version) >= 0) {
-                    // Already on this or later version.
-                    return componentElement;
-                }
-
-                const localProps = adapter.readLocalProps(componentElement);
-                const newComponentElement = thisAdapter.createComponentElement(emailDocument);
-                thisAdapter.writeLocalProps(newComponentElement, localProps);
-                componentElement.replaceWith(newComponentElement);
-
-                return newComponentElement;
             },
 
             readLocalProps(componentElement: HTMLElement): ImageLocalProps {
                 const imageElement = componentElement.querySelector("img") as HTMLImageElement | null;
                 const anchorElement = componentElement.querySelector("a") as HTMLAnchorElement | null;
-                const marginWrapperTd = componentElement.querySelector(".margin-wrapper-for-image > tbody > tr > td") as HTMLTableCellElement | null;
+                const marginWrapperTd = componentElement.querySelector(":scope > tbody > tr > td") as HTMLTableCellElement | null;
 
                 const imageSizeType = componentElement.getAttribute(attributeNames.dataImageResizeMode)
                     ? "fixed"
@@ -4678,7 +4657,7 @@ export function createImageComponentAdapter(): ImageComponentAdapter {
                 const emailDocument = componentElement.ownerDocument;
                 const imageElement = componentElement.querySelector("img") as HTMLImageElement | null;
                 let anchorElement = componentElement.querySelector("a") as HTMLAnchorElement | null;
-                const marginWrapperTd = componentElement.querySelector(".margin-wrapper-for-image > tbody > tr > td") as HTMLTableCellElement | null;
+                const marginWrapperTd = componentElement.querySelector(":scope > tbody > tr > td") as HTMLTableCellElement | null;
                 const borderWrapperTd = componentElement.querySelector(".border-wrapper-for-image > tbody > tr > td") as HTMLTableCellElement | null;
                 const paddingWrapperTd = componentElement.querySelector(".padding-wrapper-for-image > tbody > tr > td") as HTMLTableCellElement | null;
 
@@ -4870,6 +4849,7 @@ export function createImageComponentAdapter(): ImageComponentAdapter {
         /*
             Changes:
             - Fixed an issue where responsive images would expand the width of columns beyond the body width.
+            - Fixed an issue where outlook would truncate images when "fixed" image size was used.
         */
         "v18.2": {
             version: "v18.2",
@@ -4888,99 +4868,52 @@ export function createImageComponentAdapter(): ImageComponentAdapter {
        border="0"
        cellpadding="0"
        cellspacing="0"
-       role="presentation"
-       width="100%">
+       role="presentation">
     <tbody>
         <tr>
-            <td width="100%">
-                <table class="border-wrapper border-wrapper-for-image"
-                       border="0"
-                       cellpadding="0"
-                       cellspacing="0"
-                       role="presentation"
-                       width="100%"
-                       style="border-collapse: separate !important;">
-                    <tbody>
-                        <tr>
-                            <td width="100%"
-                                style="overflow: hidden;">
-                                <table class="padding-wrapper padding-wrapper-for-image"
-                                       border="0"
-                                       cellpadding="0"
-                                       cellspacing="0"
-                                       role="presentation"
-                                       width="100%">
-                                    <tbody>
-                                        <tr>
-                                            <td width="100%"
-                                                style="line-height: 0;">
-                                                <img style="box-sizing: border-box;" />
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+            <td style="font-size: 0px; word-break: break-word;">
+              <table border="0"
+                     cellpadding="0"
+                     cellspacing="0"
+                     class="content-wrapper content-wrapper-for-image"
+                     role="presentation">
+                <tbody>
+                  <tr>
+                    <td>
+                      <a href=""
+                         target="_blank">
+                        <img alt=""
+                             src=""
+                             style="box-sizing: border-box; display: block; outline: none; text-decoration: none;" />
+                      </a>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </td>
         </tr>
     </tbody>
 </table>
 `);
 
-                // Apply default local props before returning the element.
-                // If there are any global properties to set, prefer to set shared properties there rather than here,
-                // otherwise each component instance will have to be updated manually in the UI when global defaults change.
-                const adapter = adapters["v18.2"];
-                const defaultLocalProps: ImageLocalProps = {
-                    imageSource: {
-                        type: "file",
-                        file: null,
-                        isHighResolution: false
-                    },
-                    altText: "",
-                    href: null,
-                    imageSize: { type: "responsive" },
-                    horizontalAlignment: null,
-                    borderRadiusPx: null,
-                    border: null,
-                    marginPx: null
-                };
-                adapter.writeLocalProps(componentElement, defaultLocalProps);
+                adapters["v18.2"].writeLocalProps(componentElement, defaultLocalProps);
 
                 return componentElement;
             },
 
-            migrateComponent(emailDocument: Document, componentElement: HTMLElement): HTMLElement {
-                const adapter = adapters[getComponentVersion<ImageComponentVersion>(componentElement, componentVersions)];
-                const thisAdapter = adapters["v18.2"];
-
-                if (adapter === thisAdapter || compareComponentVersions(adapter.version, thisAdapter.version) >= 0) {
-                    // Already on this or later version.
-                    return componentElement;
-                }
-
-                const localProps = adapter.readLocalProps(componentElement);
-                const newComponentElement = thisAdapter.createComponentElement(emailDocument);
-                thisAdapter.writeLocalProps(newComponentElement, localProps);
-                componentElement.replaceWith(newComponentElement);
-
-                return newComponentElement;
-            },
-
             readLocalProps(componentElement: HTMLElement): ImageLocalProps {
-                const imageElement = componentElement.querySelector("img") as HTMLImageElement | null;
-                const anchorElement = componentElement.querySelector("a") as HTMLAnchorElement | null;
-                const marginWrapperTd = componentElement.querySelector(".margin-wrapper-for-image > tbody > tr > td") as HTMLTableCellElement | null;
+                const marginWrapperTd = componentElement.querySelector(":scope > tbody > tr > td") as HTMLTableCellElement | null;
+                const imageElement = marginWrapperTd?.querySelector("img") as HTMLImageElement | null | undefined;
+                const anchorElement = marginWrapperTd?.querySelector("a") as HTMLAnchorElement | null | undefined;
 
-                const imageSizeType = componentElement.getAttribute(attributeNames.dataImageResizeMode)
-                    ? "fixed"
-                    : getStylePropertyValueOrNull(imageElement?.style, "width") === "100%"
+                const imageSizeType: ImageSizeModel["type"] = componentElement.getAttribute(attributeNames.dataImageSize) as ImageSizeModel["type"]
+                    || (componentElement.getAttribute(attributeNames.dataImageResizeMode)
+                        ? "fixed"
+                        : getStylePropertyValueOrNull(imageElement?.style, "width") === "100%"
                         ? "responsive"
                         : (imageElement?.src && !imageElement.src.includes("width=") && !imageElement.src.includes("height="))
                             ? "original"
-                            : "responsive"; // fallback to responsive if we can't determine size
+                                : "responsive"); // fallback to responsive if we can't determine size
 
                 const imageSize: ImageSizeModel =
                     imageSizeType === "original" ? { type: "original" }
@@ -5049,11 +4982,13 @@ export function createImageComponentAdapter(): ImageComponentAdapter {
 
             writeLocalProps(componentElement: HTMLElement, localProps: ImageLocalProps): void {
                 const emailDocument = componentElement.ownerDocument;
-                const imageElement = componentElement.querySelector("img") as HTMLImageElement | null;
-                let anchorElement = componentElement.querySelector("a") as HTMLAnchorElement | null;
-                const marginWrapperTd = componentElement.querySelector(".margin-wrapper-for-image > tbody > tr > td") as HTMLTableCellElement | null;
-                const borderWrapperTd = componentElement.querySelector(".border-wrapper-for-image > tbody > tr > td") as HTMLTableCellElement | null;
-                const paddingWrapperTd = componentElement.querySelector(".padding-wrapper-for-image > tbody > tr > td") as HTMLTableCellElement | null;
+                const marginWrapperTd = componentElement.querySelector(":scope > tbody > tr > td") as HTMLTableCellElement | null;
+                const contentWrapperForImage = marginWrapperTd?.querySelector(".content-wrapper-for-image") as HTMLTableElement | null;
+                const contentWrapperForImageTd = contentWrapperForImage?.querySelector(":scope > tbody > tr > td") as HTMLTableCellElement | null;
+                const imageElement = marginWrapperTd?.querySelector("img") as HTMLImageElement | null | undefined;
+                let anchorElement = marginWrapperTd?.querySelector("a") as HTMLAnchorElement | null | undefined;
+
+                const imageSrcBeforeUpdate = imageElement?.getAttribute("src") ?? "";
 
                 // imageSource
                 if (localProps.imageSource.type === "asset") {
@@ -5079,9 +5014,6 @@ export function createImageComponentAdapter(): ImageComponentAdapter {
                     }
                     else {
                         setAttributePropertyValue(imageElement, "src", placeholderImageSrc);
-                        setStylePropertyValue(imageElement?.style, "width", "100%");
-                        setAttributePropertyValue(imageElement, "height", null);
-                        setAttributePropertyValue(imageElement, "width", null);
                     }
                 }
                 else if (localProps.imageSource.type === "file") {
@@ -5138,9 +5070,6 @@ export function createImageComponentAdapter(): ImageComponentAdapter {
                     }
                     else {
                         setAttributePropertyValue(imageElement, "src", placeholderImageSrc);
-                        setStylePropertyValue(imageElement?.style, "width", "100%");
-                        setAttributePropertyValue(imageElement, "height", null);
-                        setAttributePropertyValue(imageElement, "width", null);
                     }
                 }
 
@@ -5172,65 +5101,165 @@ export function createImageComponentAdapter(): ImageComponentAdapter {
                 }
 
                 // imageSize
+                // Set data attributes first so they are set immediately instead of waiting for the image load event.
                 switch (localProps.imageSize.type) {
                     case "responsive":
-                        setAttributePropertyValue(componentElement, attributeNames.dataImageSize, "responsive");
+                        setAttributePropertyValue(componentElement, attributeNames.dataImageSize, localProps.imageSize.type);
                         setAttributePropertyValue(componentElement, attributeNames.dataImageResizeMode, null);
                         setAttributePropertyValue(componentElement, attributeNames.dataImageWidth, null);
                         setAttributePropertyValue(componentElement, attributeNames.dataImageHeight, null);
-
-                        setStylePropertyValue(imageElement?.style, "width", "100%");
-                        setAttributePropertyValue(imageElement, "width", "100%");
-                        setStylePropertyValue(imageElement?.style, "height", null);
-                        setAttributePropertyValue(imageElement, "height", null);
-                        setStylePropertyValue(imageElement?.style, "object-fit", null);
                         break;
                     case "original":
-                        setAttributePropertyValue(componentElement, attributeNames.dataImageSize, "original");
+                        setAttributePropertyValue(componentElement, attributeNames.dataImageSize, localProps.imageSize.type);
                         setAttributePropertyValue(componentElement, attributeNames.dataImageResizeMode, null);
                         setAttributePropertyValue(componentElement, attributeNames.dataImageWidth, null);
                         setAttributePropertyValue(componentElement, attributeNames.dataImageHeight, null);
-
-                        setStylePropertyValue(imageElement?.style, "width", null);
-                        setAttributePropertyValue(imageElement, "width", null);
-                        setStylePropertyValue(imageElement?.style, "height", null);
-                        setAttributePropertyValue(imageElement, "height", null);
-                        setStylePropertyValue(imageElement?.style, "object-fit", null);
                         break;
                     case "fixed":
-                        // Handle metadata first
-                        setAttributePropertyValue(componentElement, attributeNames.dataImageSize, "fixed");
+                        setAttributePropertyValue(componentElement, attributeNames.dataImageSize, localProps.imageSize.type);
                         setAttributePropertyValue(componentElement, attributeNames.dataImageResizeMode, localProps.imageSize.resizeMode);
                         setAttributePropertyValue(componentElement, attributeNames.dataImageWidth, localProps.imageSize.fixedWidthPx?.toString());
                         setAttributePropertyValue(componentElement, attributeNames.dataImageHeight, localProps.imageSize.fixedHeightPx?.toString());
-
-                        setStylePropertyValue(imageElement?.style, "width", toPixelStringValueOrNull(localProps.imageSize.fixedWidthPx));
-                        setAttributePropertyValue(imageElement, "width", localProps.imageSize.fixedWidthPx?.toString());
-                        setStylePropertyValue(imageElement?.style, "height", toPixelStringValueOrNull(localProps.imageSize.fixedHeightPx));
-                        setAttributePropertyValue(imageElement, "height", localProps.imageSize.fixedHeightPx?.toString());
-
-                        if (localProps.imageSource.type === "asset") {
-                            const resizeMode = localProps.imageSize.resizeMode;
-                            const objectFit =
-                                resizeMode === "pad" ? "contain"
-                                    : resizeMode === "stretch" ? "fill"
-                                        : "cover";
-                            setStylePropertyValue(imageElement?.style, "object-fit", objectFit);
-                        }
-                        else {
-                            setStylePropertyValue(imageElement?.style, "object-fit", null);
-                        }
-
                         break;
+                }
+
+                // Before processing the size, ensure the original dimensions are stored.
+                if (!imageElement?.src) {
+                    // No image source, so clear original dimensions.
+                    setAttributePropertyValue(componentElement, attributeNames.dataImageOriginalWidth, null);
+                    setAttributePropertyValue(componentElement, attributeNames.dataImageOriginalHeight, null);
+
+                    if (tempImageLoaders.has(componentElement)) {
+                        tempImageLoaders.get(componentElement)!.onload = null; // Clear previous onload to avoid potential memory leaks
+                    }
+                }
+                else if (imageSrcBeforeUpdate !== imageElement.src) {
+                    // Image source changed, so clear original dimensions to force re-fetch.
+                    if (!tempImageLoaders.has(componentElement)) {
+                        tempImageLoaders.set(componentElement, new Image());
+                    }
+                    else {
+                        tempImageLoaders.get(componentElement)!.onload = null; // Clear previous onload to avoid potential memory leaks
+                    }
+
+                    const tempImage = tempImageLoaders.get(componentElement)!;
+
+                    tempImage.onload = function () {
+                        tempImage.onload = null; // Clear to avoid potential memory leaks
+                        const originalWidth = tempImage.naturalWidth || tempImage.width;
+                        const originalHeight = tempImage.naturalHeight || tempImage.height;
+
+                        setAttributePropertyValue(componentElement, attributeNames.dataImageOriginalWidth, originalWidth.toString());
+                        setAttributePropertyValue(componentElement, attributeNames.dataImageOriginalHeight, originalHeight.toString());
+
+                        updateImageSize();
+                    };
+
+                    // Load the image to get its natural dimensions
+                    tempImage.src = imageElement.src;
+                }
+                else {
+                    // The image source has not changed so we can use the existing original dimensions.
+                    updateImageSize();
+                }
+
+                function updateImageSize(): void {
+                    switch (localProps.imageSize.type) {
+                        case "responsive":
+                            // table
+                            setAttributePropertyValue(componentElement, "width", "100%");
+                            setStylePropertyValue(componentElement.style, "width", null);
+
+                            // table td
+                            setAttributePropertyValue(marginWrapperTd, "width", null);
+                            setStylePropertyValue(marginWrapperTd?.style, "width", null);
+
+                            // table td table
+                            setAttributePropertyValue(contentWrapperForImage, "width", null);
+                            setStylePropertyValue(contentWrapperForImage?.style, "width", "100%");
+
+                            // table td table td
+                            setAttributePropertyValue(contentWrapperForImageTd, "width", null);
+                            setStylePropertyValue(contentWrapperForImageTd?.style, "width", null); // this is the parent container px in some systems
+
+                            // table td table td img
+                            setAttributePropertyValue(imageElement, "width", "100%"); // this is the parent container px in some systems
+                            setStylePropertyValue(imageElement?.style, "width", "100%");
+                            setAttributePropertyValue(imageElement, "height", "auto");
+                            setStylePropertyValue(imageElement?.style, "height", "auto");
+                            setStylePropertyValue(imageElement?.style, "object-fit", null);
+                            break;
+                        case "original": {
+                            const originalWidth = toNumberOrNull(componentElement.getAttribute(attributeNames.dataImageOriginalWidth));
+
+                            // table
+                            setAttributePropertyValue(componentElement, "width", "100%");
+
+                            // table td
+                            setAttributePropertyValue(marginWrapperTd, "width", null);
+                            setStylePropertyValue(marginWrapperTd?.style, "width", null);
+
+                            // table td table
+                            setAttributePropertyValue(contentWrapperForImage, "width", null);
+                            setStylePropertyValue(contentWrapperForImage?.style, "width", null);
+
+                            // table td table td
+                            setAttributePropertyValue(contentWrapperForImageTd, "width", null);
+                            setStylePropertyValue(contentWrapperForImageTd?.style, "width", toPixelStringValueOrNull(originalWidth));
+
+                            // table td table td img
+                            setStylePropertyValue(imageElement?.style, "width", "100%");
+                            setAttributePropertyValue(imageElement, "width", originalWidth);
+                            setStylePropertyValue(imageElement?.style, "height", "auto"); // let the height adjust based on aspect ratio
+                            setAttributePropertyValue(imageElement, "height", "auto");
+                            setStylePropertyValue(imageElement?.style, "object-fit", null); // TODO Do we need a default object fit for asset images?
+
+                            break;
+                        }
+                        case "fixed":
+                            // table
+                            setAttributePropertyValue(componentElement, "width", "100%");
+
+                            // table td
+                            setAttributePropertyValue(marginWrapperTd, "width", null);
+                            setStylePropertyValue(marginWrapperTd?.style, "width", null);
+
+                            // table td table
+                            setAttributePropertyValue(contentWrapperForImage, "width", null);
+                            setStylePropertyValue(contentWrapperForImage?.style, "width", null);
+
+                            // table td table td
+                            setAttributePropertyValue(contentWrapperForImageTd, "width", null);
+                            setStylePropertyValue(contentWrapperForImageTd?.style, "width", toPixelStringValueOrNull(localProps.imageSize.fixedWidthPx));
+
+                            // table td table td img
+                            setAttributePropertyValue(imageElement, "width", localProps.imageSize.fixedWidthPx);
+                            setStylePropertyValue(imageElement?.style, "width", "100%");
+                            setAttributePropertyValue(imageElement, "height", localProps.imageSize.fixedHeightPx);
+                            setStylePropertyValue(imageElement?.style, "height", toPixelStringValueOrNull(localProps.imageSize.fixedHeightPx));
+
+                            if (localProps.imageSource.type === "asset") {
+                                const resizeMode = localProps.imageSize.resizeMode;
+                                const objectFit =
+                                    resizeMode === "pad" ? "contain"
+                                        : resizeMode === "stretch" ? "fill"
+                                            : "cover";
+                                setStylePropertyValue(imageElement?.style, "object-fit", objectFit);
+                            }
+                            else {
+                                setStylePropertyValue(imageElement?.style, "object-fit", null);
+                            }
+
+                            break;
+                    }
                 }
 
                 // horizontalAlignment
                 setStylePropertyValue(componentElement.style, "text-align", toTextAlignmentOrNull(localProps.horizontalAlignment));
-                setAttributePropertyValue(paddingWrapperTd, "align", localProps.horizontalAlignment);
+                setAttributePropertyValue(marginWrapperTd, "align", localProps.horizontalAlignment);
 
                 // borderRadiusPx
                 setStyleBorderRadiusPx(imageElement?.style, localProps.borderRadiusPx);
-                setStyleBorderRadiusPx(borderWrapperTd?.style, localProps.borderRadiusPx);
 
                 // border
                 setStyleBorder(imageElement?.style, localProps.border);
@@ -5241,29 +5270,25 @@ export function createImageComponentAdapter(): ImageComponentAdapter {
         }
     };
 
-    return adapters[latestVersion];
+    return createComponentAdapter(adapters, componentVersions, "image");
 }
 
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 export function getComponentHelper(componentTypeName: ComponentTypeName) {
     switch (componentTypeName) {
-        case "title":
-            return getTitleComponentHelper();
-        case "text":
-            return getTextComponentHelper();
-        case "video":
-            return getVideoComponentHelper();
         case "row":
             return getRowComponentHelper();
-        case "code":
-            return getCodeComponentHelper();
         case "section":
             return getSectionComponentHelper();
-        case "button":
-        case "rsvp":
-        case "divider":
+        case "title":
+        case "text":
         case "image":
-            // These components have their own adapters created elsewhere.
+        case "button":
+        case "video":
+        case "divider":
+        case "rsvp":
+        case "code":
+        // These components have their own adapters and are not used by callers of getComponentHelper.
             return null;
         default:
             console.error(`Unknown component type: ${componentTypeName}`);
@@ -5332,16 +5357,13 @@ function createShorthandModel<T>(value: T): ShorthandModel<T> {
 /**
  * Factory returning a self contained ButtonComponentAdapter.
  */
-export function createButtonComponentAdapter(): ButtonComponentAdapter {
+function createButtonComponentAdapter(): ButtonComponentAdapter {
     // These are the supported versions for local props
     // and are used to look up the appropriate reader/writer functions
     // so that components can handle different versions correctly.
     // Must be in the format "v{major}.{minor}-{tag}" for proper comparison.
     const componentVersions = ["v0", "v2.1-alpha", "v17.3-alpha", "v18.2"] as const;
-
     type ComponentVersion = typeof componentVersions[number];
-
-    const LATEST_VERSION: ComponentVersion = getLatestVersion(componentVersions);
 
     const datasetKeys = {
         VERSION: "data-version",
@@ -5349,129 +5371,155 @@ export function createButtonComponentAdapter(): ButtonComponentAdapter {
         COMPONENT_BACKGROUND_COLOR: "data-component-background-color",
     } as const;
 
-    // These are for reading local component properties from different versions.
-    const localPropReaders: Record<ComponentVersion, (componentElement: HTMLElement) => ButtonLocalProps> = {
-        "v0": (componentElement: HTMLElement): ButtonLocalProps => {
-            const buttonShell = componentElement.querySelector(".button-shell") as HTMLElement | null;
-            const buttonContent = componentElement.querySelector(".button-content") as HTMLElement | null;
-            const buttonLink = componentElement.querySelector("a.button-link") as HTMLElement | null;
-            const innerwrap = componentElement.querySelector(".button-innerwrap") as HTMLElement | null;
-
-            const attrWidth = buttonShell?.getAttribute("width") || "";
-            const fixedWidthPx = toPixelNumericValueOrNull(buttonShell?.style.width || buttonLink?.style.width);
-            const isFullWidth = attrWidth === "100%" || buttonShell?.style.width === "100%";
-            const isFixedWidth = !isNullish(fixedWidthPx);
-
-            return {
-                backgroundColor: buttonLink?.style.backgroundColor || null,
-                // Old buttons always had a 1px solid border the same color as the button background
-                border: buttonLink?.style.backgroundColor
-                    ? {
-                        style: createShorthandModel<BorderStyle>("solid"),
-                        color: createShorthandModel(buttonLink.style.backgroundColor),
-                        widthPx: createShorthandModel(1)
-                    }
-                    : null,
-                borderRadiusPx: getStyleBorderRadiusPx(buttonContent?.style),
-                fontFamily: buttonLink?.style.fontFamily || null,
-                fontSizePx: getStyleFontSizePx(buttonLink?.style),
-                horizontalAlignment: toHorizontalAlignmentOrNull(innerwrap?.getAttribute("align")) ?? "center",
-                href: buttonLink?.getAttribute("href") ?? "",
-                isBold: null, // no bold in this version
-                isItalicized: null, // no italic in this version
-                isUnderlined: null, // no underline in this version
-                letterCase: null, // no letter case in this version
-                lineHeight: null, // no line height in this version
-                marginPx: createShorthandModel(0),
-                paddingPx: getStylePaddingPx(buttonLink?.style),
-                text: buttonLink?.textContent?.trim() ?? "",
-                textColor: buttonLink?.style.color || null,
-                width: isFullWidth
-                    ? { mode: "full", fixedWidthPx: null }
-                    : isFixedWidth
-                        ? { mode: "fixed", fixedWidthPx: fixedWidthPx }
-                        : null // default to null so that later logic can apply global default
-            };
-        },
-        "v2.1-alpha": (componentElement: HTMLElement): ButtonLocalProps => {
-            const buttonLink = componentElement.querySelector(".button-link") as HTMLElement | null;
-            const buttonContent = componentElement.querySelector(".button-content") as HTMLElement | null;
-            const buttonShell = componentElement.querySelector(".button-shell") as HTMLElement | null;
-            const buttonInnerwrap = componentElement.querySelector(".button-innerwrap") as HTMLElement | null;
-            const paddingWrapperTd = componentElement.querySelector(".padding-wrapper-for-button > tbody > tr > td") as HTMLElement | null;
-
-            const attrWidth = buttonShell?.getAttribute("width") || "";
-            const fixedWidthPx = toPixelNumericValueOrNull(buttonShell?.style.width || buttonLink?.style.width);
-            const isFullWidth = attrWidth === "100%" || buttonShell?.style.width === "100%";
-            const isFixedWidth = !isNullish(fixedWidthPx);
-
-            return {
-                text: buttonLink?.textContent?.trim() ?? "",
-                href: buttonLink?.getAttribute("href") ?? "",
-                fontFamily: buttonLink?.style.fontFamily || null,
-                fontSizePx: getStyleFontSizePx(buttonLink?.style),
-                isBold: getStyleIsBold(buttonLink?.style),
-                isUnderlined: getStyleIsUnderlined(buttonLink?.style),
-                isItalicized: getStyleIsItalicized(buttonLink?.style),
-                letterCase: getStyleLetterCase(buttonLink?.style),
-                lineHeight: toNumberOrNull(buttonLink?.style.lineHeight),
-                textColor: buttonLink?.style.color || null,
-                horizontalAlignment: toHorizontalAlignmentOrNull(buttonInnerwrap?.getAttribute("align")),
-                backgroundColor: paddingWrapperTd?.style.backgroundColor || null,
-                borderRadiusPx: getStyleBorderRadiusPx(buttonContent?.style),
-                width: isFullWidth
-                    ? { mode: "full", fixedWidthPx: null }
-                    : isFixedWidth
-                        ? { mode: "fixed", fixedWidthPx: fixedWidthPx }
-                        : null,
-                marginPx: getStylePaddingPx(buttonInnerwrap?.style),
-                paddingPx: getStylePaddingPx(buttonLink?.style),
-                border: getStyleBorder(buttonLink?.style)
-            };
-        },
-        // Nothing changed between v2.1-alpha and v17.3-alpha except for a version bump.
-        "v17.3-alpha": (componentElement: HTMLElement) => localPropReaders["v2.1-alpha"](componentElement),
-        "v18.2": (componentElement: HTMLElement): ButtonLocalProps => {
-            const buttonInnerwrap = componentElement.querySelector(".button-innerwrap") as HTMLElement | null;
-            const buttonLink = componentElement.querySelector(".button-link") as HTMLElement | null;
-
-            let buttonWidthModel: ButtonWidthModel | null = null;
-
-            const widthMode = (componentElement.getAttribute(datasetKeys.COMPONENT_BUTTON_WIDTH) || null) as (ButtonWidthMode | null);
-            if (widthMode) {
-                const fixedWidthPx = toPixelNumericValueOrNull(buttonLink?.style.width);
-                buttonWidthModel = {
-                    mode: widthMode,
-                    fixedWidthPx
-                };
-            }
-
-            return {
-                text: buttonLink?.textContent ?? "",
-                href: buttonLink?.getAttribute("href") || "",
-                fontFamily: buttonLink?.style.fontFamily || null,
-                fontSizePx: getStyleFontSizePx(buttonLink?.style),
-                isBold: getStyleIsBold(buttonLink?.style),
-                isUnderlined: getStyleIsUnderlined(buttonLink?.style),
-                isItalicized: getStyleIsItalicized(buttonLink?.style),
-                letterCase: getStyleLetterCase(buttonLink?.style),
-                lineHeight: toNumberOrNull(buttonLink?.style.lineHeight),
-                textColor: buttonLink?.style.color || null,
-                horizontalAlignment: toHorizontalAlignmentOrNull(buttonInnerwrap?.getAttribute("align")),
-                backgroundColor: buttonLink?.style.backgroundColor || null,
-                borderRadiusPx: getStyleBorderRadiusPx(buttonLink?.style),
-                width: buttonWidthModel,
-                marginPx: getStylePaddingPx(buttonInnerwrap?.style),
-                paddingPx: getStylePaddingPx(buttonLink?.style),
-                border: getStyleBorder(buttonLink?.style)
-            };
-        }
+    // Use global props instead of local props when possible.
+    const defaultLocalProps: ButtonLocalProps = {
+        text: "Click Me",
+        href: "https://",
+        backgroundColor: null,
+        fontFamily: null,
+        fontSizePx: null,
+        isBold: null,
+        isUnderlined: null,
+        isItalicized: null,
+        letterCase: null,
+        lineHeight: null,
+        textColor: null,
+        horizontalAlignment: "center",
+        borderRadiusPx: null,
+        width: null,
+        border: null,
+        marginPx: null,
+        paddingPx: null
     };
 
-    function createEmptyComponentElement(emailDocument: Document): HTMLElement {
-        // Only put static/constant structure here; all styles and content should be set via writeLocalProps/writeGlobalProps.
-        return createHtmlElement(emailDocument, `
-<div class="component component-button" data-state="component" ${datasetKeys.VERSION}="${LATEST_VERSION}">
+    const adapters: Record<ComponentVersion, ComponentAdapterVersion<ButtonLocalProps>> = {
+        "v0": {
+            version: "v0",
+
+            createComponentElement(_emailDocument: Document): HTMLElement {
+                throw new Error("v0 button components cannot be created.");
+            },
+
+            readLocalProps(componentElement: HTMLElement): ButtonLocalProps {
+                const buttonShell = componentElement.querySelector(".button-shell") as HTMLElement | null;
+                const buttonContent = componentElement.querySelector(".button-content") as HTMLElement | null;
+                const buttonLink = componentElement.querySelector("a.button-link") as HTMLElement | null;
+                const innerwrap = componentElement.querySelector(".button-innerwrap") as HTMLElement | null;
+
+                const attrWidth = buttonShell?.getAttribute("width") || "";
+                const fixedWidthPx = toPixelNumericValueOrNull(buttonShell?.style.width || buttonLink?.style.width);
+                const isFullWidth = attrWidth === "100%" || buttonShell?.style.width === "100%";
+                const isFixedWidth = !isNullish(fixedWidthPx);
+
+                return {
+                    backgroundColor: buttonLink?.style.backgroundColor || null,
+                    // Old buttons always had a 1px solid border the same color as the button background
+                    border: buttonLink?.style.backgroundColor
+                        ? {
+                            style: createShorthandModel<BorderStyle>("solid"),
+                            color: createShorthandModel(buttonLink.style.backgroundColor),
+                            widthPx: createShorthandModel(1)
+                        }
+                        : null,
+                    borderRadiusPx: getStyleBorderRadiusPx(buttonContent?.style),
+                    fontFamily: buttonLink?.style.fontFamily || null,
+                    fontSizePx: getStyleFontSizePx(buttonLink?.style),
+                    horizontalAlignment: toHorizontalAlignmentOrNull(innerwrap?.getAttribute("align")) ?? "center",
+                    href: buttonLink?.getAttribute("href") ?? "",
+                    isBold: null, // no bold in this version
+                    isItalicized: null, // no italic in this version
+                    isUnderlined: null, // no underline in this version
+                    letterCase: null, // no letter case in this version
+                    lineHeight: null, // no line height in this version
+                    marginPx: createShorthandModel(0),
+                    paddingPx: getStylePaddingPx(buttonLink?.style),
+                    text: buttonLink?.textContent?.trim() ?? "",
+                    textColor: buttonLink?.style.color || null,
+                    width: isFullWidth
+                        ? { mode: "full", fixedWidthPx: null }
+                        : isFixedWidth
+                            ? { mode: "fixed", fixedWidthPx: fixedWidthPx }
+                            : null // default to null so that later logic can apply global default
+                };
+            },
+
+            writeLocalProps(_componentElement: HTMLElement, _localProps: ButtonLocalProps): void {
+                throw new Error("v0 button components cannot be modified.");
+            }
+        },
+
+        "v2.1-alpha": {
+            version: "v2.1-alpha",
+
+            createComponentElement(_emailDocument: Document): HTMLElement {
+                throw new Error("v2.1-alpha button components cannot be created.");
+            },
+
+            readLocalProps(componentElement: HTMLElement): ButtonLocalProps {
+                const buttonLink = componentElement.querySelector(".button-link") as HTMLElement | null;
+                const buttonContent = componentElement.querySelector(".button-content") as HTMLElement | null;
+                const buttonShell = componentElement.querySelector(".button-shell") as HTMLElement | null;
+                const buttonInnerwrap = componentElement.querySelector(".button-innerwrap") as HTMLElement | null;
+                const paddingWrapperTd = componentElement.querySelector(".padding-wrapper-for-button > tbody > tr > td") as HTMLElement | null;
+
+                const attrWidth = buttonShell?.getAttribute("width") || "";
+                const fixedWidthPx = toPixelNumericValueOrNull(buttonShell?.style.width || buttonLink?.style.width);
+                const isFullWidth = attrWidth === "100%" || buttonShell?.style.width === "100%";
+                const isFixedWidth = !isNullish(fixedWidthPx);
+
+                return {
+                    text: buttonLink?.textContent?.trim() ?? "",
+                    href: buttonLink?.getAttribute("href") ?? "",
+                    fontFamily: buttonLink?.style.fontFamily || null,
+                    fontSizePx: getStyleFontSizePx(buttonLink?.style),
+                    isBold: getStyleIsBold(buttonLink?.style),
+                    isUnderlined: getStyleIsUnderlined(buttonLink?.style),
+                    isItalicized: getStyleIsItalicized(buttonLink?.style),
+                    letterCase: getStyleLetterCase(buttonLink?.style),
+                    lineHeight: toNumberOrNull(buttonLink?.style.lineHeight),
+                    textColor: buttonLink?.style.color || null,
+                    horizontalAlignment: toHorizontalAlignmentOrNull(buttonInnerwrap?.getAttribute("align")),
+                    backgroundColor: paddingWrapperTd?.style.backgroundColor || null,
+                    borderRadiusPx: getStyleBorderRadiusPx(buttonContent?.style),
+                    width: isFullWidth
+                        ? { mode: "full", fixedWidthPx: null }
+                        : isFixedWidth
+                            ? { mode: "fixed", fixedWidthPx: fixedWidthPx }
+                            : null,
+                    marginPx: getStylePaddingPx(buttonInnerwrap?.style),
+                    paddingPx: getStylePaddingPx(buttonLink?.style),
+                    border: getStyleBorder(buttonLink?.style)
+                };
+            },
+
+            writeLocalProps(_componentElement: HTMLElement, _localProps: ButtonLocalProps): void {
+                throw new Error("v2.1-alpha button components cannot be modified.");
+            }
+        },
+
+        "v17.3-alpha": {
+            version: "v17.3-alpha",
+
+            createComponentElement(_emailDocument: Document): HTMLElement {
+                throw new Error("v17.3-alpha button components cannot be created.");
+            },
+
+            readLocalProps(componentElement: HTMLElement): ButtonLocalProps {
+                return adapters["v2.1-alpha"].readLocalProps(componentElement);
+            },
+
+            writeLocalProps(_componentElement: HTMLElement, _localProps: ButtonLocalProps): void {
+                throw new Error("v17.3-alpha button components cannot be modified.");
+            }
+        },
+
+        "v18.2": {
+            version: "v18.2",
+
+            createComponentElement(emailDocument: Document): HTMLElement {
+                // Only put static/constant structure here; all styles and content should be set via writeLocalProps/writeGlobalProps.
+                const componentElement = createHtmlElement(emailDocument, `
+<div class="component component-button" data-state="component" ${datasetKeys.VERSION}="v18.2">
     <table class="button-outerwrap" border="0" cellpadding="0" cellspacing="0" width="100%" style="min-width: 100%;">
         <tbody>
             <tr>
@@ -5490,174 +5538,148 @@ export function createButtonComponentAdapter(): ButtonComponentAdapter {
         </tbody>
     </table>
 </div>`);
-    }
 
-    function getComponentVersion(componentElement: HTMLElement): ComponentVersion {
-        const versionNumber = getComponentVersionNumber(componentElement);
+                adapters["v18.2"].writeLocalProps(componentElement, defaultLocalProps);
 
-        if (!versionNumber || !componentVersions.includes(versionNumber as ComponentVersion)) {
-            throw new Error(`Unsupported Button component version "${versionNumber}".`);
-        }
-
-        return versionNumber as ComponentVersion;
-    }
-
-    const adapter: ButtonComponentAdapter = {
-        version: LATEST_VERSION,
-
-        migrateComponent(emailDocument: Document, componentElement: HTMLElement): HTMLElement {
-            const version = getComponentVersion(componentElement);
-
-            if (compareComponentVersions(version, LATEST_VERSION) >= 0) {
-                // Already latest version
                 return componentElement;
-            }
+            },
 
-            // Copy the local props from the old element to the new one.
-            const localProps = localPropReaders[version](componentElement);
-            const newComponentElement = createEmptyComponentElement(emailDocument);
-            adapter.writeLocalProps(newComponentElement, localProps);
+            readLocalProps(componentElement: HTMLElement): ButtonLocalProps {
+                const buttonInnerwrap = componentElement.querySelector(".button-innerwrap") as HTMLElement | null;
+                const buttonLink = componentElement.querySelector(".button-link") as HTMLElement | null;
 
-            // Replace the old element with the new one.
-            componentElement.replaceWith(newComponentElement);
+                let buttonWidthModel: ButtonWidthModel | null = null;
 
-            return newComponentElement;
-        },
+                const widthMode = (componentElement.getAttribute(datasetKeys.COMPONENT_BUTTON_WIDTH) || null) as (ButtonWidthMode | null);
+                if (widthMode) {
+                    const fixedWidthPx = toPixelNumericValueOrNull(buttonLink?.style.width);
+                    buttonWidthModel = {
+                        mode: widthMode,
+                        fixedWidthPx
+                    };
+                }
 
-        readLocalProps(componentElement: HTMLElement): ButtonLocalProps {
-            return localPropReaders[LATEST_VERSION](componentElement);
-        },
+                return {
+                    text: buttonLink?.textContent ?? "",
+                    href: buttonLink?.getAttribute("href") || "",
+                    fontFamily: buttonLink?.style.fontFamily || null,
+                    fontSizePx: getStyleFontSizePx(buttonLink?.style),
+                    isBold: getStyleIsBold(buttonLink?.style),
+                    isUnderlined: getStyleIsUnderlined(buttonLink?.style),
+                    isItalicized: getStyleIsItalicized(buttonLink?.style),
+                    letterCase: getStyleLetterCase(buttonLink?.style),
+                    lineHeight: toNumberOrNull(buttonLink?.style.lineHeight),
+                    textColor: buttonLink?.style.color || null,
+                    horizontalAlignment: toHorizontalAlignmentOrNull(buttonInnerwrap?.getAttribute("align")),
+                    backgroundColor: buttonLink?.style.backgroundColor || null,
+                    borderRadiusPx: getStyleBorderRadiusPx(buttonLink?.style),
+                    width: buttonWidthModel,
+                    marginPx: getStylePaddingPx(buttonInnerwrap?.style),
+                    paddingPx: getStylePaddingPx(buttonLink?.style),
+                    border: getStyleBorder(buttonLink?.style)
+                };
+            },
 
-        writeLocalProps(componentElement: HTMLElement, localProps: ButtonLocalProps): void {
+            writeLocalProps(componentElement: HTMLElement, localProps: ButtonLocalProps): void {
             // This always assumes the componentElement is already migrated to latest version.
             // We don't keep track of version-specific writers; only the latest writer.
 
-            const {
-                text,
-                href,
-                fontFamily,
-                fontSizePx,
-                isBold,
-                isUnderlined,
-                isItalicized,
-                letterCase,
-                lineHeight,
-                textColor,
-                horizontalAlignment,
-                backgroundColor,
-                borderRadiusPx,
-                width,
-                marginPx,
-                paddingPx,
-                border
-            } = localProps;
+                const {
+                    text,
+                    href,
+                    fontFamily,
+                    fontSizePx,
+                    isBold,
+                    isUnderlined,
+                    isItalicized,
+                    letterCase,
+                    lineHeight,
+                    textColor,
+                    horizontalAlignment,
+                    backgroundColor,
+                    borderRadiusPx,
+                    width,
+                    marginPx,
+                    paddingPx,
+                    border
+                } = localProps;
 
-            const buttonInnerwrap = componentElement.querySelector(".button-innerwrap") as HTMLElement | null;
-            const buttonShell = componentElement.querySelector(".button-shell") as HTMLElement | null;
-            const buttonContent = componentElement.querySelector(".button-content") as HTMLElement | null;
-            const buttonLink = componentElement.querySelector(".button-link") as HTMLElement | null;
+                const buttonInnerwrap = componentElement.querySelector(".button-innerwrap") as HTMLElement | null;
+                const buttonShell = componentElement.querySelector(".button-shell") as HTMLElement | null;
+                const buttonContent = componentElement.querySelector(".button-content") as HTMLElement | null;
+                const buttonLink = componentElement.querySelector(".button-link") as HTMLElement | null;
 
-            // text
-            if (buttonLink) {
-                buttonLink.textContent = text;
-                buttonLink.title = text;
-            }
+                // text
+                if (buttonLink) {
+                    buttonLink.textContent = text;
+                    buttonLink.title = text;
+                }
 
-            setAttributePropertyValue(buttonLink, "href", href);
-            setStylePropertyValue(buttonLink?.style, "font-family", fontFamily);
-            setStyleFontSizePx(buttonLink?.style, fontSizePx);
-            setStyleIsBold(buttonLink?.style, isBold);
-            setStyleIsUnderlined(buttonLink?.style, isUnderlined);
-            setStyleIsItalicized(buttonLink?.style, isItalicized);
-            setStyleLetterCase(buttonLink?.style, letterCase);
-            setStyleLineHeight(buttonLink?.style, lineHeight);
-            setStylePropertyValue(buttonLink?.style, "color", textColor);
-            setStylePaddingPx(buttonLink?.style, paddingPx);
-            setStyleBorder(buttonLink?.style, border);
+                setAttributePropertyValue(buttonLink, "href", href);
+                setStylePropertyValue(buttonLink?.style, "font-family", fontFamily);
+                setStyleFontSizePx(buttonLink?.style, fontSizePx);
+                setStyleIsBold(buttonLink?.style, isBold);
+                setStyleIsUnderlined(buttonLink?.style, isUnderlined);
+                setStyleIsItalicized(buttonLink?.style, isItalicized);
+                setStyleLetterCase(buttonLink?.style, letterCase);
+                setStyleLineHeight(buttonLink?.style, lineHeight);
+                setStylePropertyValue(buttonLink?.style, "color", textColor);
+                setStylePaddingPx(buttonLink?.style, paddingPx);
+                setStyleBorder(buttonLink?.style, border);
 
-            // background color
-            setAttributePropertyValue(componentElement, datasetKeys.COMPONENT_BACKGROUND_COLOR, backgroundColor ? "true" : null);
-            setStylePropertyValue(buttonLink?.style, "background-color", backgroundColor);
-            setStylePropertyValue(buttonContent?.style, "background-color", backgroundColor);
+                // background color
+                setAttributePropertyValue(componentElement, datasetKeys.COMPONENT_BACKGROUND_COLOR, backgroundColor ? "true" : null);
+                setStylePropertyValue(buttonLink?.style, "background-color", backgroundColor);
+                setStylePropertyValue(buttonContent?.style, "background-color", backgroundColor);
 
-            // border radius
-            setStyleBorderRadiusPx(buttonLink?.style, borderRadiusPx);
-            setStyleBorderRadiusPx(buttonContent?.style, borderRadiusPx);
+                // border radius
+                setStyleBorderRadiusPx(buttonLink?.style, borderRadiusPx);
+                setStyleBorderRadiusPx(buttonContent?.style, borderRadiusPx);
 
-            // width
-            setAttributePropertyValue(componentElement, datasetKeys.COMPONENT_BUTTON_WIDTH, width?.mode); // v18.2 stores the actual mode instead of "true"
-            if (width?.mode === "full") {
-                setAttributePropertyValue(buttonShell, "width", "100%");
-                setStylePropertyValue(buttonShell?.style, "width", "100%");
-            }
-            else if (width?.mode === "fixed") {
-                setAttributePropertyValue(buttonShell, "width", width.fixedWidthPx); // no "px" in the attribute
-                setStylePropertyValue(buttonShell?.style, "width", toPixelStringValueOrNull(width.fixedWidthPx));
-            }
-            else {
-                // default and "fitToText"
-                setAttributePropertyValue(buttonShell, "width", null);
-                setStylePropertyValue(buttonShell?.style, "width", null);
-            }
+                // width
+                setAttributePropertyValue(componentElement, datasetKeys.COMPONENT_BUTTON_WIDTH, width?.mode); // v18.2 stores the actual mode instead of "true"
+                if (width?.mode === "full") {
+                    setAttributePropertyValue(buttonShell, "width", "100%");
+                    setStylePropertyValue(buttonShell?.style, "width", "100%");
+                }
+                else if (width?.mode === "fixed") {
+                    setAttributePropertyValue(buttonShell, "width", width.fixedWidthPx); // no "px" in the attribute
+                    setStylePropertyValue(buttonShell?.style, "width", toPixelStringValueOrNull(width.fixedWidthPx));
+                }
+                else {
+                    // default and "fitToText"
+                    setAttributePropertyValue(buttonShell, "width", null);
+                    setStylePropertyValue(buttonShell?.style, "width", null);
+                }
 
-            // horizontal alignment
-            if (buttonInnerwrap && horizontalAlignment) {
-                buttonInnerwrap.setAttribute("align", horizontalAlignment);
-            }
-            else {
-                // Don't delete the horizontal alignment; let global styles handle it.
-                //innerwrap.removeAttribute("align");
-            }
+                // horizontal alignment
+                if (buttonInnerwrap && horizontalAlignment) {
+                    buttonInnerwrap.setAttribute("align", horizontalAlignment);
+                }
+                else {
+                    // Don't delete the horizontal alignment; let global styles handle it.
+                    //innerwrap.removeAttribute("align");
+                }
 
-            // margin (padding on innerwrap)
-            setStylePaddingPx(buttonInnerwrap?.style, marginPx);
-        },
-
-        createComponentElement(emailDocument: Document): HTMLElement {
-            const componentElement = createEmptyComponentElement(emailDocument);
-
-            // Use global props instead of local props when possible.
-            const localPropDefaults: ButtonLocalProps = {
-                text: "Click Me",
-                href: "https://",
-                backgroundColor: null,
-                fontFamily: null,
-                fontSizePx: null,
-                isBold: null,
-                isUnderlined: null,
-                isItalicized: null,
-                letterCase: null,
-                lineHeight: null,
-                textColor: null,
-                horizontalAlignment: "center",
-                borderRadiusPx: null,
-                width: null,
-                border: null,
-                marginPx: null,
-                paddingPx: null
-            };
-
-            adapter.writeLocalProps(componentElement, localPropDefaults);
-
-            // Global props will be applied after the component is added to the email DOM.
-            return componentElement;
+                // margin (padding on innerwrap)
+                setStylePaddingPx(buttonInnerwrap?.style, marginPx);
+            },
         }
     };
 
-    return adapter;
+    return createComponentAdapter(adapters, componentVersions, "button");
 }
 
 /**
  * Factory returning a self contained ButtonGlobalAdapter.
  */
-export function createButtonGlobalAdapter(): ButtonGlobalAdapter {
+function createButtonGlobalAdapter(): ButtonGlobalAdapter {
     // These are the supported versions for global props
     // and are used to look up the appropriate reader/writer functions
     // so that components can handle different versions correctly.
     // Must be in the format "v{major}.{minor}-{tag}" for proper comparison.
     const globalVersions = ["v0", "v2.1-alpha", "v18.2"] as const;
     type GlobalVersion = typeof globalVersions[number];
-    const latestVersion: GlobalVersion = getLatestVersion(globalVersions);
 
     const attributeNames = {
         DATA_VERSION: "data-version",
@@ -5691,6 +5713,24 @@ export function createButtonGlobalAdapter(): ButtonGlobalAdapter {
         },
         marginPx: null,
         paddingPx: createShorthandModel<number>(15)
+    };
+
+    // Props used to delete global styles when migrating.
+    const deleteGlobalProps: ButtonGlobalProps = {
+        backgroundColor: null,
+        fontFamily: null,
+        fontSizePx: null,
+        isBold: null,
+        isUnderlined: null,
+        isItalicized: null,
+        letterCase: null,
+        lineHeight: null,
+        textColor: null,
+        border: null,
+        borderRadiusPx: null,
+        width: null,
+        marginPx: null,
+        paddingPx: null
     };
 
     function getGlobalVersion(emailDocument: Document): GlobalVersion {
@@ -6008,13 +6048,45 @@ export function createButtonGlobalAdapter(): ButtonGlobalAdapter {
         }
     };
 
+    return createGlobalAdapter(
+        adapters,
+        globalVersions,
+        getGlobalVersion,
+        defaultGlobalProps,
+        deleteGlobalProps,
+        {
+            onComponentAdded(adapter, event) {
+                if (event.componentTypeName === "button") {
+                    adapter.writeGlobalProps(event.emailDocument, event.globalProps);
+                }
+            }
+        }
+    );
+}
+
+function createGlobalAdapter<TProps, TVersion extends string>(
+    adapters: Record<TVersion, GlobalAdapterSnapshot<TProps>>,
+    globalVersions: readonly TVersion[],
+    getGlobalVersion: (emailDocument: Document) => TVersion,
+    defaultGlobalProps: TProps,
+    deleteGlobalProps: TProps,
+    options?: {
+        onComponentAdded(adapter: GlobalAdapter<TProps>, event: GlobalAdapterOnComponentAddedEvent<TProps>): void;
+    }
+): GlobalAdapter<TProps> {
+    const latestVersion = getLatestVersion(globalVersions);
+    const earliestVersion = getEarliestVersion(globalVersions);
     const latestAdapter = adapters[latestVersion];
 
-    return {
+    if (!latestAdapter) {
+        throw new Error("No adapter found for the latest global version.");
+    }
+
+    const adapter: GlobalAdapter<TProps> = {
         ...latestAdapter,
 
         areGlobalDefaultsNeeded(emailDocument: Document): boolean {
-            return compareComponentVersions(getGlobalVersion(emailDocument), "v0") === 0;
+            return compareComponentVersions(getGlobalVersion(emailDocument), earliestVersion) === 0;
         },
 
         migrateGlobalProps(emailDocument: Document): void {
@@ -6031,29 +6103,20 @@ export function createButtonGlobalAdapter(): ButtonGlobalAdapter {
             // 3. Write the previously read props using the latest version writer.
 
             const globalProps = adapter.readGlobalProps(emailDocument);
-            adapter.writeGlobalProps(emailDocument, {
-                backgroundColor: null,
-                fontFamily: null,
-                fontSizePx: null,
-                isBold: null,
-                isUnderlined: null,
-                isItalicized: null,
-                letterCase: null,
-                lineHeight: null,
-                textColor: null,
-                border: null,
-                borderRadiusPx: null,
-                width: null,
-                marginPx: null,
-                paddingPx: null
-            });
+            adapter.writeGlobalProps(emailDocument, deleteGlobalProps);
             latestAdapter.writeGlobalProps(emailDocument, globalProps);
         },
 
-        getDefaultGlobalProps(): ButtonGlobalProps {
+        getDefaultGlobalProps(): TProps {
             return defaultGlobalProps;
+        },
+
+        onComponentAdded(event: GlobalAdapterOnComponentAddedEvent<TProps>): void {
+            options?.onComponentAdded(adapter, event);
         }
     };
+
+    return adapter;
 }
 
 /**
@@ -6498,6 +6561,30 @@ function setStyleLetterCase(style: CSSStyleDeclaration | null | undefined, lette
     setStylePropertyValue(style, "text-transform", !isNullish(letterCase) ? letterCase : null);
 }
 
+/**
+ * Gets the text alignment from the style.
+ *
+ * Interprets the last specified "text-align" property from the provided style(s) to mimic cascading behavior (last style wins).
+ *
+ * @param style CSS style(s) to check.
+ * @returns TextAlignment or null if unspecified.
+ */
+function getStyleTextAlignment(style: Enumerable<CSSStyleDeclaration> | CSSStyleDeclaration[] | CSSStyleDeclaration | null | undefined): TextAlignment | null {
+    const lastTextAlign = getStylePropertyValueOrNull(style, "text-align");
+
+    return toTextAlignmentOrNull(lastTextAlign);
+}
+
+/**
+ * Sets the "text-align" property on the style based on the textAlignment value.
+ *
+ * @param style CSS style to modify.
+ * @param textAlignment TextAlignment to set, or `null`/`undefined` to remove the property.
+ */
+function setStyleTextAlignment(style: CSSStyleDeclaration | null | undefined, textAlignment: TextAlignment | null | undefined): void {
+    setStylePropertyValue(style, "text-align", !isNullish(textAlignment) ? textAlignment : null);
+}
+
 function getStylePaddingPx(style: Enumerable<CSSStyleDeclaration> | CSSStyleDeclaration[] | CSSStyleDeclaration | null | undefined): ShorthandModel<number | null> | null {
     return getStyleShorthandValueOrNull(
         style,
@@ -6840,3 +6927,64 @@ function synchronizeRulesToDom(rules: Iterable<CSSRule>): void {
         synchronizeSheetToDom(sheet);
     }
 }
+
+/**
+ * If the specified element is within a rock content editable component,
+ * adds event listeners for rock content editable events.
+ *
+ * Remember to also call `removeRockContentEditableEventListener` when done.
+ *
+ * @param element
+ * @param eventHandler
+ */
+export function addRockContentEditableEventListener(element: HTMLElement, eventHandler: (event: Event) => void): void {
+    const component = element.closest(".component[data-state='component']");
+    if (component?.parentElement && component.parentElement.querySelectorAll(`.${RockCssClassContentEditable},[contenteditable="true"]`).length) {
+        // Remove before adding to avoid duplicates.
+        element.removeEventListener("input", eventHandler);
+        element.addEventListener("input", eventHandler);
+    }
+}
+
+/**
+ * If the specified element is within a rock content editable component,
+ * removes event listeners for rock content editable events.
+ *
+ * Remember to call this when done with `addRockContentEditableEventListener`.
+ *
+ * @param element
+ * @param eventHandler
+ */
+export function removeRockContentEditableEventListener(element: HTMLElement, eventHandler: (event: Event) => void): void {
+    const component = element.closest(".component[data-state='component']");
+    if (component?.parentElement && component.parentElement.querySelectorAll(`.${RockCssClassContentEditable},[contenteditable="true"]`).length) {
+        element.removeEventListener("input", eventHandler);
+    }
+}
+
+function toBgcolorAttributeValue(backgroundColor: string | null): string | null {
+    // bgcolor doesn't allow hex values with alpha values.
+    // If transparent, use the "transparent" named color instead.
+    if (backgroundColor?.startsWith("#")
+        && (
+            (backgroundColor.length === 5 && backgroundColor.endsWith("0"))     // #RGBA
+            || (backgroundColor.length === 9 && backgroundColor.endsWith("00")) // #RRGGBBAA
+        )
+    ) {
+        return "transparent";
+    }
+
+    return backgroundColor;
+}
+
+export const bodyGlobalAdapter = createBodyGlobalAdapter();
+export const buttonGlobalAdapter = createButtonGlobalAdapter();
+export const dividerGlobalAdapter = createDividerGlobalAdapter();
+export const titleComponentAdapter = createTitleComponentAdapter();
+export const textComponentAdapter = createTextComponentAdapter();
+export const imageComponentAdapter = createImageComponentAdapter();
+export const buttonComponentAdapter = createButtonComponentAdapter();
+export const videoComponentAdapter = createVideoComponentAdapter();
+export const dividerComponentAdapter = createDividerComponentAdapter();
+export const rsvpComponentAdapter = createRsvpComponentAdapter();
+export const codeComponentAdapter = createCodeComponentAdapter();

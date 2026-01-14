@@ -714,41 +714,7 @@ namespace Rock.Web.UI
         protected virtual void RegisterShortcutKeys()
         {
             // Register the shortcut keys with debouncing
-            string script = @"
-                (function() {
-                    var lastDispatchTime = 0;
-                    var lastDispatchedElement = null;
-                    var debounceDelay = 500;
-
-                    document.addEventListener('keydown', function (event) {
-                        if (event.altKey) {
-                            var shortcutKey = event.key.toLowerCase();
-
-                            // Check if a shortcut key is registered for the pressed key
-                            var element = document.querySelector('[data-shortcut-key=""' + shortcutKey + '""]');
-
-                    
-                            if (element) {
-                                var currentTime = performance.now();
-
-                                if (lastDispatchedElement === element && (currentTime - lastDispatchTime) < debounceDelay) {
-                                    return;
-                                }
-
-                                lastDispatchTime = currentTime;
-                                lastDispatchedElement = element;
-
-                                if (shortcutKey === 'arrowright' || shortcutKey === 'arrowleft') {
-                                    event.preventDefault();
-                                }
-
-                                event.preventDefault();
-                                element.click();
-                            }
-                        }
-                    });
-                })();
-            ";
+            string script = RockPageHelper.GetShortcutKeyScript();
 
             ScriptManager.RegisterStartupScript( this, typeof( RockPage ), "ShortcutKeys", script, true );
         }
@@ -805,7 +771,7 @@ namespace Rock.Web.UI
             {
                 try
                 {
-                    RequestContext.PrepareRequestForPage( _pageCache );
+                    RequestContext.PrepareRequestForPage( _pageCache, PageReference );
                 }
                 catch
                 {
@@ -1416,62 +1382,7 @@ Rock.settings.initialize({{
 
                         if ( !ClientScript.IsStartupScriptRegistered( "rock-obsidian-init" ) )
                         {
-                            var currentPersonJson = "null";
-                            var isAnonymousVisitor = false;
-
-                            if ( CurrentPerson != null && CurrentPerson.Guid != new Guid( SystemGuid.Person.GIVER_ANONYMOUS ) )
-                            {
-                                currentPersonJson = new CurrentPersonBag
-                                {
-                                    IdKey = CurrentPerson.IdKey,
-                                    Guid = CurrentPerson.Guid,
-                                    PrimaryAliasIdKey = CurrentPerson.PrimaryAlias.IdKey,
-                                    PrimaryAliasGuid = CurrentPerson.PrimaryAlias.Guid,
-                                    FirstName = CurrentPerson.FirstName,
-                                    NickName = CurrentPerson.NickName,
-                                    LastName = CurrentPerson.LastName,
-                                    FullName = CurrentPerson.FullName,
-                                    Email = CurrentPerson.Email,
-                                }.ToCamelCaseJson( false, false );
-                            }
-                            else if ( CurrentPerson != null )
-                            {
-                                isAnonymousVisitor = true;
-                            }
-
-                            // Prevent XSS attacks in page parameters.
-                            var sanitizedPageParameters = new Dictionary<string, string>();
-                            foreach ( var pageParam in PageParameters() )
-                            {
-                                var sanitizedKey = pageParam.Key.Replace( "</", "<\\/" );
-                                var sanitizedValue = pageParam.Value.ToStringSafe().Replace( "</", "<\\/" );
-
-                                sanitizedPageParameters.AddOrReplace( sanitizedKey, sanitizedValue );
-                            }
-
-                            var trailblazerMode = SystemSettings.GetValue( SystemKey.SystemSetting.TRAILBLAZER_MODE ).AsBoolean();
-                            var fingerprint = RockApp.Current.GetRequiredService<ObsidianFingerprintManager>().GetFingerprint();
-
-                            var script = $@"
-Obsidian.onReady(() => {{
-    System.import('@Obsidian/Templates/rockPage.js').then(module => {{
-        module.initializePage({{
-            executionStartTime: new Date().getTime(),
-            pageId: {_pageCache.Id},
-            pageGuid: '{_pageCache.Guid}',
-            pageParameters: {sanitizedPageParameters.ToJson()},
-            sessionGuid: '{RequestContext.SessionGuid}',
-            interactionGuid: '{RequestContext.RelatedInteractionGuid}',
-            currentPerson: {currentPersonJson},
-            isAnonymousVisitor: {( isAnonymousVisitor ? "true" : "false" )},
-            loginUrlWithReturnUrl: '{GetLoginUrlWithReturnUrl()}',
-            trailblazerMode: {( trailblazerMode ? "true" : "false" )}
-        }});
-    }});
-}});
-
-Obsidian.init({{ debug: true, fingerprint: ""v={fingerprint}"" }});
-";
+                            var script = RockPageHelper.GetObsidianInitScript( RequestContext );
 
                             if ( _pageHasObsidianBlock )
                             {
@@ -1748,7 +1659,7 @@ Obsidian.init({{ debug: true, fingerprint: ""v={fingerprint}"" }});
                 }
 
                 // Add configuration specific to Rock Page to the observability activity.
-                RockPageHelper.ConfigureActivity( Activity.Current, RequestContext, PageReference, IsPostBack );
+                RockPageHelper.ConfigureActivity( Activity.Current, RequestContext, IsPostBack );
             }
         }
 
@@ -2779,28 +2690,11 @@ Sys.Application.add_load(function () {
                     return;
                 }
 
-                // Parse the list of codes, we want the "G-" codes to be first because the first code is used as the default in the <script> src property.
-                var gtagCodes = code.Split( ',' ).Select( a => a.Trim() ).Where( a => a.StartsWith( "G-", StringComparison.OrdinalIgnoreCase ) ).ToList() ?? new List<string>();
+                var script = RockPageHelper.GetGoogleAnalyticsScriptTags( _pageCache );
 
-                // Add the measurement codes that start with 'UA' to the gtag script. If there are multiple measurement IDs the first one is used as the default.
-                gtagCodes.AddRange( code.Split( ',' ).Select( a => a.Trim() ).Where( a => a.StartsWith( "UA-", StringComparison.OrdinalIgnoreCase ) ).ToList() ?? new List<string>() );
-
-                if ( gtagCodes.Any() )
+                if ( script.IsNotNullOrWhiteSpace() )
                 {
-                    var sb = new StringBuilder();
-                    sb.Append( $@"
-    <!-- BEGIN Global site tag (gtag.js) - Google Analytics -->
-    <script async src=""https://www.googletagmanager.com/gtag/js?id={gtagCodes.First()}""></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){{window.dataLayer.push(arguments);}}
-      gtag('js', new Date());" );
-                    sb.AppendLine( "" );
-                    gtagCodes.ForEach( a => sb.AppendLine( $"      gtag('config', '{a}');" ) );
-                    sb.AppendLine( "    </script>" );
-                    sb.AppendLine( "    <!-- END Global site tag (gtag.js) - Google Analytics -->" );
-
-                    AddScriptToHead( this.Page, sb.ToString(), false );
+                    AddScriptToHead( this.Page, script, false );
                 }
             }
             catch ( Exception ex )
@@ -2815,14 +2709,9 @@ Sys.Application.add_load(function () {
         /// </summary>
         private void AddJesusHook()
         {
-            var script = $@"
-    <script>
-      console.info(
-        '%cCrafting Code For Christ | Col. 3:23-24',
-        'background: #ee7625; border-radius:0.5em; padding:0.2em 0.5em; color: white; font-weight: bold');
-      console.info('{_rockVersion}');
-    </script>";
-            AddScriptToHead( this.Page, script, false );
+            var script = RockPageHelper.GetJesusScript();
+
+            AddScriptToHead( this.Page, script, true );
         }
 
         /// <summary>
@@ -4040,6 +3929,7 @@ Sys.Application.add_load(function () {
         {
             if ( page != null && page.Header != null )
             {
+                page.Header.EnableViewState = false;
                 /*
                      6/26/2021 - SK
 

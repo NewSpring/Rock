@@ -810,13 +810,19 @@ namespace Rock.Blocks.Engagement
             {
                 // Placement Group Configs
                 var configService = new ConnectionOpportunityGroupConfigService( RockContext );
+                var placementGroupConfigs = ( box.Bag.PlacementGroupConfigs ?? new List<PlacementGroupConfigBag>() ).ToList();
+                foreach ( var bag in placementGroupConfigs.Where( b => b.Guid == Guid.Empty ) )
+                {
+                    bag.Guid = Guid.NewGuid();
+                }
+
                 SyncRelatedEntities(
                     configService,
                     configService.Queryable().Where( c => c.ConnectionOpportunityId == entity.Id ),
-                    box.Bag.PlacementGroupConfigs,
+                    placementGroupConfigs,
                     existingKeySelector: cfg => cfg.Guid,
                     incomingKeySelector: bag => bag.Guid,
-                    createNew: bag => new ConnectionOpportunityGroupConfig { Guid = bag.Guid == Guid.Empty ? Guid.NewGuid() : bag.Guid },
+                    createNew: bag => new ConnectionOpportunityGroupConfig { Guid = bag.Guid },
                     updateEntity: ( cfg, bag ) =>
                     {
                         cfg.ConnectionOpportunityId = entity.Id;
@@ -828,13 +834,19 @@ namespace Rock.Blocks.Engagement
 
                 // Placement Groups
                 var groupService = new ConnectionOpportunityGroupService( RockContext );
+                var placementGroups = ( box.Bag.PlacementGroups ?? new List<PlacementGroupBag>() ).ToList();
+                foreach ( var bag in placementGroups.Where( b => b.Guid == Guid.Empty ) )
+                {
+                    bag.Guid = Guid.NewGuid();
+                }
+
                 SyncRelatedEntities(
                     groupService,
                     groupService.Queryable().Where( g => g.ConnectionOpportunityId == entity.Id ),
-                    box.Bag.PlacementGroups,
+                    placementGroups,
                     existingKeySelector: pg => pg.Guid,
                     incomingKeySelector: bag => bag.Guid,
-                    createNew: bag => new ConnectionOpportunityGroup { Guid = bag.Guid == Guid.Empty ? Guid.NewGuid() : bag.Guid },
+                    createNew: bag => new ConnectionOpportunityGroup { Guid = bag.Guid },
                     updateEntity: ( pg, bag ) =>
                     {
                         pg.ConnectionOpportunityId = entity.Id;
@@ -843,13 +855,19 @@ namespace Rock.Blocks.Engagement
 
                 // Connector Groups
                 var connGroupService = new ConnectionOpportunityConnectorGroupService( RockContext );
+                var connectorGroups = ( box.Bag.ConnectorGroups ?? new List<ConnectorGroupBag>() ).ToList();
+                foreach ( var bag in connectorGroups.Where( b => b.Guid == Guid.Empty ) )
+                {
+                    bag.Guid = Guid.NewGuid();
+                }
+
                 SyncRelatedEntities(
                     connGroupService,
                     connGroupService.Queryable().Where( g => g.ConnectionOpportunityId == entity.Id ),
-                    box.Bag.ConnectorGroups,
+                    connectorGroups,
                     existingKeySelector: cg => cg.Guid,
                     incomingKeySelector: bag => bag.Guid,
-                    createNew: bag => new ConnectionOpportunityConnectorGroup { Guid = bag.Guid == Guid.Empty ? Guid.NewGuid() : bag.Guid },
+                    createNew: bag => new ConnectionOpportunityConnectorGroup { Guid = bag.Guid },
                     updateEntity: ( cg, bag ) =>
                     {
                         cg.ConnectionOpportunityId = entity.Id;
@@ -889,13 +907,18 @@ namespace Rock.Blocks.Engagement
                 // Workflows
                 var workflowService = new ConnectionWorkflowService( RockContext );
                 var incomingWorkflows = box.Bag.ConnectionWorkflows ?? new List<ConnectionWorkflowBag>();
+                foreach ( var bag in incomingWorkflows.Where( b => b.Guid == Guid.Empty ) )
+                {
+                    bag.Guid = Guid.NewGuid();
+                }
+
                 SyncRelatedEntities(
                     workflowService,
                     workflowService.Queryable().Where( wf => wf.ConnectionOpportunityId == entity.Id ),
                     incomingWorkflows,
                     existingKeySelector: wf => wf.Guid,
                     incomingKeySelector: bag => bag.Guid,
-                    createNew: bag => new ConnectionWorkflow { Guid = bag.Guid == Guid.Empty ? Guid.NewGuid() : bag.Guid },
+                    createNew: bag => new ConnectionWorkflow { Guid = bag.Guid },
                     updateEntity: ( wf, bag ) =>
                     {
                         wf.ConnectionOpportunityId = entity.Id;

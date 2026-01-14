@@ -17,61 +17,82 @@
             <div class="settings">
                 <ContentSection title="Settings">
                     <ContentStack title="General">
-                        <div class="autolayout">
-                            <TextBox :modelValue="title ?? ''"
-                                     label="Chart Title"
-                                     @update:modelValue="title = $event" />
+                        <div class="row">
+                            <div class="col-xs-12">
+                                <TextBox :modelValue="title ?? ''"
+                                        label="Chart Title"
+                                        @update:modelValue="title = $event" />
+                            </div>
                         </div>
-                        <div class="autolayout">
-                            <TextBox :modelValue="height ?? ''"
-                                     label="Chart Container Height"
-                                     help="CSS size value (e.g., '300px' or '50%')."
-                                     @update:modelValue="height = $event" />
-                            <TextBox :modelValue="width ?? ''"
-                                     label="Chart Container Width"
-                                     help="CSS size value (e.g., '300px' or '50%')."
-                                     @update:modelValue="width = $event" />
+                        <div class="row">
+                            <div class="col-xs-12 col-md-6">
+                                <TextBox :modelValue="height ?? ''"
+                                        label="Chart Container Height"
+                                        help="CSS size value (e.g., '300px' or '50%')."
+                                        @update:modelValue="height = $event" />
+                            </div>
+                            <div class="col-xs-12 col-md-6">
+                                <TextBox :modelValue="width ?? ''"
+                                        label="Chart Container Width"
+                                        help="CSS size value (e.g., '300px' or '50%')."
+                                        @update:modelValue="width = $event" />
+                            </div>
                         </div>
                     </ContentStack>
 
                     <ContentStack title="Data">
-                        <div class="autolayout">
-                            <NumberUpDown v-model="seriesCount"
-                                          label="Series Count"
-                                          :min="1"
-                                          :max="8" />
-
-                            <div class="button-wrapper">
-                                <RockButton btnType="primary"
-                                            @click="onRandomizeDataClicked">Randomize Data</RockButton>
+                        <div class="row">
+                            <div class="col-xs-12 col-sm-3">
+                                <NumberUpDown v-model="seriesCount"
+                                            label="Series Count"
+                                            :min="1"
+                                            :max="8" />
                             </div>
 
-                            <Switch :modelValue="isPercent ?? false"
-                                    help="For 'percent', the data must be in decimal form (e.g., 0.1 for 10%)."
-                                    label="Percent"
-                                    @update:modelValue="isPercent = $event" />
+                            <div class="col-xs-12 col-sm-3">
+                                <div class="mt-spacing-md">
+                                    <RockButton btnType="primary"
+                                                @click="onRandomizeDataClicked">Randomize Data</RockButton>
+                                </div>
+                            </div>
 
-                            <Switch :modelValue="hasCustomTooltip ?? false"
-                                    label="Custom Tooltip"
-                                    @update:modelValue="hasCustomTooltip = $event" />
+                            <div class="col-xs-12 col-sm-3">
+
+                                <Switch :modelValue="isPercent ?? false"
+                                        help="For 'percent', the data must be in decimal form (e.g., 0.1 for 10%)."
+                                        label="Percent"
+                                        @update:modelValue="isPercent = $event" />
+                            </div>
+
+                            <div class="col-xs-12 col-sm-3">
+                                <Switch :modelValue="hasCustomTooltip ?? false"
+                                        label="Custom Tooltip"
+                                        @update:modelValue="hasCustomTooltip = $event" />
+                            </div>
                         </div>
                     </ContentStack>
 
                     <ContentStack title="Legend">
-                        <div class="autolayout">
-                            <DropDownList :modelValue="legendPosition ?? ''"
-                                          :items="legendPositionItems"
-                                          label="Position"
-                                          @update:modelValue="legendPosition = <LegendPosition>$event" />
+                        <div class="row">
+                            <div class="col-xs-12 col-sm-4">
+                                <DropDownList :modelValue="legendPosition ?? ''"
+                                            :items="legendPositionItems"
+                                            label="Position"
+                                            @update:modelValue="legendPosition = <LegendPosition>$event" />
+                            </div>
 
-                            <DropDownList :modelValue="legendAlign ?? ''"
-                                          :items="legendAlignItems"
-                                          label="Alignment"
-                                          @update:modelValue="legendAlign = <LegendAlign>$event" />
+                            <div class="col-xs-12 col-sm-4">
+                                <DropDownList :modelValue="legendAlign ?? ''"
+                                            :items="legendAlignItems"
+                                            label="Alignment"
+                                            @update:modelValue="legendAlign = <LegendAlign>$event" />
+                            </div>
 
-                            <Switch :modelValue="isLegendHidden ?? false"
-                                    label="Hide"
-                                    @update:modelValue="isLegendHidden = $event" />
+                            <div class="col-xs-12 col-sm-4">
+                                <Switch :modelValue="isLegendHidden ?? false"
+                                        label="Hide"
+                                        @update:modelValue="isLegendHidden = $event" />
+                            </div>
                         </div>
                     </ContentStack>
                 </ContentSection>
@@ -79,24 +100,6 @@
         </template>
     </GalleryAndResult>
 </template>
-
-<style scoped>
-.button-wrapper {
-    display: flex;
-    align-items: center;
-}
-
-.settings {
-    max-height: 350px;
-    overflow: auto;
-}
-
-.autolayout {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    column-gap: var(--spacing-small);
-}
-</style>
 
 <script setup lang="ts">
     import { computed, ref, watch } from "vue";

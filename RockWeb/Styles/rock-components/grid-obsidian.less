@@ -71,6 +71,15 @@
 .grid-obsidian > .grid-header > .grid-title-header > .grid-actions {
   background-color: initial;
   text-align: initial;
+  &:last-child {
+        border-top-right-radius: var(--rounded-xsmall);
+        .btn-grid-action:last-child {
+            border-top-right-radius: var(--rounded-xsmall);
+        }
+        .btn-grid-action.btn-quick-filter {
+            border-top-right-radius: var(--rounded-xsmall);
+        }
+    }
 }
 
 .grid-obsidian > .grid-heading > .grid-title-heading > .grid-actions .btn-grid-action,

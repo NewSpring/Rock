@@ -1,6 +1,6 @@
 <!-- Copyright by the Spark Development Network; Licensed under the Rock Community License -->
 <template>
-    <Modal v-model="isVisible" title="Link To Form" saveText="Close" @save="onClose" :isSaveButtonDisabled="false">
+    <Modal v-model="isVisible" title="Link To Form" saveText="Close" @save="onClose" cancelText="" :isSaveButtonDisabled="false">
         <div class="well no-border">
             <h4 class="mb-1">Select a Page For Form Link</h4>
             <p class="text-muted text-sm">Choose a page from the list below to generate a link for the form. Once

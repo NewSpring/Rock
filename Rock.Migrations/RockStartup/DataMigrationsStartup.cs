@@ -118,6 +118,7 @@ namespace Rock.Migrations.RockStartup
             SystemGuid.ServiceJob.DATA_MIGRATIONS_180_UPDATE_EMAIL_PREFERENCE_ENTRY_BLOCK_MANAGE_MY_ACCOUNT_PAGE.AsGuid(),
             SystemGuid.ServiceJob.DATA_MIGRATIONS_181_ADD_FINANCIALBATCH_INDEX.AsGuid(),
             SystemGuid.ServiceJob.DATA_MIGRATIONS_190_SWAP_OBSIDIAN_BLOCKS.AsGuid(),
+            SystemGuid.ServiceJob.DATA_MIGRATIONS_190_CHOP_REGISTRATION_ENTRY_FINAL.AsGuid(),
         };
 
 
@@ -133,6 +134,7 @@ namespace Rock.Migrations.RockStartup
             SystemGuid.ServiceJob.DATA_MIGRATIONS_180_UPDATE_NAMELESS_LOCATIONS.AsGuid(),
             SystemGuid.ServiceJob.DATA_MIGRATIONS_180_MIGRATE_ERA_DATA_TO_STEPS.AsGuid(),
             SystemGuid.ServiceJob.DATA_MIGRATIONS_181_ADD_INDEXES_FOR_COMMUNICATION_PREP.AsGuid(),
+            SystemGuid.ServiceJob.DATA_MIGRATIONS_190_ADD_COMMUNICATION_UNSUBSCRIBE_REPORT_INDEX.AsGuid(),
         };
 
         /// <summary>

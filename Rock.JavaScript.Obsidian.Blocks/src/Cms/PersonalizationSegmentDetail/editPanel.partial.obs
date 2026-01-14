@@ -119,17 +119,6 @@
     </ContentSectionContainer>
 </template>
 
-<style scoped>
-.panel-waterfall {
-    background-color: var(--color-interface-softer);
-}
-
-:deep(.contentsection-body:has(.panel-waterfall)) {
-    padding-top: 0;
-    padding-bottom: 0;
-}
-</style>
-
 <script setup lang="ts">
     import { computed, PropType, ref, watch } from "vue";
     import AttributeValuesContainer from "@Obsidian/Controls/attributeValuesContainer.obs";
