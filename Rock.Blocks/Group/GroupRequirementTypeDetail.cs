@@ -222,8 +222,6 @@ namespace Rock.Blocks.Group
                 WarningWorkflowType = entity.WarningWorkflowType.ToListItemBag()
             };
 
-            bag.LoadAttributesAndValuesForPublicView( entity, GetCurrentPerson(), enforceSecurity: false );
-
             return bag;
         }
 
@@ -237,6 +235,8 @@ namespace Rock.Blocks.Group
 
             var bag = GetCommonEntityBag( entity );
 
+            bag.LoadAttributesAndValuesForPublicView( entity, GetCurrentPerson(), enforceSecurity: false );
+
             return bag;
         }
 
@@ -249,6 +249,8 @@ namespace Rock.Blocks.Group
             }
 
             var bag = GetCommonEntityBag( entity );
+
+            bag.LoadAttributesAndValuesForPublicEdit( entity, RequestContext.CurrentPerson, enforceSecurity: true );
 
             bag.SqlHelpHTML = @"A SQL expression that returns a list of Person Ids that meet the criteria. Example:
 <pre>
@@ -478,7 +480,11 @@ TIP: When calculating for a specific Person, a <strong>Person</strong> merge fie
                 return ActionBadRequest( validationMessage );
             }
 
-            RockContext.SaveChanges();
+            RockContext.WrapTransaction( () =>
+            {
+                RockContext.SaveChanges();
+                entity.SaveAttributeValues( RockContext );
+            } );
 
             var bag = GetEntityBagForView( entity );
 
