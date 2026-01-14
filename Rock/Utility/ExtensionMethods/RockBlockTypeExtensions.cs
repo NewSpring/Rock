@@ -15,6 +15,7 @@
 // </copyright>
 //
 
+using System;
 using System.Collections.Generic;
 using System.Web;
 
@@ -93,6 +94,44 @@ namespace Rock
             }
 
             var pageReference = new Rock.Web.PageReference( block.PageCache.ParentPage.Guid.ToString(), queryParams != null ? new Dictionary<string, string>( queryParams ) : null );
+
+            if ( pageReference.PageId > 0 )
+            {
+                return pageReference.BuildUrl();
+            }
+            else
+            {
+                return string.Empty;
+            }
+        }
+
+        /// <summary>
+        /// Builds and returns the URL for the current <see cref="Rock.Model.Page"/>
+        /// and any necessary query parameters.
+        /// </summary>
+        /// <param name="block">The block to get instance data from.</param>
+        /// <param name="queryParams">Any query string parameters that should be included in the built URL.</param>
+        /// <returns>A string representing the URL to the current <see cref="Rock.Model.Page"/>.</returns>
+        [Obsolete( "Use the constructor that allows skipping existing parameters in the current page's URL." )]
+        [RockObsolete( "19.0" )]
+        public static string GetCurrentPageUrl( this RockBlockType block, IDictionary<string, string> queryParams = null )
+        {
+            var parameters = queryParams != null ? new Dictionary<string, string>( queryParams ) : new Dictionary<string, string>();
+
+            // Add in the original page parameters if they have not already
+            // been set in the new query parameters.
+            foreach ( var qp in block.RequestContext.GetPageParameters() )
+            {
+                // Skip any page parameters that are internal usage.
+                if ( qp.Key == "PageId" )
+                {
+                    continue;
+                }
+
+                parameters.TryAdd( qp.Key, qp.Value );
+            }
+
+            var pageReference = new Rock.Web.PageReference( block.PageCache.Guid.ToString(), parameters );
 
             if ( pageReference.PageId > 0 )
             {
