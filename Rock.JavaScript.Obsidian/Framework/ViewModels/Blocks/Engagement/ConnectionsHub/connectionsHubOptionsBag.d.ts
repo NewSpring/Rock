@@ -45,6 +45,8 @@ export type ConnectionsHubOptionsBag = {
     /** Gets or sets the attributes for Connection Request attributes specified at the Connection Type level. */
     connectionTypeRequestAttributes?: Record<string, PublicAttributeBag> | null;
 
+    gridDataToShowItems?: ListItemBag[] | null;
+
     iconCssClass?: string | null;
 
     requestSourceItems?: ListItemBag[] | null;

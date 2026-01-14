@@ -100,15 +100,16 @@ namespace Rock.Blocks.Engagement
                 .OrderBy( cs => cs.Order )
                 .ToList();
 
-            List<ConnectionState> ignoredConnectionStates = new List<ConnectionState>();
+            List<Rock.Enums.Connection.ConnectionState> ignoredConnectionStates = new List<Rock.Enums.Connection.ConnectionState>();
 
             if ( !connectionType.EnableFutureFollowup )
             {
-                ignoredConnectionStates.Add( ConnectionState.FutureFollowUp );
+                ignoredConnectionStates.Add( Rock.Enums.Connection.ConnectionState.FutureFollowUp );
             }
 
             // When we are in add mode then we ignore "Connected". This will need to be updated if this list is used elsewhere.
-            ignoredConnectionStates.Add( ConnectionState.Connected );
+            // Moving this to client side...
+            //ignoredConnectionStates.Add( ConnectionState.Connected );
 
             var connectors = connectionType.ConnectionOpportunities
                 .SelectMany( o => o.ConnectionOpportunityConnectorGroups )
@@ -135,9 +136,8 @@ namespace Rock.Blocks.Engagement
 
             options.AllPossibleConnectors = connectors;
             options.ConnectionOpportunities = connectionType.ConnectionOpportunities.ToListItemBagList();
-            options.ConnectionStates = typeof( ConnectionState )
-                .ToEnumListItemBag()
-                .Where( i => !ignoredConnectionStates.Contains( ( ConnectionState ) i.Value.AsInteger() ) )
+            options.ConnectionStates = typeof( Rock.Enums.Connection.ConnectionState ).ToEnumListItemBag()
+                .Where( i => !ignoredConnectionStates.Contains( ( Rock.Enums.Connection.ConnectionState ) i.Value.AsInteger() ) )
                 .ToList();
             options.ConnectionStatuses = connectionType.ConnectionStatuses.ToListItemBagList();
             options.RequestSourceItems = connectionType.ConnectionTypeSources.ToListItemBagList();
@@ -158,6 +158,32 @@ namespace Rock.Blocks.Engagement
             {
                 options.ConnectionOpportunityDetailsFromFilter = GetConnectionOpportunityDetailBag( connectionOpportunityFilter.Value );
             }
+
+            options.GridDataToShowItems = new List<ListItemBag>
+            {
+                new ListItemBag
+                {
+                    Text = "Due Date",
+                    Value = "Due Date"
+                },
+                new ListItemBag
+                {
+                    Text = "Opportunity",
+                    Value = "Opportunity"
+                },
+                new ListItemBag
+                {
+                    Text = "Activity Count / Days",
+                    Value = "Activity Count / Days"
+                }
+            };
+
+            options.GridDataToShowItems.AddRange(
+                tempConnectionRequest.Attributes
+                    .Select( a => a.Value )
+                    .Where( a => a.IsGridColumn )
+                    .ToListItemBagList()
+            );
 
             return options;
         }
@@ -424,7 +450,7 @@ namespace Rock.Blocks.Engagement
                 return string.Empty;
             }
 
-            var groupMember = new GroupMember
+            var groupMember = new Rock.Model.GroupMember
             {
                 GroupId = groupId.Value,
                 GroupRoleId = groupMemberRoleId.Value,
@@ -485,6 +511,11 @@ namespace Rock.Blocks.Engagement
             return userCanEditConnectionRequest;
         }
 
+        private Rock.Model.ConnectionType GetConnectionType()
+        {
+            return new ConnectionTypeService( RockContext ).Get( PageParameter( PageParameterKey.ConnectionType ), !PageCache.Layout.Site.DisablePredictableIds );
+        }
+
         #endregion Methods
 
         #region Block Actions
@@ -504,6 +535,7 @@ namespace Rock.Blocks.Engagement
                 .Select( a => new ConnectionRow
                 {
                     ConnectionRequestId = a.Id,
+                    ConnectionRequest = a,
                     ConnectorGroupingProjection = new GroupingProjection
                     {
                         Id = a.ConnectorPersonAliasId,
@@ -676,6 +708,9 @@ namespace Rock.Blocks.Engagement
                 };
             }
 
+            // Load attribute values for the grid-selected attributes.
+            GridAttributeLoader.LoadFor( connectionRequests, a => a.ConnectionRequest, GetGridAttributes(), RockContext );
+
             var gridDataBag = GetGridBuilder().Build( connectionRequests );
             return ActionOk( gridDataBag );
         }
@@ -717,7 +752,7 @@ namespace Rock.Blocks.Engagement
                 } )
                 .ToList();
 
-            var tempGroupMember = new GroupMember
+            var tempGroupMember = new Rock.Model.GroupMember
             {
                 GroupId = placementGroup.Id
             };
@@ -860,14 +895,45 @@ namespace Rock.Blocks.Engagement
                 .AddField( "activityCount", a => a.ActivityCount )
                 .AddDateTimeField( "dueDate", a => a.DueDate )
                 .AddDateTimeField( "dueSoonDate", a => a.DueSoonDate )
-                .AddField( "connectionState", a => a.ConnectionState );
+                .AddField( "connectionState", a => a.ConnectionState )
+                .AddAttributeFieldsFrom( a => a.ConnectionRequest, GetGridAttributes() );
         }
+
+        /// <summary>
+        /// Builds the list of grid attributes that should be included on the Grid.
+        /// </summary>
+        /// <remarks>
+        /// The default implementation returns only attributes that are not qualified.
+        /// </remarks>
+        /// <returns>A list of <see cref="AttributeCache"/> objects.</returns>
+        private List<AttributeCache> GetGridAttributes()
+        {
+            if ( _gridAttributes == null )
+            {
+                var availableAttributes = new List<AttributeCache>();
+                var connectionTypeId = ConnectionTypeCache.Get( PageParameter( PageParameterKey.ConnectionType ), !PageCache.Layout.Site.DisablePredictableIds )?.Id;
+
+                if ( connectionTypeId.HasValue )
+                {
+                    var entityTypeId = EntityTypeCache.Get<ConnectionRequest>( false )?.Id;
+                    availableAttributes.AddRange( AttributeCache.GetOrderedGridAttributes( entityTypeId.Value, "ConnectionTypeId", connectionTypeId.Value.ToString() ) );
+                }
+
+                _gridAttributes = availableAttributes;
+            }
+
+            return _gridAttributes;
+        }
+
+        private List<AttributeCache> _gridAttributes = null;
 
         #region Supporting Classes
 
         public class ConnectionRow
         {
             public int ConnectionRequestId { get; set; }
+
+            public ConnectionRequest ConnectionRequest { get; set; }
 
             public GroupingProjection ConnectorGroupingProjection { get; set; }
 

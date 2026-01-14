@@ -44,6 +44,8 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
 
         public List<ListItemBag> AllPossibleConnectors { get; set; }
 
+        public List<ListItemBag> GridDataToShowItems { get; set; }
+
         public ConnectionOpportunityDetailBag ConnectionOpportunityDetailsFromFilter { get; set; }
 
         /// <summary>

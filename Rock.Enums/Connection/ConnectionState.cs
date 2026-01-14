@@ -15,6 +15,8 @@
 // </copyright>
 //
 
+using System.ComponentModel;
+
 namespace Rock.Enums.Connection
 {
     /// <summary>
@@ -40,6 +42,7 @@ namespace Rock.Enums.Connection
         /// <summary>
         /// Connected
         /// </summary>
+        [Description( "Completed" )]
         Connected = 3,
     }
 }

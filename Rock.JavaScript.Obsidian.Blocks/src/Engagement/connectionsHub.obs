@@ -20,8 +20,8 @@
                       :groupingFields="groupingFields"
                       itemTerm="Request"
                       hasFullscreen
-                      panelSettings
-                      :onAddItem="onAddItem">
+                      :onAddItem="onAddItem"
+                      :onPanelSettingsClick="onPanelSettingsClick">
         <template #preBody v-if="hasAnySelectedKeys">
             <div class="py-spacing-xs px-spacing-lg bg-info-soft border-bottom d-flex align-items-center justify-content-between">
                 <div class="d-flex align-items-center gap-lg">
@@ -43,7 +43,7 @@
                                           inputClasses="dropdown-min-width"
                                           :showBlankItem="false" />
                         </div>
-                        <RockButton class="bg-info-strong text-interface-softest">
+                        <RockButton class="bg-info-strong text-interface-softest" @click="reassignConnector">
                             Save
                         </RockButton>
                     </div>
@@ -154,6 +154,8 @@
                     </template>
                 </Column>
 
+                <AttributeColumns :attributes="box.gridDefinition?.attributeFields ?? []" />
+
                 <!-- TODO - Active state -->
                 <Column name="celebration"
                         field="celebration"
@@ -221,6 +223,11 @@
                   :selectedKeys="allSelectedKeys" />
     <SendEmailModal v-model:visible="isSendEmailModalVisible"
                     :selectedKeys="allSelectedKeys" />
+    <ViewOptionsModal v-model="viewOptions"
+                      v-model:visible="isViewOptionsModalVisible"
+                      :gridDataToShowItems="box.options?.gridDataToShowItems ?? []"
+                      :connectionStates="box.options?.connectionStates ?? []"
+                      :connectionStatuses="box.options?.connectionStatuses ?? []" />
 </template>
 
 <style>
@@ -292,12 +299,12 @@
     import { computed, reactive, ref, watch } from "vue";
     import { ListBlockBox } from "@Obsidian/ViewModels/Blocks/listBlockBox";
     import { ConnectionsHubOptionsBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionsHubOptionsBag";
-    import Grid, { Column, PersonColumn, TextColumn, SelectColumn } from "@Obsidian/Controls/grid";
+    import Grid, { Column, PersonColumn, TextColumn, SelectColumn, AttributeColumns } from "@Obsidian/Controls/grid";
     import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
     import DropDownList from "@Obsidian/Controls/dropDownList.obs";
     import HighlightLabel from "@Obsidian/Controls/highlightLabel.obs";
     import GroupedGridPanel from "@Obsidian/Controls/groupedGridPanel.obs";
-    import { isNullOrWhiteSpace, pluralize } from "@Obsidian/Utility/stringUtils";
+    import { isNullOrWhiteSpace, pluralize, safeParseJson } from "@Obsidian/Utility/stringUtils";
     import { RockDateTime } from "@Obsidian/Utility/rockDateTime";
     import { tooltip } from "@Obsidian/Utility/tooltip";
     import { DueStatus } from "@Obsidian/Enums/Connection/dueStatus";
@@ -314,13 +321,15 @@
     import { PlacementGroupDetailsBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/placementGroupDetailsBag";
     import { PublicAttributeBag } from "@Obsidian/ViewModels/Utility/publicAttributeBag";
     import { ValidPropertiesBox } from "@Obsidian/ViewModels/Utility/validPropertiesBox";
-    import { PreferenceKey } from "./ConnectionsHub/types.partial";
+    import { PreferenceKey, ViewOptions } from "./ConnectionsHub/types.partial";
     import { IGridState } from "@Obsidian/Types/Controls/grid";
+    import { asBoolean } from "@Obsidian/Utility/booleanUtils";
     import RockLabel from "@Obsidian/Controls/rockLabel.obs";
     import Badge from "@Obsidian/Controls/badge.obs";
     import RockButton from "@Obsidian/Controls/rockButton.obs";
     import SendEmailModal from "./ConnectionsHub/sendEmailModal.partial.obs";
     import SendSMSModal from "./ConnectionsHub/sendSMSModal.partial.obs";
+    import ViewOptionsModal from "./ConnectionsHub/viewOptionsModal.partial.obs";
 
     /* =====================================================
      * Configuration & Data Loading
@@ -340,7 +349,7 @@
     });
 
     const selectedGrouping = ref<string>(preferences.getValue(PreferenceKey.SelectedGroupByMode));
-    const internalSelectedOpportunity = ref(preferences.getValue(getConnectionOpportunityFilterKey()));
+    const internalSelectedOpportunity = ref(preferences.getValue(getConnectionFilterKey(PreferenceKey.ConnectionmOpportunityFilterConnectionTypeIdKey)));
 
     const newConnectionRequest = ref<ValidPropertiesBox<ConnectionRequestBag>>({ bag: { connectionOpportunityGuid: internalSelectedOpportunity.value } as ConnectionRequestBag });
     const isAddConnectionRequestModalVisible = ref(false);
@@ -353,6 +362,17 @@
 
     const isSendSMSModalVisible = ref(false);
     const isSendEmailModalVisible = ref(false);
+
+    const viewOptions = ref<ViewOptions>({
+        sortBy: preferences.getValue(getConnectionFilterKey(PreferenceKey.FilterSortByConnectionTypIdKey)),
+        isOnlyActiveOpportunitiesShown: asBoolean(preferences.getValue(getConnectionFilterKey(PreferenceKey.FilterIsOnlyActiveOpportunitiesShownConnectionTypeIdKey))),
+        gridDataToShow: safeParseJson(preferences.getValue(getConnectionFilterKey(PreferenceKey.FilterGridDataToShowConnectionTypIdKey))),
+        isRequestSourceShown: asBoolean(preferences.getValue(getConnectionFilterKey(PreferenceKey.FilterIsRequestSourceShownConnectionTypIdKey))),
+        stateFilter: safeParseJson(preferences.getValue(getConnectionFilterKey(PreferenceKey.FilterStateConnectionTypIdKey))),
+        statusFilter: safeParseJson(preferences.getValue(getConnectionFilterKey(PreferenceKey.FilterStatusConnectionTypIdKey))),
+        dueFilter: safeParseJson(preferences.getValue(getConnectionFilterKey(PreferenceKey.FilterDueConnectionTypIdKey))),
+    });
+    const isViewOptionsModalVisible = ref(false);
 
     const assignTo = ref();
     const allPossibleConnectors = ref(box.options?.allPossibleConnectors ?? []);
@@ -381,6 +401,7 @@
         const result = await invokeBlockAction<GridDataBag>("GetGridData");
 
         if (result.isSuccess && result.data) {
+            console.table(result.data.rows);
             gridData.value = reactive(result.data);
             return result.data;
         }
@@ -520,16 +541,22 @@
     }
 
     /**
-     * Gets the preference key for the connection opportunity filter.
+     * Gets a preference key with the current connection type id applied.
      *
-     * @returns The connection opportunity filter preference key.
+     * Replaces the `{0}` token in the provided preference key with the
+     * configured `connectionTypeIdKey`, if available.
+     *
+     * @param preferenceKey The preference key template containing a `{0}` token.
+     * @returns The resolved preference key, or an empty string if unavailable.
      */
-    function getConnectionOpportunityFilterKey(): string {
-        if (box.options?.connectionTypeIdKey) {
-            return PreferenceKey.ConnectionmOpportunityFilterConnectionTypeIdKey.replace("{0}", box.options.connectionTypeIdKey);
+    function getConnectionFilterKey(preferenceKey: string): string {
+        if (!box.options?.connectionTypeIdKey) {
+            return "";
         }
-        return "";
+
+        return preferenceKey.replace("{0}", box.options.connectionTypeIdKey);
     }
+
 
     function toNullableString(value: unknown): string | null {
         return isNullOrWhiteSpace(value) ? null : value as string;
@@ -545,6 +572,10 @@
     // TODO - Add security check to see if add is enabled
     function onAddItem(): void {
         isAddConnectionRequestModalVisible.value = true;
+    }
+
+    function onPanelSettingsClick(): void {
+        isViewOptionsModalVisible.value = true;
     }
 
     /**
@@ -616,8 +647,22 @@
         console.error(result.errorMessage);
     }
 
+    async function reassignConnector(): Promise<void> {
+        const result = await invokeBlockAction("ReassignConnector", {
+            connectionRequestIdKeys: allSelectedKeys.value,
+            connectorPersonAliasGuid: assignTo.value
+        });
+
+        if (result.isSuccess) {
+            loadGridData();
+            return;
+        }
+
+        console.error(result.errorMessage);
+    }
+
     watch(selectedOpportunity, async () => {
-        preferences.setValue(getConnectionOpportunityFilterKey(), selectedOpportunity.value);
+        preferences.setValue(getConnectionFilterKey(PreferenceKey.ConnectionmOpportunityFilterConnectionTypeIdKey), selectedOpportunity.value);
 
         await preferences.save();
 
@@ -627,6 +672,18 @@
         await fetchConnectionOpportunityDetails(selectedOpportunity.value);
 
         loadGridData();
+    });
+
+    watch(viewOptions, async () => {
+        preferences.setValue(getConnectionFilterKey(PreferenceKey.FilterSortByConnectionTypIdKey), viewOptions.value.sortBy ?? "");
+        preferences.setValue(getConnectionFilterKey(PreferenceKey.FilterIsOnlyActiveOpportunitiesShownConnectionTypeIdKey), viewOptions.value.isOnlyActiveOpportunitiesShown.toString());
+        preferences.setValue(getConnectionFilterKey(PreferenceKey.FilterGridDataToShowConnectionTypIdKey), JSON.stringify(viewOptions.value.gridDataToShow));
+        preferences.setValue(getConnectionFilterKey(PreferenceKey.FilterIsRequestSourceShownConnectionTypIdKey), viewOptions.value.isRequestSourceShown.toString());
+        preferences.setValue(getConnectionFilterKey(PreferenceKey.FilterStateConnectionTypIdKey), JSON.stringify(viewOptions.value.stateFilter));
+        preferences.setValue(getConnectionFilterKey(PreferenceKey.FilterStatusConnectionTypIdKey), JSON.stringify(viewOptions.value.statusFilter));
+        preferences.setValue(getConnectionFilterKey(PreferenceKey.FilterDueConnectionTypIdKey), JSON.stringify(viewOptions.value.dueFilter));
+
+        await preferences.save();
     });
 
     watch(newConnectionRequest, () => {

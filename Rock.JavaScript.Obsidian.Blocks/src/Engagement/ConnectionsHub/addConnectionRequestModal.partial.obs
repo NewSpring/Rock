@@ -37,7 +37,7 @@
         <div class="row">
             <div class="col-md-6">
                 <RadioButtonList v-model="connectionState"
-                                 :items="props.options.connectionStates ?? []"
+                                 :items="connectionStateItems"
                                  label="State" />
             </div>
         </div>
@@ -206,6 +206,13 @@
     const comments = propertyRef(props.modelValue.bag?.comments ?? "", "Comments");
     const requestSourceGuid = propertyRef(props.modelValue.bag?.requestSourceGuid ?? "", "RequestSourceGuid");
     const connectionRequestAttributeValues = propertyRef(props.modelValue.bag?.connectionRequestAttributeValues ?? {}, "ConnectionRequestAttributeValues");
+
+    // Filter out "Connected" state when we are adding a new Connection Request
+    const connectionStateItems = props.options.connectionStates?.filter(c =>
+        !isNullOrWhiteSpace(c.value) &&
+        (parseInt(c.value!) as ConnectionState) !== ConnectionState.Connected
+    );
+
 
     // The properties that are being edited. This should only contain
     // objects returned by propertyRef().

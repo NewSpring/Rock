@@ -16,5 +16,22 @@
 
 export const enum PreferenceKey {
     ConnectionmOpportunityFilterConnectionTypeIdKey = "ConnectionOpportunityFilter_ConnectionTypeIdKey_{0}",
-    SelectedGroupByMode = "SelectedGroupByMode"
+    SelectedGroupByMode = "SelectedGroupByMode",
+    FilterSortByConnectionTypIdKey = "FilterSortBy_ConnectionTypeIdKey_{0}",
+    FilterIsOnlyActiveOpportunitiesShownConnectionTypeIdKey = "FilterIsOnlyActiveOpportunitiesShown_ConnectionTypeIdKey_{0}",
+    FilterGridDataToShowConnectionTypIdKey = "FilterGridDataToShow_ConnectionTypeIdKey_{0}",
+    FilterIsRequestSourceShownConnectionTypIdKey = "FilterIsRequestSourceShown_ConnectionTypeIdKey_{0}",
+    FilterStateConnectionTypIdKey = "FilterState_ConnectionTypeIdKey_{0}",
+    FilterStatusConnectionTypIdKey = "FilterStatus_ConnectionTypeIdKey_{0}",
+    FilterDueConnectionTypIdKey = "FilterDue_ConnectionTypeIdKey_{0}",
 }
+
+export type ViewOptions = {
+    sortBy?: string | null,
+    isOnlyActiveOpportunitiesShown: boolean,
+    gridDataToShow?: string[] | null,
+    isRequestSourceShown: boolean,
+    stateFilter?: string[] | null,
+    statusFilter?: string[] | null,
+    dueFilter?: string[] | null
+};

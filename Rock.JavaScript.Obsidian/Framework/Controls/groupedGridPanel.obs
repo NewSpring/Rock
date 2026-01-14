@@ -6,11 +6,11 @@
             </HighlightLabel>
         </template>
         <template #postFilterHeaderActions>
-            <button v-if="panelSettings"
+            <button v-if="props.onPanelSettingsClick"
                     type="button"
                     class="btn btn-panel-action"
                     title="Settings"
-                    @click.prevent.stop="onPanelSettingsClick">
+                    @click.prevent.stop="props.onPanelSettingsClick">
                 <i class="ti ti-adjustments-horizontal"></i>
             </button>
             <button v-if="props.onAddItem"
@@ -122,16 +122,19 @@
             type: Function as PropType<(() => void | Promise<void>)>,
             required: false
         },
-        panelSettings: {
-            type: Boolean as PropType<boolean>,
-            default: false
+        /**
+         * The function to call in response to the add button being clicked.
+         * Providing this function will automatically enable the add button.
+         */
+        onPanelSettingsClick: {
+            type: Function as PropType<(() => void | Promise<void>)>,
+            required: false
         }
     });
 
     const emit = defineEmits([
         "update:quickFilterValue",
         "update:groupingKey",
-        "panelSettingsClick"
     ]);
 
     const internalQuickFilterValue = useVModelPassthrough(props, "quickFilterValue", emit);
@@ -267,9 +270,5 @@
         else {
             return `${asFormattedString(filteredRows.length)} of ${asFormattedString(totalGroupCount)} ${pluralize(props.itemTerm, totalGroupCount)}`;
         }
-    }
-
-    function onPanelSettingsClick(): void {
-        emit("panelSettingsClick");
     }
 </script>
