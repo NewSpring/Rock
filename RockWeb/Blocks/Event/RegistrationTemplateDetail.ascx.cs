@@ -3320,7 +3320,8 @@ The logged-in person's information will be used to complete the registrar inform
                     formField = new RegistrationTemplateFormField
                     {
                         Guid = formFieldGuid,
-                        FieldSource = RegistrationFieldSource.PersonAttribute
+                        FieldSource = RegistrationFieldSource.PersonAttribute,
+                        ShowOnWaitlist = true
                     };
                 }
                 else
@@ -3453,6 +3454,12 @@ The logged-in person's information will be used to complete the registrar inform
                     formField.PersonFieldType == RegistrationPersonFieldType.FirstName ||
                     formField.PersonFieldType == RegistrationPersonFieldType.LastName );
 
+                if ( lPersonField.Visible )
+                {
+                    // Force show on waitlist to be true for FirstName and LastName fields.
+                    cbShowOnWaitList.Checked = true;
+                }
+
                 SetFieldDisplay();
             }
 
@@ -3497,6 +3504,12 @@ The logged-in person's information will be used to complete the registrar inform
 
             cbShowOnWaitList.Visible = cbWaitListEnabled.Visible && cbWaitListEnabled.Checked;
             cbShowOnWaitList.Enabled = fieldSource != RegistrationFieldSource.GroupMemberAttribute;
+
+            if ( protectedField )
+            {
+                // FirstName or LastName field. Do not allow changing show on wait list.
+                cbShowOnWaitList.Enabled = false;
+            }
         }
 
         /// <summary>
