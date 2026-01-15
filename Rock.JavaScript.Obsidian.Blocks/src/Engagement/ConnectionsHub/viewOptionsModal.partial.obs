@@ -5,7 +5,12 @@
            saveText="Save"
            @save="onSave">
         <ContentSectionContainer :sidebar="false">
-            <ContentSection light>
+            <!-- <ContentSection light>
+                <ContentStack>
+
+                </ContentStack>
+            </ContentSection> -->
+            <ContentSection title="View" icon="ti ti-eye" disableCollapse>
                 <ContentStack>
                     <div class="row">
                         <div class="col-md-6">
@@ -14,17 +19,6 @@
                                           label="Sort By" />
                         </div>
                     </div>
-                    <div class="row">
-                        <div class="col-md-6">
-                            <CheckBox v-model="isOnlyActiveOpportunitiesShown"
-                                      label=""
-                                      text="Show Only My Active Opportunities" />
-                        </div>
-                    </div>
-                </ContentStack>
-            </ContentSection>
-            <ContentSection title="View" icon="ti ti-eye">
-                <ContentStack>
                     <div class="row">
                         <div class="col-md-12">
                             <DropDownList v-model="gridDataToShow"
@@ -42,7 +36,7 @@
                     </div>
                 </ContentStack>
             </ContentSection>
-            <ContentSection title="Filter" icon="ti ti-filter">
+            <ContentSection title="Filter" icon="ti ti-filter" disableCollapse>
                 <ContentStack>
                     <CheckBoxList v-model="stateFilter"
                                   :items="props.connectionStates"
@@ -53,6 +47,13 @@
                     <CheckBoxList v-model="dueFilter"
                                   :items="dueStatusItems"
                                   label="Due" />
+                    <div class="row">
+                        <div class="col-md-6">
+                            <CheckBox v-model="isOnlyMyActiveOpportunitiesShown"
+                                      label=""
+                                      text="Show Only My Active Opportunities" />
+                        </div>
+                    </div>
                 </ContentStack>
             </ContentSection>
             <!-- TODO - come back to attributes at the end. -->
@@ -107,8 +108,8 @@
 
     const isVisible = useVModelPassthrough(props, "visible", emit);
     const errorMessage = ref();
-    const sortBy = ref(props.modelValue.sortBy ?? "Due Date (Soonest First)");
-    const isOnlyActiveOpportunitiesShown = ref(props.modelValue.isOnlyActiveOpportunitiesShown);
+    const sortBy = ref(props.modelValue.sortBy ?? "DueDateAsc");
+    const isOnlyMyActiveOpportunitiesShown = ref(props.modelValue.isOnlyMyActiveOpportunitiesShown);
     const gridDataToShow = ref(props.modelValue.gridDataToShow ?? []);
     const isRequestSourceShown = ref(props.modelValue.isRequestSourceShown);
     const stateFilter = ref(props.modelValue.stateFilter ?? []);
@@ -120,42 +121,42 @@
     const sortByItems = [
         {
             text: "Date Added (Oldest First)",
-            value: "Date Added (Oldest First)"
+            value: "DateAddedAsc"
         },
         {
             text: "Date Added (Newest First)",
-            value: "Date Added (Newest First)"
+            value: "DateAddedDesc"
         },
         {
             text: "Due Date (Soonest First)",
-            value: "Due Date (Soonest First)"
+            value: "DueDateDesc"
         },
         {
             text: "Due Date (Latest First)",
-            value: "Due Date (Latest First)"
+            value: "DueDateAsc"
         },
         {
             text: "Requester (A-Z)",
-            value: "Requester (A-Z)"
+            value: "RequesterAsc"
         },
         {
             text: "Requester (Z-A)",
-            value: "Requester (Z-A)"
+            value: "RequesterDesc"
         },
         {
             text: "Last Activity (Oldest First)",
-            value: "Last Activity (Oldest First)"
+            value: "LastActivityAsc"
         },
         {
             text: "Last Activity (Newest First)",
-            value: "Last Activity (Newest First)"
+            value: "LastActivityDesc"
         }
     ];
 
     function onSave(): void {
         const value: ViewOptions = {
             sortBy: sortBy.value,
-            isOnlyActiveOpportunitiesShown: isOnlyActiveOpportunitiesShown.value,
+            isOnlyMyActiveOpportunitiesShown: isOnlyMyActiveOpportunitiesShown.value,
             gridDataToShow: gridDataToShow.value,
             isRequestSourceShown: isRequestSourceShown.value,
             stateFilter: stateFilter.value,

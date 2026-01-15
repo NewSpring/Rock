@@ -15,6 +15,8 @@
 // </copyright>
 //
 
+using System;
+
 namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
 {
     /// <summary>
@@ -22,7 +24,7 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
     /// </summary>
     public class ConnectionStatusBag
     {
-        public string IdKey { get; set; }
+        public Guid Guid { get; set; }
 
         public int Order { get; set; }
 

@@ -9,6 +9,7 @@
             <button v-if="props.onPanelSettingsClick"
                     type="button"
                     class="btn btn-panel-action"
+                    :class="{ active: panelSettingsActive }"
                     title="Settings"
                     @click.prevent.stop="props.onPanelSettingsClick">
                 <i class="ti ti-adjustments-horizontal"></i>
@@ -102,9 +103,13 @@
             type: Object as PropType<Record<string, unknown>[]>,
             required: true
         },
-        filteredRows: {
+        filteredAndSortedRows: {
             type: Object as PropType<Record<string, unknown>[]>,
             required: true
+        },
+        panelSettingsActive: {
+            type: Boolean as PropType<boolean>,
+            default: false
         },
         /**
          * The current text being used for the quick filter search box.
@@ -206,12 +211,12 @@
             return [{
                 key: "all",
                 label: "All",
-                gridData: { rows: props.filteredRows }
+                gridData: { rows: props.filteredAndSortedRows }
             }];
         }
 
         return Enumerable
-            .from(props.filteredRows)
+            .from(props.filteredAndSortedRows)
             .groupBy(r => {
                 const field = r[groupingKey.value] as GroupingFieldBag;
                 return field?.key ?? "";
@@ -237,17 +242,17 @@
     //     // if (loadingData.value) {
     //     //     countMessage.value = `0 ${pluralize(props.itemTerm)}`;
     //     // }
-    //     if (props.filteredRows.length === props.rows.length) {
-    //         countMessage.value = `${asFormattedString(props.filteredRows.length)} ${pluralize(props.itemTerm, props.filteredRows.length)}`;
+    //     if (props.filteredAndSortedRows.length === props.rows.length) {
+    //         countMessage.value = `${asFormattedString(props.filteredAndSortedRows.length)} ${pluralize(props.itemTerm, props.filteredAndSortedRows.length)}`;
     //     }
     //     else {
-    //         countMessage.value = `${asFormattedString(props.filteredRows.length)} of ${asFormattedString(props.rows.length)} ${pluralize(props.itemTerm, props.rows.length)}`;
+    //         countMessage.value = `${asFormattedString(props.filteredAndSortedRows.length)} of ${asFormattedString(props.rows.length)} ${pluralize(props.itemTerm, props.rows.length)}`;
     //     }
     // }
 
     const countMessage = computed(() => {
         const totalCount = props.rows?.length ?? 0;
-        const filteredCount = props.filteredRows.length;
+        const filteredCount = props.filteredAndSortedRows.length;
 
         if (filteredCount === totalCount) {
             return `${asFormattedString(totalCount)} Total ${pluralize("Request", totalCount)}`;
@@ -257,18 +262,18 @@
         }
     });
 
-    function getCountMessage(key: string | null | undefined, filteredRows: Record<string, unknown>[]): string {
+    function getCountMessage(key: string | null | undefined, filteredAndSortedRows: Record<string, unknown>[]): string {
         if (!key) {
             return "";
         }
 
         const totalGroupCount = totalGroupCounts.value.get(key) ?? 0;
 
-        if (filteredRows.length === totalGroupCount) {
-            return `${asFormattedString(filteredRows.length)} ${pluralize(props.itemTerm, filteredRows.length)}`;
+        if (filteredAndSortedRows.length === totalGroupCount) {
+            return `${asFormattedString(filteredAndSortedRows.length)} ${pluralize(props.itemTerm, filteredAndSortedRows.length)}`;
         }
         else {
-            return `${asFormattedString(filteredRows.length)} of ${asFormattedString(totalGroupCount)} ${pluralize(props.itemTerm, totalGroupCount)}`;
+            return `${asFormattedString(filteredAndSortedRows.length)} of ${asFormattedString(totalGroupCount)} ${pluralize(props.itemTerm, totalGroupCount)}`;
         }
     }
 </script>

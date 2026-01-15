@@ -21,10 +21,12 @@
 // </copyright>
 //
 
-export type ConnectionStatusBag = {
-    highlightColor?: string | null;
+import { Guid } from "@Obsidian/Types";
 
-    idKey?: string | null;
+export type ConnectionStatusBag = {
+    guid: Guid;
+
+    highlightColor?: string | null;
 
     name?: string | null;
 

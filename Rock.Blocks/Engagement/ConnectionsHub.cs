@@ -89,16 +89,16 @@ namespace Rock.Blocks.Engagement
             var connectionTypeIdKey = IdHasher.Instance.GetHash( connectionType.Id );
             options.ConnectionTypeIdKey = connectionTypeIdKey;
 
-            options.ConnectionStatusBags = connectionType.ConnectionStatuses
-                .Select( cs => new ConnectionStatusBag
-                {
-                    IdKey = IdHasher.Instance.GetHash( cs.Id ),
-                    Name = cs.Name,
-                    Order = cs.Order,
-                    HighlightColor = cs.HighlightColor
-                } )
-                .OrderBy( cs => cs.Order )
-                .ToList();
+            //options.ConnectionStatusBags = connectionType.ConnectionStatuses
+            //    .Select( cs => new ConnectionStatusBag
+            //    {
+            //        Guid = cs.Guid,
+            //        Name = cs.Name,
+            //        Order = cs.Order,
+            //        HighlightColor = cs.HighlightColor
+            //    } )
+            //    .OrderBy( cs => cs.Order )
+            //    .ToList();
 
             List<Rock.Enums.Connection.ConnectionState> ignoredConnectionStates = new List<Rock.Enums.Connection.ConnectionState>();
 
@@ -159,22 +159,23 @@ namespace Rock.Blocks.Engagement
                 options.ConnectionOpportunityDetailsFromFilter = GetConnectionOpportunityDetailBag( connectionOpportunityFilter.Value );
             }
 
+            // The values should equal the field names for each respective column.
             options.GridDataToShowItems = new List<ListItemBag>
             {
                 new ListItemBag
                 {
                     Text = "Due Date",
-                    Value = "Due Date"
+                    Value = "dueDate"
                 },
                 new ListItemBag
                 {
                     Text = "Opportunity",
-                    Value = "Opportunity"
+                    Value = "connectionOpportunity"
                 },
                 new ListItemBag
                 {
                     Text = "Activity Count / Days",
-                    Value = "Activity Count / Days"
+                    Value = "activity"
                 }
             };
 
@@ -182,7 +183,13 @@ namespace Rock.Blocks.Engagement
                 tempConnectionRequest.Attributes
                     .Select( a => a.Value )
                     .Where( a => a.IsGridColumn )
-                    .ToListItemBagList()
+                    .Select( a =>
+                    {
+                        var item = a.ToListItemBag();
+                        // Overwrite the value with the field key that will be populated in the grid.
+                        item.Value = $"attr_{a.Key}";
+                        return item;
+                    } )
             );
 
             return options;
@@ -579,7 +586,7 @@ namespace Rock.Blocks.Engagement
                     Group = a.AssignedGroup != null ? a.AssignedGroup.Name : string.Empty,
                     ConnectionStatusProjection = new ConnectionStatusProjection
                     {
-                        Id = a.ConnectionStatusId,
+                        Guid = a.ConnectionStatus.Guid,
                         Name = a.ConnectionStatus.Name, // TODO - Test what happens when a Connection Status is deleted.
                         Order = a.ConnectionStatus.Order,
                         HighlightColor = a.ConnectionStatus.HighlightColor
@@ -589,8 +596,10 @@ namespace Rock.Blocks.Engagement
                         .OrderByDescending( d => d )
                         .FirstOrDefault(),
                     ActivityCount = a.ConnectionRequestActivities.Count(),
+                    CreatedDateTime = a.CreatedDateTime,
                     DueDate = a.DueDate,
                     DueSoonDate = a.DueSoonDate,
+                    IsOpportunityActive = a.ConnectionOpportunity.IsActive,
                     PersonProjection = new PersonProjection
                     {
                         NickName = a.PersonAlias.Person.NickName,
@@ -629,7 +638,7 @@ namespace Rock.Blocks.Engagement
             {
                 request.ConnectionStatus = new ConnectionStatusBag
                 {
-                    IdKey = IdHasher.Instance.GetHash( request.ConnectionStatusProjection.Id ),
+                    Guid = request.ConnectionStatusProjection.Guid,
                     Name = request.ConnectionStatusProjection.Name,
                     Order = request.ConnectionStatusProjection.Order,
                     HighlightColor = request.ConnectionStatusProjection.HighlightColor
@@ -893,9 +902,11 @@ namespace Rock.Blocks.Engagement
                 .AddField( "connectionStatus", a => a.ConnectionStatus )
                 .AddDateTimeField( "lastActivityDateTime", a => a.LastActivityDateTime )
                 .AddField( "activityCount", a => a.ActivityCount )
+                .AddDateTimeField( "createdDateTime", a => a.CreatedDateTime )
                 .AddDateTimeField( "dueDate", a => a.DueDate )
                 .AddDateTimeField( "dueSoonDate", a => a.DueSoonDate )
                 .AddField( "connectionState", a => a.ConnectionState )
+                .AddField( "isOpportunityActive", a => a.IsOpportunityActive )
                 .AddAttributeFieldsFrom( a => a.ConnectionRequest, GetGridAttributes() );
         }
 
@@ -989,9 +1000,13 @@ namespace Rock.Blocks.Engagement
 
             public int ActivityCount { get; set; }
 
+            public DateTime? CreatedDateTime { get; set; }
+
             public DateTime? DueDate { get; set; }
 
             public DateTime? DueSoonDate { get; set; }
+
+            public bool IsOpportunityActive { get; set; }
         }
 
         public class GroupingProjection
@@ -1003,7 +1018,7 @@ namespace Rock.Blocks.Engagement
 
         public class ConnectionStatusProjection
         {
-            public int Id { get; set; }
+            public Guid Guid { get; set; }
             public string Name { get; set; }
             public int Order { get; set; }
             public string HighlightColor { get; set; }
