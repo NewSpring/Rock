@@ -1,4 +1,4 @@
-CREATE PROCEDURE dbo.spGivingAutomation_UpdateGivingBinsAndPercentiles
+ALTER PROCEDURE dbo.spGivingAutomation_UpdateGivingBinsAndPercentiles
     @CurrentRockDateTime DATETIME,
     @TransactionTypeIds dbo.IdList READONLY,        -- List of allowed TransactionTypeValueIds ( Defined in Giving Automation Configuration Block )
     @FinancialAccountIds dbo.IdList READONLY        -- List of allowed FinancialAccounts ( Defined in Giving Automation Configuration Block )
@@ -251,4 +251,3 @@ BEGIN
     DROP TABLE #GivingData;
 
 END
-GO

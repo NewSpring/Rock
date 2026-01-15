@@ -1,4 +1,4 @@
-CREATE PROCEDURE dbo.spGivingAutomation_UpdateGivingJourneyStages
+ALTER PROCEDURE dbo.spGivingAutomation_UpdateGivingJourneyStages
     @CurrentRockDateTime DATETIME,
     @TransactionTypeIds dbo.IdList READONLY,                -- List of allowed TransactionTypeValueIds ( Defined in Giving Automation Configuration Block )
     @FinancialAccountIds dbo.IdList READONLY,               -- List of allowed FinancialAccounts ( Defined in Giving Automation Configuration Block )
@@ -220,7 +220,7 @@ BEGIN
                 -- 4. LAPSED: Last Gift > @LapsedGiverNoGiftDays days AND Mean Frequency < @LapsedGiverMeanFrequency.
                 WHEN DATEDIFF(DAY, LastGiftDate, @CurrentRockDateTime) > @LapsedGiverNoGiftDays 
                      AND MeanFrequency < @LapsedGiverMeanFrequency 
-                THEN 4
+             THEN 4
                 
                 -- 5. FORMER: Catch-all for any remaining givers not classified above.
                 ELSE 5
