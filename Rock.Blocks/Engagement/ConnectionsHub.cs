@@ -112,6 +112,7 @@ namespace Rock.Blocks.Engagement
             //ignoredConnectionStates.Add( ConnectionState.Connected );
 
             var connectors = connectionType.ConnectionOpportunities
+                .Where( o => o.IsActive )
                 .SelectMany( o => o.ConnectionOpportunityConnectorGroups )
                 .SelectMany( g => g.ConnectorGroup.Members )
                 .DistinctBy( m => m.Person.PrimaryAlias.Guid )
@@ -135,7 +136,7 @@ namespace Rock.Blocks.Engagement
             }
 
             options.AllPossibleConnectors = connectors;
-            options.ConnectionOpportunities = connectionType.ConnectionOpportunities.ToListItemBagList();
+            options.ConnectionOpportunities = connectionType.ConnectionOpportunities.Where( o => o.IsActive ).ToListItemBagList();
             options.ConnectionStates = typeof( Rock.Enums.Connection.ConnectionState ).ToEnumListItemBag()
                 .Where( i => !ignoredConnectionStates.Contains( ( Rock.Enums.Connection.ConnectionState ) i.Value.AsInteger() ) )
                 .ToList();
@@ -538,7 +539,8 @@ namespace Rock.Blocks.Engagement
 
             var connectionRequestsQry = new ConnectionRequestService( RockContext ).Queryable()
                 .AsNoTracking()
-                .Where( cr => cr.ConnectionOpportunity.ConnectionTypeId == connectionType.Id )
+                .Where( cr => cr.ConnectionOpportunity.ConnectionTypeId == connectionType.Id
+                    && cr.ConnectionOpportunity.IsActive )
                 .Select( a => new ConnectionRow
                 {
                     ConnectionRequestId = a.Id,
@@ -599,7 +601,6 @@ namespace Rock.Blocks.Engagement
                     CreatedDateTime = a.CreatedDateTime,
                     DueDate = a.DueDate,
                     DueSoonDate = a.DueSoonDate,
-                    IsOpportunityActive = a.ConnectionOpportunity.IsActive,
                     PersonProjection = new PersonProjection
                     {
                         NickName = a.PersonAlias.Person.NickName,
@@ -885,6 +886,7 @@ namespace Rock.Blocks.Engagement
         /// <returns>The grid builder for the communication list grid.</returns>
         private GridBuilder<ConnectionRow> GetGridBuilder()
         {
+            // TODO - add connector
             return new GridBuilder<ConnectionRow>()
                 .WithBlock( this )
                 .AddField( "idKey", a => a.ConnectionRequestId.AsIdKey() )
@@ -906,7 +908,6 @@ namespace Rock.Blocks.Engagement
                 .AddDateTimeField( "dueDate", a => a.DueDate )
                 .AddDateTimeField( "dueSoonDate", a => a.DueSoonDate )
                 .AddField( "connectionState", a => a.ConnectionState )
-                .AddField( "isOpportunityActive", a => a.IsOpportunityActive )
                 .AddAttributeFieldsFrom( a => a.ConnectionRequest, GetGridAttributes() );
         }
 
@@ -1005,8 +1006,6 @@ namespace Rock.Blocks.Engagement
             public DateTime? DueDate { get; set; }
 
             public DateTime? DueSoonDate { get; set; }
-
-            public bool IsOpportunityActive { get; set; }
         }
 
         public class GroupingProjection

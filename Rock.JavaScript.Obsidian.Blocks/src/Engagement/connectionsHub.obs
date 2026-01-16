@@ -15,6 +15,7 @@
                       ref="groupedGridPanel"
                       :title="box.options?.title ?? ''"
                       :titleIconCssClass="`${box.options?.iconCssClass ?? ''} panel-icon`"
+                      :isSelectedView="hasAnySelectedKeys"
                       :rows="gridData?.rows ?? []"
                       :filteredAndSortedRows="sortedRows"
                       :panelSettingsActive="hasSettingsFilters"
@@ -23,43 +24,78 @@
                       hasFullscreen
                       :onAddItem="onAddItem"
                       :onPanelSettingsClick="onPanelSettingsClick">
-        <template #preBody v-if="hasAnySelectedKeys">
-            <div class="py-spacing-xs px-spacing-lg bg-info-soft border-bottom d-flex align-items-center justify-content-between">
-                <div class="d-flex align-items-center gap-lg">
-                    <div class="d-flex align-items-center gap-tiny">
-                        <RockLabel class="text-info-strong">Selected</RockLabel>
-                        <Badge class="bg-info-strong">{{ allSelectedKeys.length }}</Badge>
-                    </div>
-                    <DropDownList v-model="selectedAction"
-                                  :items="actionItems"
-                                  inputClasses="dropdown-min-width"
-                                  :showBlankItem="false" />
-                    <!-- TODO - Should this only be displayed when we are reassigning? -->
-                    <div class="d-flex align-items-center gap-xs">
-                        <div class="d-flex align-items-center gap-xs">
-                            <RockLabel class="text-info-strong">Assign To: </RockLabel>
-                            <DropDownList v-model="assignTo"
-                                          :items="allPossibleConnectors"
-                                          enhanceForLongLists
-                                          inputClasses="dropdown-min-width"
-                                          :showBlankItem="false" />
-                        </div>
-                        <RockButton class="bg-info-strong text-interface-softest" @click="reassignConnector">
-                            Save
-                        </RockButton>
+        <template #selectedActionToolbar>
+            <div class="left-actions d-flex align-items-center gap-md">
+                <div class="d-flex align-items-center gap-tiny">
+                    <RockLabel class="text-info-strong mb-0">Selected</RockLabel>
+                    <Badge class="font-weight-semibold bg-info-strong">{{ allSelectedKeys.length }}</Badge>
+                </div>
+                <div class="d-flex align-items-center gap-xs">
+                    <RockButton class="activity-btn" @click="showAssignRequestModal">
+                        <i class="ti ti-user-circle"></i>
+                        <span class="activity-btn-label">Assign</span>
+                    </RockButton>
+                    <RockButton class="activity-btn">
+                        <i class="ti ti-select"></i>
+                        <span class="activity-btn-label">Change Status</span>
+                    </RockButton>
+                    <RockButton class="activity-btn">
+                        <i class="ti ti-settings-cog"></i>
+                        <span class="activity-btn-label">Launch Workflow</span>
+                    </RockButton>
+                    <RockButton class="activity-btn">
+                        <i class="ti ti-circle-check"></i>
+                        <span class="activity-btn-label">Complete</span>
+                    </RockButton>
+                    <div class="dropdown">
+                        <i class="ti ti-dots-vertical cursor-pointer" data-toggle="dropdown"></i>
+                        <ul class="dropdown-menu">
+                            <li>
+                                <button type="button"
+                                        class="dropdown-item btn-link py-spacing-xs px-spacing-md font-weight-semibold">
+                                    <i class="ti ti-user pr-spacing-sm text-interface-medium"></i>Set as Active
+                                </button>
+                            </li>
+                            <li>
+                                <button type="button"
+                                        class="dropdown-item btn-link py-spacing-xs px-spacing-md font-weight-semibold">
+                                    <i class="ti ti-user-off pr-spacing-sm text-interface-medium"></i>Set as Inactive
+                                </button>
+                            </li>
+                            <li>
+                                <button type="button"
+                                        class="dropdown-item btn-link py-spacing-xs px-spacing-md font-weight-semibold">
+                                    <i class="ti ti-calendar pr-spacing-sm text-interface-medium"></i>Set as Future Follow-Up
+                                </button>
+                            </li>
+                            <li>
+                                <button type="button"
+                                        class="dropdown-item btn-link py-spacing-xs px-spacing-md font-weight-semibold text-danger">
+                                    <i class="ti ti-trash pr-spacing-sm text-danger"></i>Delete
+                                </button>
+                            </li>
+                        </ul>
                     </div>
                 </div>
-                <div class="d-flex align-items-center gap-md">
-                    <div class="border-left border-info pl-spacing-md d-flex align-items-center gap-xs">
-                        <RockButton @click="showSMSModal"><i class="ti ti-message-circle-plus pr-spacing-tiny"></i>SMS</RockButton>
-                        <RockButton @click="showEmailModal"><i class="ti ti-mail-plus pr-spacing-tiny"></i>Email</RockButton>
-                    </div>
-                    <div class="border-left border-info pl-spacing-md d-flex align-items-center gap-md">
-                        <RockButton><i class="ti ti-plus pr-spacing-tiny"></i>Log Activity</RockButton>
-                        <div class="d-flex align-items-center gap-sm">
-                            <i class="ti ti-dots-vertical"></i>
-                            <i class="ti ti-x cursor-pointer" @click="clearAllSelections"></i>
-                        </div>
+            </div>
+            <div class="right-actions d-flex align-items-center gap-md">
+                <div class="pl-spacing-md d-flex align-items-center gap-xs">
+                    <RockButton @click="showSMSModal" class="activity-btn">
+                        <i class="ti ti-message-circle-plus"></i>
+                        <span class="activity-btn-label">SMS</span>
+                    </RockButton>
+                    <RockButton @click="showEmailModal" class="activity-btn">
+                        <i class="ti ti-mail-plus"></i>
+                        <span class="activity-btn-label">Email</span>
+                    </RockButton>
+                </div>
+                <div class="border-left border-info pl-spacing-md d-flex align-items-center gap-md">
+                    <RockButton class="activity-btn">
+                        <i class="ti ti-activity"></i>
+                        <span class="activity-btn-label">Log Activity</span>
+                    </RockButton>
+                    <div class="d-flex align-items-center gap-sm">
+                        <i class="ti ti-x cursor-pointer" @click="clearAllSelections"></i>
                     </div>
                 </div>
             </div>
@@ -223,6 +259,9 @@
                                @fetchConnectionOpportunityDetails="fetchConnectionOpportunityDetails"
                                @fetchPlacementGroupDetails="fetchPlacementGroupDetails" />
 
+    <AssignRequestModal v-model:visible="isAssignRequestModalVisible"
+                        :connectorItems="allPossibleConnectors"
+                        :selectedRequestDetails="selectedRequestDetails" />
     <SendSMSModal v-model:visible="isSendSMSModalVisible"
                   :selectedKeys="allSelectedKeys" />
     <SendEmailModal v-model:visible="isSendEmailModalVisible"
@@ -292,8 +331,54 @@
     color: var(--color-interface-medium);
 }
 
+.dropdown-menu {
+    width: 230px;
+}
+
+/* .dropdown-menu-btn {
+    padding: 10px var(--spacing-medium);
+    font-size: var(--font-size-small);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-interface-strong);
+}
+
+.dropdown-menu-btn i {
+    color: var(--color-interface-medium);
+    padding-right: var(--spacing-xsmall);
+} */
+
 :deep(.dropdown-min-width) {
     min-width: var(--vs-dropdown-min-width);
+}
+
+/* .activity-btn {
+    padding: var(--spacing-tiny) var(--spacing-xsmall);
+    font-size: var(--font-size-xsmall);
+    font-weight: var(--font-weight-semibold);
+} */
+
+.activity-btn i {
+    padding-right: var(--spacing-tiny);
+}
+
+@media (max-width: 1290px) {
+    .right-actions .activity-btn-label {
+        display: none;
+    }
+
+    .right-actions .activity-btn i {
+        padding: 0;
+    }
+}
+
+@media (max-width: 1125px) {
+    .left-actions .activity-btn-label {
+        display: none;
+    }
+
+    .left-actions .activity-btn i {
+        padding: 0;
+    }
 }
 </style>
 
@@ -338,6 +423,8 @@
     import { ConnectionStatusBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionStatusBag";
     import { CurrentPersonBag } from "@Obsidian/ViewModels/Crm/currentPersonBag";
     import { useStore } from "@Obsidian/PageState";
+    import AssignRequestModal from "./ConnectionsHub/assignRequestModal.partial.obs";
+    import { BulkRequestViewBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/bulkRequestViewBag";
 
     /* =====================================================
      * Configuration & Data Loading
@@ -372,9 +459,11 @@
     const isSendSMSModalVisible = ref(false);
     const isSendEmailModalVisible = ref(false);
 
+    const isAssignRequestModalVisible = ref(false);
+
     const viewOptions = ref<ViewOptions>({
         sortBy: preferences.getValue(getConnectionFilterKey(PreferenceKey.FilterSortByConnectionTypIdKey)),
-        isOnlyMyActiveOpportunitiesShown: asBoolean(preferences.getValue(getConnectionFilterKey(PreferenceKey.FilterIsOnlyMyActiveOpportunitiesShownConnectionTypeIdKey))),
+        isAssignedToMe: asBoolean(preferences.getValue(getConnectionFilterKey(PreferenceKey.FilterIsAssignedToMeConnectionTypeIdKey))),
         gridDataToShow: safeParseJson(preferences.getValue(getConnectionFilterKey(PreferenceKey.FilterGridDataToShowConnectionTypIdKey))),
         isRequestSourceShown: asBoolean(preferences.getValue(getConnectionFilterKey(PreferenceKey.FilterIsRequestSourceShownConnectionTypIdKey))),
         stateFilter: safeParseJson(preferences.getValue(getConnectionFilterKey(PreferenceKey.FilterStateConnectionTypIdKey))),
@@ -433,6 +522,41 @@
 
     const allSelectedKeys = computed(() => Object.values(selectedKeys.value).flat());
     const hasAnySelectedKeys = computed(() => allSelectedKeys.value.length > 0);
+
+    const selectedRequestDetails = computed((): BulkRequestViewBag[] => {
+        if (!gridData.value?.rows?.length) {
+            return [];
+        }
+
+        const selectedKeySet = new Set(allSelectedKeys.value);
+
+        return gridData.value.rows.flatMap(row => {
+            const idKey = row["idKey"] as string | null | undefined;
+
+            if (!idKey || !selectedKeySet.has(idKey)) {
+                return [];
+            }
+
+            const connectionOpportunity = row["connectionOpportuniy"] as string | null | undefined;
+            const connectionStatus = row["connectionStatus"] as ConnectionStatusBag | null | undefined;
+            const connectionTypeSource = row["connectionTypeSource"] as string | null | undefined;
+            const connector = row["connector"] as string | null | undefined;
+            const dueDate = row["dueDate"] as string | null | undefined;
+            const dueSoonDate = row["dueSoonDate"] as string | null | undefined;
+            const requester = row["requester"] as PersonFieldBag | null | undefined;
+
+            return {
+                idKey,
+                connectionOpportunity,
+                connectionStatus,
+                connectionTypeSource,
+                connector,
+                dueStatus: getDueStatus(dueDate, dueSoonDate),
+                requester
+            } as BulkRequestViewBag;
+        });
+    });
+
 
     const attributesToShow = computed(() => {
         return box.gridDefinition?.attributeFields?.filter(a => {
@@ -508,16 +632,15 @@
                 }
             }
 
-            // My Active Opportunities Filter
-            if (viewOptions.value.isOnlyMyActiveOpportunitiesShown) {
-                const isOpportunityActiveValue = (row["isOpportunityActive"] as boolean | null | undefined) ?? false;
+            // Requests Assigned to Me
+            if (viewOptions.value.isAssignedToMe) {
                 const connectorValue = row["connectorDetails"] as PersonFieldBag | undefined;
 
                 if (!connectorValue || typeof connectorValue !== "object") {
                     return false;
                 }
 
-                if (!isOpportunityActiveValue || currentPerson.value?.idKey !== connectorValue.idKey) {
+                if (currentPerson.value?.idKey !== connectorValue.idKey) {
                     return false;
                 }
             }
@@ -795,6 +918,10 @@
         selectedKeys.value[key] = [...state.selectedKeys];
     }
 
+    function showAssignRequestModal(): void {
+        isAssignRequestModalVisible.value = true;
+    }
+
     function showSMSModal(): void {
         isSendSMSModalVisible.value = true;
     }
@@ -881,7 +1008,7 @@
 
     watch(viewOptions, async () => {
         preferences.setValue(getConnectionFilterKey(PreferenceKey.FilterSortByConnectionTypIdKey), viewOptions.value.sortBy ?? "");
-        preferences.setValue(getConnectionFilterKey(PreferenceKey.FilterIsOnlyMyActiveOpportunitiesShownConnectionTypeIdKey), viewOptions.value.isOnlyMyActiveOpportunitiesShown.toString());
+        preferences.setValue(getConnectionFilterKey(PreferenceKey.FilterIsAssignedToMeConnectionTypeIdKey), viewOptions.value.isAssignedToMe.toString());
         preferences.setValue(getConnectionFilterKey(PreferenceKey.FilterGridDataToShowConnectionTypIdKey), JSON.stringify(viewOptions.value.gridDataToShow));
         preferences.setValue(getConnectionFilterKey(PreferenceKey.FilterIsRequestSourceShownConnectionTypIdKey), viewOptions.value.isRequestSourceShown.toString());
         preferences.setValue(getConnectionFilterKey(PreferenceKey.FilterStateConnectionTypIdKey), JSON.stringify(viewOptions.value.stateFilter));

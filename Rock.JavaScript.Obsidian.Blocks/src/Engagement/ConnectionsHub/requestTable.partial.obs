@@ -1,0 +1,24 @@
+<!-- Copyright by the Spark Development Network; Licensed under the Rock Community License -->
+<template>
+    <RockLabel>{{ pluralize("Request", selectedRequestDetails.length) }}</RockLabel>
+    <div v-for="request in selectedRequestDetails" :key="request.idKey">
+        {{ request }}
+    </div>
+</template>
+
+<script setup lang="ts">
+    import RockLabel from "@Obsidian/Controls/rockLabel.obs";
+    import { ref, PropType, watch, computed } from "vue";
+    import { useVModelPassthrough } from "@Obsidian/Utility/component";
+    import { pluralize } from "@Obsidian/Utility/stringUtils";
+    import { BulkRequestViewBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/bulkRequestViewBag";
+    import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
+
+    const props = defineProps({
+        selectedRequestDetails: {
+            type: Array as PropType<BulkRequestViewBag[]>,
+            default: []
+        }
+    });
+
+</script>

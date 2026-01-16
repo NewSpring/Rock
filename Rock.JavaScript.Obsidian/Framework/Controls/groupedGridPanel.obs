@@ -24,15 +24,22 @@
             </button>
         </template>
         <template #preBody>
-            <slot name="preBody">
+            <ActionToolbar v-model:groupingKey="groupingKey"
+                           :groupingFields="groupingFields"
+                           :isSelectedView="isSelectedView">
+                <template #selectedActionToolbar>
+                    <slot name="selectedActionToolbar" />
+                </template>
+            </ActionToolbar>
+            <!-- <slot name="preBody">
                 <div class="py-spacing-xs px-spacing-lg border-bottom d-flex align-items-center">
                     <RockLabel>Group By</RockLabel>
                     <div class="col-md-3">
-                        <DropDownList v-model="groupingKey"
-                                      :items="groupingFields" />
+                        <ButtonDropDownList v-model="groupingKey"
+                                            :items="groupingFields" />
                     </div>
                 </div>
-            </slot>
+            </slot> -->
         </template>
         <ContentSectionContainer :sidebar="false">
             <template v-for="group in filteredGroups" :key="`${selectedGrouping}-${group.key}`">
@@ -85,6 +92,7 @@
     import RockLabel from "./rockLabel.obs";
     import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
     import { useVModelPassthrough } from "@Obsidian/Utility/component";
+    import ActionToolbar from "./actionToolbar.obs";
 
     const props = defineProps({
         groupingKey: {
@@ -98,6 +106,10 @@
         itemTerm: {
             type: String,
             default: "Item"
+        },
+        isSelectedView: {
+            type: Boolean as PropType<boolean>,
+            default: false
         },
         rows: {
             type: Object as PropType<Record<string, unknown>[]>,
@@ -231,6 +243,7 @@
                 };
             })
             .orderBy(g => g.key === "unassigned" ? 0 : 1)
+            .thenOrderBy(g => g.label)
             .toArray();
     });
 
