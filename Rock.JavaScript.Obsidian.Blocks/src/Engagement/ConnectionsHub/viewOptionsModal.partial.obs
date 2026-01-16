@@ -48,7 +48,7 @@
                                   :items="props.connectionStates"
                                   label="State" />
                     <CheckBoxList v-model="statusFilter"
-                                  :items="props.connectionStatuses"
+                                  :items="connectionStatusItems"
                                   label="Status" />
                     <CheckBoxList v-model="dueFilter"
                                   :items="dueStatusItems"
@@ -69,12 +69,13 @@
     import CheckBox from "@Obsidian/Controls/checkBox.obs";
     import CheckBoxList from "@Obsidian/Controls/checkBoxList.obs";
     import Switch from "@Obsidian/Controls/switch.obs";
-    import { ref, PropType, watch } from "vue";
+    import { ref, PropType, watch, computed } from "vue";
     import { useVModelPassthrough } from "@Obsidian/Utility/component";
     import { ViewOptions } from "./types.partial";
     import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
     import { enumToListItemBag } from "@Obsidian/Utility/enumUtils";
     import { DueStatus, DueStatusDescription } from "@Obsidian/Enums/Connection/dueStatus";
+    import { ConnectionStatusBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionStatusBag";
 
     const props = defineProps({
         modelValue: {
@@ -94,7 +95,7 @@
             required: true
         },
         connectionStatuses: {
-            type: Array as PropType<ListItemBag[]>,
+            type: Array as PropType<ConnectionStatusBag[]>,
             required: true
         },
     });
@@ -152,6 +153,15 @@
             value: "LastActivityDesc"
         }
     ];
+
+    const connectionStatusItems = computed<ListItemBag[]>(() => {
+        return (
+            props.connectionStatuses?.map(s => ({
+                value: s.guid,
+                text: s.name
+            })) ?? []
+        );
+    });
 
     function onSave(): void {
         const value: ViewOptions = {

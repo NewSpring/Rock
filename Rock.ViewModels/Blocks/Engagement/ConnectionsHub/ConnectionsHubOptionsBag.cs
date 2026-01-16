@@ -32,19 +32,21 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
 
         public string ConnectionTypeIdKey { get; set; }
 
-        public List<ConnectionStatusBag> ConnectionStatusBags { get; set; }
+        public bool? IsSequentialStatusMode { get; set; }
+
+        public List<ConnectionStatusBag> ConnectionStatuses { get; set; }
 
         public List<ListItemBag> ConnectionOpportunities { get; set; }
 
         public List<ListItemBag> ConnectionStates { get; set; }
-
-        public List<ListItemBag> ConnectionStatuses { get; set; }
 
         public List<ListItemBag> RequestSourceItems { get; set; }
 
         public List<ListItemBag> AllPossibleConnectors { get; set; }
 
         public List<ListItemBag> GridDataToShowItems { get; set; }
+
+        public List<ConnectionActivityBag> ConnectionActivities { get; set; }
 
         public ConnectionOpportunityDetailBag ConnectionOpportunityDetailsFromFilter { get; set; }
 

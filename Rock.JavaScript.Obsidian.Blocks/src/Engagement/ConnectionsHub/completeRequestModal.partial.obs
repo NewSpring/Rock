@@ -3,40 +3,24 @@
     <Modal v-model="isVisible"
            :title="title"
            saveText="Save">
-        <div class="row">
-            <div class="col-md-4">
-                <DropDownList v-model="connector"
-                              :items="connectorItems"
-                              label="Connector"
-                              showBlankItem
-                              enhanceForLongLists />
-            </div>
-        </div>
+        <p>Are you sure you want to mark the following {{ pluralize("request", selectedRequestDetails.length) }} as Complete?</p>
         <RequestTable :selectedRequestDetails="selectedRequestDetails"
-                      :viewOptions="viewOptions"
-                      isConnectorVisible />
+                      :viewOptions="viewOptions" />
     </Modal>
 </template>
 
 <script setup lang="ts">
     import Modal from "@Obsidian/Controls/modal.obs";
-    import DropDownList from "@Obsidian/Controls/dropDownList.obs";
     import RequestTable from "./requestTable.partial.obs";
     import { ref, PropType, watch, computed } from "vue";
     import { useVModelPassthrough } from "@Obsidian/Utility/component";
     import { pluralize } from "@Obsidian/Utility/stringUtils";
     import { BulkRequestViewBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/bulkRequestViewBag";
-    import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
     import { ViewOptions } from "./types.partial";
 
     const props = defineProps({
         visible: {
             type: Boolean as PropType<boolean>,
-            required: true
-        },
-
-        connectorItems: {
-            type: Array as PropType<ListItemBag[]>,
             required: true
         },
 
@@ -60,9 +44,7 @@
 
     const isVisible = useVModelPassthrough(props, "visible", emit);
 
-    const connector = ref();
-
-    const title = computed(() => `Assign ${pluralize("Request", props.selectedRequestDetails.length)}`);
+    const title = computed(() => `Complete ${pluralize("Request", props.selectedRequestDetails.length)}`);
 
     watch(isVisible, () => {
         errorMessage.value = "";

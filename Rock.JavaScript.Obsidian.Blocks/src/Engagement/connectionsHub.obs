@@ -35,7 +35,7 @@
                         <i class="ti ti-user-circle"></i>
                         <span class="activity-btn-label">Assign</span>
                     </RockButton>
-                    <RockButton class="activity-btn">
+                    <RockButton @click="showChangeStatusModal" class="activity-btn">
                         <i class="ti ti-select"></i>
                         <span class="activity-btn-label">Change Status</span>
                     </RockButton>
@@ -43,7 +43,7 @@
                         <i class="ti ti-settings-cog"></i>
                         <span class="activity-btn-label">Launch Workflow</span>
                     </RockButton>
-                    <RockButton class="activity-btn">
+                    <RockButton class="activity-btn" @click="showCompleteRequestModal">
                         <i class="ti ti-circle-check"></i>
                         <span class="activity-btn-label">Complete</span>
                     </RockButton>
@@ -70,6 +70,7 @@
                             </li>
                             <li>
                                 <button type="button"
+                                        @click.stop="showDeleteRequestModal"
                                         class="dropdown-item btn-link py-spacing-xs px-spacing-md font-weight-semibold text-danger">
                                     <i class="ti ti-trash pr-spacing-sm text-danger"></i>Delete
                                 </button>
@@ -90,9 +91,9 @@
                     </RockButton>
                 </div>
                 <div class="border-left border-info pl-spacing-md d-flex align-items-center gap-md">
-                    <RockButton class="activity-btn">
+                    <RockButton class="activity-btn" @click="showAddActivityModal">
                         <i class="ti ti-activity"></i>
-                        <span class="activity-btn-label">Log Activity</span>
+                        <span class="activity-btn-label">Add Activity</span>
                     </RockButton>
                     <div class="d-flex align-items-center gap-sm">
                         <i class="ti ti-x cursor-pointer" @click="clearAllSelections"></i>
@@ -136,11 +137,11 @@
                     <template #format="{ row }">
                         <div class="d-flex flex-column align-items-start gap-1">
                             <HighlightLabel labelType="custom"
-                                            customClass="label-default connection-opportunity">
+                                            customClass="label-default text-xs text-semibold text-interface-strong">
                                 {{ row.connectionOpportunity }}
                             </HighlightLabel>
                             <span v-if="!isNullOrWhiteSpace(row.connectionTypeSource) && viewOptions.isRequestSourceShown"
-                                  class="connection-source">
+                                  class="text-small text-interface-medium">
                                 {{ row.connectionTypeSource }}
                             </span>
                         </div>
@@ -261,7 +262,24 @@
 
     <AssignRequestModal v-model:visible="isAssignRequestModalVisible"
                         :connectorItems="allPossibleConnectors"
-                        :selectedRequestDetails="selectedRequestDetails" />
+                        :selectedRequestDetails="selectedRequestDetails"
+                        :viewOptions="viewOptions" />
+    <DeleteRequestModal v-model:visible="isDeleteRequestModalVisible"
+                        :selectedRequestDetails="selectedRequestDetails"
+                        :viewOptions="viewOptions" />
+    <CompleteRequestModal v-model:visible="isCompleteRequestModalVisible"
+                          :selectedRequestDetails="selectedRequestDetails"
+                          :viewOptions="viewOptions" />
+    <AddActivityModal v-model:visible="isAddActivityModalVisible"
+                      :connectorItems="allPossibleConnectors"
+                      :selectedRequestDetails="selectedRequestDetails"
+                      :connectionActivities="box.options?.connectionActivities ?? []"
+                      :viewOptions="viewOptions" />
+    <ChangeStatusModal v-model:visible="isChangeStatusModalVisible"
+                       :connectionStatuses="box.options?.connectionStatuses ?? []"
+                       :isSequentialMode="box.options?.isSequentialStatusMode ?? false"
+                       :selectedRequestDetails="selectedRequestDetails"
+                       :viewOptions="viewOptions" />
     <SendSMSModal v-model:visible="isSendSMSModalVisible"
                   :selectedKeys="allSelectedKeys" />
     <SendEmailModal v-model:visible="isSendEmailModalVisible"
@@ -281,12 +299,6 @@
 </style>
 
 <style scoped>
-.connection-opportunity {
-    font-size: var(--font-size-xsmall);
-    font-weight: var(--font-weight-semibold);
-    color: var(--color-interface-strong);
-}
-
 .connection-source {
     font-size: var(--font-size-small);
     font-weight: var(--font-weight-regular);
@@ -425,6 +437,11 @@
     import { useStore } from "@Obsidian/PageState";
     import AssignRequestModal from "./ConnectionsHub/assignRequestModal.partial.obs";
     import { BulkRequestViewBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/bulkRequestViewBag";
+    import DeleteRequestModal from "./ConnectionsHub/deleteRequestModal.partial.obs";
+    import AddActivityModal from "./ConnectionsHub/addActivityModal.partial.obs";
+    import CompleteRequestModal from "./ConnectionsHub/completeRequestModal.partial.obs";
+    import ChangeStatusModal from "./ConnectionsHub/changeStatusModal.partial.obs";
+
 
     /* =====================================================
      * Configuration & Data Loading
@@ -460,6 +477,10 @@
     const isSendEmailModalVisible = ref(false);
 
     const isAssignRequestModalVisible = ref(false);
+    const isDeleteRequestModalVisible = ref(false);
+    const isCompleteRequestModalVisible = ref(false);
+    const isAddActivityModalVisible = ref(false);
+    const isChangeStatusModalVisible = ref(false);
 
     const viewOptions = ref<ViewOptions>({
         sortBy: preferences.getValue(getConnectionFilterKey(PreferenceKey.FilterSortByConnectionTypIdKey)),
@@ -537,13 +558,12 @@
                 return [];
             }
 
-            const connectionOpportunity = row["connectionOpportuniy"] as string | null | undefined;
+            const connectionOpportunity = row["connectionOpportunity"] as string | null | undefined;
             const connectionStatus = row["connectionStatus"] as ConnectionStatusBag | null | undefined;
             const connectionTypeSource = row["connectionTypeSource"] as string | null | undefined;
-            const connector = row["connector"] as string | null | undefined;
+            const connector = row["connectorDetails"] as PersonFieldBag | null | undefined;
             const dueDate = row["dueDate"] as string | null | undefined;
-            const dueSoonDate = row["dueSoonDate"] as string | null | undefined;
-            const requester = row["requester"] as PersonFieldBag | null | undefined;
+            const requester = row["requestDetails"] as PersonFieldBag | null | undefined;
 
             return {
                 idKey,
@@ -551,7 +571,7 @@
                 connectionStatus,
                 connectionTypeSource,
                 connector,
-                dueStatus: getDueStatus(dueDate, dueSoonDate),
+                dueDate,
                 requester
             } as BulkRequestViewBag;
         });
@@ -920,6 +940,22 @@
 
     function showAssignRequestModal(): void {
         isAssignRequestModalVisible.value = true;
+    }
+
+    function showDeleteRequestModal(): void {
+        isDeleteRequestModalVisible.value = true;
+    }
+
+    function showCompleteRequestModal(): void {
+        isCompleteRequestModalVisible.value = true;
+    }
+
+    function showAddActivityModal(): void {
+        isAddActivityModalVisible.value = true;
+    }
+
+    function showChangeStatusModal(): void {
+        isChangeStatusModalVisible.value = true;
     }
 
     function showSMSModal(): void {

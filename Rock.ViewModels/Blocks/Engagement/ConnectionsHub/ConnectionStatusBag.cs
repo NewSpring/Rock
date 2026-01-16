@@ -17,6 +17,8 @@
 
 using System;
 
+using Rock.ViewModels.Utility;
+
 namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
 {
     /// <summary>
@@ -31,5 +33,7 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
         public string Name { get; set; }
 
         public string HighlightColor { get; set; }
+
+        public bool IsNoteRequiredOnCompletion { get; set; }
     }
 }

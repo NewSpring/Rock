@@ -15,33 +15,20 @@
 // </copyright>
 //
 
-using System;
 using System.Collections.Generic;
 
 using Rock.Enums.Connection;
-using Rock.Model;
-using Rock.ViewModels.Core.Grid;
 using Rock.ViewModels.Utility;
 
 namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
 {
     /// <summary>
-    /// 
+    /// The additional configuration options for the Connections Hub block.
     /// </summary>
-    public class BulkRequestViewBag
+    public class ConnectionActivityBag
     {
-        public string IdKey { get; set; }
+        public ListItemBag ActivityType { get; set; }
 
-        public PersonFieldBag Requester { get; set; }
-
-        public string ConnectionOpportunity { get; set; }
-
-        public string ConnectionTypeSource { get; set; }
-
-        public PersonFieldBag Connector { get; set; }
-
-        public string DueDate { get; set; }
-
-        public ConnectionStatusBag ConnectionStatus { get; set; } 
+        public PersonNoteCreationBehavior? PersonNoteCreationBehavior { get; set; }
     }
 }

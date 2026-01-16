@@ -21,6 +21,7 @@
 // </copyright>
 //
 
+import { ConnectionActivityBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionActivityBag";
 import { ConnectionOpportunityDetailBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionOpportunityDetailBag";
 import { ConnectionStatusBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionStatusBag";
 import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
@@ -30,15 +31,15 @@ import { PublicAttributeBag } from "@Obsidian/ViewModels/Utility/publicAttribute
 export type ConnectionsHubOptionsBag = {
     allPossibleConnectors?: ListItemBag[] | null;
 
+    connectionActivities?: ConnectionActivityBag[] | null;
+
     connectionOpportunities?: ListItemBag[] | null;
 
     connectionOpportunityDetailsFromFilter?: ConnectionOpportunityDetailBag | null;
 
     connectionStates?: ListItemBag[] | null;
 
-    connectionStatusBags?: ConnectionStatusBag[] | null;
-
-    connectionStatuses?: ListItemBag[] | null;
+    connectionStatuses?: ConnectionStatusBag[] | null;
 
     connectionTypeIdKey?: string | null;
 
@@ -48,6 +49,8 @@ export type ConnectionsHubOptionsBag = {
     gridDataToShowItems?: ListItemBag[] | null;
 
     iconCssClass?: string | null;
+
+    isSequentialStatusMode?: boolean | null;
 
     requestSourceItems?: ListItemBag[] | null;
 

@@ -44,7 +44,7 @@
         <div class="row">
             <div class="col-md-6">
                 <DropDownList v-model="connectionStatusGuid"
-                              :items="props.options.connectionStatuses ?? []"
+                              :items="connectionStatusItems"
                               label="Status"
                               :showBlankItem="false" />
             </div>
@@ -92,7 +92,6 @@
         <div class="row">
             <div class="col-md-12">
                 <TextBox v-model="comments"
-                         :items="props.options.connectionStatuses ?? []"
                          label="Comments"
                          textMode="multiline" />
             </div>
@@ -257,6 +256,16 @@
 
         return statuses[roleGuid] ?? [];
     });
+
+    const connectionStatusItems = computed<ListItemBag[]>(() => {
+        return (
+            props.options.connectionStatuses?.map(s => ({
+                value: s.guid,
+                text: s.name
+            })) ?? []
+        );
+    });
+
 
 
     function onSave(): void {

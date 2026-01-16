@@ -21,22 +21,21 @@
 // </copyright>
 //
 
-import { DueStatus } from "@Obsidian/Enums/Connection/dueStatus";
 import { ConnectionStatusBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionStatusBag";
 import { PersonFieldBag } from "@Obsidian/ViewModels/Core/Grid/personFieldBag";
 
 export type BulkRequestViewBag = {
-    idKey?: string | null;
-
     connectionOpportunity?: string | null;
 
     connectionStatus?: ConnectionStatusBag | null;
 
     connectionTypeSource?: string | null;
 
-    connector?: string | null;
+    connector?: PersonFieldBag | null;
 
-    dueStatus: DueStatus;
+    dueDate?: string | null;
+
+    idKey?: string | null;
 
     requester?: PersonFieldBag | null;
 };

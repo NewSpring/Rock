@@ -3,24 +3,17 @@
     <Modal v-model="isVisible"
            :title="title"
            saveText="Save">
-        <div class="row">
-            <div class="col-md-4">
-                <DropDownList v-model="connector"
-                              :items="connectorItems"
-                              label="Connector"
-                              showBlankItem
-                              enhanceForLongLists />
-            </div>
-        </div>
+        <NotificationBox alertType="danger">
+            Are you sure you want to delete the following {{ pluralize("request", selectedRequestDetails.length) }} This action can’t be undone.
+        </NotificationBox>
         <RequestTable :selectedRequestDetails="selectedRequestDetails"
-                      :viewOptions="viewOptions"
-                      isConnectorVisible />
+                      :viewOptions="viewOptions" />
     </Modal>
 </template>
 
 <script setup lang="ts">
+    import NotificationBox from "@Obsidian/Controls/notificationBox.obs";
     import Modal from "@Obsidian/Controls/modal.obs";
-    import DropDownList from "@Obsidian/Controls/dropDownList.obs";
     import RequestTable from "./requestTable.partial.obs";
     import { ref, PropType, watch, computed } from "vue";
     import { useVModelPassthrough } from "@Obsidian/Utility/component";
@@ -32,11 +25,6 @@
     const props = defineProps({
         visible: {
             type: Boolean as PropType<boolean>,
-            required: true
-        },
-
-        connectorItems: {
-            type: Array as PropType<ListItemBag[]>,
             required: true
         },
 
@@ -60,9 +48,7 @@
 
     const isVisible = useVModelPassthrough(props, "visible", emit);
 
-    const connector = ref();
-
-    const title = computed(() => `Assign ${pluralize("Request", props.selectedRequestDetails.length)}`);
+    const title = computed(() => `Delete ${pluralize("Request", props.selectedRequestDetails.length)}`);
 
     watch(isVisible, () => {
         errorMessage.value = "";

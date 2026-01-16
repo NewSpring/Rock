@@ -21,16 +21,12 @@
 // </copyright>
 //
 
-import { Guid } from "@Obsidian/Types";
+import { PersonNoteCreationBehavior } from "@Obsidian/Enums/Connection/personNoteCreationBehavior";
+import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
 
-export type ConnectionStatusBag = {
-    guid: Guid;
+/** The additional configuration options for the Connections Hub block. */
+export type ConnectionActivityBag = {
+    activityType?: ListItemBag | null;
 
-    highlightColor?: string | null;
-
-    isNoteRequiredOnCompletion: boolean;
-
-    name?: string | null;
-
-    order: number;
+    personNoteCreationBehavior?: PersonNoteCreationBehavior | null;
 };

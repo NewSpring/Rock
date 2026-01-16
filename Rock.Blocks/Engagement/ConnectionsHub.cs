@@ -88,6 +88,7 @@ namespace Rock.Blocks.Engagement
 
             var connectionTypeIdKey = IdHasher.Instance.GetHash( connectionType.Id );
             options.ConnectionTypeIdKey = connectionTypeIdKey;
+            options.IsSequentialStatusMode = connectionType.IsSequentialStatusEnforced;
 
             //options.ConnectionStatusBags = connectionType.ConnectionStatuses
             //    .Select( cs => new ConnectionStatusBag
@@ -140,8 +141,16 @@ namespace Rock.Blocks.Engagement
             options.ConnectionStates = typeof( Rock.Enums.Connection.ConnectionState ).ToEnumListItemBag()
                 .Where( i => !ignoredConnectionStates.Contains( ( Rock.Enums.Connection.ConnectionState ) i.Value.AsInteger() ) )
                 .ToList();
-            options.ConnectionStatuses = connectionType.ConnectionStatuses.ToListItemBagList();
             options.RequestSourceItems = connectionType.ConnectionTypeSources.ToListItemBagList();
+
+            options.ConnectionStatuses = connectionType.ConnectionStatuses.Select( s => new ConnectionStatusBag
+            {
+                Guid = s.Guid,
+                Name = s.Name,
+                HighlightColor = s.HighlightColor,
+                Order = s.Order,
+                IsNoteRequiredOnCompletion = s.IsNoteRequiredOnCompletion
+            } ).ToList();
 
             var tempConnectionRequest = new ConnectionRequest
             {
@@ -192,6 +201,12 @@ namespace Rock.Blocks.Engagement
                         return item;
                     } )
             );
+
+            options.ConnectionActivities = connectionType.ConnectionActivityTypes.Select( a => new ConnectionActivityBag
+            {
+                ActivityType = a.ToListItemBag(),
+                PersonNoteCreationBehavior = a.PersonNoteCreationBehavior
+            } ).ToList();
 
             return options;
         }
@@ -642,7 +657,8 @@ namespace Rock.Blocks.Engagement
                     Guid = request.ConnectionStatusProjection.Guid,
                     Name = request.ConnectionStatusProjection.Name,
                     Order = request.ConnectionStatusProjection.Order,
-                    HighlightColor = request.ConnectionStatusProjection.HighlightColor
+                    HighlightColor = request.ConnectionStatusProjection.HighlightColor,
+                    IsNoteRequiredOnCompletion = request.ConnectionStatusProjection.IsNotRequiredOnCompletion
                 };
 
                 request.Person = new PersonFieldBag
@@ -886,7 +902,6 @@ namespace Rock.Blocks.Engagement
         /// <returns>The grid builder for the communication list grid.</returns>
         private GridBuilder<ConnectionRow> GetGridBuilder()
         {
-            // TODO - add connector
             return new GridBuilder<ConnectionRow>()
                 .WithBlock( this )
                 .AddField( "idKey", a => a.ConnectionRequestId.AsIdKey() )
@@ -1021,6 +1036,8 @@ namespace Rock.Blocks.Engagement
             public string Name { get; set; }
             public int Order { get; set; }
             public string HighlightColor { get; set; }
+
+            public bool IsNotRequiredOnCompletion { get; set; }
         }
 
         public class PersonProjection
