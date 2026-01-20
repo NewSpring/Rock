@@ -41,6 +41,7 @@
                                  label="State" />
             </div>
         </div>
+        <!-- TODO: Add Future Follow-Up required Date Picker -->
         <div class="row">
             <div class="col-md-6">
                 <DropDownList v-model="connectionStatusGuid"

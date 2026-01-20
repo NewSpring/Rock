@@ -55,4 +55,6 @@ export type ConnectionsHubOptionsBag = {
     requestSourceItems?: ListItemBag[] | null;
 
     title?: string | null;
+
+    workflowItems?: ListItemBag[] | null;
 };

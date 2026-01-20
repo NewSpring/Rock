@@ -41,7 +41,7 @@
                 </div>
             </slot> -->
         </template>
-        <ContentSectionContainer :sidebar="false">
+        <ContentSectionContainer ref="sectionContainer" :sidebar="false">
             <template v-for="group in filteredGroups" :key="`${selectedGrouping}-${group.key}`">
                 <ContentSection :isCollapsed="group.key === 'unassigned'">
                     <template #title>
@@ -93,6 +93,7 @@
     import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
     import { useVModelPassthrough } from "@Obsidian/Utility/component";
     import ActionToolbar from "./actionToolbar.obs";
+    import { IContentSectionHolder } from "@Obsidian/Core/Controls/contentSection";
 
     const props = defineProps({
         groupingKey: {
@@ -156,6 +157,7 @@
 
     const internalQuickFilterValue = useVModelPassthrough(props, "quickFilterValue", emit);
     const groupingKey = useVModelPassthrough(props, "groupingKey", emit);
+    const sectionContainer = ref<{ getSections: () => IContentSectionHolder[]; } | null>(null);
 
     //TODO - Determine if this is the correct spot for the interface
     // interface IClearableGrid {
@@ -194,7 +196,9 @@
     }
 
     defineExpose({
-        clearSelectedKeys
+        clearSelectedKeys,
+        expandAll,
+        collapseAll
     });
 
 
@@ -274,6 +278,23 @@
             return `${asFormattedString(filteredCount)} of ${asFormattedString(totalCount)} Total ${pluralize("Request", totalCount)}`;
         }
     });
+
+    function expandAll(): void {
+        sectionContainer.value
+            ?.getSections()
+            .forEach(s => {
+                s.isCollapsed.value = false;
+            });
+    }
+
+    function collapseAll(): void {
+        sectionContainer.value
+            ?.getSections()
+            .forEach(s => {
+                s.isCollapsed.value = true;
+            });
+    }
+
 
     function getCountMessage(key: string | null | undefined, filteredAndSortedRows: Record<string, unknown>[]): string {
         if (!key) {

@@ -143,6 +143,29 @@ namespace Rock.Blocks.Engagement
                 .ToList();
             options.RequestSourceItems = connectionType.ConnectionTypeSources.ToListItemBagList();
 
+            var workflowItems = new List<ListItemBag>();
+
+            // Connection Type workflows
+            workflowItems.AddRange(
+                connectionType.ConnectionWorkflows
+                    .Select( w => w.WorkflowType )
+                    .ToListItemBagList()
+            );
+
+            // Connection Opportunity workflows
+            workflowItems.AddRange(
+                connectionType.ConnectionOpportunities
+                    .SelectMany( o => o.ConnectionWorkflows )
+                    .Select( w => w.WorkflowType )
+                    .ToListItemBagList()
+            );
+
+            // Optional: de-dupe by WorkflowType Id
+            options.WorkflowItems = workflowItems
+                .GroupBy( w => w.Value )
+                .Select( g => g.First() )
+                .ToList();
+
             options.ConnectionStatuses = connectionType.ConnectionStatuses.Select( s => new ConnectionStatusBag
             {
                 Guid = s.Guid,
@@ -530,6 +553,51 @@ namespace Rock.Blocks.Engagement
             //{
             //    var campuses = CampusCache.All().Where( c => c.IsActive ?? true ).ToList();
             //}
+            if ( !userCanEditConnectionRequest )
+            {
+                var connectionOpportunityConnectorGroups = connectionOpportunities
+                    .SelectMany( o => o.ConnectionOpportunityConnectorGroups )
+                    .Distinct()
+                    .ToList();
+
+                //var qryConnectionOpportunityConnectorGroups = new ConnectionOpportunityConnectorGroupService( new RockContext() )
+                //    .Queryable()
+                //    .AsNoTracking()
+                //    .Where( a => a.ConnectionOpportunityId == connectionOpportunity.Id );
+                var campuses = CampusCache.All().Where( c => c.IsActive ?? true ).ToList();
+
+                // If there is only one campus OR the group is not set to a specific campus...
+
+                // Grant edit access to any of those in a non campus-specific connector group
+                userCanEditConnectionRequest = connectionOpportunityConnectorGroups
+                    .Any( g =>
+                        ( campuses.Count == 1 || !g.CampusId.HasValue ) &&
+                        g.ConnectorGroup != null &&
+                        g.ConnectorGroup.Members.Any( m => m.PersonId == RequestContext.CurrentPerson.Id && m.GroupMemberStatus == GroupMemberStatus.Active ) );
+
+                //TODO - Cannot do this last step because of Bulk Connection Requests.
+                //if ( !userCanEditConnectionRequest )
+                //{
+                //    // Current Person still has to be a Connector.
+                //    // If this is a new request, grant edit access to any connector group. Otherwise, match the request's campus to the corresponding campus-specific connector group
+                //    var groupCampuses = connectionOpportunityConnectorGroups
+                //        .Where( g =>
+                //            g.ConnectorGroup != null &&
+                //            g.ConnectorGroup.Members.Any( m => m.PersonId == RequestContext.CurrentPerson.Id ) );
+
+                //    if ( connectionRequest != null )
+                //    {
+                //        groupCampuses = groupCampuses.Where( g => ( connectionRequest.Id == 0 || ( connectionRequest.CampusId.HasValue && g.CampusId == connectionRequest.CampusId.Value ) ) );
+                //    }
+
+                //    // If the connetion request is new OR the group campus matches the connection request campus.
+                //    foreach ( var groupCampus in groupCampuses )
+                //    {
+                //        userCanEditConnectionRequest = true;
+                //        break;
+                //    }
+                //}
+            }
 
             return userCanEditConnectionRequest;
         }
@@ -613,6 +681,7 @@ namespace Rock.Blocks.Engagement
                         .OrderByDescending( d => d )
                         .FirstOrDefault(),
                     ActivityCount = a.ConnectionRequestActivities.Count(),
+                    FollowUpDate = a.FollowupDate,
                     CreatedDateTime = a.CreatedDateTime,
                     DueDate = a.DueDate,
                     DueSoonDate = a.DueSoonDate,
@@ -922,6 +991,7 @@ namespace Rock.Blocks.Engagement
                 .AddDateTimeField( "createdDateTime", a => a.CreatedDateTime )
                 .AddDateTimeField( "dueDate", a => a.DueDate )
                 .AddDateTimeField( "dueSoonDate", a => a.DueSoonDate )
+                .AddDateTimeField( "followUpDate", a => a.FollowUpDate )
                 .AddField( "connectionState", a => a.ConnectionState )
                 .AddAttributeFieldsFrom( a => a.ConnectionRequest, GetGridAttributes() );
         }
@@ -1015,6 +1085,8 @@ namespace Rock.Blocks.Engagement
             public DateTime? LastActivityDateTime { get; set; }
 
             public int ActivityCount { get; set; }
+
+            public DateTime? FollowUpDate { get; set; }
 
             public DateTime? CreatedDateTime { get; set; }
 

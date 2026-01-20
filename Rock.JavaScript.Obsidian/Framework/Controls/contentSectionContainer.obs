@@ -37,6 +37,11 @@
         },
     });
 
+    defineExpose({
+        getSections: () => sections.value
+    });
+
+
     // #region Values
 
     let nextSectionId = 1;

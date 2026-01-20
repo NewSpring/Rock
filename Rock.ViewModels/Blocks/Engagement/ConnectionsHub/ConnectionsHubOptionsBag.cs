@@ -42,6 +42,8 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
 
         public List<ListItemBag> RequestSourceItems { get; set; }
 
+        public List<ListItemBag> WorkflowItems { get; set; }
+
         public List<ListItemBag> AllPossibleConnectors { get; set; }
 
         public List<ListItemBag> GridDataToShowItems { get; set; }

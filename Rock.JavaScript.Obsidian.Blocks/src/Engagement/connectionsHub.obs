@@ -23,7 +23,8 @@
                       itemTerm="Request"
                       hasFullscreen
                       :onAddItem="onAddItem"
-                      :onPanelSettingsClick="onPanelSettingsClick">
+                      :onPanelSettingsClick="onPanelSettingsClick"
+                      :headerSecondaryActions="secondaryActions">
         <template #selectedActionToolbar>
             <div class="left-actions d-flex align-items-center gap-md">
                 <div class="d-flex align-items-center gap-tiny">
@@ -37,9 +38,10 @@
                     </RockButton>
                     <RockButton @click="showChangeStatusModal" class="activity-btn">
                         <i class="ti ti-select"></i>
-                        <span class="activity-btn-label">Change Status</span>
+                        <span v-if="box.options?.isSequentialStatusMode" class="activity-btn-label">Change Status</span>
+                        <span v-else class="activity-btn-label">Change Status</span>
                     </RockButton>
-                    <RockButton class="activity-btn">
+                    <RockButton @click="showLaunchWorkflowModal" class="activity-btn">
                         <i class="ti ti-settings-cog"></i>
                         <span class="activity-btn-label">Launch Workflow</span>
                     </RockButton>
@@ -230,10 +232,33 @@
                 <Column name="connectionStatus"
                         field="connectionStatus">
                     <template #format="{ row }">
-                        <div v-if="row.connectionStatus"
-                             class="py-spacing-tiny px-spacing-xs rounded-huge text-semibold text-interface-softest"
-                             :style="`background-color: ${row.connectionStatus.highlightColor}`">
-                            {{ row.connectionStatus.name }}
+                        <div class="w-100">
+                            <template v-if="row.connectionState === ConnectionState.Active">
+                                <RockButton v-if="box.options?.isSequentialStatusMode"
+                                            class="py-spacing-tiny px-spacing-xs rounded-huge text-semibold text-interface-softest w-100 d-flex align-items-center"
+                                            :style="`background-color: ${row.connectionStatus.highlightColor}`">
+                                    <i class="ti ti-circle-check text-left"></i>
+                                    <sapn class="w-100">{{ row.connectionStatus.name }}</sapn>
+                                </RockButton>
+                                <DropDownList v-else
+                                              v-model="row.connectionStatus.guid"
+                                              :items="connectionStatusItems"
+                                              :showBlankItem="false"
+                                              inputClasses="status-dropdown rounded-pill"
+                                              :style="{ '--status-bg': row.connectionStatus?.highlightColor }" />
+                            </template>
+                            <div v-else-if="row.connectionState === ConnectionState.Inactive"
+                                 class="text-center text-semibold text-slate">
+                                {{ ConnectionStateDescription[ConnectionState.Inactive] }}
+                            </div>
+                            <div v-else-if="row.connectionState === ConnectionState.FutureFollowUp"
+                                 class="text-center text-semibold text-info-strong">
+                                {{ ConnectionStateDescription[ConnectionState.FutureFollowUp] }} - {{ asLocaleString(row.followUpDate) }}
+                            </div>
+                            <div v-else-if="row.connectionState === ConnectionState.Connected"
+                                 class="text-center text-semibold text-emerald">
+                                {{ ConnectionStateDescription[ConnectionState.Connected] }}
+                            </div>
                         </div>
                     </template>
                 </Column>
@@ -280,6 +305,10 @@
                        :isSequentialMode="box.options?.isSequentialStatusMode ?? false"
                        :selectedRequestDetails="selectedRequestDetails"
                        :viewOptions="viewOptions" />
+    <LaunchWorkflowModal v-model:visible="isLaunchWorkflowModalVisible"
+                         :workflowItems="box.options?.workflowItems ?? []"
+                         :selectedRequestDetails="selectedRequestDetails"
+                         :viewOptions="viewOptions" />
     <SendSMSModal v-model:visible="isSendSMSModalVisible"
                   :selectedKeys="allSelectedKeys" />
     <SendEmailModal v-model:visible="isSendEmailModalVisible"
@@ -343,6 +372,14 @@
     color: var(--color-interface-medium);
 }
 
+.text-slate {
+    color: #64748B;
+}
+
+.text-emerald {
+    color: #10B981;
+}
+
 .dropdown-menu {
     width: 230px;
 }
@@ -361,6 +398,20 @@
 
 :deep(.dropdown-min-width) {
     min-width: var(--vs-dropdown-min-width);
+}
+
+:deep(.status-dropdown) {
+    width: 100%;
+    background-color: var(--status-bg);
+}
+
+:deep(.status-dropdown.ant-select .ant-select-arrow) {
+    color: var(--color-interface-softest);
+}
+
+:deep(.status-dropdown .ant-select-selection-item) {
+    color: var(--color-interface-softest);
+    justify-content: center;
 }
 
 /* .activity-btn {
@@ -431,7 +482,7 @@
     import SendEmailModal from "./ConnectionsHub/sendEmailModal.partial.obs";
     import SendSMSModal from "./ConnectionsHub/sendSMSModal.partial.obs";
     import ViewOptionsModal from "./ConnectionsHub/viewOptionsModal.partial.obs";
-    import { ConnectionState } from "@Obsidian/Enums/Connection/connectionState";
+    import { ConnectionState, ConnectionStateDescription } from "@Obsidian/Enums/Connection/connectionState";
     import { ConnectionStatusBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionStatusBag";
     import { CurrentPersonBag } from "@Obsidian/ViewModels/Crm/currentPersonBag";
     import { useStore } from "@Obsidian/PageState";
@@ -441,7 +492,9 @@
     import AddActivityModal from "./ConnectionsHub/addActivityModal.partial.obs";
     import CompleteRequestModal from "./ConnectionsHub/completeRequestModal.partial.obs";
     import ChangeStatusModal from "./ConnectionsHub/changeStatusModal.partial.obs";
-
+    import LaunchWorkflowModal from "./ConnectionsHub/launchWorkflowModal.partial.obs";
+    import ButtonDropdownList from "@Obsidian/Controls/buttonDropDownList.obs";
+    import { PanelAction } from "@Obsidian/Types/Controls/panelAction";
 
     /* =====================================================
      * Configuration & Data Loading
@@ -469,7 +522,6 @@
     const connectionOpportunityDetails = ref<ConnectionOpportunityDetailBag>(box.options?.connectionOpportunityDetailsFromFilter ?? {});
     const placementGroupDetails = ref<PlacementGroupDetailsBag>();
     const selectedKeys = ref<Record<string, string[]>>({});
-    const selectedAction = ref();
 
     const groupedGridPanel = ref();
 
@@ -481,6 +533,7 @@
     const isCompleteRequestModalVisible = ref(false);
     const isAddActivityModalVisible = ref(false);
     const isChangeStatusModalVisible = ref(false);
+    const isLaunchWorkflowModalVisible = ref(false);
 
     const viewOptions = ref<ViewOptions>({
         sortBy: preferences.getValue(getConnectionFilterKey(PreferenceKey.FilterSortByConnectionTypIdKey)),
@@ -495,22 +548,6 @@
 
     const assignTo = ref();
     const allPossibleConnectors = ref(box.options?.allPossibleConnectors ?? []);
-
-    // TODO Change items based on sequential mode.
-    const actionItems = [
-        {
-            text: "Reassign",
-            value: "Reassign"
-        },
-        {
-            text: "Change Status",
-            value: "Change Status"
-        },
-        {
-            text: "Reassign",
-            value: "reassign"
-        },
-    ];
 
     // Holds the raw grid data returned from the server
     const gridData = ref<GridDataBag>();
@@ -529,6 +566,53 @@
 
     const currentPerson = computed((): CurrentPersonBag | null => {
         return store.state.currentPerson;
+    });
+
+    /**
+     * Gets the list of secondary action items to be included in the panel.
+     */
+    const secondaryActions = computed((): PanelAction[] | undefined => {
+        const actions: PanelAction[] = [];
+
+        actions.push({
+            type: "default",
+            iconCssClass: "ti ti-plus",
+            title: "Add From Campaign",
+            handler: showAddFromCampaignModal
+        });
+
+        actions.push({
+            type: "default",
+            iconCssClass: "ti ti-viewport-short",
+            title: "Turn On Auto-Collapse",
+            handler: showAddFromCampaignModal
+        });
+
+        actions.push({
+            type: "default",
+            iconCssClass: "ti ti-chevrons-down",
+            title: "Expand All",
+            handler: expandAll
+        });
+
+        actions.push({
+            type: "default",
+            iconCssClass: "ti ti-chevrons-up",
+            title: "Collapse All",
+            handler: collapseAll
+        });
+
+        return actions;
+    });
+
+    // TODO - If we keep this than pass this into the change status modal.
+    const connectionStatusItems = computed<ListItemBag[]>(() => {
+        return (
+            box.options?.connectionStatuses?.map(s => ({
+                value: s.guid,
+                text: s.name
+            })) ?? []
+        );
     });
 
     // Computed setter normalizes v-model updates so the dropdown’s blank "All Opportunities" value is never stored in component state.
@@ -888,6 +972,16 @@
         ).length;
     }
 
+    function asLocaleString(dateTime: string | null | undefined): string {
+        let date = RockDateTime.parseISO(dateTime ?? "");
+
+        if (!date) {
+            return "";
+        }
+
+        return date.toLocaleString({ year: "numeric", month: "numeric", day: "numeric" });
+    }
+
     /**
      * Gets a preference key with the current connection type id applied.
      *
@@ -938,6 +1032,14 @@
         selectedKeys.value[key] = [...state.selectedKeys];
     }
 
+    function expandAll(): void {
+        groupedGridPanel.value.expandAll();
+    }
+
+    function collapseAll(): void {
+        groupedGridPanel.value.collapseAll();
+    }
+
     function showAssignRequestModal(): void {
         isAssignRequestModalVisible.value = true;
     }
@@ -956,6 +1058,14 @@
 
     function showChangeStatusModal(): void {
         isChangeStatusModalVisible.value = true;
+    }
+
+    function showLaunchWorkflowModal(): void {
+        isLaunchWorkflowModalVisible.value = true;
+    }
+
+    function showAddFromCampaignModal(): void {
+
     }
 
     function showSMSModal(): void {

@@ -15,6 +15,8 @@
 // </copyright>
 //
 
+using System.ComponentModel;
+
 /// <summary>
 /// Type of connection state
 /// </summary>
@@ -38,5 +40,6 @@ public enum ConnectionState
     /// <summary>
     /// Connected
     /// </summary>
+    [Description( "Completed" )]
     Connected = 3,
 }
