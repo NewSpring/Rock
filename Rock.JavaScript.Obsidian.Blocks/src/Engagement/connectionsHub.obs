@@ -340,9 +340,12 @@
                          :viewOptions="viewOptions"
                          @launchWorkflows="launchWorkflowsFromModal" />
     <SendSMSModal v-model:visible="isSendSMSModalVisible"
-                  :selectedKeys="allSelectedKeys" />
+                  :communicationRecipients="communicationRecipients"
+                  :smsFromSystemPhoneNumbers="smsFromSystemPhoneNumbers"
+                  :smsSnippets="smsSnippets" />
     <SendEmailModal v-model:visible="isSendEmailModalVisible"
-                    :selectedKeys="allSelectedKeys" />
+                    :communicationRecipients="communicationRecipients"
+                    :communicationTemplates="communicationTemplates" />
     <ViewOptionsModal v-model="viewOptions"
                       v-model:visible="isViewOptionsModalVisible"
                       :gridDataToShowItems="box.options?.gridDataToShowItems ?? []"
@@ -484,13 +487,20 @@
     import { PageMessages } from "@Obsidian/Utility/browserBus";
     import { areEqual, toGuidOrNull } from "@Obsidian/Utility/guid";
     import { EntityType } from "@Obsidian/SystemGuids/entityType";
+    import { CommunicationRecipientBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/communicationRecipientBag";
+    import { CommunicationTemplateBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/communicationTemplateBag";
     import { ConnectionRequestBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionRequestBag";
     import { ConnectionOpportunityDetailBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionOpportunityDetailBag";
+    import { GetEmailConfigurationRequestBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/getEmailConfigurationRequestBag";
+    import { GetEmailConfigurationResponseBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/getEmailConfigurationResponseBag";
+    import { GetSmsConfigurationRequestBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/getSmsConfigurationRequestBag";
+    import { GetSmsConfigurationResponseBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/getSmsConfigurationResponseBag";
     import { PlacementGroupDetailsBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/placementGroupDetailsBag";
     import { PublicAttributeBag } from "@Obsidian/ViewModels/Utility/publicAttributeBag";
     import { ValidPropertiesBox } from "@Obsidian/ViewModels/Utility/validPropertiesBox";
     import { PreferenceKey, ViewOptions } from "./ConnectionsHub/types.partial";
     import { IGridState } from "@Obsidian/Types/Controls/grid";
+    import { HttpResult } from "@Obsidian/Types/Utility/http";
     import { asBoolean } from "@Obsidian/Utility/booleanUtils";
     import RockLabel from "@Obsidian/Controls/rockLabel.obs";
     import Badge from "@Obsidian/Controls/badge.obs";
@@ -587,6 +597,12 @@
 
     // TODO - consider computing this and filtering by opportunity selection.
     const allPossibleConnectors = ref(box.options?.allPossibleConnectors ?? []);
+
+    // SMS and Email modal state
+    const communicationRecipients = ref<CommunicationRecipientBag[] | null | undefined>();
+    const smsFromSystemPhoneNumbers = ref<ListItemBag[]>([]);
+    const smsSnippets = ref<ListItemBag[]>([]);
+    const communicationTemplates = ref<CommunicationTemplateBag[]>([]);
 
     // Holds the raw grid data returned from the server
     const gridData = ref<GridDataBag>();
@@ -1219,12 +1235,40 @@
         anchorEl.value = null;
     }
 
-    function showSMSModal(): void {
-        isSendSMSModalVisible.value = true;
+    async function showSMSModal(): Promise<void> {
+        const result = await getSmsConfiguration();
+
+        if (result.isSuccess && result.data?.communicationRecipients?.length) {
+            communicationRecipients.value = result.data.communicationRecipients;
+            smsFromSystemPhoneNumbers.value = result.data.smsFromSystemPhoneNumbers ?? [];
+            smsSnippets.value = result.data.smsSnippets ?? [];
+            isSendSMSModalVisible.value = true;
+        }
+        else {
+            console.error(result.errorMessage);
+            // TODO - Show error message to user
+            communicationRecipients.value = null;
+            smsFromSystemPhoneNumbers.value = [];
+            smsSnippets.value = [];
+            isSendSMSModalVisible.value = false;
+        }
     }
 
-    function showEmailModal(): void {
-        isSendEmailModalVisible.value = true;
+    async function showEmailModal(): Promise<void> {
+        const result = await getEmailConfiguration();
+
+        if (result.isSuccess && result.data?.communicationRecipients?.length) {
+            communicationRecipients.value = result.data.communicationRecipients;
+            communicationTemplates.value = result.data.communicationTemplates ?? [];
+            isSendEmailModalVisible.value = true;
+        }
+        else {
+            console.error(result.errorMessage);
+            // TODO - Show error message to user
+            communicationRecipients.value = null;
+            communicationTemplates.value = [];
+            isSendEmailModalVisible.value = true;
+        }
     }
 
     function clearAllSelections() {
@@ -1234,6 +1278,32 @@
         //     console.log("clearning for grid: ", grid);
         //     grid.clearSelectedKeys();
         // });
+    }
+
+    async function getSmsConfiguration(): Promise<HttpResult<GetSmsConfigurationResponseBag>> {
+        const bag: GetSmsConfigurationRequestBag = {
+            connectionRequestIdKeys: allSelectedKeys.value,
+            connectionTypeIdKey: box.options?.connectionTypeIdKey
+        };
+
+        const result = await invokeBlockAction<GetSmsConfigurationResponseBag>("GetSmsConfiguration", {
+            bag
+        });
+
+        return result;
+    }
+
+    async function getEmailConfiguration(): Promise<HttpResult<GetEmailConfigurationResponseBag>> {
+        const bag: GetEmailConfigurationRequestBag = {
+            connectionRequestIdKeys: allSelectedKeys.value,
+            connectionTypeIdKey: box.options?.connectionTypeIdKey
+        };
+
+        const result = await invokeBlockAction<GetEmailConfigurationResponseBag>("GetEmailConfiguration", {
+            bag
+        });
+
+        return result;
     }
 
     async function updateRequestStatuses(statusUpdateBags: ConnectionRequestUpdateBag[], completedRequestIdKeys: string[]): Promise<void> {

@@ -15,6 +15,7 @@
 // </copyright>
 //
 
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel.DataAnnotations;
@@ -22,6 +23,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 using System.Data.Entity.ModelConfiguration;
 using System.Runtime.Serialization;
 
+using Rock.Attribute;
 using Rock.Data;
 using Rock.Enums.Connection;
 using Rock.Lava;
@@ -38,7 +40,7 @@ namespace Rock.Model
     [DataContract]
     [CodeGenerateRest]
     [Rock.SystemGuid.EntityTypeGuid( Rock.SystemGuid.EntityType.CONNECTION_TYPE )]
-    public partial class ConnectionType : Model<ConnectionType>, IOrdered, ICacheable
+    public partial class ConnectionType : Model<ConnectionType>, IHasAdditionalSettings, IOrdered, ICacheable
     {
         #region Entity Properties
 
@@ -244,6 +246,43 @@ namespace Rock.Model
         public string AdditionalSettingsJson { get; set; }
 
         #endregion
+
+        #region IHasAdditionalSettings Models
+
+        /// <summary>
+        /// Conversion Goal Settings
+        /// </summary>
+        /// <remarks>
+        ///     <para>
+        ///         <strong>This is an internal API</strong> that supports the Rock
+        ///         infrastructure and not subject to the same compatibility standards
+        ///         as public APIs. It may be changed or removed without notice in any
+        ///         release and should therefore not be directly used in any plug-ins.
+        ///     </para>
+        /// </remarks>
+        [RockInternal( "19.0" )]
+        public class CommunicationSettings
+        {
+            /// <summary>
+            /// Gets or sets the category used to filter communication templates when sending communications
+            /// to connection requestors for this Connection Type.
+            /// <para>
+            /// If <see langword="null"/>, communication templates are not filtered by category.
+            /// </para>
+            /// </summary>
+            public Guid? CommunicationTemplateCategoryGuid { get; set; }
+
+            /// <summary>
+            /// Gets or sets the category used to filter SMS snippets when sending SMS communications
+            /// to connection requestors for this Connection Type.
+            /// <para>
+            /// If <see langword="null"/>, no snippet filtering is applied.
+            /// </para>
+            /// </summary>
+            public Guid? SmsSnippetCategoryGuid { get; set; }
+        }
+
+        #endregion IHasAdditionalSettings Models
 
         #region Navigation Properties
 

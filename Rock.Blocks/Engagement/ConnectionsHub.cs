@@ -20,13 +20,8 @@ using Rock.Data;
 using Newtonsoft.Json;
 using Rock.SystemKey;
 using Rock.Web;
-using DocumentFormat.OpenXml.Drawing;
-using Slingshot.Core;
-using Fluid.Parser;
 using Rock.Enums.Connection;
-using Lucene.Net.Support;
-using OpenXmlPowerTools;
-using Rock.Web.UI.Controls;
+using Rock.Tasks;
 
 namespace Rock.Blocks.Engagement
 {
@@ -1651,7 +1646,390 @@ namespace Rock.Blocks.Engagement
             return ActionOk( );
         }
 
+        [BlockAction]
+        public BlockActionResult GetSmsConfiguration( GetSmsConfigurationRequestBag bag )
+        {
+            if ( bag == null )
+            {
+                return ActionBadRequest( "Request is required" );
+            }
+
+            if ( bag.ConnectionTypeIdKey.IsNullOrWhiteSpace() )
+            {
+                return ActionBadRequest( "Connection Type is required" );
+            }
+
+            if ( bag.ConnectionRequestIdKeys == null )
+            {
+                return ActionBadRequest( "Connection Requests are required" );
+            }
+
+            var connectionType = new ConnectionTypeService( RockContext )
+                .GetQueryableByKey( bag.ConnectionTypeIdKey )
+                .FirstOrDefault();
+
+            if ( connectionType == null )
+            {
+                return ActionBadRequest( "Invalid Connection Type." );
+            }
+
+            // Convert the connection request id keys to integer ids so we can query them.
+            var connectionRequestIds = bag.ConnectionRequestIdKeys
+                .Select( idKey => IdHasher.Instance.GetId( idKey ) )
+                .Where( id => id.HasValue )
+                .Select( id => id.Value )
+                .ToList();
+
+            var connectionRequestService = new ConnectionRequestService( RockContext );
+            var mobilePhoneDefinedValueId = DefinedValueCache.GetId( SystemGuid.DefinedValue.PERSON_PHONE_TYPE_MOBILE.AsGuid() );
+            var personalDeviceQuery = new PersonalDeviceService( RockContext ).Queryable().AsNoTracking();
+            
+            var communicationRecipients = connectionRequestService
+                .GetByIds( connectionRequestIds )
+                .Where( cr => cr.ConnectionTypeId == connectionType.Id ) // Ensure these Connection Requests match the Connection Type.
+                .AsNoTracking()
+                .Select( cr => new
+                {
+                    PersonAliasGuid = cr.PersonAlias.Guid,
+                    cr.PersonAlias.Person,
+                    MobilePhone = cr
+                        .PersonAlias
+                        .Person
+                        .PhoneNumbers
+                        .FirstOrDefault( pn => pn.NumberTypeValueId == mobilePhoneDefinedValueId ),
+                } )
+                .ToList() // materialize query before projecting because some properties require the full Person entity.
+                .Select( cr => new CommunicationRecipientBag
+                {
+                    IsDeceased = cr.Person.IsDeceased,
+                    IsSmsAllowed = cr.MobilePhone != null
+                        && cr.MobilePhone.Number.IsNotNullOrWhiteSpace() == true
+                        && cr.MobilePhone.IsMessagingEnabled
+                        && !cr.MobilePhone.IsMessagingOptedOut,
+                    Name = cr.Person.FullName,
+                    PersonAliasGuid = cr.PersonAliasGuid,
+                    PhotoUrl = cr.Person.PhotoUrl,
+                    SmsNumber = cr.MobilePhone?.NumberFormatted
+                } )
+                .ToList();
+
+            var currentPerson = GetCurrentPerson();
+            var currentPersonAliasIds = currentPerson?.Aliases?.Select( a => a.Id ).ToList() ?? new List<int>();
+            var smsFromSystemPhoneNumbers = SystemPhoneNumberCache
+                    .All( includeInactive: false )
+                    .Where( spn => spn.IsAuthorized( Authorization.VIEW, currentPerson ) )
+                    .OrderByDescending( spn => spn.AssignedToPersonAliasId.HasValue && currentPersonAliasIds.Contains( spn.AssignedToPersonAliasId.Value ) )
+                    .ThenBy( spn => spn.Order )
+                    .ThenBy( spn => spn.Name )
+                    .ThenBy( spn => spn.Id )
+                    .ToListItemBagList();
+
+            var snippetTypeGuid = SystemGuid.SnippetType.SMS.AsGuid();
+            var smsSnippetTypeId = new SnippetTypeService( RockContext )
+                .Queryable()
+                .Where( st => st.Guid == snippetTypeGuid )
+                .Select( st => ( int? ) st.Id )
+                .FirstOrDefault();
+
+            var smsSnippetCategoryGuid = connectionType.GetCommunicationSettings()?.SmsSnippetCategoryGuid;
+            var snippetCategoryId = smsSnippetCategoryGuid.HasValue
+                    ? CategoryCache.GetId( smsSnippetCategoryGuid.Value )
+                    : ( int? ) null;
+
+            var smsSnippets = new SnippetService( RockContext )
+                .GetAuthorizedSnippets(
+                    currentPerson,
+                    s => s.SnippetTypeId == smsSnippetTypeId // This will return an empty list if smsSnippetTypeId is null.
+                        && ( !snippetCategoryId.HasValue || s.CategoryId == snippetCategoryId.Value )
+                )
+                .OrderBy( s => s.Order )
+                .ThenBy( s => s.Name )
+                .ThenBy( s => s.Id )
+                .Select( s => new ListItemBag
+                {
+                    Text = s.Name,
+                    Value = s.Content
+                } )
+                .ToList();
+
+            return ActionOk( new GetSmsConfigurationResponseBag
+            {
+                CommunicationRecipients = communicationRecipients,
+                SmsFromSystemPhoneNumbers = smsFromSystemPhoneNumbers,
+                SmsSnippets = smsSnippets
+            } );
+        }
+
+        [BlockAction]
+        public BlockActionResult GetEmailConfiguration( GetEmailConfigurationRequestBag bag )
+        {
+            if ( bag == null )
+            {
+                return ActionBadRequest( "Request is required" );
+            }
+
+            if ( bag.ConnectionTypeIdKey.IsNullOrWhiteSpace() )
+            {
+                return ActionBadRequest( "Connection Type is required" );
+            }
+
+            if ( bag.ConnectionRequestIdKeys == null )
+            {
+                return ActionBadRequest( "Connection Requests are required" );
+            }
+
+            var connectionType = new ConnectionTypeService( RockContext )
+                .GetQueryableByKey( bag.ConnectionTypeIdKey )
+                .FirstOrDefault();
+
+            if ( connectionType == null )
+            {
+                return ActionBadRequest( "Invalid Connection Type." );
+            }
+
+            // Convert the connection request id keys to integer ids so we can query them.
+            var connectionRequestIds = bag.ConnectionRequestIdKeys
+                .Select( idKey => IdHasher.Instance.GetId( idKey ) )
+                .Where( id => id.HasValue )
+                .Select( id => id.Value )
+                .ToList();
+
+            var connectionRequestService = new ConnectionRequestService( RockContext );
+            var mobilePhoneDefinedValueId = DefinedValueCache.GetId( SystemGuid.DefinedValue.PERSON_PHONE_TYPE_MOBILE.AsGuid() );
+            //var personalDeviceQuery = new PersonalDeviceService( RockContext ).Queryable().AsNoTracking();
+            
+            var communicationRecipients = connectionRequestService
+                .GetByIds( connectionRequestIds )
+                .Where( cr => cr.ConnectionTypeId == connectionType.Id ) // Ensure these Connection Requests match the Connection Type.
+                .AsNoTracking()
+                .Select( cr => new
+                {
+                    PersonAliasGuid = cr.PersonAlias.Guid,
+                    cr.PersonAlias.Person,
+                } )
+                .ToList() // materialize query before projecting because some properties require the full Person entity.
+                .Select( cr => new CommunicationRecipientBag
+                {
+                    Email = cr.Person.Email,
+                    EmailPreference = cr.Person.EmailPreference,
+                    IsEmailAllowed = cr.Person.CanReceiveEmail( isBulk: false ),
+                    IsEmailActive = cr.Person.IsEmailActive, // Used for customized error messages.
+                    IsDeceased = cr.Person.IsDeceased,
+                    Name = cr.Person.FullName,
+                    PersonAliasGuid = cr.PersonAliasGuid,
+                    PhotoUrl = cr.Person.PhotoUrl,
+                } )
+                .ToList();
+
+            var currentPerson = GetCurrentPerson();
+            var mergeFields = this.RequestContext.GetCommonMergeFields();
+            var communicationTemplateGuid = connectionType.GetCommunicationSettings()?.CommunicationTemplateCategoryGuid;
+            var communicationTemplates = new CommunicationTemplateService( RockContext )
+                .Queryable()
+                .AsNoTracking()
+                .Include( ct => ct.Attachments.Select( b => b.BinaryFile ) )
+                .Where( ct =>
+                    ct.IsActive
+                    && !ct.UsageType.HasValue // Exclude templates that have an explicit usage type (e.g., Communication Flow templates)
+                    && ( !communicationTemplateGuid.HasValue || ct.Category.Guid == communicationTemplateGuid.Value )
+                )
+                .ToList()
+                .Where( ct =>
+                    ct.IsAuthorized( Authorization.VIEW, currentPerson )
+                    && ct.HasEmailTemplate()
+                    && !ct.SupportsEmailWizard() // Exclude wizard templates because we are showing a simple HTML editor that can't handle complex wizard templates.
+                )
+                .OrderBy( t => t.Name )
+                .ThenBy( t => t.Id )
+                .Select( t => new CommunicationTemplateBag
+                {
+                    IdKey = t.IdKey,
+                    Name = t.Name,
+                    FromEmail = t.FromEmail?.ResolveMergeFields( mergeFields ),
+                    FromName = t.FromName?.ResolveMergeFields( mergeFields ),
+                    Subject = t.Subject,
+                    Message = t.Message?.ResolveMergeFields( mergeFields ),
+                    EmailAttachmentBinaryFiles = t.GetAttachments( CommunicationType.Email )?.Select( cta => cta.BinaryFile )?.ToListItemBagList(),
+                } )
+                .ToList();
+
+            return ActionOk( new GetEmailConfigurationResponseBag
+            {
+                CommunicationRecipients = communicationRecipients,
+                CommunicationTemplates = communicationTemplates
+            } );
+        }
+
+        [BlockAction]
+        public BlockActionResult SendCommunication( CommunicationBag bag )
+        {
+            // TODO JMH Add validation.
+
+            var communication = CreateCommunication( bag );
+
+            var msg = new ProcessSendCommunication.Message
+            {
+                CommunicationId = communication.Id
+            };
+            msg.Send();
+
+            return ActionOk();
+        }
+
         #endregion Block Actions
+
+        private Model.Communication CreateCommunication( CommunicationBag bag )
+        {
+            var senderPersonAliasId = GetCurrentPerson().PrimaryAliasId;
+            var personAliasIds = bag.CommunicationRecipients
+                .Select( r => r.PersonAliasGuid )
+                .ToList();
+            IQueryable<int> activeRecipientPersonAliasIdQuery = new PersonAliasService( RockContext )
+                .Queryable()
+                .Where( pa => personAliasIds.Contains( pa.Guid ) )
+                .Select( pa => pa.Id );
+
+            var communicationService = new CommunicationService( RockContext );
+            var communicationTemplateService = new CommunicationTemplateService( RockContext );
+            var binaryFileService = new BinaryFileService( RockContext );
+            Model.Communication communication = null;
+
+            if ( bag.CommunicationType == Enums.Communication.CommunicationType.Email )
+            {
+                var communicationTemplateId = new CommunicationTemplateService( RockContext )
+                    .GetQueryableByKey( bag.CommunicationTemplateIdKey, !PageCache.Layout.Site.DisablePredictableIds )
+                    .Select( ct => new
+                    {
+                        ct.Id
+                    } )
+                    .FirstOrDefault()?.Id;
+
+                communication = communicationService.CreateEmailCommunication( new CommunicationService.CreateEmailCommunicationArgs
+                {
+                    BulkCommunication = true,
+                    CommunicationTemplateId = communicationTemplateId,
+                    FromAddress = bag.FromEmail,
+                    FromName = bag.FromName,
+                    FutureSendDateTime = null,
+                    Message = bag.Message,
+                    Name = bag.Subject,
+                    RecipientPrimaryPersonAliasIds = activeRecipientPersonAliasIdQuery.ToList(),
+                    RecipientStatus = CommunicationRecipientStatus.Pending,
+                    ReplyTo = null,
+                    SendDateTime = null, // This is actually the "sent" value and must be null here.
+                    SenderPersonAliasId = senderPersonAliasId,
+                    Subject = bag.Subject,
+                    SystemCommunicationId = null
+                } );
+
+                var emailAttachmentGuids = bag.EmailAttachments
+                    .Select( a => a.Value.AsGuidOrNull() )
+                    .Where( g => g.HasValue )
+                    .Select( g => g.Value )
+                    .ToList();
+                var attachmentIdMap = binaryFileService
+                    .Queryable()
+                    .Where( bf => emailAttachmentGuids.Contains( bf.Guid ) )
+                    .Select( bf => new
+                    {
+                        bf.Id,
+                        bf.Guid
+                    } )
+                    .ToList()
+                    .ToDictionary( bf => bf.Guid, bf => bf.Id );
+
+                foreach ( var attachment in bag.EmailAttachments )
+                {
+                    if ( attachmentIdMap.TryGetValue( attachment.Value.AsGuid(), out var id ) )
+                    {
+                        var newAttachment = new CommunicationAttachment
+                        {
+                            BinaryFileId = id,
+                            CommunicationType = Model.CommunicationType.Email
+                        };
+                        communication.Attachments.Add( newAttachment );
+                    }
+                }
+            }
+            else if ( bag.CommunicationType == Enums.Communication.CommunicationType.SMS )
+            {
+                communication = communicationService.CreateSMSCommunication( new CommunicationService.CreateSMSCommunicationArgs
+                {
+                    CommunicationName = $"{bag.Subject}",
+                    CommunicationTemplateId = null,
+                    FromPrimaryPersonAliasId = senderPersonAliasId,
+                    FromSystemPhoneNumber = SystemPhoneNumberCache.Get( bag.SmsFromSystemPhoneNumberGuid.Value ),
+                    FutureSendDateTime = null,
+                    Message = bag.SmsMessage,
+                    ResponseCode = null,
+                    SystemCommunicationId = null,
+                    ToPrimaryPersonAliasIds = activeRecipientPersonAliasIdQuery.ToList()
+                } );
+
+                var smsAttachmentGuids = bag.SmsAttachments
+                    .Select( a => a.Value.AsGuidOrNull() )
+                    .Where( g => g.HasValue )
+                    .Select( g => g.Value )
+                    .ToList();
+                var attachmentIdMap = binaryFileService
+                    .Queryable()
+                    .Where( bf => smsAttachmentGuids.Contains( bf.Guid ) )
+                    .Select( bf => new
+                    {
+                        bf.Id,
+                        bf.Guid
+                    } )
+                    .ToList()
+                    .ToDictionary( bf => bf.Guid, bf => bf.Id );
+
+                foreach ( var attachment in bag.SmsAttachments )
+                {
+                    if ( attachmentIdMap.TryGetValue( attachment.Value.AsGuid(), out var id ) )
+                    {
+                        var newAttachment = new CommunicationAttachment
+                        {
+                            BinaryFileId = id,
+                            CommunicationType = Model.CommunicationType.SMS
+                        };
+                        communication.Attachments.Add( newAttachment );
+                    }
+                }
+            }
+
+            if ( communication != null )
+            {
+                // Always set Connection Request communications as NOT bulk
+                // since they are being sent directly to each person to help
+                // move their connection request along in its process,
+                // not a bulk communication.
+                communication.IsBulkCommunication = false;
+
+                // Separate the CommunicationRecipients from the Communication
+                // so the Communication can be saved without recipients.
+                // Then we'll save the recipients using a bulk insert.
+                var communicationRecipients = communication.Recipients;
+                communication.Recipients = new List<CommunicationRecipient>();
+                foreach ( var communicationRecipient in communicationRecipients )
+                {
+                    communicationRecipient.Communication = null;
+                    communicationService.Context.Entry( communicationRecipient ).State = EntityState.Detached;
+                }
+
+                // Save the communication.
+                communicationService.Add( communication );
+                RockContext.SaveChanges();
+
+                // Bulk insert the recipients for better performance.
+                foreach ( var communicationRecipient in communicationRecipients )
+                {
+                    communicationRecipient.CommunicationId = communication.Id;
+                }
+
+                RockContext.BulkInsert( communicationRecipients );
+            }
+
+            return communication;
+        }
 
         /// <summary>
         /// Gets the grid builder for the communication list grid.

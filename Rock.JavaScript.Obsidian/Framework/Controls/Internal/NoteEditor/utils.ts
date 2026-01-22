@@ -17,7 +17,7 @@
 
 import { Editor, RawEditorOptions } from "@Obsidian/Libs/tinymce";
 import { InjectionKey, inject, provide } from "vue";
-import { ConfigureEditorUtilities, PluginHelper, PluginManager, PluginsFeatureArgs } from "./types.partial";
+import { ConfigureEditorUtilities, PluginHelper, PluginManager, PluginsFeatureArgs } from "./types";
 
 /** Gets a button element from the toolbar. This should only be called after the editor is initialized. */
 export function getToolbarButton(tooltip: string, parent?: HTMLElement | undefined): HTMLElement | null | undefined {

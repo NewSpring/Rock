@@ -26,6 +26,22 @@ namespace Rock.Model
     public partial class ConnectionType
     {
         #region Methods
+        
+        /// <summary>
+        /// Gets the Communication Settings for this Connection Type.
+        /// </summary>
+        internal CommunicationSettings GetCommunicationSettings()
+        {
+            return this.GetAdditionalSettingsOrNull<CommunicationSettings>();
+        }
+
+        /// <summary>
+        /// Sets the Communication Settings for this Connection Type.
+        /// </summary>
+        internal void SetCommunicationSettings( CommunicationSettings settings )
+        {
+            this.SetAdditionalSettings( settings );
+        }
 
         #region ICacheable
 
