@@ -234,18 +234,19 @@
                     <template #format="{ row }">
                         <div class="w-100">
                             <template v-if="row.connectionState === ConnectionState.Active">
-                                <RockButton v-if="box.options?.isSequentialStatusMode"
-                                            class="py-spacing-tiny px-spacing-xs rounded-huge text-semibold text-interface-softest w-100 d-flex align-items-center"
-                                            :style="`background-color: ${row.connectionStatus.highlightColor}`">
-                                    <i class="ti ti-circle-check text-left"></i>
-                                    <sapn class="w-100">{{ row.connectionStatus.name }}</sapn>
-                                </RockButton>
-                                <DropDownList v-else
-                                              v-model="row.connectionStatus.guid"
-                                              :items="connectionStatusItems"
-                                              :showBlankItem="false"
-                                              inputClasses="status-dropdown rounded-pill"
-                                              :style="{ '--status-bg': row.connectionStatus?.highlightColor }" />
+                                <div v-if="box.options?.isSequentialStatusMode"
+                                     class="cursor-pointer py-spacing-tiny px-spacing-xs rounded-huge text-semibold text-interface-softest d-flex align-items-center"
+                                     :style="`background-color: ${row.connectionStatus.highlightColor}`">
+                                    <i class="ti ti-circle-check"></i>
+                                    <sapn class="w-100 text-center">{{ row.connectionStatus.name }}</sapn>
+                                </div>
+                                <div v-else
+                                     @click="(e) => onStatusClick(row.idKey, row.connectionStatus, e)"
+                                     class="cursor-pointer py-spacing-tiny px-spacing-xs rounded-huge text-semibold text-interface-softest d-flex align-items-center"
+                                     :style="`background-color: ${row.connectionStatus.highlightColor}`">
+                                    <sapn class="w-100 text-center">{{ row.connectionStatus.name }}</sapn>
+                                    <i class="ti ti-caret-down-filled text-right"></i>
+                                </div>
                             </template>
                             <div v-else-if="row.connectionState === ConnectionState.Inactive"
                                  class="text-center text-semibold text-slate">
@@ -275,6 +276,41 @@
             </Grid>
         </template>
     </GroupedGridPanel>
+
+    <Flyout v-model="isFlyoutOpen"
+            :anchorEl="anchorEl"
+            :onSave="onFlyoutSubmit">
+        <template #default>
+            <DropDownList v-model="flyoutStatus"
+                          :items="connectionStatusItems"
+                          label="Status"
+                          :showBlankItem="false" />
+            <TextBox v-model="flyoutNote"
+                     label="Note"
+                     textMode="multiline"
+                     :rules="isNoteRequired" />
+        </template>
+        <template #footer>
+            <div class="d-flex justify-content-between align-items-center">
+                <RockButton @click="completeRequest"
+                            :btnSize="BtnSize.Small">
+                    Mark Complete
+                </RockButton>
+                <div>
+                    <RockButton type="submit"
+                                :btnSize="BtnSize.Small"
+                                :btnType="BtnType.Primary">
+                        Save
+                    </RockButton>
+                    <RockButton @click="closeFlyout"
+                                :btnSize="BtnSize.Small"
+                                :btnType="BtnType.Link">
+                        Cancel
+                    </RockButton>
+                </div>
+            </div>
+        </template>
+    </Flyout>
 
     <AddConnectionRequestModal v-model="newConnectionRequest"
                                v-model:visible="isAddConnectionRequestModalVisible"
@@ -400,20 +436,6 @@
     min-width: var(--vs-dropdown-min-width);
 }
 
-:deep(.status-dropdown) {
-    width: 100%;
-    background-color: var(--status-bg);
-}
-
-:deep(.status-dropdown.ant-select .ant-select-arrow) {
-    color: var(--color-interface-softest);
-}
-
-:deep(.status-dropdown .ant-select-selection-item) {
-    color: var(--color-interface-softest);
-    justify-content: center;
-}
-
 /* .activity-btn {
     padding: var(--spacing-tiny) var(--spacing-xsmall);
     font-size: var(--font-size-xsmall);
@@ -495,6 +517,11 @@
     import LaunchWorkflowModal from "./ConnectionsHub/launchWorkflowModal.partial.obs";
     import ButtonDropdownList from "@Obsidian/Controls/buttonDropDownList.obs";
     import { PanelAction } from "@Obsidian/Types/Controls/panelAction";
+    import Flyout from "@Obsidian/Controls/flyout.obs";
+    import TextBox from "@Obsidian/Controls/textBox.obs";
+    import { BtnType } from "@Obsidian/Enums/Controls/btnType";
+    import { BtnSize } from "@Obsidian/Enums/Controls/btnSize";
+    import { GridUpdateBag } from "@Obsidian/ViewModels/Blocks/Engagement/gridUpdateBag";
 
     /* =====================================================
      * Configuration & Data Loading
@@ -534,6 +561,13 @@
     const isAddActivityModalVisible = ref(false);
     const isChangeStatusModalVisible = ref(false);
     const isLaunchWorkflowModalVisible = ref(false);
+
+    const isFlyoutOpen = ref(false);
+    const anchorEl = ref<HTMLElement | null>(null);
+    const selectedRequestKey = ref<string>("");
+    const flyoutStatusBag = ref<ConnectionStatusBag>({ isNoteRequiredOnCompletion: false } as ConnectionStatusBag);
+    const flyoutStatus = ref<string>("");
+    const flyoutNote = ref<string>("");
 
     const viewOptions = ref<ViewOptions>({
         sortBy: preferences.getValue(getConnectionFilterKey(PreferenceKey.FilterSortByConnectionTypIdKey)),
@@ -614,6 +648,8 @@
             })) ?? []
         );
     });
+
+    const isNoteRequired = computed(() => flyoutStatusBag.value.isNoteRequiredOnCompletion ? "required" : "");
 
     // Computed setter normalizes v-model updates so the dropdown’s blank "All Opportunities" value is never stored in component state.
     const selectedOpportunity = computed({
@@ -1068,6 +1104,21 @@
 
     }
 
+    function onStatusClick(key: string | null | undefined, status: ConnectionStatusBag | null | undefined, event: MouseEvent) {
+        if (!status || !key || typeof status !== "object" || typeof key !== "string") {
+            return;
+        }
+
+        console.log("Click: ", event);
+        console.log(status);
+        selectedRequestKey.value = key;
+        flyoutStatusBag.value = { ...status };
+        flyoutStatus.value = flyoutStatusBag.value.guid;
+        anchorEl.value = event.currentTarget as HTMLElement;
+        isFlyoutOpen.value = true;
+    }
+
+
     function showSMSModal(): void {
         isSendSMSModalVisible.value = true;
     }
@@ -1085,6 +1136,60 @@
         // });
     }
 
+    function closeFlyout(): void {
+        isFlyoutOpen.value = false;
+    }
+
+    async function onFlyoutSubmit(): Promise<void> {
+        const isSuccess = await changeRequestStatus();
+        if (isSuccess) {
+            isFlyoutOpen.value = false;
+        }
+    }
+
+    async function completeRequest(): Promise<void> {
+        const isSuccess = await changeRequestState(ConnectionState.Connected);
+        if (isSuccess) {
+            isFlyoutOpen.value = false;
+        }
+    }
+
+    async function changeRequestStatus(): Promise<boolean> {
+        const result = await invokeBlockAction<GridUpdateBag>("ChangeRequestStatus", {
+            idKey: selectedRequestKey.value,
+            statusGuid: flyoutStatus.value,
+            note: flyoutNote.value
+        });
+
+        if (result.isSuccess && result.data) {
+            const row = gridData.value?.rows?.find(r => r.idKey === selectedRequestKey.value);
+            if (row) {
+                row.statusGrouping = result.data.groupingFieldBag;
+                row.connectionStatus = result.data.connectionStatusBag;
+            }
+            return true;
+        }
+        // display error
+        return false;
+    }
+
+    async function changeRequestState(state: ConnectionState): Promise<boolean> {
+        const result = await invokeBlockAction<GridUpdateBag>("ChangeRequestState", {
+            idKey: selectedRequestKey.value,
+            state: state
+        });
+
+        if (result.isSuccess && result.data) {
+            const row = gridData.value?.rows?.find(r => r.idKey === selectedRequestKey.value);
+            if (row) {
+                row.stateGrouping = result.data.groupingFieldBag;
+                row.connectionState = result.data.connectionState;
+            }
+            return true;
+        }
+        // display error
+        return false;
+    }
 
     async function fetchConnectionOpportunityDetails(connectionOpportunityGuid: string): Promise<void> {
         const result = await invokeBlockAction<ConnectionOpportunityDetailBag>("FetchConnectionOpportunityDetails", {
@@ -1172,6 +1277,14 @@
         preferences.setValue(PreferenceKey.SelectedGroupByMode, selectedGrouping.value);
 
         await preferences.save();
+    });
+
+    watch(isFlyoutOpen, () => {
+        if (!isFlyoutOpen.value) {
+            flyoutStatusBag.value = { isNoteRequiredOnCompletion: false } as ConnectionStatusBag;
+            flyoutStatus.value = "";
+            flyoutNote.value = "";
+        }
     });
 
     loadGridData();

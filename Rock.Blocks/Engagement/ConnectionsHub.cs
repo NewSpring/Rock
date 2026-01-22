@@ -674,7 +674,8 @@ namespace Rock.Blocks.Engagement
                         Guid = a.ConnectionStatus.Guid,
                         Name = a.ConnectionStatus.Name, // TODO - Test what happens when a Connection Status is deleted.
                         Order = a.ConnectionStatus.Order,
-                        HighlightColor = a.ConnectionStatus.HighlightColor
+                        HighlightColor = a.ConnectionStatus.HighlightColor,
+                        IsNotRequiredOnCompletion = a.ConnectionStatus.IsNoteRequiredOnCompletion
                     },
                     ConnectionState = a.ConnectionState,
                     LastActivityDateTime = a.ConnectionRequestActivities.Select( cra => cra.CreatedDateTime )
@@ -961,6 +962,93 @@ namespace Rock.Blocks.Engagement
             RockContext.SqlLogging( false );
 
             return ActionOk();
+        }
+
+        [BlockAction]
+        public BlockActionResult ChangeRequestStatus( string idKey, string statusGuid, string note )
+        {
+            var connectionRequest = new ConnectionRequestService( RockContext ).GetInclude( idKey, c => c.ConnectionStatus, !PageCache.Layout.Site.DisablePredictableIds );
+            if ( connectionRequest == null )
+            {
+                // TODO - determine if we throw an exception
+                return ActionOk();
+            }
+
+            // TODO - Security
+            //var canUpdateRequest = CanUpdateConnectionRequest( connectionRequestIds, connectionType, out connectionRequests );
+
+            //if ( !canUpdateRequest )
+            //{
+            //    return ActionBadRequest( "Not authorized to reassign connector for one or more selected connection requests." );
+            //}
+
+            var connectionRequestStatus = new ConnectionStatusService( RockContext ).Get( statusGuid );
+            if ( connectionRequestStatus == null || connectionRequestStatus.ConnectionTypeId != connectionRequest.ConnectionTypeId )
+            {
+                return ActionBadRequest( "Invalid Connection Status" );
+            }
+
+            if ( connectionRequest.ConnectionStatus.IsNoteRequiredOnCompletion && note.IsNullOrWhiteSpace() )
+            {
+                return ActionBadRequest( "A note is required." );
+            }
+
+            connectionRequest.ConnectionStatusId = connectionRequestStatus.Id;
+            // TODO - Link note up.
+
+            RockContext.SaveChanges();
+
+            var bag = new GridUpdateBag
+            {
+                GroupingFieldBag = GetGroupingFieldBag( connectionRequestStatus.Id, "text", connectionRequestStatus.Name, null ),
+                ConnectionStatusBag = new ConnectionStatusBag
+                {
+                    Guid = connectionRequestStatus.Guid,
+                    Order = connectionRequestStatus.Order,
+                    Name = connectionRequestStatus.Name,
+                    HighlightColor = connectionRequestStatus.HighlightColor,
+                    IsNoteRequiredOnCompletion = connectionRequestStatus.IsNoteRequiredOnCompletion
+                }
+            };
+
+            return ActionOk( bag );
+        }
+
+        [BlockAction]
+        public BlockActionResult ChangeRequestState( string idKey, ConnectionState state )
+        {
+            var connectionRequest = new ConnectionRequestService( RockContext ).Get( idKey, !PageCache.Layout.Site.DisablePredictableIds );
+            if ( connectionRequest == null )
+            {
+                // TODO - determine if we throw an exception
+                return ActionOk();
+            }
+
+            // TODO - Security
+            //var canUpdateRequest = CanUpdateConnectionRequest( connectionRequestIds, connectionType, out connectionRequests );
+
+            //if ( !canUpdateRequest )
+            //{
+            //    return ActionBadRequest( "Not authorized to reassign connector for one or more selected connection requests." );
+            //}
+
+            connectionRequest.ConnectionState = state;
+
+            RockContext.SaveChanges();
+
+            var bag = new GridUpdateBag
+            {
+                GroupingFieldBag = new GroupingFieldBag
+                {
+                    Key = connectionRequest.ConnectionState.ToString(),
+                    Type = "text",
+                    Label = connectionRequest.ConnectionState.ToString(),
+                    IconCssClass = GetStateIconCssClass( connectionRequest.ConnectionState )
+                },
+                ConnectionState = ( Rock.Enums.Connection.ConnectionState ) connectionRequest.ConnectionState
+            };
+
+            return ActionOk( bag );
         }
 
         #endregion Block Actions

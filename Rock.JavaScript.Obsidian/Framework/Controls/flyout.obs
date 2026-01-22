@@ -1,0 +1,182 @@
+<!-- Copyright by the Spark Development Network; Licensed under the Rock Community License -->
+<template>
+    <teleport to="body" v-if="props.modelValue">
+        <div ref="flyoutEl"
+             class="flyout"
+             :style="style">
+            <div v-if="hasHeader"
+                 class="flyout-header">
+                <slot name="header" />
+            </div>
+            <RockForm @submit="onSubmit"
+                      :hideErrors="true">
+                <div class="flyout-body">
+                    <slot />
+                </div>
+                <div v-if="$slots.footer"
+                     class="flyout-footer">
+                    <slot name="footer" />
+                </div>
+            </RockForm>
+        </div>
+    </teleport>
+</template>
+
+<style scoped>
+.flyout {
+    /* border: 1px solid var(--color-interface-soft); */
+    /* Just for testing */
+    border-radius: var(--rounded-large);
+    /* TODO - UI Team needs to look at min width */
+    min-width: 500px;
+}
+
+.flyout-header {
+    padding: var(--spacing-xsmall) var(--spacing-large);
+    border-bottom: 1px solid var(--color-interface-soft);
+    background-color: var(--color-interface-softer);
+}
+
+.flyout-body {
+    padding: var(--spacing-large);
+    background-color: var(--color-interface-softest);
+}
+
+.flyout-footer {
+    padding: var(--spacing-xsmall) var(--spacing-large);
+    border-top: 1px solid var(--color-interface-soft);
+    background-color: var(--color-interface-softer);
+}
+</style>
+
+<script setup lang="ts">
+    import { ref, onMounted, onBeforeUnmount, watch, computed, useSlots, PropType, nextTick } from "vue";
+    import RockForm from "./rockForm.obs";
+    import { isPromise } from "@Obsidian/Utility/promiseUtils";
+
+    const props = defineProps({
+        modelValue: {
+            type: Boolean as PropType<boolean>,
+            required: true
+        },
+
+        anchorEl: {
+            type: Object as PropType<HTMLElement | null>,
+            required: true
+        },
+
+        onSave: {
+            type: Function as PropType<(() => void | PromiseLike<void>)>,
+            required: false
+        },
+    });
+
+    const emit = defineEmits<{
+        (e: "update:modelValue", value: boolean): void;
+    }>();
+
+    // const showFlyout = ref(props.modelValue);
+    const slots = useSlots();
+    const flyoutEl = ref<HTMLElement | null>(null);
+    const style = ref<Record<string, string>>({});
+
+    const hasHeader = computed(() => !!slots.header);
+
+    function updatePosition(): void {
+        if (!props.anchorEl || !flyoutEl.value) {
+            return;
+        }
+
+        const anchorRect = props.anchorEl.getBoundingClientRect();
+        const flyoutRect = flyoutEl.value.getBoundingClientRect();
+        const viewportHeight = window.innerHeight;
+        const viewportWidth = window.innerWidth;
+
+        console.log("Anchor: ", anchorRect);
+        console.log("viewport height: ", viewportHeight);
+
+        const spaceBelow = viewportHeight - anchorRect.bottom;
+        const spaceAbove = anchorRect.top;
+
+        let top: number;
+
+        // Prefer bottom
+        if (spaceBelow >= flyoutRect.height) {
+            top = anchorRect.bottom;
+        }
+        // Flip to top
+        else if (spaceAbove >= flyoutRect.height) {
+            top = anchorRect.top - flyoutRect.height;
+        }
+        // Fallback: clamp inside viewport
+        else {
+            top = Math.max(
+                8,
+                viewportHeight - flyoutRect.height - 8
+            );
+        }
+
+        style.value = {
+            position: "absolute",
+            top: `${top + window.scrollY}px`,
+            right: `${viewportWidth - anchorRect.right - window.scrollX}px`,
+            zIndex: "1000"
+        };
+    }
+
+    function close(): void {
+        emit("update:modelValue", false);
+    }
+
+    function onDocumentClick(event: MouseEvent): void {
+        if (!props.modelValue) {
+            return;
+        }
+
+        const target = event.target as Node;
+
+        // If click happened inside the flyout then ignore
+        if (flyoutEl.value?.contains(target)) {
+            return;
+        }
+
+        // If click happened on the anchor button then ignore
+        if (props.anchorEl?.contains(target)) {
+            return;
+        }
+
+        // Otherwise close
+        close();
+    }
+
+    /**
+     * Event handler for when the form has been submitted.
+     */
+    async function onSubmit(): Promise<void> {
+        if (props.onSave) {
+            const result = props.onSave();
+
+            if (isPromise(result)) {
+                await result;
+            }
+        }
+    }
+
+    watch(() => props.anchorEl, () => {
+        nextTick(() => updatePosition());
+    });
+
+    onMounted(() => {
+        updatePosition();
+        document.addEventListener("click", onDocumentClick);
+        window.addEventListener("scroll", updatePosition, true);
+        window.addEventListener("resize", updatePosition);
+    });
+
+    onBeforeUnmount(() => {
+        document.removeEventListener("click", onDocumentClick);
+        window.removeEventListener("scroll", updatePosition, true);
+        window.removeEventListener("resize", updatePosition);
+    });
+
+</script>
