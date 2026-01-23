@@ -174,6 +174,7 @@ namespace Rock.Blocks.Types.Mobile.Engagement
                 .Select( tp => new
                 {
                     tp.Id,
+                    tp.Contact.Gender,
                     tp.Type,
                     tp.ScheduledDateTime,
                     tp.Contact.PhotoId,
@@ -190,6 +191,7 @@ namespace Rock.Blocks.Types.Mobile.Engagement
                     return new PastTouchpointEvent
                     {
                         TouchpointIdKey = IdHasher.Instance.GetHash( tp.Id ),
+                        Gender = tp.Gender.ToMobile(),
                         ProfileURL = profileURL,
                         contactName = tp.FirstName,
                         TouchpointType = tp.Type.ToMobile(),
