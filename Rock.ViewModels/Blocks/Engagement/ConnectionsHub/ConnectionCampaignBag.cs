@@ -15,23 +15,23 @@
 // </copyright>
 //
 
-namespace Rock.ViewModels.Core.Grid
+using System;
+
+using Rock.Enums.Connection;
+using Rock.ViewModels.Core.Grid;
+using Rock.ViewModels.Utility;
+
+namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
 {
     /// <summary>
-    ///
+    /// 
     /// </summary>
-    public class GroupingFieldBag
+    public class ConnectionCampaignBag
     {
-        public string Key { get; set; }
+        public Guid Guid { get; set; }
 
-        public string Type { get; set; } // TODO - Consider enum
+        public string Name { get; set; }
 
-        public string Label { get; set; }
-
-        public string IconCssClass { get; set; }
-
-        public PersonFieldBag Person { get; set; }
-
-        public int? Order { get; set; }
+        public int PendingCount { get; set; }
     }
 }

@@ -1,0 +1,89 @@
+<!-- Copyright by the Spark Development Network; Licensed under the Rock Community License -->
+<template>
+    <Modal v-model="isVisible"
+           title="Get Connection Requests"
+           saveText="Save">
+        <NotificationBox v-if="areNoCampaigns"
+                         alertType="warning">
+            <p>There aren’t any campaigns available for you to get requests from right now. Confirm that you’re included in the global connector group, or contact an administrator.</p>
+        </NotificationBox>
+        <div v-else class="row">
+            <div class="col-md-4">
+                <DropDownList v-model="opportunity"
+                              :items="connectionOpportunityItems"
+                              label="Opportunity"
+                              showBlankItem
+                              rules="required" />
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-4">
+                <DropDownList v-model="campaign"
+                              :items="campaignItems[opportunity]"
+                              label="Campaign"
+                              showBlankItem
+                              rules="required" />
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-3">
+                <NumberBox v-model="numberOfRequests"
+                           label="Number of Requests"
+                           rules="required" />
+            </div>
+        </div>
+    </Modal>
+</template>
+
+<script setup lang="ts">
+    import Modal from "@Obsidian/Controls/modal.obs";
+    import NotificationBox from "@Obsidian/Controls/notificationBox.obs";
+    import DropDownList from "@Obsidian/Controls/dropDownList.obs";
+    import NumberBox from "@Obsidian/Controls/numberBox.obs";
+    import { ref, PropType, watch } from "vue";
+    import { useVModelPassthrough } from "@Obsidian/Utility/component";
+    import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
+
+    const props = defineProps({
+        visible: {
+            type: Boolean as PropType<boolean>,
+            required: true
+        },
+
+        areNoCampaigns: {
+            type: Boolean as PropType<boolean>,
+            required: true
+        },
+
+        connectionOpportunityItems: {
+            type: Array as PropType<ListItemBag[]>,
+            required: true
+        },
+
+        campaignItems: {
+            type: Object as PropType<Record<string, ListItemBag[]>>,
+            default: []
+        },
+    });
+
+    const emit = defineEmits<{
+        (e: "update:visible", value: boolean): void;
+        (e: "close"): void;
+    }>();
+
+    const errorMessage = ref();
+
+    const isVisible = useVModelPassthrough(props, "visible", emit);
+
+    const opportunity = ref();
+    const campaign = ref();
+    const numberOfRequests = ref();
+
+    watch(isVisible, () => {
+        errorMessage.value = "";
+        if (!isVisible.value) {
+            emit("close");
+        }
+    });
+
+</script>

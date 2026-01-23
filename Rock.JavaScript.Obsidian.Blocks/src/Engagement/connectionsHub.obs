@@ -235,13 +235,14 @@
                         <div class="w-100">
                             <template v-if="row.connectionState === ConnectionState.Active">
                                 <div v-if="box.options?.isSequentialStatusMode"
+                                     @click="(e) => onStatusClick(row.idKey, row.connectionStatus, row.connectionState, e)"
                                      class="cursor-pointer py-spacing-tiny px-spacing-xs rounded-huge text-semibold text-interface-softest d-flex align-items-center"
                                      :style="`background-color: ${row.connectionStatus.highlightColor}`">
                                     <i class="ti ti-circle-check"></i>
                                     <sapn class="w-100 text-center">{{ row.connectionStatus.name }}</sapn>
                                 </div>
                                 <div v-else
-                                     @click="(e) => onStatusClick(row.idKey, row.connectionStatus, e)"
+                                     @click="(e) => onStatusClick(row.idKey, row.connectionStatus, row.connectionState, e)"
                                      class="cursor-pointer py-spacing-tiny px-spacing-xs rounded-huge text-semibold text-interface-softest d-flex align-items-center"
                                      :style="`background-color: ${row.connectionStatus.highlightColor}`">
                                     <sapn class="w-100 text-center">{{ row.connectionStatus.name }}</sapn>
@@ -277,40 +278,15 @@
         </template>
     </GroupedGridPanel>
 
-    <Flyout v-model="isFlyoutOpen"
-            :anchorEl="anchorEl"
-            :onSave="onFlyoutSubmit">
-        <template #default>
-            <DropDownList v-model="flyoutStatus"
-                          :items="connectionStatusItems"
-                          label="Status"
-                          :showBlankItem="false" />
-            <TextBox v-model="flyoutNote"
-                     label="Note"
-                     textMode="multiline"
-                     :rules="isNoteRequired" />
-        </template>
-        <template #footer>
-            <div class="d-flex justify-content-between align-items-center">
-                <RockButton @click="completeRequest"
-                            :btnSize="BtnSize.Small">
-                    Mark Complete
-                </RockButton>
-                <div>
-                    <RockButton type="submit"
-                                :btnSize="BtnSize.Small"
-                                :btnType="BtnType.Primary">
-                        Save
-                    </RockButton>
-                    <RockButton @click="closeFlyout"
-                                :btnSize="BtnSize.Small"
-                                :btnType="BtnType.Link">
-                        Cancel
-                    </RockButton>
-                </div>
-            </div>
-        </template>
-    </Flyout>
+    <ChangeStatusFlyout v-model="isFlyoutOpen"
+                        :anchorEl="anchorEl"
+                        :connectionRequestUpdateBag="connectionRequestUpdateBag"
+                        :isNoteRequired="isNoteRequired"
+                        :isSequentialMode="box.options?.isSequentialStatusMode ?? false"
+                        :connectionStatusItems="connectionStatusItems"
+                        @updateStatus="changeRequestStatus"
+                        @updateState="changeRequestState"
+                        @close="onFlyoutClose" />
 
     <AddConnectionRequestModal v-model="newConnectionRequest"
                                v-model:visible="isAddConnectionRequestModalVisible"
@@ -522,6 +498,8 @@
     import { BtnType } from "@Obsidian/Enums/Controls/btnType";
     import { BtnSize } from "@Obsidian/Enums/Controls/btnSize";
     import { GridUpdateBag } from "@Obsidian/ViewModels/Blocks/Engagement/gridUpdateBag";
+    import ChangeStatusFlyout from "./ConnectionsHub/changeStatusFlyout.partial.obs";
+    import { ConnectionRequestUpdateBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionRequestUpdateBag";
 
     /* =====================================================
      * Configuration & Data Loading
@@ -564,10 +542,8 @@
 
     const isFlyoutOpen = ref(false);
     const anchorEl = ref<HTMLElement | null>(null);
-    const selectedRequestKey = ref<string>("");
-    const flyoutStatusBag = ref<ConnectionStatusBag>({ isNoteRequiredOnCompletion: false } as ConnectionStatusBag);
-    const flyoutStatus = ref<string>("");
-    const flyoutNote = ref<string>("");
+    const connectionRequestUpdateBag = ref<ConnectionRequestUpdateBag>({} as ConnectionRequestUpdateBag);
+    const isNoteRequired = ref<boolean>(false);
 
     const viewOptions = ref<ViewOptions>({
         sortBy: preferences.getValue(getConnectionFilterKey(PreferenceKey.FilterSortByConnectionTypIdKey)),
@@ -642,14 +618,16 @@
     // TODO - If we keep this than pass this into the change status modal.
     const connectionStatusItems = computed<ListItemBag[]>(() => {
         return (
-            box.options?.connectionStatuses?.map(s => ({
-                value: s.guid,
-                text: s.name
-            })) ?? []
+            box.options?.connectionStatuses
+                ?.slice() // avoid mutating source
+                .sort((a, b) => a.order - b.order)
+                .map(s => ({
+                    value: s.guid,
+                    text: s.name
+                })) ?? []
         );
     });
 
-    const isNoteRequired = computed(() => flyoutStatusBag.value.isNoteRequiredOnCompletion ? "required" : "");
 
     // Computed setter normalizes v-model updates so the dropdown’s blank "All Opportunities" value is never stored in component state.
     const selectedOpportunity = computed({
@@ -1101,23 +1079,30 @@
     }
 
     function showAddFromCampaignModal(): void {
-
+        fetchConnectionCampaigns();
     }
 
-    function onStatusClick(key: string | null | undefined, status: ConnectionStatusBag | null | undefined, event: MouseEvent) {
-        if (!status || !key || typeof status !== "object" || typeof key !== "string") {
+    function onStatusClick(key: string | null | undefined, status: ConnectionStatusBag | null | undefined, state: ConnectionState | null | undefined, event: MouseEvent): void {
+        if (!status || !key || state === null || state === undefined || typeof status !== "object" || typeof key !== "string" || typeof state !== "number") {
             return;
         }
 
-        console.log("Click: ", event);
-        console.log(status);
-        selectedRequestKey.value = key;
-        flyoutStatusBag.value = { ...status };
-        flyoutStatus.value = flyoutStatusBag.value.guid;
+        connectionRequestUpdateBag.value = {
+            connectionRequestIdKey: key,
+            connectionStatusGuid: status.guid,
+            connectionState: state
+        };
+        isNoteRequired.value = status.isNoteRequiredOnCompletion;
         anchorEl.value = event.currentTarget as HTMLElement;
+        console.log("made it here: ", connectionRequestUpdateBag.value);
         isFlyoutOpen.value = true;
     }
 
+    function onFlyoutClose(): void {
+        connectionRequestUpdateBag.value = {} as ConnectionRequestUpdateBag;
+        isNoteRequired.value = false;
+        anchorEl.value = null;
+    }
 
     function showSMSModal(): void {
         isSendSMSModalVisible.value = true;
@@ -1136,59 +1121,36 @@
         // });
     }
 
-    function closeFlyout(): void {
-        isFlyoutOpen.value = false;
-    }
-
-    async function onFlyoutSubmit(): Promise<void> {
-        const isSuccess = await changeRequestStatus();
-        if (isSuccess) {
-            isFlyoutOpen.value = false;
-        }
-    }
-
-    async function completeRequest(): Promise<void> {
-        const isSuccess = await changeRequestState(ConnectionState.Connected);
-        if (isSuccess) {
-            isFlyoutOpen.value = false;
-        }
-    }
-
-    async function changeRequestStatus(): Promise<boolean> {
+    async function changeRequestStatus(bag: ConnectionRequestUpdateBag): Promise<void> {
         const result = await invokeBlockAction<GridUpdateBag>("ChangeRequestStatus", {
-            idKey: selectedRequestKey.value,
-            statusGuid: flyoutStatus.value,
-            note: flyoutNote.value
+            bag
         });
 
         if (result.isSuccess && result.data) {
-            const row = gridData.value?.rows?.find(r => r.idKey === selectedRequestKey.value);
+            const row = gridData.value?.rows?.find(r => r.idKey === bag.connectionRequestIdKey);
             if (row) {
                 row.statusGrouping = result.data.groupingFieldBag;
                 row.connectionStatus = result.data.connectionStatusBag;
             }
-            return true;
+            isFlyoutOpen.value = false;
         }
         // display error
-        return false;
     }
 
-    async function changeRequestState(state: ConnectionState): Promise<boolean> {
+    async function changeRequestState(bag: ConnectionRequestUpdateBag): Promise<void> {
         const result = await invokeBlockAction<GridUpdateBag>("ChangeRequestState", {
-            idKey: selectedRequestKey.value,
-            state: state
+            bag
         });
 
         if (result.isSuccess && result.data) {
-            const row = gridData.value?.rows?.find(r => r.idKey === selectedRequestKey.value);
+            const row = gridData.value?.rows?.find(r => r.idKey === bag.connectionRequestIdKey);
             if (row) {
                 row.stateGrouping = result.data.groupingFieldBag;
                 row.connectionState = result.data.connectionState;
             }
-            return true;
+            isFlyoutOpen.value = false;
         }
         // display error
-        return false;
     }
 
     async function fetchConnectionOpportunityDetails(connectionOpportunityGuid: string): Promise<void> {
@@ -1244,6 +1206,12 @@
         console.error(result.errorMessage);
     }
 
+    async function fetchConnectionCampaigns(): Promise<void> {
+        const result = await invokeBlockAction("FetchConnectionCampaigns");
+
+        console.log(result.data);
+    }
+
     watch(selectedOpportunity, async () => {
         preferences.setValue(getConnectionFilterKey(PreferenceKey.ConnectionmOpportunityFilterConnectionTypeIdKey), selectedOpportunity.value);
 
@@ -1277,14 +1245,6 @@
         preferences.setValue(PreferenceKey.SelectedGroupByMode, selectedGrouping.value);
 
         await preferences.save();
-    });
-
-    watch(isFlyoutOpen, () => {
-        if (!isFlyoutOpen.value) {
-            flyoutStatusBag.value = { isNoteRequiredOnCompletion: false } as ConnectionStatusBag;
-            flyoutStatus.value = "";
-            flyoutNote.value = "";
-        }
     });
 
     loadGridData();

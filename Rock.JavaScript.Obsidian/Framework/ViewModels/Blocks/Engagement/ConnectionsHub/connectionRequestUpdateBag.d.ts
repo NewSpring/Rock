@@ -21,18 +21,14 @@
 // </copyright>
 //
 
-import { PersonFieldBag } from "@Obsidian/ViewModels/Core/Grid/personFieldBag";
+import { ConnectionState } from "@Obsidian/Enums/Connection/connectionState";
 
-export type GroupingFieldBag = {
-    iconCssClass?: string | null;
+export type ConnectionRequestUpdateBag = {
+    connectionRequestIdKey?: string | null;
 
-    key?: string | null;
+    connectionState: ConnectionState;
 
-    label?: string | null;
+    connectionStatusGuid?: string | null;
 
-    order?: number | null;
-
-    person?: PersonFieldBag | null;
-
-    type?: string | null;
+    note?: string | null;
 };

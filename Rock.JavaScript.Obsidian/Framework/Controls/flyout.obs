@@ -24,11 +24,13 @@
 
 <style scoped>
 .flyout {
-    /* border: 1px solid var(--color-interface-soft); */
-    /* Just for testing */
+    border: 1px solid var(--color-interface-soft);
     border-radius: var(--rounded-large);
     /* TODO - UI Team needs to look at min width */
-    min-width: 500px;
+    min-width: 400px;
+    max-width: 500px;
+    box-shadow: var(--box-shadow-strong);
+    overflow: hidden;
 }
 
 .flyout-header {
@@ -97,22 +99,23 @@
 
         const spaceBelow = viewportHeight - anchorRect.bottom;
         const spaceAbove = anchorRect.top;
+        const flyoutGap = 8;
 
         let top: number;
 
         // Prefer bottom
-        if (spaceBelow >= flyoutRect.height) {
-            top = anchorRect.bottom;
+        if (spaceBelow >= flyoutRect.height + flyoutGap) {
+            top = anchorRect.bottom + flyoutGap;
         }
         // Flip to top
-        else if (spaceAbove >= flyoutRect.height) {
-            top = anchorRect.top - flyoutRect.height;
+        else if (spaceAbove >= flyoutRect.height - flyoutGap) {
+            top = anchorRect.top - flyoutRect.height - flyoutGap;
         }
         // Fallback: clamp inside viewport
         else {
             top = Math.max(
-                8,
-                viewportHeight - flyoutRect.height - 8
+                flyoutGap,
+                viewportHeight - flyoutRect.height - flyoutGap
             );
         }
 
@@ -169,13 +172,13 @@
     onMounted(() => {
         updatePosition();
         document.addEventListener("click", onDocumentClick);
-        window.addEventListener("scroll", updatePosition, true);
+        // window.addEventListener("scroll", updatePosition, true);
         window.addEventListener("resize", updatePosition);
     });
 
     onBeforeUnmount(() => {
         document.removeEventListener("click", onDocumentClick);
-        window.removeEventListener("scroll", updatePosition, true);
+        // window.removeEventListener("scroll", updatePosition, true);
         window.removeEventListener("resize", updatePosition);
     });
 

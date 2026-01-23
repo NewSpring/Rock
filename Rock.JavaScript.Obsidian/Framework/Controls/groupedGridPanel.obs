@@ -247,6 +247,7 @@
                 };
             })
             .orderBy(g => g.key === "unassigned" ? 0 : 1)
+            .thenOrderBy(g => g.order)
             .thenOrderBy(g => g.label)
             .toArray();
     });

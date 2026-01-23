@@ -18,6 +18,8 @@ using Rock.Security;
 using System.Collections.Generic;
 using Rock.Data;
 using Newtonsoft.Json;
+using Rock.SystemKey;
+using Rock.Web;
 
 namespace Rock.Blocks.Engagement
 {
@@ -316,7 +318,7 @@ namespace Rock.Blocks.Engagement
             };
         }
 
-        private GroupingFieldBag GetGroupingFieldBag( int? id, string type, string label, string iconCssClass = null, PersonFieldBag person = null )
+        private GroupingFieldBag GetGroupingFieldBag( int? id, string type, string label, int? order = null, string iconCssClass = null, PersonFieldBag person = null )
         {
             if ( !id.HasValue )
             {
@@ -326,7 +328,7 @@ namespace Rock.Blocks.Engagement
                     {
                         IdKey = string.Empty,
                         NickName = "Unassigned",
-                        PhotoUrl = Rock.Model.Person.GetPersonNoPictureUrl( new Rock.Model.Person() )
+                        PhotoUrl = Rock.Model.Person.GetPersonNoPictureUrl( new Rock.Model.Person() ),
                     };
                 }
 
@@ -335,7 +337,8 @@ namespace Rock.Blocks.Engagement
                     Key = "unassigned",
                     Type = type,
                     Label = "Unassigned",
-                    Person = person
+                    Person = person,
+                    Order = order
                 };
             }
 
@@ -345,7 +348,8 @@ namespace Rock.Blocks.Engagement
                 Type = type,
                 Label = label,
                 IconCssClass = iconCssClass,
-                Person = person
+                Person = person,
+                Order = order
             };
         }
 
@@ -631,17 +635,20 @@ namespace Rock.Blocks.Engagement
                     ConnectorGroupingProjection = new GroupingProjection
                     {
                         Id = a.ConnectorPersonAliasId,
-                        Label = a.ConnectorPersonAlias != null ? a.ConnectorPersonAlias.Person.NickName + " " + a.ConnectorPersonAlias.Person.LastName : string.Empty
+                        Label = a.ConnectorPersonAlias != null ? a.ConnectorPersonAlias.Person.NickName + " " + a.ConnectorPersonAlias.Person.LastName : string.Empty,
+                        Order = ( int? ) null
                     },
                     OpportunityGroupingProjection = new GroupingProjection
                     {
                         Id = a.ConnectionOpportunityId,
-                        Label = a.ConnectionOpportunity.Name
+                        Label = a.ConnectionOpportunity.Name,
+                        Order = a.ConnectionOpportunity.Order
                     },
                     CampusGroupingProjection = new GroupingProjection
                     {
                         Id = a.CampusId,
-                        Label = a.Campus != null ? a.Campus.Name : string.Empty
+                        Label = a.Campus != null ? a.Campus.Name : string.Empty,
+                        Order = a.Campus != null ? a.Campus.Order : ( int? ) null
                     },
                     ConnectorPersonProjection = new PersonProjection
                     {
@@ -658,7 +665,8 @@ namespace Rock.Blocks.Engagement
                     StatusGroupingProjection = new GroupingProjection
                     {
                         Id = a.ConnectionStatusId,
-                        Label = a.ConnectionStatus != null ? a.ConnectionStatus.Name : string.Empty
+                        Label = a.ConnectionStatus != null ? a.ConnectionStatus.Name : string.Empty,
+                        Order = a.ConnectionStatus != null ? a.ConnectionStatus.Order : ( int? ) null
                     },
                     ConnectionOpportunityId = a.ConnectionOpportunityId,
                     ConnectionOpportunityGuid = a.ConnectionOpportunity.Guid,
@@ -790,17 +798,18 @@ namespace Rock.Blocks.Engagement
                 }
                 request.ConnectorPerson = connectorPerson;
 
-                request.ConnectorGrouping = GetGroupingFieldBag( request.ConnectorGroupingProjection.Id, "person", request.ConnectorGroupingProjection.Label, null, connectorPerson );
-                request.OpportunityGrouping = GetGroupingFieldBag( request.OpportunityGroupingProjection.Id, "text", request.OpportunityGroupingProjection.Label, request.ConnectionOpportunityIcon );
-                request.CampusGrouping = GetGroupingFieldBag( request.CampusGroupingProjection.Id, "text", request.CampusGroupingProjection.Label );
-                request.StatusGrouping = GetGroupingFieldBag( request.StatusGroupingProjection.Id, "text", request.StatusGroupingProjection.Label );
+                request.ConnectorGrouping = GetGroupingFieldBag( request.ConnectorGroupingProjection.Id, "person", request.ConnectorGroupingProjection.Label, null, null, connectorPerson );
+                request.OpportunityGrouping = GetGroupingFieldBag( request.OpportunityGroupingProjection.Id, "text", request.OpportunityGroupingProjection.Label, request.OpportunityGroupingProjection.Order, request.ConnectionOpportunityIcon );
+                request.CampusGrouping = GetGroupingFieldBag( request.CampusGroupingProjection.Id, "text", request.CampusGroupingProjection.Label, request.CampusGroupingProjection.Order );
+                request.StatusGrouping = GetGroupingFieldBag( request.StatusGroupingProjection.Id, "text", request.StatusGroupingProjection.Label, request.StatusGroupingProjection.Order );
 
                 request.StateGrouping = new GroupingFieldBag
                 {
                     Key = request.ConnectionState.ToString(),
                     Type = "text",
-                    Label = request.ConnectionState.ToString(),
-                    IconCssClass = GetStateIconCssClass( request.ConnectionState )
+                    Label = request.ConnectionState.GetDescription() ?? request.ConnectionState.ToString(),
+                    IconCssClass = GetStateIconCssClass( request.ConnectionState ),
+                    Order = ( int ) request.ConnectionState
                 };
             }
 
@@ -965,9 +974,9 @@ namespace Rock.Blocks.Engagement
         }
 
         [BlockAction]
-        public BlockActionResult ChangeRequestStatus( string idKey, string statusGuid, string note )
+        public BlockActionResult ChangeRequestStatus( ConnectionRequestUpdateBag bag )
         {
-            var connectionRequest = new ConnectionRequestService( RockContext ).GetInclude( idKey, c => c.ConnectionStatus, !PageCache.Layout.Site.DisablePredictableIds );
+            var connectionRequest = new ConnectionRequestService( RockContext ).GetInclude( bag.ConnectionRequestIdKey, c => c.ConnectionStatus, !PageCache.Layout.Site.DisablePredictableIds );
             if ( connectionRequest == null )
             {
                 // TODO - determine if we throw an exception
@@ -982,13 +991,13 @@ namespace Rock.Blocks.Engagement
             //    return ActionBadRequest( "Not authorized to reassign connector for one or more selected connection requests." );
             //}
 
-            var connectionRequestStatus = new ConnectionStatusService( RockContext ).Get( statusGuid );
+            var connectionRequestStatus = new ConnectionStatusService( RockContext ).Get( bag.ConnectionStatusGuid );
             if ( connectionRequestStatus == null || connectionRequestStatus.ConnectionTypeId != connectionRequest.ConnectionTypeId )
             {
                 return ActionBadRequest( "Invalid Connection Status" );
             }
 
-            if ( connectionRequest.ConnectionStatus.IsNoteRequiredOnCompletion && note.IsNullOrWhiteSpace() )
+            if ( connectionRequest.ConnectionStatus.IsNoteRequiredOnCompletion && bag.Note.IsNullOrWhiteSpace() )
             {
                 return ActionBadRequest( "A note is required." );
             }
@@ -998,9 +1007,9 @@ namespace Rock.Blocks.Engagement
 
             RockContext.SaveChanges();
 
-            var bag = new GridUpdateBag
+            var gridUpdateBag = new GridUpdateBag
             {
-                GroupingFieldBag = GetGroupingFieldBag( connectionRequestStatus.Id, "text", connectionRequestStatus.Name, null ),
+                GroupingFieldBag = GetGroupingFieldBag( connectionRequestStatus.Id, "text", connectionRequestStatus.Name, connectionRequestStatus.Order ),
                 ConnectionStatusBag = new ConnectionStatusBag
                 {
                     Guid = connectionRequestStatus.Guid,
@@ -1011,13 +1020,13 @@ namespace Rock.Blocks.Engagement
                 }
             };
 
-            return ActionOk( bag );
+            return ActionOk( gridUpdateBag );
         }
 
         [BlockAction]
-        public BlockActionResult ChangeRequestState( string idKey, ConnectionState state )
+        public BlockActionResult ChangeRequestState( ConnectionRequestUpdateBag bag )
         {
-            var connectionRequest = new ConnectionRequestService( RockContext ).Get( idKey, !PageCache.Layout.Site.DisablePredictableIds );
+            var connectionRequest = new ConnectionRequestService( RockContext ).Get( bag.ConnectionRequestIdKey, !PageCache.Layout.Site.DisablePredictableIds );
             if ( connectionRequest == null )
             {
                 // TODO - determine if we throw an exception
@@ -1032,23 +1041,57 @@ namespace Rock.Blocks.Engagement
             //    return ActionBadRequest( "Not authorized to reassign connector for one or more selected connection requests." );
             //}
 
-            connectionRequest.ConnectionState = state;
+            connectionRequest.ConnectionState = ( ConnectionState ) bag.ConnectionState;
 
             RockContext.SaveChanges();
 
-            var bag = new GridUpdateBag
+            var gridUpdateBag = new GridUpdateBag
             {
                 GroupingFieldBag = new GroupingFieldBag
                 {
                     Key = connectionRequest.ConnectionState.ToString(),
                     Type = "text",
-                    Label = connectionRequest.ConnectionState.ToString(),
-                    IconCssClass = GetStateIconCssClass( connectionRequest.ConnectionState )
+                    Label = connectionRequest.ConnectionState.GetDescription(),
+                    IconCssClass = GetStateIconCssClass( connectionRequest.ConnectionState ),
+                    Order = ( int ) connectionRequest.ConnectionState
                 },
                 ConnectionState = ( Rock.Enums.Connection.ConnectionState ) connectionRequest.ConnectionState
             };
 
-            return ActionOk( bag );
+            return ActionOk( gridUpdateBag );
+        }
+
+        [BlockAction]
+        public BlockActionResult FetchConnectionCampaigns()
+        {
+            var connectionType = ConnectionTypeCache.Get( PageParameter( PageParameterKey.ConnectionType ), !PageCache.Layout.Site.DisablePredictableIds );
+            if ( connectionType == null )
+            {
+                // TODO - determine if we throw an exception
+                return ActionOk();
+            }
+
+            var campaignConnectionItems = SystemSettings.GetValue( CampaignConnectionKey.CAMPAIGN_CONNECTION_CONFIGURATION ).FromJsonOrNull<List<CampaignItem>>() ?? new List<CampaignItem>();
+
+            campaignConnectionItems = campaignConnectionItems
+                .Where( ci => ci.ConnectionTypeGuid == connectionType.Guid )
+                .ToList();
+
+            var opportunityPartitionedCampaigns = campaignConnectionItems
+                .GroupBy( ci => ci.OpportunityGuid )
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.Select( ci => new ConnectionCampaignBag
+                    {
+                        Guid = ci.Guid,
+                        Name = ci.Name,
+                        PendingCount = CampaignConnectionHelper
+                            .GetPendingConnectionCount( ci, RequestContext.CurrentPerson )
+                    } ).ToList()
+                );
+
+
+            return ActionOk( opportunityPartitionedCampaigns );
         }
 
         #endregion Block Actions
@@ -1188,6 +1231,8 @@ namespace Rock.Blocks.Engagement
             public int? Id { get; set; }
 
             public string Label { get; set; }
+
+            public int? Order { get; set; }
         }
 
         public class ConnectionStatusProjection
