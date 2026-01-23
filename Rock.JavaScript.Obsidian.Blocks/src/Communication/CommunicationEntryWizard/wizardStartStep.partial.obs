@@ -269,8 +269,8 @@
     grid-template-columns: repeat(auto-fill, minmax(200px, 250px));
     grid-template-rows: auto auto auto auto auto;
     gap: var(--spacing-large);
-    padding-left: 2px; /* Adjustment for focus state & border */
-
+    padding-left: 2px;
+    /* Adjustment for focus state & border */
 }
 
 .medium {
@@ -677,9 +677,22 @@
         }
     });
 
+    const isCommunicationTypeAllowed = computed<boolean>(() => {
+        return props.allowedMediums.includes(internalCommunicationType.value);
+    });
+
     // #endregion Computed Values
 
     // #region Functions
+
+    /**
+     * Ensures the communication's type is within the allowed mediums.
+     */
+    function enforceAllowedCommunicationTypes(): void {
+        if (!isCommunicationTypeAllowed.value && props.allowedMediums.length > 0) {
+            internalCommunicationType.value = props.allowedMediums[0];
+        }
+    }
 
     function appendQueryParameters(url: string): string {
         const currentParams = new URLSearchParams(window.location.search);
@@ -813,4 +826,6 @@
     });
 
     // #endregion Watchers
+
+    enforceAllowedCommunicationTypes();
 </script>
