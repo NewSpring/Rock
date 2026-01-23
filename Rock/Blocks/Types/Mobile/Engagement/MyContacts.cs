@@ -106,7 +106,7 @@ namespace Rock.Blocks.Types.Mobile.Engagement
                 );
             }
 
-            var contacts = qry.OrderByDescending( c => c.LastName )
+            var contacts = qry.OrderBy( c => c.LastName )
                 .Skip( option.Offset )
                 .Take( option.Limit )
                 .ToList();
