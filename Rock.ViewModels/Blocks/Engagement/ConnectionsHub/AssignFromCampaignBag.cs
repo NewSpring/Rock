@@ -26,14 +26,12 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
     /// <summary>
     /// 
     /// </summary>
-    public class ConnectionCampaignBag
+    public class AssignFromCampaignBag
     {
-        public Guid Guid { get; set; }
+        public string ConnectionOpportunityGuid { get; set; }
 
-        public string Name { get; set; }
+        public string ConnectionCampaignGuid { get; set; }
 
-        public int PendingCount { get; set; }
-
-        public int? DefaultNumberOfRequests { get; set; }
+        public int NumberOfRequests { get; set; }
     }
 }

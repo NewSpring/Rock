@@ -54,18 +54,21 @@
                         <ul class="dropdown-menu">
                             <li>
                                 <button type="button"
+                                        @click.stop="showChangeStateModal(ConnectionState.Active)"
                                         class="dropdown-item btn-link py-spacing-xs px-spacing-md font-weight-semibold">
                                     <i class="ti ti-user pr-spacing-sm text-interface-medium"></i>Set as Active
                                 </button>
                             </li>
                             <li>
                                 <button type="button"
+                                        @click.stop="showChangeStateModal(ConnectionState.Inactive)"
                                         class="dropdown-item btn-link py-spacing-xs px-spacing-md font-weight-semibold">
                                     <i class="ti ti-user-off pr-spacing-sm text-interface-medium"></i>Set as Inactive
                                 </button>
                             </li>
                             <li>
                                 <button type="button"
+                                        @click.stop="showChangeStateModal(ConnectionState.FutureFollowUp)"
                                         class="dropdown-item btn-link py-spacing-xs px-spacing-md font-weight-semibold">
                                     <i class="ti ti-calendar pr-spacing-sm text-interface-medium"></i>Set as Future Follow-Up
                                 </button>
@@ -297,10 +300,21 @@
                                @fetchConnectionOpportunityDetails="fetchConnectionOpportunityDetails"
                                @fetchPlacementGroupDetails="fetchPlacementGroupDetails" />
 
+    <AddFromCampaignModal v-model:visible="isAddFromCampaignModalVisible"
+                          :selectedOpportunityGuid="selectedOpportunity"
+                          :allConnectionOpportunityItems="box.options?.connectionOpportunities ?? []"
+                          :isLoading="areCampaignsLoading"
+                          :campaignRecordBags="campaignRecordBags"
+                          @assignRequests="assignRequestsFromCampaign" />
+
     <AssignRequestModal v-model:visible="isAssignRequestModalVisible"
                         :connectorItems="allPossibleConnectors"
                         :selectedRequestDetails="selectedRequestDetails"
                         :viewOptions="viewOptions" />
+    <ChangeStateModal v-model:visible="isChangeStateModalVisible"
+                      :connectionState="changeStateTo"
+                      :selectedRequestDetails="selectedRequestDetails"
+                      :viewOptions="viewOptions" />
     <DeleteRequestModal v-model:visible="isDeleteRequestModalVisible"
                         :selectedRequestDetails="selectedRequestDetails"
                         :viewOptions="viewOptions" />
@@ -500,6 +514,10 @@
     import { GridUpdateBag } from "@Obsidian/ViewModels/Blocks/Engagement/gridUpdateBag";
     import ChangeStatusFlyout from "./ConnectionsHub/changeStatusFlyout.partial.obs";
     import { ConnectionRequestUpdateBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionRequestUpdateBag";
+    import { ConnectionCampaignBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionCampaignBag";
+    import AddFromCampaignModal from "./ConnectionsHub/addFromCampaignModal.partial.obs";
+    import { AssignFromCampaignBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/assignFromCampaignBag";
+    import ChangeStateModal from "./ConnectionsHub/changeStateModal.partial.obs";
 
     /* =====================================================
      * Configuration & Data Loading
@@ -539,6 +557,12 @@
     const isAddActivityModalVisible = ref(false);
     const isChangeStatusModalVisible = ref(false);
     const isLaunchWorkflowModalVisible = ref(false);
+    const isChangeStateModalVisible = ref(false);
+    const changeStateTo = ref<ConnectionState>(ConnectionState.Active);
+
+    const isAddFromCampaignModalVisible = ref(false);
+    const areCampaignsLoading = ref(false);
+    const campaignRecordBags = ref();
 
     const isFlyoutOpen = ref(false);
     const anchorEl = ref<HTMLElement | null>(null);
@@ -1062,6 +1086,11 @@
         isDeleteRequestModalVisible.value = true;
     }
 
+    function showChangeStateModal(state: ConnectionState): void {
+        changeStateTo.value = state;
+        isChangeStateModalVisible.value = true;
+    }
+
     function showCompleteRequestModal(): void {
         isCompleteRequestModalVisible.value = true;
     }
@@ -1078,8 +1107,14 @@
         isLaunchWorkflowModalVisible.value = true;
     }
 
-    function showAddFromCampaignModal(): void {
-        fetchConnectionCampaigns();
+    async function showAddFromCampaignModal(): Promise<void> {
+        isAddFromCampaignModalVisible.value = true;
+
+        if (!campaignRecordBags.value) {
+            areCampaignsLoading.value = true;
+            await fetchConnectionCampaigns();
+            areCampaignsLoading.value = false;
+        }
     }
 
     function onStatusClick(key: string | null | undefined, status: ConnectionStatusBag | null | undefined, state: ConnectionState | null | undefined, event: MouseEvent): void {
@@ -1207,9 +1242,26 @@
     }
 
     async function fetchConnectionCampaigns(): Promise<void> {
-        const result = await invokeBlockAction("FetchConnectionCampaigns");
+        const result = await invokeBlockAction<Record<string, ConnectionCampaignBag[]>>("FetchConnectionCampaigns");
 
-        console.log(result.data);
+        if (result.isSuccess && result.data) {
+            campaignRecordBags.value = result.data;
+            return;
+        }
+        console.error(result.errorMessage);
+    }
+
+    async function assignRequestsFromCampaign(bag: AssignFromCampaignBag): Promise<void> {
+        const result = await invokeBlockAction("AssignConnectionRequestsFromCampaign", { bag });
+
+        if (result.isSuccess) {
+            // TODO - this may be updated to insert updated/inserted values into the exisithing grid data rather than reloading.
+            loadGridData();
+            isAddFromCampaignModalVisible.value = false;
+            return;
+        }
+
+        console.error(result.errorMessage);
     }
 
     watch(selectedOpportunity, async () => {

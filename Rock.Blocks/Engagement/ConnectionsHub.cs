@@ -20,6 +20,8 @@ using Rock.Data;
 using Newtonsoft.Json;
 using Rock.SystemKey;
 using Rock.Web;
+using DocumentFormat.OpenXml.Drawing;
+using Slingshot.Core;
 
 namespace Rock.Blocks.Engagement
 {
@@ -606,6 +608,78 @@ namespace Rock.Blocks.Engagement
             return userCanEditConnectionRequest;
         }
 
+        private bool CanEditConnectionRequests( ConnectionTypeCache connectionType, List<ConnectionRequest> connectionRequests )
+        {
+            // TODO - maybe this should pass in ids and we materialize here?
+            bool userCanEditConnectionRequest = false;
+            var opportunityIds = connectionRequests.Select( r => r.ConnectionOpportunityId )
+                .Distinct()
+                .ToList();
+
+            if ( connectionType.EnableRequestSecurity )
+            {
+                userCanEditConnectionRequest = connectionRequests.All( cr => cr.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson ) );
+            }
+            else
+            {
+                var opportunities = new ConnectionOpportunityService( RockContext ).Queryable()
+                    .AsNoTracking()
+                    .Where( o => opportunityIds.Contains( o.Id ) )
+                    .ToList();
+
+                userCanEditConnectionRequest = opportunities.All( co => co.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson ) );
+            }
+
+            if ( !userCanEditConnectionRequest )
+            {
+                var connectorGroupsByOpportunity = new ConnectionOpportunityConnectorGroupService( RockContext ).Queryable()
+                    .AsNoTracking()
+                    .Where( g => opportunityIds.Contains( g.ConnectionOpportunityId ) )
+                    .Where( g =>
+                        g.ConnectorGroup != null &&
+                        g.ConnectorGroup.Members.Any( m =>
+                            m.PersonId == RequestContext.CurrentPerson.Id &&
+                            m.GroupMemberStatus == GroupMemberStatus.Active ) )
+                    .ToList()
+                    .GroupBy( g => g.ConnectionOpportunityId )
+                    .ToDictionary( g => g.Key, g => g.ToList() );
+
+                var activeCampusCount = CampusCache.All().Count( c => c.IsActive ?? true );
+
+                userCanEditConnectionRequest = connectionRequests.All( cr =>
+                {
+                    if ( !connectorGroupsByOpportunity.TryGetValue( cr.ConnectionOpportunityId, out var groups ) )
+                    {
+                        return false;
+                    }
+
+                    // Non campus-specific connector groups
+                    if ( activeCampusCount == 1 || groups.Any( g => !g.CampusId.HasValue ) )
+                    {
+                        return true;
+                    }
+
+                    // New Connection Request
+                    if ( cr.Id == 0 )
+                    {
+                        return true;
+                    }
+
+                    // Campus-specific logic
+                    if ( cr.CampusId.HasValue && groups.Any( g => g.CampusId == cr.CampusId.Value ) )
+                    {
+                        return true;
+                    }
+
+                    return false;
+
+                } );
+            }
+
+            return userCanEditConnectionRequest;
+        }
+
+
         private Rock.Model.ConnectionType GetConnectionType()
         {
             return new ConnectionTypeService( RockContext ).Get( PageParameter( PageParameterKey.ConnectionType ), !PageCache.Layout.Site.DisablePredictableIds );
@@ -940,8 +1014,6 @@ namespace Rock.Blocks.Engagement
 
             List<ConnectionRequest> connectionRequests = null;
 
-            RockContext.SqlLogging( true );
-
             var canUpdateRequest = CanUpdateConnectionRequest( connectionRequestIds, connectionType, out connectionRequests );
 
             if ( !canUpdateRequest )
@@ -967,8 +1039,6 @@ namespace Rock.Blocks.Engagement
             }
 
             RockContext.SaveChanges();
-
-            RockContext.SqlLogging( false );
 
             return ActionOk();
         }
@@ -1073,8 +1143,20 @@ namespace Rock.Blocks.Engagement
 
             var campaignConnectionItems = SystemSettings.GetValue( CampaignConnectionKey.CAMPAIGN_CONNECTION_CONFIGURATION ).FromJsonOrNull<List<CampaignItem>>() ?? new List<CampaignItem>();
 
+            // Gets a filtered list of opportunity guids for the current Connection Type where the Current Person is a Connector on the opportunity.
+            var opportunityGuids = new ConnectionOpportunityService( RockContext ).Queryable()
+                .Where( o =>
+                    o.ConnectionTypeId == connectionType.Id &&
+                    o.ConnectionOpportunityConnectorGroups.Any( cg =>
+                        cg.ConnectorGroup.Members.Any( gm => gm.PersonId == RequestContext.CurrentPerson.Id )
+                    )
+                )
+                .Select( o => o.Guid )
+                .ToList();
+
+
             campaignConnectionItems = campaignConnectionItems
-                .Where( ci => ci.ConnectionTypeGuid == connectionType.Guid )
+                .Where( ci => opportunityGuids.Contains( ci.OpportunityGuid ) && ci.IsActive )
                 .ToList();
 
             var opportunityPartitionedCampaigns = campaignConnectionItems
@@ -1086,12 +1168,36 @@ namespace Rock.Blocks.Engagement
                         Guid = ci.Guid,
                         Name = ci.Name,
                         PendingCount = CampaignConnectionHelper
-                            .GetPendingConnectionCount( ci, RequestContext.CurrentPerson )
+                            .GetPendingConnectionCount( ci, RequestContext.CurrentPerson ),
+                        DefaultNumberOfRequests = ci.DailyLimitAssigned
                     } ).ToList()
                 );
 
-
             return ActionOk( opportunityPartitionedCampaigns );
+        }
+
+        [BlockAction]
+        public BlockActionResult AssignConnectionRequestsFromCampaign( AssignFromCampaignBag bag )
+        {
+            var campaignConnectionItems = SystemSettings.GetValue( CampaignConnectionKey.CAMPAIGN_CONNECTION_CONFIGURATION ).FromJsonOrNull<List<CampaignItem>>() ?? new List<CampaignItem>();
+            var selectedCampaignConnectionItem = campaignConnectionItems.Where( a => a.Guid == bag.ConnectionCampaignGuid.AsGuid() ).FirstOrDefault();
+
+            if ( selectedCampaignConnectionItem == null )
+            {
+                // shouldn't happen
+                return null;
+            }
+
+            // TODO - Do we need to check if the user is authorized to make these requests?
+
+            // Serves no purpose.
+            int numberOfRequestsRemaining;
+
+            // Updates any existing requests that do not have a connector and creates new requests via the campaign.
+            CampaignConnectionHelper.AddConnectionRequestsForPerson( selectedCampaignConnectionItem, RequestContext.CurrentPerson, bag.NumberOfRequests, out numberOfRequestsRemaining );
+
+            // TODO - may need to add logic to recalculate pending people.
+            return ActionOk( );
         }
 
         #endregion Block Actions
