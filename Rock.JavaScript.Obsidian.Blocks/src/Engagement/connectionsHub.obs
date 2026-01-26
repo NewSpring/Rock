@@ -511,7 +511,7 @@
     import TextBox from "@Obsidian/Controls/textBox.obs";
     import { BtnType } from "@Obsidian/Enums/Controls/btnType";
     import { BtnSize } from "@Obsidian/Enums/Controls/btnSize";
-    import { GridUpdateBag } from "@Obsidian/ViewModels/Blocks/Engagement/gridUpdateBag";
+    import { GridUpdateBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/gridUpdateBag";
     import ChangeStatusFlyout from "./ConnectionsHub/changeStatusFlyout.partial.obs";
     import { ConnectionRequestUpdateBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionRequestUpdateBag";
     import { ConnectionCampaignBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionCampaignBag";
