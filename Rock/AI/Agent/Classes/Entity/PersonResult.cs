@@ -20,6 +20,7 @@ using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
 using Rock.AI.Agent.Classes.Common;
+using Rock.Configuration;
 using Rock.Model;
 using Rock.Web.Cache;
 
@@ -31,30 +32,6 @@ namespace Rock.AI.Agent.Classes.Entity
     /// </summary>
     internal class PersonResult : EntityResultBase
     {
-        #region Private Variables
-        private AgentRequestContext _context;
-        #endregion
-
-        #region Constructors
-        /// <summary>
-        /// Default constructor
-        /// </summary>
-        public PersonResult()
-        {
-
-        }
-
-        /// <summary>
-        /// Constructor that takes an application root.
-        /// </summary>
-        /// <param name="context"></param>
-        public PersonResult( AgentRequestContext context )
-        {
-            _context = context;
-        }
-
-        #endregion
-
         #region Ignored Properties
         // These properties exist to help with internal logic but they should not be serialized to JSON.
 
@@ -81,24 +58,33 @@ namespace Rock.AI.Agent.Classes.Entity
         /// </summary>
         [JsonIgnore]
         public Guid? MaritalStatusGuid { get; set; }
+
+        /// <summary>
+        /// Determines if the internal profile should be included in the return.
+        /// </summary>
+        [JsonIgnore]
+        public bool IncludePublicProfile { get; set; }
+
+        /// <summary>
+        /// Determines if the avatar URL should be included in the return.
+        /// </summary>
+        [JsonIgnore]
+        public bool IncludeAvatarUrl { get; set; } = true;
+
         #endregion
 
         #region Common Properties
-        
+
         /// <summary>
         /// Gets or sets the stable identifier for the person's primary family (used by tools; avoid showing to end users).
         /// </summary>
         public string PrimaryFamilyIdKey { get; set; }
 
         /// <summary>
-        /// Determines if the internal profile should be included in the return.
-        /// </summary>
-        public bool IncludePublicProfile { get; set; }
-
-        /// <summary>
         /// The URL to the person's internal profile.
         /// </summary>
-        public string InternalProfileUrl {
+        public string InternalProfileUrl
+        {
             get
             {
                 if ( !IncludePublicProfile )
@@ -157,6 +143,11 @@ namespace Rock.AI.Agent.Classes.Entity
         {
             get
             {
+                if ( !IncludeAvatarUrl )
+                {
+                    return null;
+                }
+
                 var initials = FirstName.Left( 1 ) + LastName.Left( 1 );
                 var url = Person.GetPersonPhotoUrl(
                     initials,
@@ -166,12 +157,7 @@ namespace Rock.AI.Agent.Classes.Entity
                     RecordTypeValueId,
                     AgeClassification );
 
-                if ( _context != null )
-                {
-                    url = _context.ResolveRockUrl( url );
-                }
-
-                return url;
+                return RockApp.Current.ResolveRockUrl( url );
             }
         }
 
