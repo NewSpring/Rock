@@ -26,18 +26,26 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
     /// <summary>
     /// 
     /// </summary>
-    public class ConnectionRequestUpdateBag
+    public class ConnectionListGridUpdateBag
     {
-        public string ConnectionRequestIdKey { get; set; }
+        public string IdKey { get; set; }
 
-        public string ConnectionStatusGuid { get; set; }
+        public GroupingFieldBag StatusGrouping { get; set; }
 
-        public string Note { get; set; }
+        public GroupingFieldBag StateGrouping { get; set; }
 
-        public ConnectionState? ConnectionState { get; set; }
+        public GroupingFieldBag ConnectorGrouping { get; set; }
 
-        public DateTimeOffset? FollowUpDate { get; set; }
+        public GroupingFieldBag OpportunityGrouping { get; set; }
 
-        public string ConnectorPersonAliasGuid { get; set; }
+        public GroupingFieldBag CampusGrouping { get; set; }
+
+        public ConnectionStatusBag ConnectionStatusBag { get; set; }
+
+        public ConnectionState ConnectionState { get; set; }
+
+        // I could use the Person Field Bag from the Grouping Field Bag, but having it here for now.
+        public PersonFieldBag PersonFieldBag { get; set; }
     }
 }
+

@@ -608,9 +608,44 @@ namespace Rock.Blocks.Engagement
             return userCanEditConnectionRequest;
         }
 
-        private bool CanEditConnectionRequests( ConnectionTypeCache connectionType, List<ConnectionRequest> connectionRequests )
+        private bool CanEditConnectionRequest( ConnectionTypeCache connectionType, string connectionRequestIdKey, out ConnectionRequest connectionRequest, out BlockActionResult error )
         {
-            // TODO - maybe this should pass in ids and we materialize here?
+            var canEdit = CanEditConnectionRequests( connectionType, new List<string> { connectionRequestIdKey }, out var connectionRequests, out error );
+            connectionRequest = connectionRequests.FirstOrDefault();
+            return canEdit;
+        }
+
+        private bool CanEditConnectionRequests( ConnectionTypeCache connectionType, List<string> connectionRequestIdKeys, out List<ConnectionRequest> connectionRequests, out BlockActionResult error )
+        {
+            error = null;
+            var decodedIds = connectionRequestIdKeys.Select( key => Rock.Utility.IdHasher.Instance.GetId( key ) ).ToList();
+
+            if ( decodedIds.Any( id => !id.HasValue ) )
+            {
+                connectionRequests = new List<ConnectionRequest>();
+                error = ActionBadRequest( $"{ConnectionRequest.FriendlyTypeName} not found." );
+            }
+
+            var connectionRequestIds = decodedIds
+                .Select( id => id.Value )
+                .Distinct()
+                .ToList();
+
+            if ( !connectionRequestIds.Any() )
+            {
+                connectionRequests = new List<ConnectionRequest>();
+                error = ActionBadRequest( $"{ConnectionRequest.FriendlyTypeName} not found." );
+            }
+
+            connectionRequests = new ConnectionRequestService( RockContext )
+                .GetByIds( connectionRequestIds )
+                .ToList();
+
+            if ( connectionRequests.Count != connectionRequestIds.Count )
+            {
+                error = ActionBadRequest( $"{ConnectionRequest.FriendlyTypeName} not found." );
+            }
+
             bool userCanEditConnectionRequest = false;
             var opportunityIds = connectionRequests.Select( r => r.ConnectionOpportunityId )
                 .Distinct()
@@ -674,6 +709,11 @@ namespace Rock.Blocks.Engagement
                     return false;
 
                 } );
+            }
+
+            if ( !userCanEditConnectionRequest )
+            {
+                error = ActionBadRequest( $"Not authorized to edit ${ConnectionRequest.FriendlyTypeName}." );
             }
 
             return userCanEditConnectionRequest;
@@ -1002,64 +1042,186 @@ namespace Rock.Blocks.Engagement
             var connectionType = ConnectionTypeCache.Get( PageParameter( PageParameterKey.ConnectionType ), !PageCache.Layout.Site.DisablePredictableIds );
             if ( connectionType == null )
             {
-                // TODO - determine if we throw an exception
-                return ActionOk();
+                return ActionBadRequest( $"{Rock.Model.ConnectionType.FriendlyTypeName} not found." );
             }
 
-            var connectionRequestIds = connectionRequestIdKeys
-                .Select( key => Rock.Utility.IdHasher.Instance.GetId( key ) )
-                .Where( id => id.HasValue )
-                .Select( id => id.Value )
-                .ToList();
+            var canEditRequests = CanEditConnectionRequests( connectionType, connectionRequestIdKeys, out var connectionRequests, out var actionError );
 
-            List<ConnectionRequest> connectionRequests = null;
-
-            var canUpdateRequest = CanUpdateConnectionRequest( connectionRequestIds, connectionType, out connectionRequests );
-
-            if ( !canUpdateRequest )
+            if ( !canEditRequests )
             {
-                return ActionBadRequest( "Not authorized to reassign connector for one or more selected connection requests." );
+                return actionError;
             }
 
-            var newConnectorPersonAliasId = new PersonAliasService( RockContext ).GetId( connectorPersonAliasGuid.AsGuid() );
-            if ( !newConnectorPersonAliasId.HasValue )
-            {
-                return ActionBadRequest( "Invalid connector." );
-            }
+            var newConnectorPersonAlias = new PersonAliasService( RockContext ).GetInclude( connectorPersonAliasGuid.AsGuid(), c => c.Person );
 
-            if ( connectionRequests == null )
+            List<ConnectionListGridUpdateBag> gridUpdateBags = new List<ConnectionListGridUpdateBag>();
+            PersonFieldBag connectorPerson = null;
+
+            if ( newConnectorPersonAlias != null )
             {
-                connectionRequests = new ConnectionRequestService( RockContext ).GetByIds( connectionRequestIds ).ToList();
+                connectorPerson = new PersonFieldBag
+                {
+                    IdKey = newConnectorPersonAlias.Person.IdKey,
+                    NickName = newConnectorPersonAlias.Person.NickName,
+                    LastName = newConnectorPersonAlias.Person.LastName,
+                    PhotoUrl = newConnectorPersonAlias.Person.PhotoUrl
+                };
+
+                var connectionStatusValue = DefinedValueCache.Get( newConnectorPersonAlias.Person.ConnectionStatusValueId.Value );
+                if ( connectionStatusValue != null )
+                {
+                    connectorPerson.ConnectionStatus = connectionStatusValue.Value;
+                }
             }
 
             // Can't use Bulk Update becase we need the Save Hook logic to run.
             foreach ( var connectionRequest in connectionRequests )
             {
-                connectionRequest.ConnectorPersonAliasId = newConnectorPersonAliasId.Value;
+                connectionRequest.ConnectorPersonAliasId = newConnectorPersonAlias?.Id;
+
+                gridUpdateBags.Add( new ConnectionListGridUpdateBag
+                {
+                    IdKey = connectionRequest.IdKey,
+                    ConnectorGrouping = GetGroupingFieldBag( newConnectorPersonAlias?.Id, "person", newConnectorPersonAlias?.Person?.FullName, null, null, connectorPerson ),
+                    PersonFieldBag = connectorPerson
+                } );
             }
 
             RockContext.SaveChanges();
 
-            return ActionOk();
+            return ActionOk( gridUpdateBags );
+        }
+
+        [BlockAction]
+        public BlockActionResult UpdateRequestStatuses( List<ConnectionRequestUpdateBag> statusUpdateBags, List<string> completedRequestIdKeys )
+        {
+            var connectionType = ConnectionTypeCache.Get( PageParameter( PageParameterKey.ConnectionType ), !PageCache.Layout.Site.DisablePredictableIds );
+            if ( connectionType == null )
+            {
+                return ActionBadRequest( $"{Rock.Model.ConnectionType.FriendlyTypeName} not found." );
+            }
+
+            var allRequestIdKeys = statusUpdateBags.Select( r => r.ConnectionRequestIdKey )
+                .Concat( completedRequestIdKeys )
+                .Distinct()
+                .ToList();
+
+
+            var canEditRequests = CanEditConnectionRequests( connectionType, allRequestIdKeys, out var connectionRequests, out var actionError );
+
+            if ( !canEditRequests )
+            {
+                return actionError;
+            }
+
+            var connectionStatuses = new ConnectionStatusService( RockContext ).Queryable()
+                .AsNoTracking()
+                .Where( s => s.ConnectionTypeId == connectionType.Id )
+                .ToList();
+            var requestsByIdKey = connectionRequests.ToDictionary( r => r.IdKey );
+            var statusBagByIdKey = statusUpdateBags.ToDictionary( b => b.ConnectionRequestIdKey );
+            List<ConnectionListGridUpdateBag> gridUpdateBags = new List<ConnectionListGridUpdateBag>();
+
+            foreach ( var request in connectionRequests )
+            {
+                var currentStatus = connectionStatuses.Where( s => s.Id == request.ConnectionStatusId ).FirstOrDefault();
+
+                // If Completed request, then apply state update.
+                if ( completedRequestIdKeys.Contains( request.IdKey ) )
+                {
+                    request.ConnectionState = ConnectionState.Connected;
+
+
+                    gridUpdateBags.Add( new ConnectionListGridUpdateBag
+                    {
+                        IdKey = request.IdKey,
+                        StateGrouping = new GroupingFieldBag
+                        {
+                            Key = request.ConnectionState.ToString(),
+                            Type = "text",
+                            Label = request.ConnectionState.GetDescription(),
+                            IconCssClass = GetStateIconCssClass( request.ConnectionState ),
+                            Order = ( int ) request.ConnectionState
+                        },
+                        StatusGrouping = GetGroupingFieldBag( currentStatus.Id, "text", currentStatus.Name, currentStatus.Order ),
+                        ConnectionState = ( Rock.Enums.Connection.ConnectionState ) request.ConnectionState,
+                        ConnectionStatusBag = new ConnectionStatusBag
+                        {
+                            Guid = currentStatus.Guid,
+                            Order = currentStatus.Order,
+                            Name = currentStatus.Name,
+                            HighlightColor = currentStatus.HighlightColor,
+                            IsNoteRequiredOnCompletion = currentStatus.IsNoteRequiredOnCompletion
+                        }
+                    } );
+
+                    continue;
+                }
+                if ( !statusBagByIdKey.TryGetValue( request.IdKey, out var updateBag ) )
+                {
+                    continue;
+                }
+
+                var newStatus = connectionStatuses.Where( s => s.Guid == updateBag.ConnectionStatusGuid.AsGuid() ).FirstOrDefault();
+
+                if ( newStatus == null )
+                {
+                    return ActionBadRequest( $"{ConnectionStatus.FriendlyTypeName} not found." );
+                }
+
+                if ( currentStatus.IsNoteRequiredOnCompletion &&
+                        updateBag.Note.IsNullOrWhiteSpace() )
+                {
+                    return ActionBadRequest( "A note is required." );
+                }
+
+                request.ConnectionStatusId = newStatus.Id;
+                // TODO: attach note
+
+                gridUpdateBags.Add( new ConnectionListGridUpdateBag
+                {
+                    IdKey = request.IdKey,
+                    StateGrouping = new GroupingFieldBag
+                    {
+                        Key = request.ConnectionState.ToString(),
+                        Type = "text",
+                        Label = request.ConnectionState.GetDescription(),
+                        IconCssClass = GetStateIconCssClass( request.ConnectionState ),
+                        Order = ( int ) request.ConnectionState
+                    },
+                    StatusGrouping = GetGroupingFieldBag( newStatus.Id, "text", newStatus.Name, newStatus.Order ),
+                    ConnectionState = ( Rock.Enums.Connection.ConnectionState ) request.ConnectionState,
+                    ConnectionStatusBag = new ConnectionStatusBag
+                    {
+                        Guid = newStatus.Guid,
+                        Order = newStatus.Order,
+                        Name = newStatus.Name,
+                        HighlightColor = newStatus.HighlightColor,
+                        IsNoteRequiredOnCompletion = newStatus.IsNoteRequiredOnCompletion
+                    }
+                } );
+            }
+
+            RockContext.SaveChanges();
+
+            return ActionOk( gridUpdateBags );
         }
 
         [BlockAction]
         public BlockActionResult ChangeRequestStatus( ConnectionRequestUpdateBag bag )
         {
-            var connectionRequest = new ConnectionRequestService( RockContext ).GetInclude( bag.ConnectionRequestIdKey, c => c.ConnectionStatus, !PageCache.Layout.Site.DisablePredictableIds );
-            if ( connectionRequest == null )
+            var connectionType = ConnectionTypeCache.Get( PageParameter( PageParameterKey.ConnectionType ), !PageCache.Layout.Site.DisablePredictableIds );
+            if ( connectionType == null )
             {
-                // TODO - determine if we throw an exception
-                return ActionOk();
+                return ActionBadRequest( $"{Rock.Model.ConnectionType.FriendlyTypeName} not found." );
             }
 
-            // TODO - Security
-            //var canUpdateRequest = CanUpdateConnectionRequest( connectionRequestIds, connectionType, out connectionRequests );
+            var canEditRequest = CanEditConnectionRequest( connectionType, bag.ConnectionRequestIdKey, out var connectionRequest, out var actionError );
 
-            //if ( !canUpdateRequest )
-            //{
-            //    return ActionBadRequest( "Not authorized to reassign connector for one or more selected connection requests." );
-            //}
+            if ( !canEditRequest )
+            {
+                return actionError;
+            }
 
             var connectionRequestStatus = new ConnectionStatusService( RockContext ).Get( bag.ConnectionStatusGuid );
             if ( connectionRequestStatus == null || connectionRequestStatus.ConnectionTypeId != connectionRequest.ConnectionTypeId )
@@ -1077,9 +1239,10 @@ namespace Rock.Blocks.Engagement
 
             RockContext.SaveChanges();
 
-            var gridUpdateBag = new GridUpdateBag
+            var gridUpdateBag = new ConnectionListGridUpdateBag
             {
-                GroupingFieldBag = GetGroupingFieldBag( connectionRequestStatus.Id, "text", connectionRequestStatus.Name, connectionRequestStatus.Order ),
+                IdKey = connectionRequest.IdKey,
+                StatusGrouping = GetGroupingFieldBag( connectionRequestStatus.Id, "text", connectionRequestStatus.Name, connectionRequestStatus.Order ),
                 ConnectionStatusBag = new ConnectionStatusBag
                 {
                     Guid = connectionRequestStatus.Guid,
@@ -1096,28 +1259,28 @@ namespace Rock.Blocks.Engagement
         [BlockAction]
         public BlockActionResult ChangeRequestState( ConnectionRequestUpdateBag bag )
         {
-            var connectionRequest = new ConnectionRequestService( RockContext ).Get( bag.ConnectionRequestIdKey, !PageCache.Layout.Site.DisablePredictableIds );
-            if ( connectionRequest == null )
+            var connectionType = ConnectionTypeCache.Get( PageParameter( PageParameterKey.ConnectionType ), !PageCache.Layout.Site.DisablePredictableIds );
+            if ( connectionType == null )
             {
-                // TODO - determine if we throw an exception
-                return ActionOk();
+                return ActionBadRequest( $"{Rock.Model.ConnectionType.FriendlyTypeName} not found." );
             }
 
-            // TODO - Security
-            //var canUpdateRequest = CanUpdateConnectionRequest( connectionRequestIds, connectionType, out connectionRequests );
+            var canEditRequest = CanEditConnectionRequest( connectionType, bag.ConnectionRequestIdKey, out var connectionRequest, out var actionError );
 
-            //if ( !canUpdateRequest )
-            //{
-            //    return ActionBadRequest( "Not authorized to reassign connector for one or more selected connection requests." );
-            //}
+            if ( !canEditRequest )
+            {
+                return actionError;
+            }
 
-            connectionRequest.ConnectionState = ( ConnectionState ) bag.ConnectionState;
+            // Default to Active state.
+            connectionRequest.ConnectionState = ( ConnectionState ) ( bag.ConnectionState ?? Rock.Enums.Connection.ConnectionState.Active );
 
             RockContext.SaveChanges();
 
-            var gridUpdateBag = new GridUpdateBag
+            var gridUpdateBag = new ConnectionListGridUpdateBag
             {
-                GroupingFieldBag = new GroupingFieldBag
+                IdKey = connectionRequest.IdKey,
+                StateGrouping = new GroupingFieldBag
                 {
                     Key = connectionRequest.ConnectionState.ToString(),
                     Type = "text",

@@ -15,23 +15,21 @@
 // </copyright>
 //
 
-using System;
-
-using Rock.Enums.Connection;
-using Rock.ViewModels.Core.Grid;
-using Rock.ViewModels.Utility;
-
 namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
 {
     /// <summary>
     /// 
     /// </summary>
-    public class GridUpdateBag
+    public class LogActivityBag
     {
-        public GroupingFieldBag GroupingFieldBag { get; set; }
+        public string ConnectionRequestIdKey { get; set; }
 
-        public ConnectionStatusBag ConnectionStatusBag { get; set; }
+        public string ActivityTypeGuid { get; set; }
 
-        public ConnectionState ConnectionState { get; set; }
+        public string ConnectorPersonAliasGuid { get; set; }
+
+        public string Note { get; set; }
+
+        public bool AddPersonNote { get; set; }
     }
 }

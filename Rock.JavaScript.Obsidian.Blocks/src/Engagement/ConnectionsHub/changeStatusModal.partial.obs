@@ -2,7 +2,8 @@
 <template>
     <Modal v-model="isVisible"
            :title="title"
-           saveText="Save">
+           saveText="Save"
+           @save="onSave">
         <NotificationBox v-if="isSequentialMode"
                          alertType="info"
                          heading="Sequential Mode">
@@ -43,6 +44,7 @@
     import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
     import { ViewOptions } from "./types.partial";
     import { ConnectionStatusBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionStatusBag";
+    import { ConnectionRequestUpdateBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionRequestUpdateBag";
 
     const props = defineProps({
         visible: {
@@ -73,6 +75,7 @@
 
     const emit = defineEmits<{
         (e: "update:visible", value: boolean): void;
+        (e: "updateStatus", bag: ConnectionRequestUpdateBag): void;
         (e: "close"): void;
     }>();
 
@@ -92,9 +95,23 @@
         );
     });
 
-    const isNoteRequired = computed(() => props.connectionStatuses.find(a => a.guid === status.value)?.isNoteRequiredOnCompletion ? "required" : "");
+    const isNoteRequired = computed(() => {
+        if (props.isSequentialMode) {
+            return props.selectedRequestDetails.some(s => s.connectionStatus?.isNoteRequiredOnCompletion) ? "required" : "";
+        }
+        return props.connectionStatuses.find(a => a.guid === status.value)?.isNoteRequiredOnCompletion ? "required" : "";
+    });
 
     const title = computed(() => props.isSequentialMode ? "Advance to Next Status" : "Change Status");
+
+    function onSave(): void {
+        const bag: ConnectionRequestUpdateBag = {
+            connectionStatusGuid: status.value,
+            note: note.value
+        };
+
+        emit("updateStatus", bag);
+    }
 
     watch(isVisible, () => {
         errorMessage.value = "";

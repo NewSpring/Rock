@@ -310,7 +310,8 @@
     <AssignRequestModal v-model:visible="isAssignRequestModalVisible"
                         :connectorItems="allPossibleConnectors"
                         :selectedRequestDetails="selectedRequestDetails"
-                        :viewOptions="viewOptions" />
+                        :viewOptions="viewOptions"
+                        @updateConnector="reassignConnector" />
     <ChangeStateModal v-model:visible="isChangeStateModalVisible"
                       :connectionState="changeStateTo"
                       :selectedRequestDetails="selectedRequestDetails"
@@ -330,7 +331,8 @@
                        :connectionStatuses="box.options?.connectionStatuses ?? []"
                        :isSequentialMode="box.options?.isSequentialStatusMode ?? false"
                        :selectedRequestDetails="selectedRequestDetails"
-                       :viewOptions="viewOptions" />
+                       :viewOptions="viewOptions"
+                       @updateStatus="updateStatusFromModal" />
     <LaunchWorkflowModal v-model:visible="isLaunchWorkflowModalVisible"
                          :workflowItems="box.options?.workflowItems ?? []"
                          :selectedRequestDetails="selectedRequestDetails"
@@ -511,7 +513,7 @@
     import TextBox from "@Obsidian/Controls/textBox.obs";
     import { BtnType } from "@Obsidian/Enums/Controls/btnType";
     import { BtnSize } from "@Obsidian/Enums/Controls/btnSize";
-    import { GridUpdateBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/gridUpdateBag";
+    import { ConnectionListGridUpdateBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionListGridUpdateBag";
     import ChangeStatusFlyout from "./ConnectionsHub/changeStatusFlyout.partial.obs";
     import { ConnectionRequestUpdateBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionRequestUpdateBag";
     import { ConnectionCampaignBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionCampaignBag";
@@ -580,7 +582,7 @@
     });
     const isViewOptionsModalVisible = ref(false);
 
-    const assignTo = ref();
+    // TODO - consider computing this and filtering by opportunity selection.
     const allPossibleConnectors = ref(box.options?.allPossibleConnectors ?? []);
 
     // Holds the raw grid data returned from the server
@@ -1107,6 +1109,53 @@
         isLaunchWorkflowModalVisible.value = true;
     }
 
+    function updateStatusFromModal(bag: ConnectionRequestUpdateBag): void {
+        const statusUpdateBags: ConnectionRequestUpdateBag[] = [];
+        const completedRequests: string[] = [];
+
+        if (box.options?.isSequentialStatusMode) {
+            const statusIndexByGuid = new Map(
+                connectionStatusItems.value.map((s, i) => [s.value, i])
+            );
+
+            const lastStatusIndex = connectionStatusItems.value.length - 1;
+
+
+            for (const request of selectedRequestDetails.value) {
+                const currentIndex = statusIndexByGuid.get(request.connectionStatus?.guid);
+                if (currentIndex === undefined || isNullOrWhiteSpace(request.idKey)) {
+                    continue;
+                }
+
+                // Last sequential status then update state to Connected
+                if (currentIndex === lastStatusIndex) {
+                    completedRequests.push(request.idKey!);
+                    continue;
+                }
+
+                // Otherwise next sequential status
+                const nextStatus = connectionStatusItems.value[currentIndex + 1];
+
+                statusUpdateBags.push({
+                    connectionRequestIdKey: request.idKey,
+                    connectionStatusGuid: nextStatus.value,
+                    note: bag.note
+                });
+            }
+        }
+        else {
+            for (const key of allSelectedKeys.value) {
+                statusUpdateBags.push({
+                    connectionRequestIdKey: key,
+                    connectionStatusGuid: bag.connectionStatusGuid,
+                    note: bag.note
+                });
+            }
+        }
+
+        updateRequestStatuses(statusUpdateBags, completedRequests);
+    }
+
     async function showAddFromCampaignModal(): Promise<void> {
         isAddFromCampaignModalVisible.value = true;
 
@@ -1156,15 +1205,49 @@
         // });
     }
 
+    async function updateRequestStatuses(statusUpdateBags: ConnectionRequestUpdateBag[], completedRequestIdKeys: string[]): Promise<void> {
+        const result = await invokeBlockAction<ConnectionListGridUpdateBag[]>("UpdateRequestStatuses", {
+            statusUpdateBags: statusUpdateBags,
+            completedRequestIdKeys: completedRequestIdKeys
+        });
+
+        if (result.isSuccess && result.data) {
+            const rowsByIdKey = new Map(
+                gridData.value?.rows?.map(r => [r.idKey, r])
+            );
+
+            for (const updateBag of result.data) {
+                const row = rowsByIdKey.get(updateBag.idKey);
+                if (!row) {
+                    continue;
+                }
+
+                row.stateGrouping = updateBag.stateGrouping;
+                row.statusGrouping = updateBag.statusGrouping;
+                row.connectionStatus = updateBag.connectionStatusBag;
+                row.connectionState = updateBag.connectionState;
+            }
+
+            // clear selected keys
+            // TODO - Ask Jon if this should happen.
+            clearAllSelections();
+
+            isChangeStatusModalVisible.value = false;
+            return;
+        }
+
+        console.error(result.errorMessage);
+    }
+
     async function changeRequestStatus(bag: ConnectionRequestUpdateBag): Promise<void> {
-        const result = await invokeBlockAction<GridUpdateBag>("ChangeRequestStatus", {
+        const result = await invokeBlockAction<ConnectionListGridUpdateBag>("ChangeRequestStatus", {
             bag
         });
 
         if (result.isSuccess && result.data) {
             const row = gridData.value?.rows?.find(r => r.idKey === bag.connectionRequestIdKey);
             if (row) {
-                row.statusGrouping = result.data.groupingFieldBag;
+                row.statusGrouping = result.data.statusGrouping;
                 row.connectionStatus = result.data.connectionStatusBag;
             }
             isFlyoutOpen.value = false;
@@ -1173,14 +1256,14 @@
     }
 
     async function changeRequestState(bag: ConnectionRequestUpdateBag): Promise<void> {
-        const result = await invokeBlockAction<GridUpdateBag>("ChangeRequestState", {
+        const result = await invokeBlockAction<ConnectionListGridUpdateBag>("ChangeRequestState", {
             bag
         });
 
         if (result.isSuccess && result.data) {
             const row = gridData.value?.rows?.find(r => r.idKey === bag.connectionRequestIdKey);
             if (row) {
-                row.stateGrouping = result.data.groupingFieldBag;
+                row.stateGrouping = result.data.stateGrouping;
                 row.connectionState = result.data.connectionState;
             }
             isFlyoutOpen.value = false;
@@ -1227,14 +1310,32 @@
         console.error(result.errorMessage);
     }
 
-    async function reassignConnector(): Promise<void> {
-        const result = await invokeBlockAction("ReassignConnector", {
+    async function reassignConnector(connector: string): Promise<void> {
+        const result = await invokeBlockAction<ConnectionListGridUpdateBag[]>("ReassignConnector", {
             connectionRequestIdKeys: allSelectedKeys.value,
-            connectorPersonAliasGuid: assignTo.value
+            connectorPersonAliasGuid: connector
         });
 
-        if (result.isSuccess) {
-            loadGridData();
+        if (result.isSuccess && result.data) {
+            const rowsByIdKey = new Map(
+                gridData.value?.rows?.map(r => [r.idKey, r])
+            );
+
+            for (const updateBag of result.data) {
+                const row = rowsByIdKey.get(updateBag.idKey);
+                if (!row) {
+                    continue;
+                }
+
+                row.connectorGrouping = updateBag.connectorGrouping;
+                row.connectorDetails = updateBag.personFieldBag;
+            }
+
+            // clear selected keys
+            // TODO - Ask Jon if this should happen.
+            clearAllSelections();
+
+            isAssignRequestModalVisible.value = false;
             return;
         }
 

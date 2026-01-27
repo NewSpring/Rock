@@ -21,18 +21,14 @@
 // </copyright>
 //
 
-import { ConnectionState } from "@Obsidian/Enums/Connection/connectionState";
+export type LogActivityBag = {
+    activityTypeGuid?: string | null;
 
-export type ConnectionRequestUpdateBag = {
+    addPersonNote: boolean;
+
     connectionRequestIdKey?: string | null;
 
-    connectionState?: ConnectionState | null;
-
-    connectionStatusGuid?: string | null;
-
     connectorPersonAliasGuid?: string | null;
-
-    followUpDate?: string | null;
 
     note?: string | null;
 };

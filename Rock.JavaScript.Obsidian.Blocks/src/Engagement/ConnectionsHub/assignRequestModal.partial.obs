@@ -2,7 +2,8 @@
 <template>
     <Modal v-model="isVisible"
            :title="title"
-           saveText="Save">
+           saveText="Save"
+           @save="onSave">
         <div class="row">
             <div class="col-md-4">
                 <DropDownList v-model="connector"
@@ -53,6 +54,7 @@
 
     const emit = defineEmits<{
         (e: "update:visible", value: boolean): void;
+        (e: "updateConnector", value: string): void;
         (e: "close"): void;
     }>();
 
@@ -63,6 +65,10 @@
     const connector = ref();
 
     const title = computed(() => `Assign ${pluralize("Request", props.selectedRequestDetails.length)}`);
+
+    function onSave(): void {
+        emit("updateConnector", connector.value);
+    }
 
     watch(isVisible, () => {
         errorMessage.value = "";
