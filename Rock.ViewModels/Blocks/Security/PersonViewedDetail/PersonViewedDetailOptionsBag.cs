@@ -22,8 +22,6 @@ namespace Rock.ViewModels.Blocks.Security.PersonViewedList
     /// </summary>
     public class PersonViewedDetailOptionsBag
     {
-        public string TargetPersonName { get; set; }
-        public string ViewerPersonName { get; set; }
         public string Title { get; set; }
     }
 }

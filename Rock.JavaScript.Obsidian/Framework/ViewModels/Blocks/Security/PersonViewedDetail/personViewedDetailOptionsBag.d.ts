@@ -23,8 +23,6 @@
 
 /** The additional configuration options for the Person Viewed List block. */
 export type PersonViewedDetailOptionsBag = {
-    targetPersonName: string,
-    viewerPersonName: string,
     title: string
 };
 
