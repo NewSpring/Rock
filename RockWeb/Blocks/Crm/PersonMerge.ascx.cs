@@ -607,7 +607,11 @@ namespace RockWeb.Blocks.Crm
                             primaryPerson.SuffixValueId = GetNewIntValue( "Suffix" );
                         }
 
-                        primaryPerson.LastName = GetNewStringValue( "LastName" );
+                        // Record the original last name to the PreviousNames (if it's changed).
+                        var newLastName = GetNewStringValue( "LastName" );
+                        RecordPreviousLastName( primaryPerson.LastName, newLastName, primaryPerson.Id, primaryPerson.PrimaryAliasId, rockContext );
+
+                        primaryPerson.LastName = newLastName;
                         primaryPerson.RecordTypeValueId = GetNewIntValue( "RecordType" );
                         primaryPerson.RecordStatusValueId = GetNewIntValue( "RecordStatus" );
                         primaryPerson.RecordStatusReasonValueId = GetNewIntValue( "RecordStatusReason" );
@@ -981,6 +985,37 @@ namespace RockWeb.Blocks.Crm
             }
 
             NavigateToLinkedPage( AttributeKey.PersonDetailPage, isBusiness ? "BusinessId" : "PersonId", primaryPersonId.Value );
+        }
+
+        /// <summary>
+        /// Record the old lastname if it's different than the new lastname and if it's not already in the person's list of
+        /// previous names.
+        /// </summary>
+        /// <param name="originalLastName"></param>
+        /// <param name="newLastName"></param>
+        /// <param name="primaryPersonId"></param>
+        /// <param name="primaryPersonAliasId"></param>
+        /// <param name="rockContext"></param>
+        private void RecordPreviousLastName( string originalLastName, string newLastName, int primaryPersonId, int? primaryPersonAliasId, RockContext rockContext )
+        {
+            if ( string.Equals( originalLastName, newLastName, StringComparison.OrdinalIgnoreCase ) || ! primaryPersonAliasId.HasValue)
+            {
+                return;
+            }
+
+            var personPreviousNameService = new PersonPreviousNameService( rockContext );
+            var isThatLastNameAlreadyRecorded = personPreviousNameService.Queryable().AsNoTracking().Any(
+                a => a.PersonAlias.PersonId == primaryPersonId
+                && a.LastName.ToLower() == originalLastName.ToLower()
+            );
+
+            if ( isThatLastNameAlreadyRecorded )
+            {
+                return;
+            }
+
+            // Otherwise add it
+            personPreviousNameService.Add( new PersonPreviousName { LastName = originalLastName, PersonAliasId = primaryPersonAliasId.Value, Guid = Guid.NewGuid() } );
         }
 
         /// <summary>
