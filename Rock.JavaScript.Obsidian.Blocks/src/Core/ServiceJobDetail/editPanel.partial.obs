@@ -86,7 +86,6 @@
     import { ServiceJobBag } from "@Obsidian/ViewModels/Blocks/Core/ServiceJobDetail/serviceJobBag";
     import { ServiceJobDetailOptionsBag } from "@Obsidian/ViewModels/Blocks/Core/ServiceJobDetail/serviceJobDetailOptionsBag";
     import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
-    import { useSuspense } from "@Obsidian/Utility/suspense";
 
     const props = defineProps({
         modelValue: {
@@ -109,8 +108,6 @@
         (e: "update:modelValue", value: ServiceJobBag): void,
         (e: "propertyChanged", value: string): void
     }>();
-
-    const suspense = useSuspense();
 
     // #region Values
 
@@ -147,11 +144,11 @@
 
     // #region Functions
 
-    async function updateCronDescription(): Promise<void> {
-        cronDescription.value = await getCronDescription(cronExpression.value);
+    function updateCronDescription(): void {
+        cronDescription.value = getCronDescription(cronExpression.value);
     }
 
-    async function getCronDescription(value: string): Promise<string> {
+    function getCronDescription(value: string): string {
         if (value) {
             try {
                 return Cron.toString(value);
@@ -229,10 +226,5 @@
     // automatically emit which property changed.
     watchPropertyChanges(propRefs, emit);
 
-    if (suspense) {
-        suspense.addOperation(updateCronDescription());
-    }
-    else {
-        updateCronDescription();
-    }
+    updateCronDescription();
 </script>
