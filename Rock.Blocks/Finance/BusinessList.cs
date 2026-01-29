@@ -37,12 +37,18 @@ namespace Rock.Blocks.Finance
     [Category( "Finance" )]
     [Description( "Displays a list of businesses." )]
     [IconCssClass( "ti ti-building" )]
+    [SupportedSiteTypes( Model.SiteType.Web )]
+
+    #region Block Attributes
 
     [LinkedPage( "Detail Page",
         Description = "The page that will show the business details.",
         Key = AttributeKey.DetailPage )]
 
-    [Rock.SystemGuid.BlockTypeGuid( "1e60c390-98c4-404d-aee8-f9e3e9c69705" )]
+    #endregion Block Attributes
+
+    [Rock.SystemGuid.BlockTypeGuid( "1ACCF349-73A5-4568-B801-2A6A620791D9" )]
+    // was [Rock.SystemGuid.BlockTypeGuid( "1e60c390-98c4-404d-aee8-f9e3e9c69705" )]
     [CustomizedGrid]
     [Rock.SystemGuid.EntityTypeGuid( "1214E9D9-3D0C-49AD-BD99-58C427A8A7D2" )]
     public class BusinessList : RockListBlockType<BusinessListBag>
@@ -154,25 +160,30 @@ namespace Rock.Blocks.Finance
                 businessQueryable = searchTerm.IsSingleSpecialCharacter() ? Enumerable.Empty<Person>().AsQueryable() : businessQueryable.Where( p => p.LastName.Contains( searchTerm ) );
             }
 
-            // Project the data to BusinessListBag
-            return businessQueryable.Select( p => new BusinessListBag
-            {
-                Id = p.Id,
-                BusinessName = p.LastName,
-                Email = p.Email,
-                Phone = p.PhoneNumbers.FirstOrDefault() != null ? p.PhoneNumbers.FirstOrDefault().NumberFormatted : string.Empty,
-                Street = p.GivingGroup.GroupLocations.Any( gl => gl.GroupLocationTypeValueId == workLocationTypeId ) ? p.GivingGroup.GroupLocations.FirstOrDefault( gl => gl.GroupLocationTypeValueId == workLocationTypeId ).Location.Street1 : string.Empty,
-                City = p.GivingGroup.GroupLocations.Any( gl => gl.GroupLocationTypeValueId == workLocationTypeId ) ? p.GivingGroup.GroupLocations.FirstOrDefault( gl => gl.GroupLocationTypeValueId == workLocationTypeId ).Location.City : string.Empty,
-                State = p.GivingGroup.GroupLocations.Any( gl => gl.GroupLocationTypeValueId == workLocationTypeId ) ? p.GivingGroup.GroupLocations.FirstOrDefault( gl => gl.GroupLocationTypeValueId == workLocationTypeId ).Location.State : string.Empty,
-                Zip = p.GivingGroup.GroupLocations.Any( gl => gl.GroupLocationTypeValueId == workLocationTypeId ) ? p.GivingGroup.GroupLocations.FirstOrDefault( gl => gl.GroupLocationTypeValueId == workLocationTypeId ).Location.PostalCode : string.Empty,
-                Campus = new ListItemBag { Value = p.PrimaryCampus.Id.ToString(), Text = p.PrimaryCampus.Name },
-                Contacts = p.Members
-                       .Where( m => m.Group.GroupTypeId == groupTypeIdKnownRelationships )
-                       .SelectMany( m => m.Group.Members )
-                       .Where( member => member.GroupRoleId == groupTypeRoleIdKnownRelationshipsOwner && member.PersonId != p.Id )
-                       .Select( member => member.Person.LastName + ", " + member.Person.NickName )
-                       .ToList()
-            } );
+            // Materialize the queryable so we can obtain the IdKeys
+            var business = businessQueryable.ToList()
+                .Select( p => new BusinessListBag
+                {
+                    Id = p.Id,
+                    IdKey = p.IdKey,
+                    BusinessName = p.LastName,
+                    Email = p.Email,
+                    Phone = p.PhoneNumbers.FirstOrDefault() != null ? p.PhoneNumbers.FirstOrDefault().NumberFormatted : string.Empty,
+                    Street = p.GivingGroup.GroupLocations.Any( gl => gl.GroupLocationTypeValueId == workLocationTypeId ) ? p.GivingGroup.GroupLocations.FirstOrDefault( gl => gl.GroupLocationTypeValueId == workLocationTypeId ).Location.Street1 : string.Empty,
+                    City = p.GivingGroup.GroupLocations.Any( gl => gl.GroupLocationTypeValueId == workLocationTypeId ) ? p.GivingGroup.GroupLocations.FirstOrDefault( gl => gl.GroupLocationTypeValueId == workLocationTypeId ).Location.City : string.Empty,
+                    State = p.GivingGroup.GroupLocations.Any( gl => gl.GroupLocationTypeValueId == workLocationTypeId ) ? p.GivingGroup.GroupLocations.FirstOrDefault( gl => gl.GroupLocationTypeValueId == workLocationTypeId ).Location.State : string.Empty,
+                    Zip = p.GivingGroup.GroupLocations.Any( gl => gl.GroupLocationTypeValueId == workLocationTypeId ) ? p.GivingGroup.GroupLocations.FirstOrDefault( gl => gl.GroupLocationTypeValueId == workLocationTypeId ).Location.PostalCode : string.Empty,
+                    Campus = new ListItemBag { Value = p.PrimaryCampus.Id.ToString(), Text = p.PrimaryCampus.Name },
+                    Contacts = p.Members
+                           .Where( m => m.Group.GroupTypeId == groupTypeIdKnownRelationships )
+                           .SelectMany( m => m.Group.Members )
+                           .Where( member => member.GroupRoleId == groupTypeRoleIdKnownRelationshipsOwner && member.PersonId != p.Id )
+                           .Select( member => member.Person.LastName + ", " + member.Person.NickName )
+                           .ToList()
+                } )
+                .AsQueryable();
+
+            return business;
         }
 
         protected override GridBuilder<BusinessListBag> GetGridBuilder()
