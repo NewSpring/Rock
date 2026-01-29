@@ -4255,8 +4255,19 @@ namespace Rock.Lava
             shortLink.CategoryId = categoryId;
             shortLink.IsPinned = isPinned;
 
-            if ( expireInDays.HasValue && expireInDays.Value >= 0 )
+            if ( expireInDays.HasValue )
             {
+                /*
+                    1/29/2026 - JMH
+
+                    Negative values are allowed for the "Link Expiration" setting and indicate that the short link
+                    has already expired. An individual may set a negative expiration value intentionally
+                    to have the short link expire immediately.
+
+                    These expired links are still eligible for automatic cleanup by the Rock Cleanup job.
+
+                    Reason: Preserve the ability to edit expired short links without forcing a reset of the expiration logic.
+                */
                 shortLink.ExpireDate = RockDateTime.Today.AddDays( expireInDays.Value );
             }
 

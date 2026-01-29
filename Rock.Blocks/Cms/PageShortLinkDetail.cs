@@ -382,8 +382,20 @@ namespace Rock.Blocks.Cms
 
             box.IfValidProperty( nameof( box.Bag.ExpireInDays ), () =>
             {
-                if ( box.Bag.ExpireInDays.HasValue && box.Bag.ExpireInDays.Value >= 0 )
+                if ( box.Bag.ExpireInDays.HasValue )
                 {
+                    /*
+                        1/29/2026 - JMH
+
+                        Negative values are allowed for the "Link Expiration" setting and indicate that the short link
+                        has already expired. This situation occurs when an individual edits an expired short link
+                        but does not modify the expiration value, which remains negative. An individual may also set
+                        a negative expiration value intentionally to have the short link expire immediately.
+
+                        These expired links are still eligible for automatic cleanup by the Rock Cleanup job.
+
+                        Reason: Preserve the ability to edit expired short links without forcing a reset of the expiration logic.
+                    */
                     entity.ExpireDate = RockDateTime.Today.AddDays( box.Bag.ExpireInDays.Value );
                 }
                 else

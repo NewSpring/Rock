@@ -98,10 +98,10 @@ namespace Rock.Workflow.Action
         Order = 7 )]
 
     [IntegerField(
-        "Expire In Days",
+        "Link Expiration",
         Description = "Sets the number of days before the short link expires. Once expired, the link and its tracking data will be permanently deleted. Leave blank for no expiration.",
         IsRequired = false,
-        Key = AttributeKey.ExpireInDays,
+        Key = AttributeKey.LinkExpiration,
         Order = 8 )]
 
     [Rock.SystemGuid.EntityTypeGuid( "AA995907-DAC1-4B7A-ACEF-AEC6CD057E72")]
@@ -114,7 +114,7 @@ namespace Rock.Workflow.Action
         /// </summary>
         private class AttributeKey
         {
-            public const string ExpireInDays = "ExpireInDays";
+            public const string LinkExpiration = "LinkExpiration";
             public const string Site = "Site";
             public const string Token = "Token";
             public const string RandomTokenLength = "RandomTokenLength";
@@ -182,8 +182,20 @@ namespace Rock.Workflow.Action
 
             var isPinned = GetAttributeValue( action, AttributeKey.IsPinned, true ).AsBoolean();
 
-            var expireInDays = GetAttributeValue( action, AttributeKey.ExpireInDays, true ).AsIntegerOrNull();
-            var expireDate = expireInDays.HasValue && expireInDays.Value >= 0
+            var expireInDays = GetAttributeValue( action, AttributeKey.LinkExpiration, true ).AsIntegerOrNull();
+            /*
+                1/29/2026 - JMH
+
+                Negative values are allowed for the "Link Expiration" setting and indicate that the short link
+                has already expired. This situation occurs when an individual edits an expired short link
+                but does not modify the expiration value, which remains negative. An individual may also set
+                a negative expiration value intentionally to have the short link expire immediately.
+
+                These expired links are still eligible for automatic cleanup by the Rock Cleanup job.
+
+                Reason: Preserve the ability to edit expired short links without forcing a reset of the expiration logic.
+            */
+            var expireDate = expireInDays.HasValue
                 ? RockDateTime.Today.AddDays( expireInDays.Value )
                 : ( DateTime? )null;
 
