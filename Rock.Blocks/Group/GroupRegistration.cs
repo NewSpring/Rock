@@ -396,6 +396,7 @@ namespace Rock.Blocks.Group
                         if ( homePhone != null )
                         {
                             box.Entity.HomePhone = homePhone.Number;
+                            box.Entity.HomePhoneCountryCode = homePhone.CountryCode;
                         }
 
                         Guid cellPhoneType = Rock.SystemGuid.DefinedValue.PERSON_PHONE_TYPE_MOBILE.AsGuid();
@@ -403,6 +404,7 @@ namespace Rock.Blocks.Group
                         if ( cellPhone != null )
                         {
                             box.Entity.MobilePhone = cellPhone.Number;
+                            box.Entity.MobilePhoneCountryCode = cellPhone.CountryCode;
                             box.Entity.IsMessagingEnabled = cellPhone.IsMessagingEnabled;
                         }
 
@@ -433,6 +435,7 @@ namespace Rock.Blocks.Group
                                 if ( spouseCellPhone != null )
                                 {
                                     box.Entity.SpouseMobilePhone = spouseCellPhone.Number;
+                                    box.Entity.SpouseMobilePhoneCountryCode = spouseCellPhone.CountryCode;
                                     box.Entity.SpouseIsMessagingEnabled = spouseCellPhone.IsMessagingEnabled;
                                 }
                             }
@@ -516,9 +519,10 @@ namespace Rock.Blocks.Group
         /// <param name="rockContext">The rock context.</param>
         /// <param name="person">The person.</param>
         /// <param name="pnbNumber">The PNB number.</param>
+        /// <param name="countryCode">The country code.</param>
         /// <param name="enableSms">The cb SMS.</param>
         /// <param name="phoneTypeGuid">The phone type unique identifier.</param>
-        private void SetPhoneNumber( RockContext rockContext, Person person, string pnbNumber, bool enableSms, Guid phoneTypeGuid )
+        private void SetPhoneNumber( RockContext rockContext, Person person, string pnbNumber, string countryCode, bool enableSms, Guid phoneTypeGuid )
         {
             var phoneType = DefinedValueCache.Get( phoneTypeGuid );
             if ( phoneType == null )
@@ -527,7 +531,7 @@ namespace Rock.Blocks.Group
             }
 
             var phoneNumber = person.PhoneNumbers.FirstOrDefault( n => n.NumberTypeValueId == phoneType.Id ) ?? new PhoneNumber { NumberTypeValueId = phoneType.Id };
-            phoneNumber.CountryCode = PhoneNumber.CleanNumber( Rock.Model.PhoneNumber.DefaultCountryCode() );
+            phoneNumber.CountryCode = PhoneNumber.CleanNumber( countryCode );
             phoneNumber.Number = PhoneNumber.CleanNumber( pnbNumber );
 
             if ( string.IsNullOrWhiteSpace( phoneNumber.Number ) )
@@ -785,11 +789,11 @@ namespace Rock.Blocks.Group
                 {
                     if ( !string.IsNullOrWhiteSpace( groupRegistrationBag.HomePhone ) )
                     {
-                        SetPhoneNumber( rockContext, person, groupRegistrationBag.HomePhone, false, Rock.SystemGuid.DefinedValue.PERSON_PHONE_TYPE_HOME.AsGuid() );
+                        SetPhoneNumber( rockContext, person, groupRegistrationBag.HomePhone, groupRegistrationBag.HomePhoneCountryCode, false, Rock.SystemGuid.DefinedValue.PERSON_PHONE_TYPE_HOME.AsGuid() );
                     }
                     if ( !string.IsNullOrWhiteSpace( groupRegistrationBag.MobilePhone ) )
                     {
-                        SetPhoneNumber( rockContext, person, groupRegistrationBag.MobilePhone, groupRegistrationBag.IsMessagingEnabled, Rock.SystemGuid.DefinedValue.PERSON_PHONE_TYPE_MOBILE.AsGuid() );
+                        SetPhoneNumber( rockContext, person, groupRegistrationBag.MobilePhone, groupRegistrationBag.MobilePhoneCountryCode, groupRegistrationBag.IsMessagingEnabled, Rock.SystemGuid.DefinedValue.PERSON_PHONE_TYPE_MOBILE.AsGuid() );
                     }
 
                     if ( !string.IsNullOrWhiteSpace( groupRegistrationBag.Address?.Street1 ) )
@@ -870,13 +874,13 @@ namespace Rock.Blocks.Group
 
                         if ( !isSpouseMatch || !string.IsNullOrWhiteSpace( groupRegistrationBag.HomePhone ) )
                         {
-                            SetPhoneNumber( rockContext, spouse, groupRegistrationBag.HomePhone, false, Rock.SystemGuid.DefinedValue.PERSON_PHONE_TYPE_HOME.AsGuid() );
+                            SetPhoneNumber( rockContext, spouse, groupRegistrationBag.HomePhone, groupRegistrationBag.HomePhoneCountryCode, false, Rock.SystemGuid.DefinedValue.PERSON_PHONE_TYPE_HOME.AsGuid() );
                         }
 
                         if ( !isSpouseMatch || !string.IsNullOrWhiteSpace( groupRegistrationBag.SpouseMobilePhone ) )
                         {
 
-                            SetPhoneNumber( rockContext, spouse, groupRegistrationBag.SpouseMobilePhone, groupRegistrationBag.SpouseIsMessagingEnabled, Rock.SystemGuid.DefinedValue.PERSON_PHONE_TYPE_MOBILE.AsGuid() );
+                            SetPhoneNumber( rockContext, spouse, groupRegistrationBag.SpouseMobilePhone, groupRegistrationBag.SpouseMobilePhoneCountryCode, groupRegistrationBag.SpouseIsMessagingEnabled, Rock.SystemGuid.DefinedValue.PERSON_PHONE_TYPE_MOBILE.AsGuid() );
                         }
                     }
                 }
