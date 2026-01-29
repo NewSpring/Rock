@@ -18,16 +18,13 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.Data.Entity;
 using System.Linq;
-
-using Microsoft.Extensions.Options;
+using System.Media;
 
 using Rock.Attribute;
 using Rock.Data;
 using Rock.Model;
 using Rock.Obsidian.UI;
-using Rock.Security;
 using Rock.ViewModels.Blocks;
 using Rock.ViewModels.Blocks.Security.PersonViewedList;
 using Rock.Web.Cache;
@@ -42,11 +39,12 @@ namespace Rock.Blocks.Security
     [Category( "Security" )]
     [Description( "Displays the details of person views." )]
     [IconCssClass( "fa fa-list" )]
-    // [SupportedSiteTypes( Model.SiteType.Web )]
+    [SupportedSiteTypes( Model.SiteType.Web )]
 
 
     [Rock.SystemGuid.EntityTypeGuid( "4bd62b58-6e21-4769-ae19-2fca3638fd07" )]
-    [Rock.SystemGuid.BlockTypeGuid( "2c46e0cc-ba4c-4bb3-af2f-963052336c3b" )]
+    //Was [Rock.SystemGuid.BlockTypeGuid( "2c46e0cc-ba4c-4bb3-af2f-963052336c3b" )]
+    [Rock.SystemGuid.BlockTypeGuid( "132D18F3-D169-4260-94E0-84F42A40B356" )]
     [CustomizedGrid]
     public class PersonViewedDetail : RockEntityListBlockType<PersonViewed>
     {
@@ -60,6 +58,11 @@ namespace Rock.Blocks.Security
         private static class NavigationUrlKey
         {
             public const string DetailPage = "DetailPage";
+        }
+
+        private static class PageParameterKeys
+        {
+            public const string ViewedBy = "ViewedBy";
         }
 
         #endregion Keys
@@ -94,16 +97,17 @@ namespace Rock.Blocks.Security
         /// <returns>The options that provide additional details to the block.</returns>
         private PersonViewedDetailOptionsBag GetBoxOptions()
         {
-            bool viewedBy = Convert.ToBoolean( PageParameter( "ViewedBy" ) );
+            bool viewedBy = Convert.ToBoolean(PageParameter( PageParameterKeys.ViewedBy ));
             var targetPerson = GetPersonFromPageParameter( "TargetId" );
             var viewerPerson = GetPersonFromPageParameter( "ViewerId" );
-
-            var options = new PersonViewedDetailOptionsBag()
+            var options = new PersonViewedDetailOptionsBag();
+            if ( targetPerson != null && viewerPerson != null )
             {
-                Title = viewedBy
-                    ? $"{targetPerson.FullName} viewed by {viewerPerson.FullName}"
-                    : $"{viewerPerson.FullName} viewed {targetPerson.FullName}"
-            };
+                options.Title = viewedBy
+                    ? $"{targetPerson.FullName} Viewed by {viewerPerson.FullName}"
+                    : $"{viewerPerson.FullName} Viewed {targetPerson.FullName}";
+            }
+
             return options;
         }
 
@@ -131,6 +135,11 @@ namespace Rock.Blocks.Security
                     p.TargetPersonAlias != null &&
                     p.TargetPersonAlias.PersonId == targetPerson.Id );
             return result;
+        }
+
+        protected override IQueryable<PersonViewed> GetOrderedListQueryable( IQueryable<PersonViewed> queryable, RockContext rockContext )
+        {
+            return queryable.OrderByDescending( p => p.ViewDateTime );
         }
 
         /// <inheritdoc/>

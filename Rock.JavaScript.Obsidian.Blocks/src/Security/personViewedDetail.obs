@@ -17,7 +17,7 @@
                         title="Date"
                         field="date"
                         width="37%"
-                        :filter="textValueFilter"
+                        :filter="dateValueFilter"
                         visiblePriority="xs" />
 
         <TextColumn name="ipAddress"
@@ -32,7 +32,7 @@
 <script setup lang="ts">
     import { onConfigurationValuesChanged, useConfigurationValues, useInvokeBlockAction, useReloadBlock } from "@Obsidian/Utility/block";
     import { EntityType } from "@Obsidian/SystemGuids/entityType";
-    import Grid, { DateTimeColumn, TextColumn, textValueFilter } from "@Obsidian/Controls/grid";
+    import Grid, { DateTimeColumn, TextColumn, textValueFilter, dateValueFilter } from "@Obsidian/Controls/grid";
     import { ListBlockBox } from "@Obsidian/ViewModels/Blocks/listBlockBox";
     import { PersonViewedDetailOptionsBag } from "@Obsidian/ViewModels/Blocks/Security/PersonViewedDetail/personViewedDetailOptionsBag";
     import { GridDataBag } from "@Obsidian/ViewModels/Core/Grid/gridDataBag";
