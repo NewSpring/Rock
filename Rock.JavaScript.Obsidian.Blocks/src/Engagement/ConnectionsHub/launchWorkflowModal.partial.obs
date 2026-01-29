@@ -2,7 +2,8 @@
 <template>
     <Modal v-model="isVisible"
            title="Launch Workflow"
-           saveText="Save">
+           saveText="Save"
+           @save="onSave">
         <NotificationBox alertType="info">
             <p><strong>Reminder: </strong>Workflows only run for requests that match the configured trigger filters. If this workflow is limited to specific connection opportunities, it will only run for those requests.</p>
         </NotificationBox>
@@ -12,7 +13,8 @@
                               :items="workflowItems"
                               label="Workflow"
                               showBlankItem
-                              enhanceForLongLists />
+                              enhanceForLongLists
+                              grouped />
             </div>
         </div>
         <RequestTable :selectedRequestDetails="selectedRequestDetails"
@@ -31,6 +33,7 @@
     import { BulkRequestViewBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/bulkRequestViewBag";
     import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
     import { ViewOptions } from "./types.partial";
+    import { LaunchWorkflowBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/launchWorkflowBag";
 
     const props = defineProps({
         visible: {
@@ -56,6 +59,7 @@
 
     const emit = defineEmits<{
         (e: "update:visible", value: boolean): void;
+        (e: "launchWorkflows", value: LaunchWorkflowBag): void;
         (e: "close"): void;
     }>();
 
@@ -63,8 +67,16 @@
 
     const isVisible = useVModelPassthrough(props, "visible", emit);
 
-    // TODO - We will apply workflow filters on the backend before launching them.
     const workflow = ref();
+
+    function onSave(): void {
+        const bag: LaunchWorkflowBag = {
+            connectionRequestIdKeys: props.selectedRequestDetails.map(r => r.idKey ?? ""),
+            connectionWorkflowGuid: workflow.value
+        };
+
+        emit("launchWorkflows", bag);
+    }
 
     watch(isVisible, () => {
         errorMessage.value = "";

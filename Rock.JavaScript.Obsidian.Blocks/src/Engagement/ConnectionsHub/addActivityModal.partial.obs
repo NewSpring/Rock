@@ -2,14 +2,15 @@
 <template>
     <Modal v-model="isVisible"
            title="Add Activity"
-           saveText="Save">
+           saveText="Save"
+           @save="onSave">
         <div class="row">
             <div class="col-md-4">
                 <DropDownList v-model="activityType"
                               :items="activityTypeItems"
                               label="Activity Type"
-                              showBlankItem
-                              enhanceForLongLists />
+                              :showBlankItem="false"
+                              rules="required" />
             </div>
         </div>
         <div class="row">
@@ -53,6 +54,8 @@
     import { ViewOptions } from "./types.partial";
     import { ConnectionActivityBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionActivityBag";
     import { PersonNoteCreationBehavior } from "@Obsidian/Enums/Connection/personNoteCreationBehavior";
+    import { CurrentPersonBag } from "@Obsidian/ViewModels/Crm/currentPersonBag";
+    import { AddActivityBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/addActivityBag";
 
     const props = defineProps({
         visible: {
@@ -75,6 +78,10 @@
             default: []
         },
 
+        currentPerson: {
+            type: Object as PropType<CurrentPersonBag | null>,
+        },
+
         viewOptions: {
             type: Object as PropType<ViewOptions>,
             required: true
@@ -83,6 +90,7 @@
 
     const emit = defineEmits<{
         (e: "update:visible", value: boolean): void;
+        (e: "addActivity", value: AddActivityBag): void;
         (e: "close"): void;
     }>();
 
@@ -91,7 +99,7 @@
     const isVisible = useVModelPassthrough(props, "visible", emit);
 
     const activityType = ref();
-    const connector = ref();
+    const connector = ref<string>(props.currentPerson?.primaryAliasGuid ?? "");
     const note = ref();
     const isPersonNote = ref(false);
 
@@ -102,6 +110,18 @@
 
         return selectedActivityBag?.personNoteCreationBehavior === PersonNoteCreationBehavior.AskAtActivityCreation;
     });
+
+    function onSave(): void {
+        const bag: AddActivityBag = {
+            connectionRequestIdKeys: props.selectedRequestDetails.map(r => r.idKey ?? ""),
+            activityTypeGuid: activityType.value,
+            connectorPersonAliasGuid: connector.value,
+            note: note.value,
+            addPersonNote: isPersonNote.value
+        };
+
+        emit("addActivity", bag);
+    }
 
     watch(isVisible, () => {
         errorMessage.value = "";

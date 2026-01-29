@@ -21,33 +21,8 @@
 // </copyright>
 //
 
-import { ConnectionState } from "@Obsidian/Enums/Connection/connectionState";
-import { ConnectionStatusBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionStatusBag";
-import { GroupingFieldBag } from "@Obsidian/ViewModels/Core/Grid/groupingFieldBag";
-import { PersonFieldBag } from "@Obsidian/ViewModels/Core/Grid/personFieldBag";
+export type LaunchWorkflowBag = {
+    connectionRequestIdKeys?: string[] | null;
 
-export type ConnectionListGridUpdateBag = {
-    activityCount?: number | null;
-
-    campusGrouping?: GroupingFieldBag | null;
-
-    connectionState: ConnectionState;
-
-    connectionStatusBag?: ConnectionStatusBag | null;
-
-    connectorGrouping?: GroupingFieldBag | null;
-
-    followUpDate?: string | null;
-
-    idKey?: string | null;
-
-    lastActivityDateTime?: string | null;
-
-    opportunityGrouping?: GroupingFieldBag | null;
-
-    personFieldBag?: PersonFieldBag | null;
-
-    stateGrouping?: GroupingFieldBag | null;
-
-    statusGrouping?: GroupingFieldBag | null;
+    connectionWorkflowGuid?: string | null;
 };

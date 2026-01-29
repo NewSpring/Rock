@@ -22,6 +22,11 @@ using Rock.SystemKey;
 using Rock.Web;
 using DocumentFormat.OpenXml.Drawing;
 using Slingshot.Core;
+using Fluid.Parser;
+using Rock.Enums.Connection;
+using Lucene.Net.Support;
+using OpenXmlPowerTools;
+using Rock.Web.UI.Controls;
 
 namespace Rock.Blocks.Engagement
 {
@@ -147,28 +152,35 @@ namespace Rock.Blocks.Engagement
                 .ToList();
             options.RequestSourceItems = connectionType.ConnectionTypeSources.ToListItemBagList();
 
-            var workflowItems = new List<ListItemBag>();
+            var manualWorkflows = new List<ConnectionWorkflow>();
+            var authorizedWorkflowItems = new List<ListItemBag>();
 
-            // Connection Type workflows
-            workflowItems.AddRange(
-                connectionType.ConnectionWorkflows
-                    .Select( w => w.WorkflowType )
-                    .ToListItemBagList()
+            manualWorkflows.AddRange( connectionType.ConnectionWorkflows
+                .Where( w => w.TriggerType == ConnectionWorkflowTriggerType.Manual && ( w.WorkflowType.IsActive ?? true ) ) // Mirroring Webforms by setting IsActive to true by default.
+                .ToList() );
+
+            manualWorkflows.AddRange( connectionType.ConnectionOpportunities
+                .SelectMany( o => o.ConnectionWorkflows )
+                .Where( w => w.TriggerType == ConnectionWorkflowTriggerType.Manual && ( w.WorkflowType.IsActive ?? true ) ) // Mirroring Webforms by setting IsActive to true by default.
+                .ToList()
             );
 
-            // Connection Opportunity workflows
-            workflowItems.AddRange(
-                connectionType.ConnectionOpportunities
-                    .SelectMany( o => o.ConnectionWorkflows )
-                    .Select( w => w.WorkflowType )
-                    .ToListItemBagList()
-            );
+            // TODO - test performance.
 
-            // Optional: de-dupe by WorkflowType Id
-            options.WorkflowItems = workflowItems
-                .GroupBy( w => w.Value )
-                .Select( g => g.First() )
-                .ToList();
+            foreach ( var manualWorkflow in manualWorkflows )
+            {
+                if ( manualWorkflow.WorkflowType.IsAuthorized( Authorization.VIEW, RequestContext.CurrentPerson ) )
+                {
+                    authorizedWorkflowItems.Add( new ListItemBag
+                    {
+                        Text = manualWorkflow.WorkflowType.Name,
+                        Value = manualWorkflow.Guid.ToString(),
+                        Category = manualWorkflow.ConnectionTypeId.HasValue ? "Connection Type Workflows" : "Connection Opportunity Workflows"
+                    } );
+                }
+            }
+
+            options.WorkflowItems = authorizedWorkflowItems;
 
             options.ConnectionStatuses = connectionType.ConnectionStatuses.Select( s => new ConnectionStatusBag
             {
@@ -615,7 +627,7 @@ namespace Rock.Blocks.Engagement
             return canEdit;
         }
 
-        private bool CanEditConnectionRequests( ConnectionTypeCache connectionType, List<string> connectionRequestIdKeys, out List<ConnectionRequest> connectionRequests, out BlockActionResult error )
+        private bool CanEditConnectionRequests( ConnectionTypeCache connectionType, List<string> connectionRequestIdKeys, out List<ConnectionRequest> connectionRequests, out BlockActionResult error, Func<IQueryable<ConnectionRequest>, IQueryable<ConnectionRequest>> queryModifier = null )
         {
             error = null;
             var decodedIds = connectionRequestIdKeys.Select( key => Rock.Utility.IdHasher.Instance.GetId( key ) ).ToList();
@@ -637,9 +649,14 @@ namespace Rock.Blocks.Engagement
                 error = ActionBadRequest( $"{ConnectionRequest.FriendlyTypeName} not found." );
             }
 
-            connectionRequests = new ConnectionRequestService( RockContext )
-                .GetByIds( connectionRequestIds )
-                .ToList();
+            var connectionRequestsQry = new ConnectionRequestService( RockContext ).GetByIds( connectionRequestIds );
+
+            if ( queryModifier != null )
+            {
+                connectionRequestsQry = queryModifier( connectionRequestsQry );
+            }
+
+            connectionRequests = connectionRequestsQry.ToList();
 
             if ( connectionRequests.Count != connectionRequestIds.Count )
             {
@@ -683,6 +700,12 @@ namespace Rock.Blocks.Engagement
 
                 userCanEditConnectionRequest = connectionRequests.All( cr =>
                 {
+                    // TODO - test if this is causing performance issues.
+                    if ( cr.ConnectorPersonAlias != null && cr.ConnectorPersonAlias.PersonId == RequestContext.CurrentPerson.Id )
+                    {
+                        return true;
+                    }
+
                     if ( !connectorGroupsByOpportunity.TryGetValue( cr.ConnectionOpportunityId, out var groups ) )
                     {
                         return false;
@@ -719,6 +742,24 @@ namespace Rock.Blocks.Engagement
             return userCanEditConnectionRequest;
         }
 
+        private List<int> GetDataViewValues( int dataViewId )
+        {
+            var dataView = DataViewCache.Get( dataViewId );
+            if ( dataView == null )
+            {
+                return new List<int>();
+            }
+
+            if ( dataView.IsPersisted() && dataView.PersistedLastRefreshDateTime.HasValue )
+            {
+                return RockContext.Set<DataViewPersistedValue>().Select( e => e.EntityId ).ToList();
+            }
+            else
+            {
+                var dataViewGetQueryArgs = new Rock.Reporting.GetQueryableOptions { DbContext = RockContext, DatabaseTimeoutSeconds = 30 };
+                return dataView.GetQuery( dataViewGetQueryArgs ).Select( e => e.Id ).ToList();
+            }
+        }
 
         private Rock.Model.ConnectionType GetConnectionType()
         {
@@ -1257,7 +1298,7 @@ namespace Rock.Blocks.Engagement
         }
 
         [BlockAction]
-        public BlockActionResult ChangeRequestState( ConnectionRequestUpdateBag bag )
+        public BlockActionResult UpdateRequestStates( UpdateConnectionRequestStatesBag bag )
         {
             var connectionType = ConnectionTypeCache.Get( PageParameter( PageParameterKey.ConnectionType ), !PageCache.Layout.Site.DisablePredictableIds );
             if ( connectionType == null )
@@ -1265,33 +1306,280 @@ namespace Rock.Blocks.Engagement
                 return ActionBadRequest( $"{Rock.Model.ConnectionType.FriendlyTypeName} not found." );
             }
 
-            var canEditRequest = CanEditConnectionRequest( connectionType, bag.ConnectionRequestIdKey, out var connectionRequest, out var actionError );
+            var canEditRequest = CanEditConnectionRequests( connectionType, bag.ConnectionRequestIdKeys, out var connectionRequests, out var actionError );
 
             if ( !canEditRequest )
             {
                 return actionError;
             }
 
-            // Default to Active state.
-            connectionRequest.ConnectionState = ( ConnectionState ) ( bag.ConnectionState ?? Rock.Enums.Connection.ConnectionState.Active );
+            if ( bag.ConnectionState == Enums.Connection.ConnectionState.FutureFollowUp && !bag.FollowUpDate.HasValue )
+            {
+                return ActionBadRequest( "A Follow-Up Date is required." );
+            }
+
+            List<ConnectionListGridUpdateBag> gridUpdateBags = new List<ConnectionListGridUpdateBag>();
+
+            foreach ( var request in connectionRequests )
+            {
+                if ( bag.ConnectionState == Enums.Connection.ConnectionState.FutureFollowUp )
+                {
+                    request.FollowupDate = bag.FollowUpDate?.DateTime;
+                }
+
+                request.ConnectionState = ( ConnectionState ) ( bag.ConnectionState );
+
+                gridUpdateBags.Add( new ConnectionListGridUpdateBag
+                {
+                    IdKey = request.IdKey,
+                    StateGrouping = new GroupingFieldBag
+                    {
+                        Key = request.ConnectionState.ToString(),
+                        Type = "text",
+                        Label = request.ConnectionState.GetDescription(),
+                        IconCssClass = GetStateIconCssClass( request.ConnectionState ),
+                        Order = ( int ) request.ConnectionState
+                    },
+                    ConnectionState = ( Rock.Enums.Connection.ConnectionState ) request.ConnectionState,
+                    FollowUpDate = request.FollowupDate
+                } );
+            }
 
             RockContext.SaveChanges();
+            return ActionOk( gridUpdateBags );
+        }
 
-            var gridUpdateBag = new ConnectionListGridUpdateBag
+        [BlockAction]
+        public BlockActionResult DeleteRequests( List<string> connectionRequestIdKeys )
+        {
+            var connectionType = ConnectionTypeCache.Get( PageParameter( PageParameterKey.ConnectionType ), !PageCache.Layout.Site.DisablePredictableIds );
+            if ( connectionType == null )
             {
-                IdKey = connectionRequest.IdKey,
-                StateGrouping = new GroupingFieldBag
-                {
-                    Key = connectionRequest.ConnectionState.ToString(),
-                    Type = "text",
-                    Label = connectionRequest.ConnectionState.GetDescription(),
-                    IconCssClass = GetStateIconCssClass( connectionRequest.ConnectionState ),
-                    Order = ( int ) connectionRequest.ConnectionState
-                },
-                ConnectionState = ( Rock.Enums.Connection.ConnectionState ) connectionRequest.ConnectionState
-            };
+                return ActionBadRequest( $"{Rock.Model.ConnectionType.FriendlyTypeName} not found." );
+            }
 
-            return ActionOk( gridUpdateBag );
+            var canEditRequest = CanEditConnectionRequests( connectionType, connectionRequestIdKeys, out var connectionRequests, out var actionError );
+
+            if ( !canEditRequest )
+            {
+                return actionError;
+            }
+
+            var connectionRequestService = new ConnectionRequestService( RockContext );
+
+            foreach ( var request in connectionRequests )
+            {
+                if ( !connectionRequestService.CanDelete( request, out var errorMessage ) )
+                {
+                    return ActionBadRequest( errorMessage );
+                }
+
+                RockContext.WrapTransaction( () =>
+                {
+                    new ConnectionRequestActivityService( RockContext ).DeleteRange( request.ConnectionRequestActivities );
+                    connectionRequestService.Delete( request );
+                    RockContext.SaveChanges();
+                } );
+            }
+
+            return ActionOk();
+        }
+
+        [BlockAction]
+        public BlockActionResult AddActivityForRequests( AddActivityBag bag )
+        {
+            var connectionType = ConnectionTypeCache.Get( PageParameter( PageParameterKey.ConnectionType ), !PageCache.Layout.Site.DisablePredictableIds );
+            if ( connectionType == null )
+            {
+                return ActionBadRequest( $"{Rock.Model.ConnectionType.FriendlyTypeName} not found." );
+            }
+
+            var canEditRequest = CanEditConnectionRequests( connectionType, bag.ConnectionRequestIdKeys, out var connectionRequests, out var actionError, q => q.Include( r => r.ConnectionRequestActivities ).Include( r => r.PersonAlias ) );
+
+            if ( !canEditRequest )
+            {
+                return actionError;
+            }
+
+            var connectionRequestActivityService = new ConnectionRequestActivityService( RockContext );
+            var noteService = new NoteService( RockContext );
+            var connectorPersonAlias = new PersonAliasService( RockContext ).GetInclude( bag.ConnectorPersonAliasGuid.AsGuid(), c => c.Person );
+            var activityType = new ConnectionActivityTypeService( RockContext ).Get( bag.ActivityTypeGuid.AsGuid() );
+
+            if ( activityType == null )
+            {
+                return ActionBadRequest( "Invalid Activity Type" );
+            }
+
+            var shouldCreatePersonNote = activityType.PersonNoteCreationBehavior == PersonNoteCreationBehavior.AlwaysCreateAPersonNote || ( activityType.PersonNoteCreationBehavior == PersonNoteCreationBehavior.AskAtActivityCreation && bag.AddPersonNote );
+
+            if ( shouldCreatePersonNote && !activityType.PersonNoteTypeId.HasValue )
+            {
+                return ActionBadRequest( "The selected Activity Type is missing a required Person Note Type." );
+            }
+
+            List<ConnectionListGridUpdateBag> gridUpdateBags = new List<ConnectionListGridUpdateBag>();
+
+            foreach ( var request in connectionRequests )
+            {
+                var activity = new ConnectionRequestActivity();
+
+                activity.ConnectionRequestId = request.Id;
+                activity.ConnectorPersonAliasId = connectorPersonAlias?.Id;
+                activity.Note = bag.Note;
+                activity.ConnectionActivityTypeId = activityType.Id;
+                activity.ConnectionOpportunityId = request.ConnectionOpportunityId;
+
+                connectionRequestActivityService.Add( activity );
+
+                if ( shouldCreatePersonNote )
+                {
+                    var personNote = new Note
+                    {
+                        NoteTypeId = activityType.PersonNoteTypeId.Value,
+                        EntityId = request.PersonAlias.PersonId,
+                        Caption = request.ConnectionOpportunity.Name,
+                        Text = bag.Note,
+                        CreatedByPersonAliasId = connectorPersonAlias?.Id,
+                    };
+                    noteService.Add( personNote );
+                }
+
+                gridUpdateBags.Add( new ConnectionListGridUpdateBag
+                {
+                    IdKey = request.IdKey,
+                    LastActivityDateTime = DateTime.Now,
+                    ActivityCount = request.ConnectionRequestActivities?.Count + 1 ?? 1
+                } );
+            }
+
+            RockContext.SaveChanges();
+            return ActionOk( gridUpdateBags );
+        }
+
+        [BlockAction]
+        public BlockActionResult LaunchWorkflowForRequests( LaunchWorkflowBag bag )
+        {
+            var connectionType = ConnectionTypeCache.Get( PageParameter( PageParameterKey.ConnectionType ), !PageCache.Layout.Site.DisablePredictableIds );
+            if ( connectionType == null )
+            {
+                return ActionBadRequest( $"{Rock.Model.ConnectionType.FriendlyTypeName} not found." );
+            }
+
+            var connectionWorkflow = new ConnectionWorkflowService( RockContext ).GetInclude( bag.ConnectionWorkflowGuid.AsGuid(), w => w.WorkflowType );
+
+            if ( !connectionWorkflow.WorkflowTypeId.HasValue )
+            {
+                return ActionBadRequest( "Invalid Workflow." );
+            }
+
+            var workflowType = WorkflowTypeCache.Get( connectionWorkflow.WorkflowTypeId.Value );
+
+            if ( workflowType == null  )
+            {
+                return ActionBadRequest( "Invalid Workflow Type." );
+            }
+
+            if ( !connectionWorkflow.WorkflowType.IsAuthorized( Authorization.VIEW, RequestContext.CurrentPerson ) )
+            {
+                return ActionBadRequest( "You are not authorized to launch the selected workflow." );
+            }
+
+            if ( connectionWorkflow.TriggerType != ConnectionWorkflowTriggerType.Manual || !( connectionWorkflow.WorkflowType.IsActive ?? true ) ) // Mirroring Webforms by setting Is Active to true by default. TODO - Test Webforms.
+            {
+                return ActionBadRequest( "The selected Workflow must be active with a Manual Trigger Type." );
+            }
+
+            var workflow = Rock.Model.Workflow.Activate( workflowType, connectionWorkflow.WorkflowType.WorkTerm, RockContext );
+
+            if ( workflow == null )
+            {
+                return ActionBadRequest( "An error occurred while activating the Workflow." );
+            }
+
+            var workflowService = new WorkflowService( RockContext );
+            List<string> workflowErrors;
+            List<int> includedDataViewValues = null;
+            List<int> excludedDataViewValues = null;
+            var connectionRequestWorkflowService = new ConnectionRequestWorkflowService( RockContext );
+
+            if ( connectionWorkflow.IncludeDataViewId.HasValue )
+            {
+                includedDataViewValues = GetDataViewValues( connectionWorkflow.IncludeDataViewId.Value );
+            }
+            if ( connectionWorkflow.ExcludeDataViewId.HasValue )
+            {
+                excludedDataViewValues = GetDataViewValues( connectionWorkflow.ExcludeDataViewId.Value );
+            }
+
+            var decodedIds = bag.ConnectionRequestIdKeys.Select( key => Rock.Utility.IdHasher.Instance.GetId( key ) )
+                .Where( id => id.HasValue )
+                .Select( id => id.Value )
+                .ToList();
+
+            var connectionRequests = new ConnectionRequestService( RockContext ).GetByIds( decodedIds ).Include( r => r.PersonAlias.Person ).ToList();
+
+            foreach ( var request in connectionRequests )
+            {
+                // If the manual workflow is not configured for this request status then skip it.
+                if ( connectionWorkflow.ManualTriggerFilterConnectionStatusId.HasValue && connectionWorkflow.ManualTriggerFilterConnectionStatusId != request.ConnectionStatusId )
+                {
+                    continue;
+                }
+
+                var person = request.PersonAlias.Person;
+
+                // If the manual workflow's configuration for age classification does not apply to the person on the connection request then skip it.
+                if ( connectionWorkflow.AppliesToAgeClassification != AppliesToAgeClassification.All )
+                {
+                    if ( connectionWorkflow.AppliesToAgeClassification == AppliesToAgeClassification.Adults && person.AgeClassification != AgeClassification.Adult )
+                    {
+                        continue;
+                    }
+
+                    if ( connectionWorkflow.AppliesToAgeClassification == AppliesToAgeClassification.Children && person.AgeClassification != AgeClassification.Child )
+                    {
+                        continue;
+                    }
+                }
+
+                // If the manual workflow's "Include Data View" configuration values do not contain the request person then skip it.
+                if ( connectionWorkflow.IncludeDataViewId.HasValue && !includedDataViewValues.Contains( person.Id ) )
+                {
+                    continue;
+                }
+
+                // If the manual workflow's "Include Data View" configuration values contain the request person then skip it.
+                if ( connectionWorkflow.ExcludeDataViewId.HasValue && excludedDataViewValues.Contains( person.Id ) )
+                {
+                    continue;
+                }
+
+                // TODO - Test this
+                // Process the workflow and exit if any errors occur.
+                if ( !workflowService.Process( workflow, request, out workflowErrors ) )
+                {
+                    return ActionBadRequest( "Workflow Processing Error(s):<ul><li>" + workflowErrors.AsDelimited( "</li><li>" ) + "</li></ul>" );
+                }
+
+                // If the workflow is persisted, create a link between the workflow and this connection request.
+                if ( workflow.Id != 0 )
+                {
+                    connectionRequestWorkflowService.Add( new ConnectionRequestWorkflow
+                    {
+                        ConnectionRequestId = request.Id,
+                        WorkflowId = workflow.Id,
+                        ConnectionWorkflowId = connectionWorkflow.Id,
+                        TriggerType = connectionWorkflow.TriggerType,
+                        TriggerQualifier = connectionWorkflow.QualifierValue
+                    } );
+                }
+
+                // TODO - Webforms looks like it opens a new tab to a workflow entry form when it applies. Research and determine what to do here.
+            }
+
+            RockContext.SaveChanges();
+            return ActionOk();
         }
 
         [BlockAction]

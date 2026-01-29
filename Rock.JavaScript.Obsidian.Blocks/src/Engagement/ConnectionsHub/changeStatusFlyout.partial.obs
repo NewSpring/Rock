@@ -103,6 +103,7 @@
     import { BtnType } from "@Obsidian/Enums/Controls/btnType";
     import { BtnSize } from "@Obsidian/Enums/Controls/btnSize";
     import { ConnectionState } from "@Obsidian/Enums/Connection/connectionState";
+    import { UpdateConnectionRequestStatesBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/updateConnectionRequestStatesBag";
 
 
     const props = defineProps({
@@ -140,7 +141,7 @@
     const emit = defineEmits<{
         (e: "update:modelValue", value: boolean): void;
         (e: "updateStatus", value: ConnectionRequestUpdateBag): void;
-        (e: "updateState", value: ConnectionRequestUpdateBag): void;
+        (e: "updateState", value: UpdateConnectionRequestStatesBag): void;
         (e: "close"): void;
     }>();
 
@@ -195,8 +196,8 @@
     }
 
     function completeRequest(): void {
-        const updateBag: ConnectionRequestUpdateBag = {
-            ...props.connectionRequestUpdateBag,
+        const updateBag: UpdateConnectionRequestStatesBag = {
+            connectionRequestIdKeys: [props.connectionRequestUpdateBag.connectionRequestIdKey ?? ""],
             connectionState: ConnectionState.Connected
         };
         emit("updateState", updateBag);

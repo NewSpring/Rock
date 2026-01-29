@@ -2,7 +2,8 @@
 <template>
     <Modal v-model="isVisible"
            :title="title"
-           saveText="Save">
+           saveText="Save"
+           @save="onSave">
         <div v-if="connectionState === ConnectionState.FutureFollowUp" class="row">
             <div class="col-md-3">
                 <DatePicker v-model="followUpDate"
@@ -11,7 +12,7 @@
             </div>
         </div>
         <div v-else class="mb-spacing-sm">
-            Are you sure you want to set the following {{ pluralize("request", selectedRequestDetails.length) }} to {{ ConnectionStateDescription[connectionState] }}?
+            {{ bodyText }}
         </div>
         <RequestTable :selectedRequestDetails="selectedRequestDetails"
                       :viewOptions="viewOptions"
@@ -29,6 +30,7 @@
     import { ViewOptions } from "./types.partial";
     import { ConnectionState, ConnectionStateDescription } from "@Obsidian/Enums/Connection/connectionState";
     import { pluralize } from "@Obsidian/Utility/stringUtils";
+    import { UpdateConnectionRequestStatesBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/updateConnectionRequestStatesBag";
 
     const props = defineProps({
         visible: {
@@ -54,6 +56,7 @@
 
     const emit = defineEmits<{
         (e: "update:visible", value: boolean): void;
+        (e: "updateState", value: UpdateConnectionRequestStatesBag): void;
         (e: "close"): void;
     }>();
 
@@ -61,7 +64,7 @@
 
     const isVisible = useVModelPassthrough(props, "visible", emit);
 
-    const followUpDate = ref();
+    const followUpDate = ref<string>("");
 
     const title = computed(() => {
         switch (props.connectionState) {
@@ -71,8 +74,27 @@
                 return "Set as Inactive";
             case ConnectionState.FutureFollowUp:
                 return "Future Follow-Up";
+            case ConnectionState.Connected:
+                return `Complete ${pluralize("Request", props.selectedRequestDetails.length)}`;
         }
     });
+
+    const bodyText = computed(() => {
+        if (props.connectionState === ConnectionState.Connected) {
+            return `Are you sure you want to mark the following ${pluralize("request", props.selectedRequestDetails.length)} as Complete?`;
+        }
+        return `Are you sure you want to set the following ${pluralize("request", props.selectedRequestDetails.length)} to ${ConnectionStateDescription[props.connectionState]}?`;
+    });
+
+    function onSave(): void {
+        const bag: UpdateConnectionRequestStatesBag = {
+            connectionRequestIdKeys: props.selectedRequestDetails.map(r => r.idKey ?? ""),
+            connectionState: props.connectionState,
+            followUpDate: followUpDate.value
+        };
+
+        emit("updateState", bag);
+    }
 
     watch(isVisible, () => {
         errorMessage.value = "";

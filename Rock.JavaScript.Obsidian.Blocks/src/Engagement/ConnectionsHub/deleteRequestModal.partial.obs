@@ -2,7 +2,8 @@
 <template>
     <Modal v-model="isVisible"
            :title="title"
-           saveText="Save">
+           saveText="Save"
+           @save="onSave">
         <NotificationBox alertType="danger">
             Are you sure you want to delete the following {{ pluralize("request", selectedRequestDetails.length) }} This action can’t be undone.
         </NotificationBox>
@@ -41,6 +42,7 @@
 
     const emit = defineEmits<{
         (e: "update:visible", value: boolean): void;
+        (e: "deleteRequests", value: string[]): void;
         (e: "close"): void;
     }>();
 
@@ -49,6 +51,10 @@
     const isVisible = useVModelPassthrough(props, "visible", emit);
 
     const title = computed(() => `Delete ${pluralize("Request", props.selectedRequestDetails.length)}`);
+
+    function onSave(): void {
+        emit("deleteRequests", props.selectedRequestDetails.map(r => r.idKey ?? ""));
+    }
 
     watch(isVisible, () => {
         errorMessage.value = "";

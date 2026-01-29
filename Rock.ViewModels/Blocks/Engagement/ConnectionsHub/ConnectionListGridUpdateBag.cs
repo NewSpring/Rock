@@ -46,6 +46,12 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
 
         // I could use the Person Field Bag from the Grouping Field Bag, but having it here for now.
         public PersonFieldBag PersonFieldBag { get; set; }
+
+        public DateTime? FollowUpDate { get; set; }
+
+        public DateTime? LastActivityDateTime { get; set; }
+
+        public int? ActivityCount { get; set; }
     }
 }
 
