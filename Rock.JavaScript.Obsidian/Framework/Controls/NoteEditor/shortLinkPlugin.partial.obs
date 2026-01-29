@@ -36,7 +36,9 @@
             <div class="col-sm-6">
                 <NumberBox v-model="expireInDays"
                            help="Sets the number of days before the short link expires. Once expired, the link and its tracking data will be permanently deleted. Leave blank for no expiration."
-                           label="Link Expiration">
+                           label="Link Expiration"
+                           :maximumValue="2147483647"
+                           :minimumValue="-2147483648">
                     <template #inputGroupAppend>
                         <span class="input-group-addon">Days</span>
                     </template>
