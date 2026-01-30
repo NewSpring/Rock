@@ -5,9 +5,9 @@
            saveText="Save"
            @save="onSave">
         <NotificationBox alertType="danger">
-            Are you sure you want to delete the following {{ pluralize("request", selectedRequestDetails.length) }} This action can’t be undone.
+            Are you sure you want to delete the following {{ pluralize("request", requestDetails.length) }} This action can’t be undone.
         </NotificationBox>
-        <RequestTable :selectedRequestDetails="selectedRequestDetails"
+        <RequestTable :requestDetails="requestDetails"
                       :viewOptions="viewOptions" />
     </Modal>
 </template>
@@ -29,7 +29,7 @@
             required: true
         },
 
-        selectedRequestDetails: {
+        requestDetails: {
             type: Array as PropType<BulkRequestViewBag[]>,
             default: []
         },
@@ -50,10 +50,10 @@
 
     const isVisible = useVModelPassthrough(props, "visible", emit);
 
-    const title = computed(() => `Delete ${pluralize("Request", props.selectedRequestDetails.length)}`);
+    const title = computed(() => `Delete ${pluralize("Request", props.requestDetails.length)}`);
 
     function onSave(): void {
-        emit("deleteRequests", props.selectedRequestDetails.map(r => r.idKey ?? ""));
+        emit("deleteRequests", props.requestDetails.map(r => r.idKey ?? ""));
     }
 
     watch(isVisible, () => {

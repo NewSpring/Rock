@@ -13,7 +13,7 @@
                               enhanceForLongLists />
             </div>
         </div>
-        <RequestTable :selectedRequestDetails="selectedRequestDetails"
+        <RequestTable :requestDetails="requestDetails"
                       :viewOptions="viewOptions"
                       isConnectorVisible />
     </Modal>
@@ -41,7 +41,7 @@
             required: true
         },
 
-        selectedRequestDetails: {
+        requestDetails: {
             type: Array as PropType<BulkRequestViewBag[]>,
             default: []
         },
@@ -64,7 +64,7 @@
 
     const connector = ref();
 
-    const title = computed(() => `Assign ${pluralize("Request", props.selectedRequestDetails.length)}`);
+    const title = computed(() => `Assign ${pluralize("Request", props.requestDetails.length)}`);
 
     function onSave(): void {
         emit("updateConnector", connector.value);

@@ -12,12 +12,13 @@
                 <DropDownList v-model="workflow"
                               :items="workflowItems"
                               label="Workflow"
+                              rules="required"
                               showBlankItem
                               enhanceForLongLists
                               grouped />
             </div>
         </div>
-        <RequestTable :selectedRequestDetails="selectedRequestDetails"
+        <RequestTable :requestDetails="requestDetails"
                       :viewOptions="viewOptions"
                       isConnectorVisible />
     </Modal>
@@ -46,7 +47,7 @@
             required: true
         },
 
-        selectedRequestDetails: {
+        requestDetails: {
             type: Array as PropType<BulkRequestViewBag[]>,
             default: []
         },
@@ -71,7 +72,7 @@
 
     function onSave(): void {
         const bag: LaunchWorkflowBag = {
-            connectionRequestIdKeys: props.selectedRequestDetails.map(r => r.idKey ?? ""),
+            connectionRequestIdKeys: props.requestDetails.map(r => r.idKey ?? ""),
             connectionWorkflowGuid: workflow.value
         };
 

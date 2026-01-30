@@ -14,7 +14,7 @@
         <div v-else class="mb-spacing-sm">
             {{ bodyText }}
         </div>
-        <RequestTable :selectedRequestDetails="selectedRequestDetails"
+        <RequestTable :requestDetails="requestDetails"
                       :viewOptions="viewOptions"
                       isConnectorVisible />
     </Modal>
@@ -43,7 +43,7 @@
             required: true
         },
 
-        selectedRequestDetails: {
+        requestDetails: {
             type: Array as PropType<BulkRequestViewBag[]>,
             default: []
         },
@@ -75,20 +75,20 @@
             case ConnectionState.FutureFollowUp:
                 return "Future Follow-Up";
             case ConnectionState.Connected:
-                return `Complete ${pluralize("Request", props.selectedRequestDetails.length)}`;
+                return `Complete ${pluralize("Request", props.requestDetails.length)}`;
         }
     });
 
     const bodyText = computed(() => {
         if (props.connectionState === ConnectionState.Connected) {
-            return `Are you sure you want to mark the following ${pluralize("request", props.selectedRequestDetails.length)} as Complete?`;
+            return `Are you sure you want to mark the following ${pluralize("request", props.requestDetails.length)} as Complete?`;
         }
-        return `Are you sure you want to set the following ${pluralize("request", props.selectedRequestDetails.length)} to ${ConnectionStateDescription[props.connectionState]}?`;
+        return `Are you sure you want to set the following ${pluralize("request", props.requestDetails.length)} to ${ConnectionStateDescription[props.connectionState]}?`;
     });
 
     function onSave(): void {
         const bag: UpdateConnectionRequestStatesBag = {
-            connectionRequestIdKeys: props.selectedRequestDetails.map(r => r.idKey ?? ""),
+            connectionRequestIdKeys: props.requestDetails.map(r => r.idKey ?? ""),
             connectionState: props.connectionState,
             followUpDate: followUpDate.value
         };

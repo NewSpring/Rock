@@ -38,7 +38,19 @@ namespace Rock.Blocks.Engagement
 
     #region Block Attributes
 
-    
+    [LinkedPage(
+        "Workflow Detail Page",
+        Description = "Page used to display details about a workflow.",
+        Order = 3,
+        Key = AttributeKey.WorkflowDetailPage,
+        DefaultValue = Rock.SystemGuid.Page.WORKFLOW_DETAIL )]
+
+    [LinkedPage(
+        "Workflow Entry Page",
+        Description = "Page used to launch a new workflow of the selected type.",
+        Order = 4,
+        Key = AttributeKey.WorkflowEntryPage,
+        DefaultValue = Rock.SystemGuid.Page.WORKFLOW_ENTRY )]
 
     #endregion
 
@@ -47,6 +59,12 @@ namespace Rock.Blocks.Engagement
     public class ConnectionsHub : RockBlockType
     {
         #region Keys
+
+        private static class AttributeKey
+        {
+            public const string WorkflowDetailPage = "WorkflowDetailPage";
+            public const string WorkflowEntryPage = "WorkflowEntryPage";
+        }
 
         private static class PageParameterKey
         {
@@ -1513,6 +1531,10 @@ namespace Rock.Blocks.Engagement
                 .ToList();
 
             var connectionRequests = new ConnectionRequestService( RockContext ).GetByIds( decodedIds ).Include( r => r.PersonAlias.Person ).ToList();
+            var isSingleRequest = connectionRequests.Count() == 1;
+            string statusMessage = string.Empty;
+            var launchWorkflowResultBag = new LaunchWorkflowResultBag();
+            var launchedWorkflowCout = 0;
 
             foreach ( var request in connectionRequests )
             {
@@ -1570,11 +1592,41 @@ namespace Rock.Blocks.Engagement
                     } );
                 }
 
-                // TODO - Webforms looks like it opens a new tab to a workflow entry form when it applies. Research and determine what to do here.
+                if ( isSingleRequest && workflow.HasActiveEntryForm( RequestContext.CurrentPerson ) )
+                {
+                    var qryParam = new Dictionary<string, string>
+                    {
+                        { "WorkflowType", workflowType.IdKey },
+                        { "WorkflowGuid", workflow.Guid.ToString() }
+                    };
+
+                    launchWorkflowResultBag.WorkflowEntryPageUrl = this.GetLinkedPageUrl( AttributeKey.WorkflowEntryPage, qryParam );
+                }
+
+                launchedWorkflowCout++;
             }
 
+            if ( launchedWorkflowCout == 0 )
+            {
+                statusMessage = $"The '{workflowType.Name}' workflow was not started for any of the selected connection requests due to its configuration.";
+            }
+            else if ( isSingleRequest )
+            {
+                statusMessage = $"A '{workflowType.Name}' workflow has been started. The new workflow has an active form that is ready for input.";
+            }
+            else if ( launchedWorkflowCout == connectionRequests.Count() )
+            {
+                statusMessage = $"The '{workflowType.Name}' workflow was successfully started for all selected connection requests.";
+            }
+            else
+            {
+                statusMessage = $"The '{workflowType.Name}' workflow was started for {launchedWorkflowCout} of the {connectionRequests.Count()} selected connection requests due to its configuration.";
+            }
+
+            launchWorkflowResultBag.StatusMessage = statusMessage;
+
             RockContext.SaveChanges();
-            return ActionOk();
+            return ActionOk( launchWorkflowResultBag );
         }
 
         [BlockAction]

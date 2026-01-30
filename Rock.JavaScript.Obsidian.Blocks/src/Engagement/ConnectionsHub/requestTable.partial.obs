@@ -1,8 +1,8 @@
 <!-- Copyright by the Spark Development Network; Licensed under the Rock Community License -->
 <template>
-    <RockLabel>{{ pluralize("Request", selectedRequestDetails.length) }}</RockLabel>
+    <RockLabel>{{ pluralize("Request", requestDetails.length) }}</RockLabel>
     <div class="d-flex flex-column gap-xs">
-        <div v-for="request in selectedRequestDetails" class="bg-interface-softer py-spacing-xs px-spacing-md border rounded request-row">
+        <div v-for="request in requestDetails" class="bg-interface-softer py-spacing-xs px-spacing-md border rounded request-row">
             <div class="d-flex align-items-center">
                 <template v-if="request.requester">
                     <PersonAvatar :personIdKey="request.requester?.idKey ?? ''"
@@ -73,7 +73,7 @@
     import { RockDateTime } from "@Obsidian/Utility/rockDateTime";
 
     const props = defineProps({
-        selectedRequestDetails: {
+        requestDetails: {
             type: Array as PropType<BulkRequestViewBag[]>,
             default: []
         },

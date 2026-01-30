@@ -26,7 +26,7 @@
                          :rules="isNoteRequired" />
             </div>
         </div>
-        <RequestTable :selectedRequestDetails="selectedRequestDetails"
+        <RequestTable :requestDetails="requestDetails"
                       :viewOptions="viewOptions"
                       isConnectorVisible />
     </Modal>
@@ -62,7 +62,7 @@
             required: true
         },
 
-        selectedRequestDetails: {
+        requestDetails: {
             type: Array as PropType<BulkRequestViewBag[]>,
             default: []
         },
@@ -97,7 +97,7 @@
 
     const isNoteRequired = computed(() => {
         if (props.isSequentialMode) {
-            return props.selectedRequestDetails.some(s => s.connectionStatus?.isNoteRequiredOnCompletion) ? "required" : "";
+            return props.requestDetails.some(s => s.connectionStatus?.isNoteRequiredOnCompletion) ? "required" : "";
         }
         return props.connectionStatuses.find(a => a.guid === status.value)?.isNoteRequiredOnCompletion ? "required" : "";
     });

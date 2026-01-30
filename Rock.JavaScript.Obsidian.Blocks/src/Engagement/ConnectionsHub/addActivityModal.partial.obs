@@ -36,7 +36,7 @@
                           text="Add Person Note" />
             </div>
         </div>
-        <RequestTable :selectedRequestDetails="selectedRequestDetails"
+        <RequestTable :requestDetails="requestDetails"
                       :viewOptions="viewOptions" />
     </Modal>
 </template>
@@ -73,7 +73,7 @@
             required: true
         },
 
-        selectedRequestDetails: {
+        requestDetails: {
             type: Array as PropType<BulkRequestViewBag[]>,
             default: []
         },
@@ -113,7 +113,7 @@
 
     function onSave(): void {
         const bag: AddActivityBag = {
-            connectionRequestIdKeys: props.selectedRequestDetails.map(r => r.idKey ?? ""),
+            connectionRequestIdKeys: props.requestDetails.map(r => r.idKey ?? ""),
             activityTypeGuid: activityType.value,
             connectorPersonAliasGuid: connector.value,
             note: note.value,
