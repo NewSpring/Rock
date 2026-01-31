@@ -52,6 +52,8 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
         public DateTime? LastActivityDateTime { get; set; }
 
         public int? ActivityCount { get; set; }
+
+        public string CelebrationText { get; set; }
     }
 }
 

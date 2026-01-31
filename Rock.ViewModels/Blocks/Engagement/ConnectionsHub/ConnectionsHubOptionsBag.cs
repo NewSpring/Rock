@@ -32,6 +32,10 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
 
         public string ConnectionTypeIdKey { get; set; }
 
+        public bool IsFutureFollowUpEnabled { get; set; }
+
+        public bool IsRequestSecurityEnabled { get; set; }
+
         public bool? IsSequentialStatusMode { get; set; }
 
         public List<ConnectionStatusBag> ConnectionStatuses { get; set; }

@@ -50,6 +50,10 @@ export type ConnectionsHubOptionsBag = {
 
     iconCssClass?: string | null;
 
+    isFutureFollowUpEnabled: boolean;
+
+    isRequestSecurityEnabled: boolean;
+
     isSequentialStatusMode?: boolean | null;
 
     requestSourceItems?: ListItemBag[] | null;

@@ -6,6 +6,7 @@
            @save="onSave">
         <div v-if="connectionState === ConnectionState.FutureFollowUp" class="row">
             <div class="col-md-3">
+                <!-- TODO: Follow-Up Date cannot exceed Due Date -->
                 <DatePicker v-model="followUpDate"
                             label="Follow-Up Date"
                             rules="required" />

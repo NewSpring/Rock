@@ -2779,6 +2779,7 @@ ORDER BY ct.[Name], cs.[Name]",
             }
             else
             {
+                // TODO - Find this feature
                 NavigateToLinkedPage( AttributeKey.WorkflowDetailPage, PageParameterKey.WorkflowId, requestWorkflow.Workflow.Id );
             }
         }
@@ -2941,6 +2942,8 @@ ORDER BY ct.[Name], cs.[Name]",
                     .Where( a => a.ConnectionOpportunityId == connectionOpportunity.Id );
                 var campuses = CampusCache.All().Where( c => c.IsActive ?? true ).ToList();
 
+                // If there is only one campus OR the group is not set to a specific campus...
+
                 // Grant edit access to any of those in a non campus-specific connector group
                 userCanEditConnectionRequest = qryConnectionOpportunityConnectorGroups
                     .Any( g =>
@@ -2950,6 +2953,7 @@ ORDER BY ct.[Name], cs.[Name]",
 
                 if ( !userCanEditConnectionRequest )
                 {
+                    // Current Person still has to be a Connector.
                     // If this is a new request, grant edit access to any connector group. Otherwise, match the request's campus to the corresponding campus-specific connector group
                     var groupCampuses = qryConnectionOpportunityConnectorGroups
                         .Where( g =>
@@ -2961,6 +2965,7 @@ ORDER BY ct.[Name], cs.[Name]",
                         groupCampuses = groupCampuses.Where( g => ( connectionRequest.Id == 0 || ( connectionRequest.CampusId.HasValue && g.CampusId == connectionRequest.CampusId.Value ) ) );
                     }
 
+                    // If the connetion request is new OR the group campus matches the connection request campus.
                     foreach ( var groupCampus in groupCampuses )
                     {
                         userCanEditConnectionRequest = true;

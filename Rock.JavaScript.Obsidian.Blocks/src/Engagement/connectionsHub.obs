@@ -37,9 +37,14 @@
                         <span class="activity-btn-label">Assign</span>
                     </RockButton>
                     <RockButton @click="showChangeStatusModal" class="activity-btn">
-                        <i class="ti ti-select"></i>
-                        <span v-if="box.options?.isSequentialStatusMode" class="activity-btn-label">Change Status</span>
-                        <span v-else class="activity-btn-label">Change Status</span>
+                        <template v-if="box.options?.isSequentialStatusMode">
+                            <i class="ti ti-arrow-right"></i>
+                            <span class="activity-btn-label">Advance to Next Status</span>
+                        </template>
+                        <template v-else>
+                            <i class="ti ti-select"></i>
+                            <span class="activity-btn-label">Change Status</span>
+                        </template>
                     </RockButton>
                     <RockButton @click="showLaunchWorkflowModal()" class="activity-btn">
                         <i class="ti ti-settings-cog"></i>
@@ -66,7 +71,7 @@
                                     <i class="ti ti-user-off pr-spacing-sm text-interface-medium"></i>Set as Inactive
                                 </button>
                             </li>
-                            <li>
+                            <li v-if="box.options?.isFutureFollowUpEnabled">
                                 <button type="button"
                                         @click.stop="showChangeStateModal(ConnectionState.FutureFollowUp)"
                                         class="dropdown-item btn-link py-spacing-xs px-spacing-md font-weight-semibold">
@@ -194,7 +199,7 @@
                         field="dueDate"
                         width="2%">
                     <template #format="{ row }">
-                        <div :class="getDueDateColor(getDueStatus(row.dueDate, row.dueSoonDate))">
+                        <div :class="getDueDateColor(row.dueStatus)">
                             {{ formatDueDateShortLabel(row.dueDate) }}
                         </div>
                     </template>
@@ -207,12 +212,23 @@
                         field="celebration"
                         width="52">
                     <template #format="{ row }">
-                        <i class="ti ti-confetti cursor-pointer"
+                        <i v-if="isNullOrWhiteSpace(row.celebrationText)"
+                           class="ti ti-confetti cursor-pointer"
                            :ref="(el) => addTooltip(el as Element)"
                            data-toggle="tooltip"
                            data-placement="auto"
                            data-container="body"
-                           data-original-title="Add Celebration">
+                           data-original-title="Add Celebration"
+                           @click="showCelebrationModal(row)">
+                        </i>
+                        <i v-else
+                           class="ti ti-confetti cursor-pointer text-info-strong"
+                           :ref="(el) => addTooltip(el as Element)"
+                           data-toggle="tooltip"
+                           data-placement="auto"
+                           data-container="body"
+                           data-original-title="Has Celebration"
+                           @click="showCelebrationModal(row)">
                         </i>
                     </template>
                 </Column>
@@ -290,8 +306,7 @@
                                         <i class="ti ti-user-off pr-spacing-sm text-interface-medium"></i>Set as Inactive
                                     </button>
                                 </li>
-                                <!-- TODO - Check if future follow up is enabled. -->
-                                <li>
+                                <li v-if="box.options?.isFutureFollowUpEnabled">
                                     <button type="button"
                                             @click.stop="showChangeStateModal(ConnectionState.FutureFollowUp, row)"
                                             class="dropdown-item btn-link py-spacing-xs px-spacing-md font-weight-semibold">
@@ -312,8 +327,7 @@
                                         <i class="ti ti-settings-cog pr-spacing-sm text-interface-medium"></i>Launch Workflow
                                     </button>
                                 </li>
-                                <!-- TODO - Check if request secrity is enabled -->
-                                <li>
+                                <li v-if="box.options?.isRequestSecurityEnabled">
                                     <button type="button"
                                             @click.stop="showSecurity(EntityType.ConnectionRequest, row.idKey)"
                                             class="dropdown-item btn-link py-spacing-xs px-spacing-md font-weight-semibold">
@@ -348,7 +362,7 @@
 
     <AddConnectionRequestModal v-model="newConnectionRequest"
                                v-model:visible="isAddConnectionRequestModalVisible"
-                               :options="box.options ?? {}"
+                               :options="box.options"
                                :connectionOpportunityDetails="connectionOpportunityDetails"
                                :placementGroupDetails="placementGroupDetails"
                                :isConnectionOpportunityFilterSelected="hasSelectedOpportunity"
@@ -361,6 +375,11 @@
                           :isLoading="areCampaignsLoading"
                           :campaignRecordBags="campaignRecordBags"
                           @assignRequests="assignRequestsFromCampaign" />
+
+    <CelebrationModal v-model:visible="isCelebrationModalVisible"
+                      :requestDetails="requestDetailsForModal"
+                      :viewOptions="viewOptions"
+                      @upsertCelebration="upsertCelebration" />
 
     <AssignRequestModal v-model:visible="isAssignRequestModalVisible"
                         :connectorItems="allPossibleConnectors"
@@ -601,6 +620,8 @@
     import { LaunchWorkflowResultBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/launchWorkflowResultBag";
     import ModalAlert from "@Obsidian/Controls/modalAlert.obs";
     import { showSecurity } from "@Obsidian/Utility/dialogs";
+    import CelebrationModal from "./ConnectionsHub/celebrationModal.partial.obs";
+    import { UpsertCelebrationBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/UpsertCelebrationBag";
 
     /* =====================================================
      * Configuration & Data Loading
@@ -637,6 +658,7 @@
     const isModalAlertVisible = ref(false);
     const modalAlertText = ref();
 
+    const isCelebrationModalVisible = ref(false);
     const isAssignRequestModalVisible = ref(false);
     const isDeleteRequestModalVisible = ref(false);
     const isAddActivityModalVisible = ref(false);
@@ -770,25 +792,10 @@
             const idKey = row["idKey"] as string | null | undefined;
 
             if (!idKey || !selectedKeySet.has(idKey)) {
-                return [];
+                return {};
             }
 
-            const connectionOpportunity = row["connectionOpportunity"] as string | null | undefined;
-            const connectionStatus = row["connectionStatus"] as ConnectionStatusBag | null | undefined;
-            const connectionTypeSource = row["connectionTypeSource"] as string | null | undefined;
-            const connector = row["connectorDetails"] as PersonFieldBag | null | undefined;
-            const dueDate = row["dueDate"] as string | null | undefined;
-            const requester = row["requestDetails"] as PersonFieldBag | null | undefined;
-
-            return {
-                idKey,
-                connectionOpportunity,
-                connectionStatus,
-                connectionTypeSource,
-                connector,
-                dueDate,
-                requester
-            } as BulkRequestViewBag;
+            return getBulkRequestViewBag(row, idKey);
         });
     });
 
@@ -857,12 +864,13 @@
 
             // Due Filter
             if (viewOptions.value.dueFilter && viewOptions.value.dueFilter.length > 0) {
-                const dueDateValue = row["dueDate"] as string | null | undefined;
-                const dueSoonDateValue = row["dueSoonDate"] as string | null | undefined;
+                const dueStatusValue = row["dueStatus"] as DueStatus | null | undefined;
 
-                const dueValue = getDueStatus(dueDateValue, dueSoonDateValue);
+                if (dueStatusValue === null || typeof dueStatusValue !== "number") {
+                    return false;
+                }
 
-                if (!viewOptions.value.dueFilter.includes(dueValue.toString())) {
+                if (!viewOptions.value.dueFilter.includes(dueStatusValue.toString())) {
                     return false;
                 }
             }
@@ -1008,6 +1016,10 @@
             text: "Status",
             value: "statusGrouping"
         },
+        {
+            text: "Due Status",
+            value: "dueStatusGrouping"
+        },
     ];
 
     /** The time elapsed since the specified date in a human-readable format. */
@@ -1056,27 +1068,7 @@
         return `${dayDiff}d`;
     }
 
-    function getDueStatus(dueDate: string | null | undefined, dueSoonDate: string | null | undefined): DueStatus {
-        const now = RockDateTime.now().date;
-        const due = RockDateTime.parseISO(dueDate ?? "")?.date;
-        const dueSoon = RockDateTime.parseISO(dueSoonDate ?? "")?.date;
-
-        if (!due) {
-            return DueStatus.DueLater;
-        }
-
-        if (now > due) {
-            return DueStatus.Overdue;
-        }
-
-        if (dueSoon && now >= dueSoon) {
-            return DueStatus.DueSoon;
-        }
-
-        return DueStatus.DueLater;
-    }
-
-    function getDueDateColor(dueStatus: DueStatus): string {
+    function getDueDateColor(dueStatus: DueStatus | null | undefined): string {
         switch (dueStatus) {
             case DueStatus.DueLater:
                 return "text-interface-strong";
@@ -1090,17 +1082,11 @@
     }
 
     function getOverdueCount(rows: Record<string, unknown>[]): number {
-        return rows.filter(r =>
-            getDueStatus(toNullableString(r.dueDate), toNullableString(r.dueSoonDate))
-            === DueStatus.Overdue
-        ).length;
+        return rows.filter(r => r["dueStatus"] === DueStatus.Overdue).length;
     }
 
     function getDueSoonCount(rows: Record<string, unknown>[]): number {
-        return rows.filter(r =>
-            getDueStatus(toNullableString(r.dueDate), toNullableString(r.dueSoonDate))
-            === DueStatus.DueSoon
-        ).length;
+        return rows.filter(r => r["dueStatus"] === DueStatus.DueSoon).length;
     }
 
     function asLocaleString(dateTime: string | null | undefined): string {
@@ -1128,11 +1114,6 @@
         }
 
         return preferenceKey.replace("{0}", box.options.connectionTypeIdKey);
-    }
-
-
-    function toNullableString(value: unknown): string | null {
-        return isNullOrWhiteSpace(value) ? null : value as string;
     }
 
     /** Adds the tooltip behavior to the element. */
@@ -1168,25 +1149,33 @@
             return;
         }
 
-        const idKey = row["idKey"] as string | null | undefined;
+        const requestDetailsBag = getBulkRequestViewBag(row);
+        requestDetailsForModal.value = [requestDetailsBag];
+    }
+
+    function getBulkRequestViewBag(row: Record<string, unknown>, idKey: string | null | undefined = null): BulkRequestViewBag {
+        if (isNullOrWhiteSpace(idKey)) {
+            idKey = row["idKey"] as string | null | undefined;
+        }
+
         const connectionOpportunity = row["connectionOpportunity"] as string | null | undefined;
         const connectionStatus = row["connectionStatus"] as ConnectionStatusBag | null | undefined;
         const connectionTypeSource = row["connectionTypeSource"] as string | null | undefined;
         const connector = row["connectorDetails"] as PersonFieldBag | null | undefined;
         const dueDate = row["dueDate"] as string | null | undefined;
         const requester = row["requestDetails"] as PersonFieldBag | null | undefined;
+        const celebrationText = row["celebrationText"] as string | null | undefined;
 
-        const requestDetailsBag = {
+        return {
             idKey,
             connectionOpportunity,
             connectionStatus,
             connectionTypeSource,
             connector,
             dueDate,
-            requester
+            requester,
+            celebrationText
         } as BulkRequestViewBag;
-
-        requestDetailsForModal.value = [requestDetailsBag];
     }
 
     function prepareRequestDetailsForModal(row: Record<string, unknown> | null = null): void {
@@ -1207,11 +1196,18 @@
         groupedGridPanel.value.collapseAll();
     }
 
+    function showCelebrationModal(row: Record<string, unknown> | null): void {
+        prepareRequestDetailsForModal(row);
+        isCelebrationModalVisible.value = true;
+    }
+
     function showAssignRequestModal(): void {
+        prepareRequestDetailsForModal();
         isAssignRequestModalVisible.value = true;
     }
 
     function showDeleteRequestModal(): void {
+        prepareRequestDetailsForModal();
         isDeleteRequestModalVisible.value = true;
     }
 
@@ -1222,10 +1218,12 @@
     }
 
     function showAddActivityModal(): void {
+        prepareRequestDetailsForModal();
         isAddActivityModalVisible.value = true;
     }
 
     function showChangeStatusModal(): void {
+        prepareRequestDetailsForModal();
         isChangeStatusModalVisible.value = true;
     }
 
@@ -1672,6 +1670,22 @@
             // TODO - this may be updated to insert updated/inserted values into the exisithing grid data rather than reloading.
             loadGridData();
             isAddFromCampaignModalVisible.value = false;
+            return;
+        }
+
+        console.error(result.errorMessage);
+    }
+
+    async function upsertCelebration(bag: UpsertCelebrationBag): Promise<void> {
+        const result = await invokeBlockAction<ConnectionListGridUpdateBag>("UpsertCelebrationText", { bag });
+
+        if (result.isSuccess && result.data) {
+            const row = gridData.value?.rows?.find(r => r.idKey === result.data?.idKey);
+
+            if (row) {
+                row.celebrationText = result.data.celebrationText;
+            }
+            isCelebrationModalVisible.value = false;
             return;
         }
 

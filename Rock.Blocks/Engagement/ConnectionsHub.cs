@@ -22,6 +22,7 @@ using Rock.SystemKey;
 using Rock.Web;
 using Rock.Enums.Connection;
 using Rock.Tasks;
+using System.Management.Automation;
 
 namespace Rock.Blocks.Engagement
 {
@@ -164,6 +165,8 @@ namespace Rock.Blocks.Engagement
                 .Where( i => !ignoredConnectionStates.Contains( ( Rock.Enums.Connection.ConnectionState ) i.Value.AsInteger() ) )
                 .ToList();
             options.RequestSourceItems = connectionType.ConnectionTypeSources.ToListItemBagList();
+            options.IsFutureFollowUpEnabled = connectionType.EnableFutureFollowup;
+            options.IsRequestSecurityEnabled = connectionType.EnableRequestSecurity;
 
             var manualWorkflows = new List<ConnectionWorkflow>();
             var authorizedWorkflowItems = new List<ListItemBag>();
@@ -345,7 +348,7 @@ namespace Rock.Blocks.Engagement
             };
         }
 
-        private GroupingFieldBag GetGroupingFieldBag( int? id, string type, string label, int? order = null, string iconCssClass = null, PersonFieldBag person = null )
+        private GroupingFieldBag GetGroupingFieldBag( int? id, string type, string label, int? order = null, string iconCssClass = null, PersonFieldBag person = null, string textColorCssClass = null )
         {
             if ( !id.HasValue )
             {
@@ -365,7 +368,8 @@ namespace Rock.Blocks.Engagement
                     Type = type,
                     Label = "Unassigned",
                     Person = person,
-                    Order = order
+                    Order = order,
+                    TextColorCssClass = textColorCssClass
                 };
             }
 
@@ -376,8 +380,24 @@ namespace Rock.Blocks.Engagement
                 Label = label,
                 IconCssClass = iconCssClass,
                 Person = person,
-                Order = order
+                Order = order,
+                TextColorCssClass = textColorCssClass
             };
+        }
+
+        private string GetDueStatusTextColorCssClass( DueStatus dueStatus )
+        {
+            switch ( dueStatus )
+            {
+                case DueStatus.DueLater:
+                    return "text-interface-strong";
+                case DueStatus.DueSoon:
+                    return "text-warning-strong";
+                case DueStatus.Overdue:
+                    return "text-danger-strong";
+                default:
+                    return "text-interface-strong";
+            }
         }
 
         private string GetStateIconCssClass( ConnectionState state )
@@ -395,6 +415,30 @@ namespace Rock.Blocks.Engagement
                 default:
                     return "ti ti-bolt";
             }
+        }
+
+        private DueStatus GetDueStatus( DateTime? dueDate, DateTime? dueSoonDate )
+        {
+            var now = RockDateTime.Now.Date;
+
+            if ( !dueDate.HasValue )
+            {
+                return DueStatus.DueLater;
+            }
+
+            var due = dueDate.Value.Date;
+
+            if ( now > due )
+            {
+                return DueStatus.Overdue;
+            }
+
+            if ( dueSoonDate.HasValue && now >= dueSoonDate.Value.Date )
+            {
+                return DueStatus.DueSoon;
+            }
+
+            return DueStatus.DueLater;
         }
 
         private bool TryGetEntityForEditAction( string idKey, out ConnectionRequest entity, out BlockActionResult error )
@@ -862,6 +906,7 @@ namespace Rock.Blocks.Engagement
                     CreatedDateTime = a.CreatedDateTime,
                     DueDate = a.DueDate,
                     DueSoonDate = a.DueSoonDate,
+                    CelebrationText = a.CelebrationText,
                     PersonProjection = new PersonProjection
                     {
                         NickName = a.PersonAlias.Person.NickName,
@@ -964,12 +1009,16 @@ namespace Rock.Blocks.Engagement
                         }
                     }
                 }
+
+                var dueStatus = GetDueStatus( request.DueDate, request.DueSoonDate );
+                request.DueStatus = dueStatus;
                 request.ConnectorPerson = connectorPerson;
 
                 request.ConnectorGrouping = GetGroupingFieldBag( request.ConnectorGroupingProjection.Id, "person", request.ConnectorGroupingProjection.Label, null, null, connectorPerson );
                 request.OpportunityGrouping = GetGroupingFieldBag( request.OpportunityGroupingProjection.Id, "text", request.OpportunityGroupingProjection.Label, request.OpportunityGroupingProjection.Order, request.ConnectionOpportunityIcon );
                 request.CampusGrouping = GetGroupingFieldBag( request.CampusGroupingProjection.Id, "text", request.CampusGroupingProjection.Label, request.CampusGroupingProjection.Order );
                 request.StatusGrouping = GetGroupingFieldBag( request.StatusGroupingProjection.Id, "text", request.StatusGroupingProjection.Label, request.StatusGroupingProjection.Order );
+                request.DueStatusGrouping = GetGroupingFieldBag( ( int ) dueStatus, "text", dueStatus.ToString(), dueStatus.GetOrder(), "ti ti-calendar", null, GetDueStatusTextColorCssClass( dueStatus ) );
 
                 request.StateGrouping = new GroupingFieldBag
                 {
@@ -1360,6 +1409,34 @@ namespace Rock.Blocks.Engagement
 
             RockContext.SaveChanges();
             return ActionOk( gridUpdateBags );
+        }
+
+        [BlockAction]
+        public BlockActionResult UpsertCelebrationText( UpsertCelebrationBag bag )
+        {
+            var connectionType = ConnectionTypeCache.Get( PageParameter( PageParameterKey.ConnectionType ), !PageCache.Layout.Site.DisablePredictableIds );
+            if ( connectionType == null )
+            {
+                return ActionBadRequest( $"{Rock.Model.ConnectionType.FriendlyTypeName} not found." );
+            }
+
+            var canEditRequest = CanEditConnectionRequest( connectionType, bag.ConnectionRequestIdKey, out var connectionRequest, out var actionError );
+
+            if ( !canEditRequest )
+            {
+                return actionError;
+            }
+
+            connectionRequest.CelebrationText = bag.CelebrationText;
+
+            var gridUpdateBag = new ConnectionListGridUpdateBag
+            {
+                IdKey = connectionRequest.IdKey,
+                CelebrationText = connectionRequest.CelebrationText
+            };
+
+            RockContext.SaveChanges();
+            return ActionOk( gridUpdateBag );
         }
 
         [BlockAction]
@@ -2097,6 +2174,7 @@ namespace Rock.Blocks.Engagement
                 .AddField( "opportunityGrouping", a => a.OpportunityGrouping )
                 .AddField( "statusGrouping", a => a.StatusGrouping )
                 .AddField( "stateGrouping", a => a.StateGrouping )
+                .AddField( "dueStatusGrouping", a => a.DueStatusGrouping )
                 .AddField( "connectorDetails", a => a.ConnectorPerson )
                 .AddField( "requestDetails", a => a.Person )
                 .AddTextField( "connectionOpportunity", a => a.ConnectionOpportunity )
@@ -2109,8 +2187,10 @@ namespace Rock.Blocks.Engagement
                 .AddDateTimeField( "createdDateTime", a => a.CreatedDateTime )
                 .AddDateTimeField( "dueDate", a => a.DueDate )
                 .AddDateTimeField( "dueSoonDate", a => a.DueSoonDate )
+                .AddField( "dueStatus", a => a.DueStatus )
                 .AddDateTimeField( "followUpDate", a => a.FollowUpDate )
                 .AddField( "connectionState", a => a.ConnectionState )
+                .AddTextField( "celebrationText", a => a.CelebrationText )
                 .AddAttributeFieldsFrom( a => a.ConnectionRequest, GetGridAttributes() );
         }
 
@@ -2168,6 +2248,8 @@ namespace Rock.Blocks.Engagement
 
             public GroupingFieldBag StatusGrouping { get; set; }
 
+            public GroupingFieldBag DueStatusGrouping { get; set; }
+
             public PersonProjection ConnectorPersonProjection { get; set; }
 
             public PersonFieldBag ConnectorPerson { get; set; }
@@ -2211,6 +2293,10 @@ namespace Rock.Blocks.Engagement
             public DateTime? DueDate { get; set; }
 
             public DateTime? DueSoonDate { get; set; }
+
+            public DueStatus DueStatus { get; set; }
+
+            public string CelebrationText { get; set; }
         }
 
         public class GroupingProjection

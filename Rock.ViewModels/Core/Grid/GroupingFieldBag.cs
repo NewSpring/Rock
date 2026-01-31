@@ -30,6 +30,8 @@ namespace Rock.ViewModels.Core.Grid
 
         public string IconCssClass { get; set; }
 
+        public string TextColorCssClass { get; set; }
+
         public PersonFieldBag Person { get; set; }
 
         public int? Order { get; set; }

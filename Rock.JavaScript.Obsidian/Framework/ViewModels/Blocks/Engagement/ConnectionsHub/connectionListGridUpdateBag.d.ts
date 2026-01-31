@@ -31,6 +31,8 @@ export type ConnectionListGridUpdateBag = {
 
     campusGrouping?: GroupingFieldBag | null;
 
+    celebrationText?: string | null;
+
     connectionState: ConnectionState;
 
     connectionStatusBag?: ConnectionStatusBag | null;

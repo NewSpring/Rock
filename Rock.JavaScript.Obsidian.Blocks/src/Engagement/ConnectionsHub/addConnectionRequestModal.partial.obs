@@ -12,7 +12,7 @@
         <div class="row" v-if="isNullOrWhiteSpace(connectionOpportunityGuid) || !props.isConnectionOpportunityFilterSelected">
             <div class="col-md-6">
                 <DropDownList v-model="connectionOpportunityGuid"
-                              :items="props.options.connectionOpportunities ?? []"
+                              :items="props.options?.connectionOpportunities ?? []"
                               label="Connection Opportunity"
                               rules="required" />
             </div>
@@ -101,12 +101,12 @@
         <div class="row">
             <div class="col-md-6">
                 <DropDownList v-model="requestSourceGuid"
-                              :items="props.options.requestSourceItems ?? []"
+                              :items="props.options?.requestSourceItems ?? []"
                               label="Request Source" />
             </div>
         </div>
 
-        <div class="row" v-if="props.options.connectionTypeRequestAttributes">
+        <div class="row" v-if="props.options?.connectionTypeRequestAttributes">
             <div class="col-md-6">
                 <AttributeValuesContainer v-model="connectionRequestAttributeValues"
                                           :attributes="props.options.connectionTypeRequestAttributes"
@@ -162,7 +162,7 @@
         },
 
         options: {
-            type: Object as PropType<ConnectionsHubOptionsBag>,
+            type: Object as PropType<ConnectionsHubOptionsBag | null | undefined>,
             required: true
         },
 
@@ -208,7 +208,7 @@
     const connectionRequestAttributeValues = propertyRef(props.modelValue.bag?.connectionRequestAttributeValues ?? {}, "ConnectionRequestAttributeValues");
 
     // Filter out "Connected" state when we are adding a new Connection Request
-    const connectionStateItems = props.options.connectionStates?.filter(c =>
+    const connectionStateItems = props.options?.connectionStates?.filter(c =>
         !isNullOrWhiteSpace(c.value) &&
         (parseInt(c.value!) as ConnectionState) !== ConnectionState.Connected
     );
@@ -260,7 +260,7 @@
 
     const connectionStatusItems = computed<ListItemBag[]>(() => {
         return (
-            props.options.connectionStatuses?.map(s => ({
+            props.options?.connectionStatuses?.map(s => ({
                 value: s.guid,
                 text: s.name
             })) ?? []
@@ -310,7 +310,7 @@
         }
 
         const currentValues = connectionRequestAttributeValues.value ?? {};
-        const connectionTypeAttributeKeys = Object.keys(props.options.connectionTypeRequestAttributes ?? {});
+        const connectionTypeAttributeKeys = Object.keys(props.options?.connectionTypeRequestAttributes ?? {});
         const connectionOpportunityAttributeKeys = Object.keys(props.connectionOpportunityDetails?.connectionOpportunityRequestAttributes ?? {});
 
         const validKeys = new Set<string>([

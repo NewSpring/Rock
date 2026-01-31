@@ -42,6 +42,8 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
 
         public string DueDate { get; set; }
 
-        public ConnectionStatusBag ConnectionStatus { get; set; } 
+        public ConnectionStatusBag ConnectionStatus { get; set; }
+
+        public string CelebrationText { get; set; }
     }
 }

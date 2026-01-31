@@ -34,5 +34,7 @@ export type GroupingFieldBag = {
 
     person?: PersonFieldBag | null;
 
+    textColorCssClass?: string | null;
+
     type?: string | null;
 };

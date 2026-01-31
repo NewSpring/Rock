@@ -38,4 +38,6 @@ export type BulkRequestViewBag = {
     idKey?: string | null;
 
     requester?: PersonFieldBag | null;
+
+    celebrationText?: string | null;
 };

@@ -50,12 +50,12 @@
                                 <PersonAvatar :personIdKey="group.person.idKey ?? ''"
                                               :photoUrl="group.person.photoUrl ?? ''"
                                               :photoSize="24" />
-                                <span>{{ group.person.nickName }} {{ group.person.lastName }}</span>
+                                <span :class="group.textColorCssClass">{{ group.person.nickName }} {{ group.person.lastName }}</span>
                             </template>
-                            <template v-else>
+                            <div v-else :class="group.textColorCssClass">
                                 <i v-if="group.iconCssClass" :class="group.iconCssClass" class="mr-3"></i>
                                 <span>{{ group.label }}</span>
-                            </template>
+                            </div>
                         </div>
                     </template>
                     <template #headerActions>

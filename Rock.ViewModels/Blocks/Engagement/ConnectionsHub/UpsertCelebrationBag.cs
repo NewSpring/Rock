@@ -15,29 +15,15 @@
 // </copyright>
 //
 
-namespace Rock.Enums.Connection
+namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
 {
     /// <summary>
-    /// Due Status
+    /// 
     /// </summary>
-    public enum DueStatus
+    public class UpsertCelebrationBag
     {
-        /// <summary>
-        /// The request is not due yet.
-        /// </summary>
-        [EnumOrder( 2 )]
-        DueLater = 0,
+        public string ConnectionRequestIdKey { get; set; }
 
-        /// <summary>
-        /// The request is due soon.
-        /// </summary>
-        [EnumOrder( 1 )]
-        DueSoon = 1,
-
-        /// <summary>
-        /// The request is overdue.
-        /// </summary>
-        [EnumOrder( 0 )]
-        Overdue = 2,
+        public string CelebrationText { get; set; }
     }
 }
