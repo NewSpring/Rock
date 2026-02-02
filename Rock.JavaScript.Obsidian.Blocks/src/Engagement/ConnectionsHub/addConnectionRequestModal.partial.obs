@@ -14,7 +14,8 @@
                 <DropDownList v-model="connectionOpportunityGuid"
                               :items="props.options?.connectionOpportunities ?? []"
                               label="Connection Opportunity"
-                              rules="required" />
+                              rules="required"
+                              @update:modelValue="onConnectionOpportunityChanged" />
             </div>
         </div>
         <div class="row">
@@ -41,7 +42,15 @@
                                  label="State" />
             </div>
         </div>
-        <!-- TODO: Add Future Follow-Up required Date Picker -->
+
+        <div v-if="parseInt(connectionState) === ConnectionState.FutureFollowUp" class="row">
+            <div class="col-md-6">
+                <DatePicker v-model="followUpDate"
+                            label="Follow-Up Date"
+                            rules="required" />
+            </div>
+        </div>
+
         <div class="row">
             <div class="col-md-6">
                 <DropDownList v-model="connectionStatusGuid"
@@ -149,6 +158,7 @@
     import { ValidPropertiesBox } from "@Obsidian/ViewModels/Utility/validPropertiesBox";
     import { setPropertiesBoxValue } from "@Obsidian/Utility/block";
     import { GroupMemberStatus } from "@Obsidian/Enums/Group/groupMemberStatus";
+    import DatePicker from "@Obsidian/Controls/datePicker.obs";
 
     const props = defineProps({
         modelValue: {
@@ -194,10 +204,11 @@
 
     const isVisible = useVModelPassthrough(props, "visible", emit);
 
-    const requester = propertyRef(props.modelValue.bag?.requester ?? {}, "Requester");
+    const requester = propertyRef(props.modelValue.bag?.requester ?? undefined, "Requester");
     const connectionOpportunityGuid = propertyRef(props.modelValue.bag?.connectionOpportunityGuid ?? "", "ConnectionOpportunityGuid");
     const connectorPersonAliasGuid = propertyRef(props.modelValue.bag?.connectorPersonAliasGuid ?? "", "ConnectorPersonAliasGuid");
     const connectionState = propertyRef(props.modelValue.bag?.connectionState?.toString() ?? ConnectionState.Active.toString(), "ConnectionState");
+    const followUpDate = propertyRef(props.modelValue.bag?.followUpDate ?? "", "FollowUpDate");
     const connectionStatusGuid = propertyRef(props.modelValue.bag?.connectionStatusGuid ?? "", "ConnectionStatusGuid");
     const placementGroupGuid = propertyRef(props.modelValue.bag?.placementGroupGuid ?? "", "PlacementGroupGuid");
     const groupMemberRoleGuid = propertyRef(props.modelValue.bag?.groupMemberRoleGuid ?? "", "GroupMemberRoleGuid");
@@ -280,6 +291,7 @@
         setPropertiesBoxValue(newValue, "connectionOpportunityGuid", connectionOpportunityGuid.value);
         setPropertiesBoxValue(newValue, "connectionRequestAttributeValues", connectionRequestAttributeValues.value);
         setPropertiesBoxValue(newValue, "connectionState", parseInt(connectionState.value) as ConnectionState);
+        setPropertiesBoxValue(newValue, "followUpDate", followUpDate.value);
         setPropertiesBoxValue(newValue, "connectionStatusGuid", connectionStatusGuid.value);
         setPropertiesBoxValue(newValue, "connectorPersonAliasGuid", connectorPersonAliasGuid.value);
         setPropertiesBoxValue(newValue, "groupMemberRoleGuid", groupMemberRoleGuid.value);
@@ -329,18 +341,24 @@
         connectionRequestAttributeValues.value = prunedValues;
     }
 
+    function onConnectionOpportunityChanged(value: string | string[]): void {
+        const guid = Array.isArray(value) ? value[0] ?? "" : value;
+
+        connectorPersonAliasGuid.value = "";
+        placementGroupGuid.value = "";
+
+        if (!guid) {
+            return;
+        }
+
+        emit("fetchConnectionOpportunityDetails", guid);
+    }
 
     watch(isVisible, () => {
         errorMessage.value = "";
         if (!isVisible.value) {
             emit("close");
         }
-    });
-
-    watch(connectionOpportunityGuid, () => {
-        connectorPersonAliasGuid.value = "";
-        placementGroupGuid.value = "";
-        emit("fetchConnectionOpportunityDetails", connectionOpportunityGuid.value);
     });
 
     watch(() => props.connectionOpportunityDetails, () => {

@@ -39,6 +39,8 @@ export type ConnectionRequestBag = {
 
     connectorPersonAliasGuid?: string | null;
 
+    followUpDate?: string | null;
+
     groupMemberRoleGuid?: string | null;
 
     groupMemberStatus?: GroupMemberStatus | null;

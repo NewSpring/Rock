@@ -23,6 +23,7 @@ using Rock.Web;
 using Rock.Enums.Connection;
 using Rock.Tasks;
 using System.Management.Automation;
+using Rock.Reporting.DataFilter.ConnectionRequest;
 
 namespace Rock.Blocks.Engagement
 {
@@ -99,7 +100,19 @@ namespace Rock.Blocks.Engagement
         private ConnectionsHubOptionsBag GetOptions()
         {
             var options = new ConnectionsHubOptionsBag();
-            var connectionType = new ConnectionTypeService( RockContext ).GetInclude( PageParameter( PageParameterKey.ConnectionType ), a => a.ConnectionStatuses, !PageCache.Layout.Site.DisablePredictableIds );
+            ConnectionType connectionType;
+
+            var connectionOpportunity = new ConnectionOpportunityService( RockContext ).GetInclude( PageParameter( PageParameterKey.ConnectionOpportunity ), o => o.ConnectionType, !PageCache.Layout.Site.DisablePredictableIds );
+
+            if ( connectionOpportunity != null )
+            {
+                options.ConnectionOpportunityGuidFromPageParameter = connectionOpportunity.Guid;
+                connectionType = connectionOpportunity.ConnectionType;
+            }
+            else
+            {
+                connectionType = new ConnectionTypeService( RockContext ).GetInclude( PageParameter( PageParameterKey.ConnectionType ), a => a.ConnectionStatuses, !PageCache.Layout.Site.DisablePredictableIds );
+            }
 
             if ( connectionType == null )
             {
@@ -113,27 +126,12 @@ namespace Rock.Blocks.Engagement
             options.ConnectionTypeIdKey = connectionTypeIdKey;
             options.IsSequentialStatusMode = connectionType.IsSequentialStatusEnforced;
 
-            //options.ConnectionStatusBags = connectionType.ConnectionStatuses
-            //    .Select( cs => new ConnectionStatusBag
-            //    {
-            //        Guid = cs.Guid,
-            //        Name = cs.Name,
-            //        Order = cs.Order,
-            //        HighlightColor = cs.HighlightColor
-            //    } )
-            //    .OrderBy( cs => cs.Order )
-            //    .ToList();
-
             List<Rock.Enums.Connection.ConnectionState> ignoredConnectionStates = new List<Rock.Enums.Connection.ConnectionState>();
 
             if ( !connectionType.EnableFutureFollowup )
             {
                 ignoredConnectionStates.Add( Rock.Enums.Connection.ConnectionState.FutureFollowUp );
             }
-
-            // When we are in add mode then we ignore "Connected". This will need to be updated if this list is used elsewhere.
-            // Moving this to client side...
-            //ignoredConnectionStates.Add( ConnectionState.Connected );
 
             var connectors = connectionType.ConnectionOpportunities
                 .Where( o => o.IsActive )
@@ -167,6 +165,9 @@ namespace Rock.Blocks.Engagement
             options.RequestSourceItems = connectionType.ConnectionTypeSources.ToListItemBagList();
             options.IsFutureFollowUpEnabled = connectionType.EnableFutureFollowup;
             options.IsRequestSecurityEnabled = connectionType.EnableRequestSecurity;
+            options.AreCelebrationsEnabled = connectionType.EnabledFeatures.HasFlag( EnabledFeatureFlags.Celebration );
+            options.AreRemindersEnabled = connectionType.EnabledFeatures.HasFlag( EnabledFeatureFlags.Reminder );
+            options.AreGroupPlacementsEnabled = connectionType.EnabledFeatures.HasFlag( EnabledFeatureFlags.GroupPlacement );
 
             var manualWorkflows = new List<ConnectionWorkflow>();
             var authorizedWorkflowItems = new List<ListItemBag>();
@@ -219,9 +220,14 @@ namespace Rock.Blocks.Engagement
 
             var connectionOpportunityFilter = GetConnectionOpportunityFilter( connectionTypeIdKey );
 
-            if ( connectionOpportunityFilter.HasValue )
+            if ( connectionOpportunity == null && connectionOpportunityFilter.HasValue )
             {
-                options.ConnectionOpportunityDetailsFromFilter = GetConnectionOpportunityDetailBag( connectionOpportunityFilter.Value );
+                connectionOpportunity = new ConnectionOpportunityService( RockContext ).Get( connectionOpportunityFilter.Value );
+            }
+
+            if ( connectionOpportunity != null )
+            {
+                options.ConnectionOpportunityDetailsFromFilter = GetConnectionOpportunityDetailBag( connectionOpportunity );
             }
 
             // The values should equal the field names for each respective column.
@@ -273,14 +279,8 @@ namespace Rock.Blocks.Engagement
             return preferences.GetValue( string.Format( PreferenceKey.ConnectionmOpportunityFilterConnectionTypeIdKey, connectionTypeIdKey ) ).AsGuidOrNull();
         }
 
-        private ConnectionOpportunityDetailBag GetConnectionOpportunityDetailBag( Guid connectionOpportunityGuid )
+        private ConnectionOpportunityDetailBag GetConnectionOpportunityDetailBag( ConnectionOpportunity connectionOpportunity )
         {
-            var connectionOpportunity = new ConnectionOpportunityService( RockContext ).Get( connectionOpportunityGuid );
-            if ( connectionOpportunity == null )
-            {
-                return null;
-            }
-
             var campusContext = RequestContext.GetContextEntity<Campus>();
             int? campusId = campusContext?.Id;
 
@@ -513,6 +513,12 @@ namespace Rock.Blocks.Engagement
                 entity.ConnectionState = ( ConnectionState ) ( int ) state;
             } );
 
+            if ( entity.ConnectionState == ConnectionState.FutureFollowUp )
+            {
+                box.IfValidProperty( nameof( box.Bag.FollowUpDate ),
+                    () => entity.FollowupDate = box.Bag.FollowUpDate?.DateTime );
+            }
+
             var isConnectionStatusValid = box.IfValidProperty( nameof( box.Bag.ConnectionStatusGuid ), () =>
             {
                 var connectionStatusId = new ConnectionStatusService( RockContext ).GetId( box.Bag.ConnectionStatusGuid.AsGuid() );
@@ -587,94 +593,6 @@ namespace Rock.Blocks.Engagement
             }
 
             return JsonConvert.SerializeObject( values, Formatting.None );
-        }
-
-        private bool CanUpdateConnectionRequest( List<int> connectionRequestIds, ConnectionTypeCache connectionType, out List<ConnectionRequest> connectionRequests )
-        {
-            var userCanEditConnectionRequest = false;
-            var connectionOpportunityFilter = GetConnectionOpportunityFilter( connectionType.IdKey );
-            connectionRequests = null;
-
-            List<ConnectionOpportunity> connectionOpportunities = new List<ConnectionOpportunity>();
-            if ( connectionOpportunityFilter.HasValue )
-            {
-                var connectionOpportunity = new ConnectionOpportunityService( RockContext ).Get( connectionOpportunityFilter.Value );
-                connectionOpportunities.Add( connectionOpportunity );
-            }
-            else
-            {
-                // TODO - Check with Observability, this sql might be ugly. Potentially query for Connection Opportunities from Connection Requests first.
-                // Get all the Connection Opportunities that have any of the Connection Requests in them.
-                connectionOpportunities = new ConnectionOpportunityService( RockContext )
-                    .Queryable()
-                    .Where( o =>
-                        o.ConnectionTypeId == connectionType.Id &&
-                        o.ConnectionRequests.Any( r => connectionRequestIds.Contains( r.Id ) ) )
-                    .ToList();
-            }
-
-            if ( connectionType != null && connectionType.EnableRequestSecurity )
-            {
-                connectionRequests = new ConnectionRequestService( RockContext ).GetByIds( connectionRequestIds ).ToList();
-                userCanEditConnectionRequest = connectionRequests.All( cr => cr.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson ) );
-            }
-            else
-            {
-                userCanEditConnectionRequest = connectionOpportunities.All( co => co.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson ) );
-            }
-
-            // TODO - Mirroring Webforms logic where we will check by Connector Groups if user can't already edit.
-            //if ( !userCanEditConnectionRequest )
-            //{
-            //    var campuses = CampusCache.All().Where( c => c.IsActive ?? true ).ToList();
-            //}
-            if ( !userCanEditConnectionRequest )
-            {
-                var connectionOpportunityConnectorGroups = connectionOpportunities
-                    .SelectMany( o => o.ConnectionOpportunityConnectorGroups )
-                    .Distinct()
-                    .ToList();
-
-                //var qryConnectionOpportunityConnectorGroups = new ConnectionOpportunityConnectorGroupService( new RockContext() )
-                //    .Queryable()
-                //    .AsNoTracking()
-                //    .Where( a => a.ConnectionOpportunityId == connectionOpportunity.Id );
-                var campuses = CampusCache.All().Where( c => c.IsActive ?? true ).ToList();
-
-                // If there is only one campus OR the group is not set to a specific campus...
-
-                // Grant edit access to any of those in a non campus-specific connector group
-                userCanEditConnectionRequest = connectionOpportunityConnectorGroups
-                    .Any( g =>
-                        ( campuses.Count == 1 || !g.CampusId.HasValue ) &&
-                        g.ConnectorGroup != null &&
-                        g.ConnectorGroup.Members.Any( m => m.PersonId == RequestContext.CurrentPerson.Id && m.GroupMemberStatus == GroupMemberStatus.Active ) );
-
-                //TODO - Cannot do this last step because of Bulk Connection Requests.
-                //if ( !userCanEditConnectionRequest )
-                //{
-                //    // Current Person still has to be a Connector.
-                //    // If this is a new request, grant edit access to any connector group. Otherwise, match the request's campus to the corresponding campus-specific connector group
-                //    var groupCampuses = connectionOpportunityConnectorGroups
-                //        .Where( g =>
-                //            g.ConnectorGroup != null &&
-                //            g.ConnectorGroup.Members.Any( m => m.PersonId == RequestContext.CurrentPerson.Id ) );
-
-                //    if ( connectionRequest != null )
-                //    {
-                //        groupCampuses = groupCampuses.Where( g => ( connectionRequest.Id == 0 || ( connectionRequest.CampusId.HasValue && g.CampusId == connectionRequest.CampusId.Value ) ) );
-                //    }
-
-                //    // If the connetion request is new OR the group campus matches the connection request campus.
-                //    foreach ( var groupCampus in groupCampuses )
-                //    {
-                //        userCanEditConnectionRequest = true;
-                //        break;
-                //    }
-                //}
-            }
-
-            return userCanEditConnectionRequest;
         }
 
         private bool CanEditConnectionRequest( ConnectionTypeCache connectionType, string connectionRequestIdKey, out ConnectionRequest connectionRequest, out BlockActionResult error )
@@ -818,9 +736,22 @@ namespace Rock.Blocks.Engagement
             }
         }
 
-        private Rock.Model.ConnectionType GetConnectionType()
+        private ConnectionTypeCache GetConnectionTypeCacheFromPageParameters()
         {
-            return new ConnectionTypeService( RockContext ).Get( PageParameter( PageParameterKey.ConnectionType ), !PageCache.Layout.Site.DisablePredictableIds );
+            ConnectionTypeCache connectionType;
+
+            var connectionOpportunity = new ConnectionOpportunityService( RockContext ).Get( PageParameter( PageParameterKey.ConnectionOpportunity ), !PageCache.Layout.Site.DisablePredictableIds );
+
+            if ( connectionOpportunity != null )
+            {
+                connectionType = ConnectionTypeCache.Get( connectionOpportunity.ConnectionTypeId );
+            }
+            else
+            {
+                connectionType = ConnectionTypeCache.Get( PageParameter( PageParameterKey.ConnectionType ), !PageCache.Layout.Site.DisablePredictableIds );
+            }
+
+            return connectionType;
         }
 
         #endregion Methods
@@ -830,11 +761,28 @@ namespace Rock.Blocks.Engagement
         [BlockAction]
         public BlockActionResult GetGridData()
         {
-            var connectionType = ConnectionTypeCache.Get( PageParameter( PageParameterKey.ConnectionType ), !PageCache.Layout.Site.DisablePredictableIds );
+            ConnectionType connectionType;
+
+            var connectionOpportunity = new ConnectionOpportunityService( RockContext ).GetInclude( PageParameter( PageParameterKey.ConnectionOpportunity ), o => o.ConnectionType, !PageCache.Layout.Site.DisablePredictableIds );
+
+            if ( connectionOpportunity != null )
+            {
+                connectionType = connectionOpportunity.ConnectionType;
+            }
+            else
+            {
+                connectionType = new ConnectionTypeService( RockContext ).GetInclude( PageParameter( PageParameterKey.ConnectionType ), a => a.ConnectionStatuses, !PageCache.Layout.Site.DisablePredictableIds );
+            }
+
             if ( connectionType == null )
             {
                 return ActionOk();
             }
+
+            var reminderQry = new ReminderService( RockContext ).Queryable()
+                .Include( r => r.PersonAlias )
+                .AsNoTracking()
+                .Where( r => !r.IsComplete && r.ReminderDate < RockDateTime.Now && r.PersonAlias.PersonId == RequestContext.CurrentPerson.Id );
 
             var connectionRequestsQry = new ConnectionRequestService( RockContext ).Queryable()
                 .AsNoTracking()
@@ -918,7 +866,9 @@ namespace Rock.Blocks.Engagement
                         AgeClassification = a.PersonAlias.Person.AgeClassification,
                         ConnectionStatusValueId = a.PersonAlias.Person.ConnectionStatusValueId,
                         Id = a.PersonAlias.Person.Id,
-                    }
+                    },
+                    RequesterPersonAliasGuid = a.PersonAlias.Guid,
+                    ReminderCount = reminderQry.Count( r => r.EntityId == a.PersonAliasId )
                 } );
 
             var campusContext = RequestContext.GetContextEntity<Campus>();
@@ -1040,8 +990,15 @@ namespace Rock.Blocks.Engagement
         [BlockAction]
         public BlockActionResult FetchConnectionOpportunityDetails( string connectionOpportunityGuid )
         {
-            // TODO - check if this can get a null exception
-            var bag = GetConnectionOpportunityDetailBag( connectionOpportunityGuid.AsGuid() );
+            // TODO - check if null exception is possible
+            var connectionOpportunity = new ConnectionOpportunityService( RockContext ).Get( connectionOpportunityGuid.AsGuid() );
+
+            if ( connectionOpportunity == null )
+            {
+                return ActionNotFound();
+            }
+
+            var bag = GetConnectionOpportunityDetailBag( connectionOpportunity );
 
             if ( bag == null )
             {
@@ -1142,7 +1099,8 @@ namespace Rock.Blocks.Engagement
         [BlockAction]
         public BlockActionResult ReassignConnector( List<string> connectionRequestIdKeys, string connectorPersonAliasGuid )
         {
-            var connectionType = ConnectionTypeCache.Get( PageParameter( PageParameterKey.ConnectionType ), !PageCache.Layout.Site.DisablePredictableIds );
+            ConnectionTypeCache connectionType = GetConnectionTypeCacheFromPageParameters();
+
             if ( connectionType == null )
             {
                 return ActionBadRequest( $"{Rock.Model.ConnectionType.FriendlyTypeName} not found." );
@@ -1198,7 +1156,7 @@ namespace Rock.Blocks.Engagement
         [BlockAction]
         public BlockActionResult UpdateRequestStatuses( List<ConnectionRequestUpdateBag> statusUpdateBags, List<string> completedRequestIdKeys )
         {
-            var connectionType = ConnectionTypeCache.Get( PageParameter( PageParameterKey.ConnectionType ), !PageCache.Layout.Site.DisablePredictableIds );
+            ConnectionTypeCache connectionType = GetConnectionTypeCacheFromPageParameters();
             if ( connectionType == null )
             {
                 return ActionBadRequest( $"{Rock.Model.ConnectionType.FriendlyTypeName} not found." );
@@ -1313,7 +1271,7 @@ namespace Rock.Blocks.Engagement
         [BlockAction]
         public BlockActionResult ChangeRequestStatus( ConnectionRequestUpdateBag bag )
         {
-            var connectionType = ConnectionTypeCache.Get( PageParameter( PageParameterKey.ConnectionType ), !PageCache.Layout.Site.DisablePredictableIds );
+            ConnectionTypeCache connectionType = GetConnectionTypeCacheFromPageParameters();
             if ( connectionType == null )
             {
                 return ActionBadRequest( $"{Rock.Model.ConnectionType.FriendlyTypeName} not found." );
@@ -1362,7 +1320,7 @@ namespace Rock.Blocks.Engagement
         [BlockAction]
         public BlockActionResult UpdateRequestStates( UpdateConnectionRequestStatesBag bag )
         {
-            var connectionType = ConnectionTypeCache.Get( PageParameter( PageParameterKey.ConnectionType ), !PageCache.Layout.Site.DisablePredictableIds );
+            ConnectionTypeCache connectionType = GetConnectionTypeCacheFromPageParameters();
             if ( connectionType == null )
             {
                 return ActionBadRequest( $"{Rock.Model.ConnectionType.FriendlyTypeName} not found." );
@@ -1414,7 +1372,7 @@ namespace Rock.Blocks.Engagement
         [BlockAction]
         public BlockActionResult UpsertCelebrationText( UpsertCelebrationBag bag )
         {
-            var connectionType = ConnectionTypeCache.Get( PageParameter( PageParameterKey.ConnectionType ), !PageCache.Layout.Site.DisablePredictableIds );
+            ConnectionTypeCache connectionType = GetConnectionTypeCacheFromPageParameters();
             if ( connectionType == null )
             {
                 return ActionBadRequest( $"{Rock.Model.ConnectionType.FriendlyTypeName} not found." );
@@ -1442,7 +1400,7 @@ namespace Rock.Blocks.Engagement
         [BlockAction]
         public BlockActionResult DeleteRequests( List<string> connectionRequestIdKeys )
         {
-            var connectionType = ConnectionTypeCache.Get( PageParameter( PageParameterKey.ConnectionType ), !PageCache.Layout.Site.DisablePredictableIds );
+            ConnectionTypeCache connectionType = GetConnectionTypeCacheFromPageParameters();
             if ( connectionType == null )
             {
                 return ActionBadRequest( $"{Rock.Model.ConnectionType.FriendlyTypeName} not found." );
@@ -1478,7 +1436,7 @@ namespace Rock.Blocks.Engagement
         [BlockAction]
         public BlockActionResult AddActivityForRequests( AddActivityBag bag )
         {
-            var connectionType = ConnectionTypeCache.Get( PageParameter( PageParameterKey.ConnectionType ), !PageCache.Layout.Site.DisablePredictableIds );
+            ConnectionTypeCache connectionType = GetConnectionTypeCacheFromPageParameters();
             if ( connectionType == null )
             {
                 return ActionBadRequest( $"{Rock.Model.ConnectionType.FriendlyTypeName} not found." );
@@ -1550,7 +1508,7 @@ namespace Rock.Blocks.Engagement
         [BlockAction]
         public BlockActionResult LaunchWorkflowForRequests( LaunchWorkflowBag bag )
         {
-            var connectionType = ConnectionTypeCache.Get( PageParameter( PageParameterKey.ConnectionType ), !PageCache.Layout.Site.DisablePredictableIds );
+            ConnectionTypeCache connectionType = GetConnectionTypeCacheFromPageParameters();
             if ( connectionType == null )
             {
                 return ActionBadRequest( $"{Rock.Model.ConnectionType.FriendlyTypeName} not found." );
@@ -1709,7 +1667,7 @@ namespace Rock.Blocks.Engagement
         [BlockAction]
         public BlockActionResult FetchConnectionCampaigns()
         {
-            var connectionType = ConnectionTypeCache.Get( PageParameter( PageParameterKey.ConnectionType ), !PageCache.Layout.Site.DisablePredictableIds );
+            ConnectionTypeCache connectionType = GetConnectionTypeCacheFromPageParameters();
             if ( connectionType == null )
             {
                 // TODO - determine if we throw an exception
@@ -2177,6 +2135,7 @@ namespace Rock.Blocks.Engagement
                 .AddField( "dueStatusGrouping", a => a.DueStatusGrouping )
                 .AddField( "connectorDetails", a => a.ConnectorPerson )
                 .AddField( "requestDetails", a => a.Person )
+                .AddField( "requesterPersonAliasGuid", a => a.RequesterPersonAliasGuid )
                 .AddTextField( "connectionOpportunity", a => a.ConnectionOpportunity )
                 .AddTextField( "connectionTypeSource", a => a.ConnectionTypeSource )
                 .AddTextField( "campus", a => a.Campus )
@@ -2191,6 +2150,7 @@ namespace Rock.Blocks.Engagement
                 .AddDateTimeField( "followUpDate", a => a.FollowUpDate )
                 .AddField( "connectionState", a => a.ConnectionState )
                 .AddTextField( "celebrationText", a => a.CelebrationText )
+                .AddField( "reminderCount", a => a.ReminderCount )
                 .AddAttributeFieldsFrom( a => a.ConnectionRequest, GetGridAttributes() );
         }
 
@@ -2258,6 +2218,8 @@ namespace Rock.Blocks.Engagement
 
             public PersonFieldBag Person { get; set; }
 
+            public Guid RequesterPersonAliasGuid { get; set; }
+
             public int ConnectionOpportunityId { get; set; }
 
             public Guid ConnectionOpportunityGuid { get; set; }
@@ -2297,6 +2259,8 @@ namespace Rock.Blocks.Engagement
             public DueStatus DueStatus { get; set; }
 
             public string CelebrationText { get; set; }
+
+            public int ReminderCount { get; set; }
         }
 
         public class GroupingProjection

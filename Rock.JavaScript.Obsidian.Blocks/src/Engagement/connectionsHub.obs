@@ -111,7 +111,7 @@
                 </div>
             </div>
         </template>
-        <template #headerActions="{ groupRows }">
+        <template #headerActions="{ groupRows }" v-if="selectedGrouping !== 'dueStatusGrouping'">
             <HighlightLabel labelType="warning">
                 {{ getDueSoonCount(groupRows) }} Due Soon
             </HighlightLabel>
@@ -141,7 +141,7 @@
                               title="Request Details"
                               field="requestDetails" />
 
-                <Column v-if="viewOptions.gridDataToShow?.includes('connectionOpportunity')"
+                <Column v-if="viewOptions.gridDataToShow?.includes('connectionOpportunity') && selectedGrouping !== 'opportunityGrouping'"
                         name="connectionOpportunity"
                         field="connectionOpportunity">
                     <template #format="{ row }">
@@ -158,11 +158,23 @@
                     </template>
                 </Column>
 
-                <TextColumn name="campus"
+                <Column v-if="selectedGrouping !== 'connectorGrouping'"
+                        title="Connector"
+                        name="connectorDetails"
+                        field="connectorDetails">
+                    <template #format="{ row }">
+                        <span v-if="!isNullOrWhiteSpace(row.connectorDetails?.idKey)">{{ getFormattedName(row.connectorDetails!) }}</span>
+                        <span v-else>Unassigned</span>
+                    </template>
+                </Column>
+
+                <TextColumn v-if="selectedGrouping !== 'campusGrouping'"
+                            name="campus"
                             title="Campus"
                             field="campus" />
 
-                <TextColumn name="group"
+                <TextColumn v-if="box.options?.areGroupPlacementsEnabled"
+                            name="group"
                             title="Group"
                             field="group" />
 
@@ -207,8 +219,9 @@
 
                 <AttributeColumns :attributes="attributesToShow" />
 
-                <!-- TODO - Active state -->
-                <Column name="celebration"
+                <!-- TODO - Missing filled icon -->
+                <Column v-if="box.options?.areCelebrationsEnabled"
+                        name="celebration"
                         field="celebration"
                         width="52">
                     <template #format="{ row }">
@@ -233,17 +246,28 @@
                     </template>
                 </Column>
 
-                <!-- TODO - Active state -->
-                <Column name="reminder"
+                <Column v-if="box.options?.areRemindersEnabled"
+                        name="reminder"
                         field="reminder"
                         width="52">
                     <template #format="{ row }">
-                        <i class="ti ti-bell cursor-pointer"
+                        <i v-if="row.reminderCount > 0"
+                           class="ti ti-bell-filled cursor-pointer text-info-strong"
                            :ref="(el) => addTooltip(el as Element)"
                            data-toggle="tooltip"
                            data-placement="auto"
                            data-container="body"
-                           data-original-title="Add Reminder">
+                           :data-original-title="`${row.reminderCount} ${pluralize('Reminder', row.reminderCount)}`"
+                           @click="showReminderModal(row)">
+                        </i>
+                        <i v-else
+                           class="ti ti-bell cursor-pointer"
+                           :ref="(el) => addTooltip(el as Element)"
+                           data-toggle="tooltip"
+                           data-placement="auto"
+                           data-container="body"
+                           data-original-title="Add Reminder"
+                           @click="showReminderModal(row)">
                         </i>
                     </template>
                 </Column>
@@ -380,6 +404,19 @@
                       :requestDetails="requestDetailsForModal"
                       :viewOptions="viewOptions"
                       @upsertCelebration="upsertCelebration" />
+
+    <ReminderModal v-model="isReminderModalVisible"
+                   :contextEntityGuid="reminderEntityGuid"
+                   :contextEntityTypeGuid="EntityType.PersonAlias"
+                   :areDetailsRequired="true"
+                   :isAdditionalOptionsLinkVisible="false"
+                   @reminderClosed="decreaseReminderCount"
+                   @addSuccess="increaseReminderCount">
+        <template #postBody>
+            <RequestTable :requestDetails="requestDetailsForModal"
+                          :viewOptions="viewOptions" />
+        </template>
+    </ReminderModal>
 
     <AssignRequestModal v-model:visible="isAssignRequestModalVisible"
                         :connectorItems="allPossibleConnectors"
@@ -622,6 +659,8 @@
     import { showSecurity } from "@Obsidian/Utility/dialogs";
     import CelebrationModal from "./ConnectionsHub/celebrationModal.partial.obs";
     import { UpsertCelebrationBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/UpsertCelebrationBag";
+    import ReminderModal from "@Obsidian/Controls/Internal/reminderModal.obs";
+    import RequestTable from "./ConnectionsHub/requestTable.partial.obs";
 
     /* =====================================================
      * Configuration & Data Loading
@@ -642,7 +681,7 @@
     });
 
     const selectedGrouping = ref<string>(preferences.getValue(PreferenceKey.SelectedGroupByMode));
-    const internalSelectedOpportunity = ref(preferences.getValue(getConnectionFilterKey(PreferenceKey.ConnectionmOpportunityFilterConnectionTypeIdKey)));
+    const internalSelectedOpportunity = ref(box.options?.connectionOpportunityGuidFromPageParameter ?? preferences.getValue(getConnectionFilterKey(PreferenceKey.ConnectionmOpportunityFilterConnectionTypeIdKey)));
 
     const newConnectionRequest = ref<ValidPropertiesBox<ConnectionRequestBag>>({ bag: { connectionOpportunityGuid: internalSelectedOpportunity.value } as ConnectionRequestBag });
     const isAddConnectionRequestModalVisible = ref(false);
@@ -657,6 +696,9 @@
 
     const isModalAlertVisible = ref(false);
     const modalAlertText = ref();
+
+    const isReminderModalVisible = ref(false);
+    const reminderEntityGuid = ref<string>("");
 
     const isCelebrationModalVisible = ref(false);
     const isAssignRequestModalVisible = ref(false);
@@ -776,6 +818,14 @@
         }
     });
 
+    const groupingFields = computed(() => {
+        if (!isNullOrWhiteSpace(selectedOpportunity.value)) {
+            return allGroupingFields.filter(g => g.value !== "opportunityGrouping");
+        }
+
+        return allGroupingFields;
+    });
+
     const hasSelectedOpportunity = computed(() => !isNullOrWhiteSpace(selectedOpportunity.value));
 
     const allSelectedKeys = computed(() => Object.values(selectedKeys.value).flat());
@@ -788,15 +838,15 @@
 
         const selectedKeySet = new Set(allSelectedKeys.value);
 
-        return gridData.value.rows.flatMap(row => {
+        return gridData.value.rows.map(row => {
             const idKey = row["idKey"] as string | null | undefined;
 
             if (!idKey || !selectedKeySet.has(idKey)) {
-                return {};
+                return null;
             }
 
             return getBulkRequestViewBag(row, idKey);
-        });
+        }).filter((r): r is BulkRequestViewBag => r !== null);
     });
 
 
@@ -995,18 +1045,10 @@
         });
     });
 
-    const groupingFields = <ListItemBag[]>[
+    const allGroupingFields = <ListItemBag[]>[
         {
             text: "Connector",
             value: "connectorGrouping"
-        },
-        {
-            text: "Campus",
-            value: "campusGrouping"
-        },
-        {
-            text: "Opportunity",
-            value: "opportunityGrouping"
         },
         {
             text: "State",
@@ -1015,6 +1057,14 @@
         {
             text: "Status",
             value: "statusGrouping"
+        },
+        {
+            text: "Opportunity",
+            value: "opportunityGrouping"
+        },
+        {
+            text: "Campus",
+            value: "campusGrouping"
         },
         {
             text: "Due Status",
@@ -1081,6 +1131,11 @@
         }
     }
 
+    // TODO - consider exporting this from a partial file.
+    function getFormattedName(person: PersonFieldBag): string {
+        return `${person.nickName ?? ""} ${person.lastName ?? ""}`;
+    }
+
     function getOverdueCount(rows: Record<string, unknown>[]): number {
         return rows.filter(r => r["dueStatus"] === DueStatus.Overdue).length;
     }
@@ -1130,6 +1185,26 @@
 
     function onPanelSettingsClick(): void {
         isViewOptionsModalVisible.value = true;
+    }
+
+    function decreaseReminderCount(requesterPersonAliasGuid: string): void {
+        const row = gridData.value?.rows?.find(r => r.requesterPersonAliasGuid === requesterPersonAliasGuid);
+
+        if (!row || typeof row.reminderCount !== "number") {
+            return;
+        }
+
+        row.reminderCount--;
+    }
+
+    function increaseReminderCount(requesterPersonAliasGuid: string): void {
+        const row = gridData.value?.rows?.find(r => r.requesterPersonAliasGuid === requesterPersonAliasGuid);
+
+        if (!row || typeof row.reminderCount !== "number") {
+            return;
+        }
+
+        row.reminderCount++;
     }
 
     /**
@@ -1182,6 +1257,7 @@
         // If row is null then we are in bulk action mode.
         if (row === null) {
             requestDetailsForModal.value = selectedRequestDetails.value;
+            console.log("selected details: ", selectedRequestDetails.value);
         }
         else {
             setSingleRequestDetail(row);
@@ -1199,6 +1275,22 @@
     function showCelebrationModal(row: Record<string, unknown> | null): void {
         prepareRequestDetailsForModal(row);
         isCelebrationModalVisible.value = true;
+    }
+
+    function showReminderModal(row: Record<string, unknown> | null): void {
+        if (!row) {
+            return;
+        }
+
+        const requesterPersonAliasGuid = row["requesterPersonAliasGuid"] as string | null | undefined;
+
+        if (!requesterPersonAliasGuid || typeof requesterPersonAliasGuid !== "string") {
+            return;
+        }
+
+        reminderEntityGuid.value = requesterPersonAliasGuid;
+        prepareRequestDetailsForModal(row);
+        isReminderModalVisible.value = true;
     }
 
     function showAssignRequestModal(): void {
@@ -1700,10 +1792,29 @@
         newConnectionRequest.value.bag = {
             connectionOpportunityGuid: selectedOpportunity.value
         };
-        await fetchConnectionOpportunityDetails(selectedOpportunity.value);
+        if (!isNullOrWhiteSpace(selectedOpportunity.value)) {
+            await fetchConnectionOpportunityDetails(selectedOpportunity.value);
+        }
+        else {
+            connectionOpportunityDetails.value = {};
+        }
 
+        // TODO - client side filter?
         loadGridData();
     });
+
+    // Ensure the selected grouping remains valid when the available grouping options
+    // change (e.g., when filtering out opportunity grouping after selecting an opportunity).
+    watch(groupingFields, (newFields) => {
+        const selected = selectedGrouping.value;
+
+        const isStillValid = newFields.some(f => f.value === selected);
+
+        if (!isStillValid) {
+            selectedGrouping.value = newFields[0]?.value ?? "";
+        }
+    });
+
 
     watch(viewOptions, async () => {
         preferences.setValue(getConnectionFilterKey(PreferenceKey.FilterSortByConnectionTypIdKey), viewOptions.value.sortBy ?? "");

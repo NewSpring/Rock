@@ -37,6 +37,8 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
 
         public ConnectionState? ConnectionState { get; set; }
 
+        public DateTimeOffset? FollowUpDate { get; set; }
+
         public string ConnectionStatusGuid { get; set; }
 
         public string PlacementGroupGuid { get; set; }

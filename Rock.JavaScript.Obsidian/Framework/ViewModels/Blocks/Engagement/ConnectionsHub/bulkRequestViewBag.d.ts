@@ -25,6 +25,8 @@ import { ConnectionStatusBag } from "@Obsidian/ViewModels/Blocks/Engagement/Conn
 import { PersonFieldBag } from "@Obsidian/ViewModels/Core/Grid/personFieldBag";
 
 export type BulkRequestViewBag = {
+    celebrationText?: string | null;
+
     connectionOpportunity?: string | null;
 
     connectionStatus?: ConnectionStatusBag | null;
@@ -38,6 +40,4 @@ export type BulkRequestViewBag = {
     idKey?: string | null;
 
     requester?: PersonFieldBag | null;
-
-    celebrationText?: string | null;
 };

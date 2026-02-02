@@ -21,6 +21,7 @@
 // </copyright>
 //
 
+import { Guid } from "@Obsidian/Types";
 import { ConnectionActivityBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionActivityBag";
 import { ConnectionOpportunityDetailBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionOpportunityDetailBag";
 import { ConnectionStatusBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionStatusBag";
@@ -31,11 +32,19 @@ import { PublicAttributeBag } from "@Obsidian/ViewModels/Utility/publicAttribute
 export type ConnectionsHubOptionsBag = {
     allPossibleConnectors?: ListItemBag[] | null;
 
+    areCelebrationsEnabled: boolean;
+
+    areGroupPlacementsEnabled: boolean;
+
+    areRemindersEnabled: boolean;
+
     connectionActivities?: ConnectionActivityBag[] | null;
 
     connectionOpportunities?: ListItemBag[] | null;
 
     connectionOpportunityDetailsFromFilter?: ConnectionOpportunityDetailBag | null;
+
+    connectionOpportunityGuidFromPageParameter?: Guid | null;
 
     connectionStates?: ListItemBag[] | null;
 

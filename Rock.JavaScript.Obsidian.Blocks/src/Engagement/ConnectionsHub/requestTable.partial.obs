@@ -16,7 +16,7 @@
                     </div>
                 </template>
             </div>
-            <div v-if="isConnectionOpportunityVisible" class="d-flex flex-column align-items-start gap-1">
+            <div v-if="isConnectionOpportunityVisible" class="d-flex flex-column align-items-start justify-content-center gap-1">
                 <HighlightLabel labelType="custom"
                                 customClass="label-default text-xs text-semibold text-interface-strong">
                     {{ request.connectionOpportunity }}

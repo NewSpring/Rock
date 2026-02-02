@@ -15,6 +15,7 @@
 // </copyright>
 //
 
+using System;
 using System.Collections.Generic;
 
 using Rock.ViewModels.Utility;
@@ -32,9 +33,17 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
 
         public string ConnectionTypeIdKey { get; set; }
 
+        public Guid? ConnectionOpportunityGuidFromPageParameter { get; set; }
+
         public bool IsFutureFollowUpEnabled { get; set; }
 
         public bool IsRequestSecurityEnabled { get; set; }
+
+        public bool AreRemindersEnabled { get; set; }
+
+        public bool AreCelebrationsEnabled { get; set; }
+
+        public bool AreGroupPlacementsEnabled { get; set; }
 
         public bool? IsSequentialStatusMode { get; set; }
 
