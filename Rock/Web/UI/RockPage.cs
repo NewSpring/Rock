@@ -19,7 +19,6 @@ using System.Collections.Generic;
 using System.Configuration;
 using System.Data.Entity;
 using System.Diagnostics;
-using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -31,7 +30,6 @@ using System.Web.UI.HtmlControls;
 using System.Web.UI.WebControls;
 
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 
 using Rock.Attribute;
 using Rock.Blocks;
@@ -40,7 +38,6 @@ using Rock.Configuration;
 using Rock.Crm.RecordSource;
 using Rock.Data;
 using Rock.Lava;
-using Rock.Logging;
 using Rock.Model;
 using Rock.Net;
 using Rock.Observability;
@@ -48,7 +45,6 @@ using Rock.Security;
 using Rock.Tasks;
 using Rock.Transactions;
 using Rock.Utility;
-using Rock.ViewModels.Crm;
 using Rock.Web.Cache;
 using Rock.Web.UI.Controls;
 
@@ -88,8 +84,6 @@ namespace Rock.Web.UI
         /// Will be <c>true</c> if the page has any Obsidian blocks to initialize.
         /// </summary>
         private bool _pageHasObsidianBlock = false;
-
-        private readonly string _obsidianPageTimingControlId = "lObsidianPageTimings";
 
         /// <summary>
         /// The service scopes that should be disposed.
@@ -714,41 +708,7 @@ namespace Rock.Web.UI
         protected virtual void RegisterShortcutKeys()
         {
             // Register the shortcut keys with debouncing
-            string script = @"
-                (function() {
-                    var lastDispatchTime = 0;
-                    var lastDispatchedElement = null;
-                    var debounceDelay = 500;
-
-                    document.addEventListener('keydown', function (event) {
-                        if (event.altKey) {
-                            var shortcutKey = event.key.toLowerCase();
-
-                            // Check if a shortcut key is registered for the pressed key
-                            var element = document.querySelector('[data-shortcut-key=""' + shortcutKey + '""]');
-
-                    
-                            if (element) {
-                                var currentTime = performance.now();
-
-                                if (lastDispatchedElement === element && (currentTime - lastDispatchTime) < debounceDelay) {
-                                    return;
-                                }
-
-                                lastDispatchTime = currentTime;
-                                lastDispatchedElement = element;
-
-                                if (shortcutKey === 'arrowright' || shortcutKey === 'arrowleft') {
-                                    event.preventDefault();
-                                }
-
-                                event.preventDefault();
-                                element.click();
-                            }
-                        }
-                    });
-                })();
-            ";
+            string script = RockPageHelper.GetShortcutKeyScript();
 
             ScriptManager.RegisterStartupScript( this, typeof( RockPage ), "ShortcutKeys", script, true );
         }
@@ -805,7 +765,7 @@ namespace Rock.Web.UI
             {
                 try
                 {
-                    RequestContext.PrepareRequestForPage( _pageCache );
+                    RequestContext.PrepareRequestForPage( _pageCache, PageReference );
                 }
                 catch
                 {
@@ -1063,38 +1023,8 @@ namespace Rock.Web.UI
 
                 if ( !isCurrentPersonAuthorized )
                 {
-                    if ( user == null )
-                    {
-                        // If not authorized, and the user hasn't logged in yet, redirect to the login page
-                        Page.Trace.Warn( "Redirecting to login page" );
-
-                        var site = _pageCache.Layout.Site;
-                        if ( site.LoginPageId.HasValue )
-                        {
-                            site.RedirectToLoginPage( true );
-                        }
-                        else
-                        {
-                            FormsAuthentication.RedirectToLoginPage();
-                        }
-                    }
-                    else
-                    {
-                        // If not authorized, and the user has logged in, redirect to error page
-                        Page.Trace.Warn( "Redirecting to error page" );
-
-                        if ( Site != null && !string.IsNullOrWhiteSpace( Site.ErrorPage ) )
-                        {
-                            Context.Response.Redirect( string.Format( "{0}?type=security", Site.ErrorPage.TrimEnd( new char[] { '/' } ) ), false );
-                            Context.ApplicationInstance.CompleteRequest();
-                            return;
-                        }
-                        else
-                        {
-                            Response.Redirect( "~/Error.aspx?type=security", false );
-                            Context.ApplicationInstance.CompleteRequest();
-                        }
-                    }
+                    Response.Redirect( RockPageHelper.GetLoginPageUrl( RequestContext ), false );
+                    Context.ApplicationInstance.CompleteRequest();
                 }
                 else
                 {
@@ -1182,39 +1112,7 @@ namespace Rock.Web.UI
                     Page.Trace.Warn( "Creating JS objects" );
                     if ( !ClientScript.IsStartupScriptRegistered( "rock-js-object" ) )
                     {
-                        var realTimeUrl = "/rock-rt";
-                        var realTimeHostname = SystemSettings.GetValue( SystemKey.SystemSetting.REALTIME_HOSTNAME );
-
-                        if ( realTimeHostname.IsNotNullOrWhiteSpace() )
-                        {
-                            try
-                            {
-                                var requestUrl = HttpContext.Current.Request.Url;
-
-                                realTimeUrl = new UriBuilder
-                                {
-                                    Scheme = requestUrl.Scheme,
-                                    Host = realTimeHostname,
-                                    Port = requestUrl.Port,
-                                    Path = "/rock-rt"
-                                }.ToString();
-                            }
-                            catch ( Exception ex )
-                            {
-                                RockLogger.LoggerFactory.CreateLogger( GetType().FullName )
-                                    .LogError( ex, "Unable to create URL for real-time engine." );
-                            }
-                        }
-
-                        var script = $@"
-Rock.settings.initialize({{
-    siteId: {_pageCache.Layout.SiteId},
-    layoutId: {_pageCache.LayoutId},
-    pageId: {_pageCache.Id},
-    layout: '{_pageCache.Layout.FileName}',
-    baseUrl: '{ResolveUrl( "~" )}',
-    realTimeUrl: '{realTimeUrl}',
-}});";
+                        var script = RockPageHelper.GetRockSettingsInitializeScript( RequestContext );
 
                         ClientScript.RegisterStartupScript( this.Page.GetType(), "rock-js-object", script, true );
                     }
@@ -1407,6 +1305,11 @@ Rock.settings.initialize({{
                         }
                     }
 
+                    if ( Context.Items.Contains( "Rock:DebugTraceEnabled" ) && Activity.Current != null )
+                    {
+                        _pageNeedsObsidian = true;
+                    }
+
                     if ( _pageNeedsObsidian )
                     {
                         AddScriptLink( "~/Obsidian/obsidian-core.js", true );
@@ -1427,23 +1330,7 @@ Rock.settings.initialize({{
                         }
                     }
 
-                    var colorModeScript = @"
-        (function () {
-            var attr = 'theme';
-            var states = ['light', 'dark', 'system'];
-            var html = document.documentElement;
-
-            // init state
-            var saved = localStorage.getItem(attr);
-            var currentIndex = Math.max(0, states.indexOf(saved));
-            if ( saved == null ) {
-                currentIndex = 2; // default to system
-            }
-
-            html.setAttribute( ""theme"", states[currentIndex] );
-        })();
-";
-                    AddScriptToHead( this.Page, colorModeScript, true );
+                    AddScriptToHead( this.Page, RockPageHelper.GetColorModeScript(), true );
 
                     /*
                      * 2020-06-17 - JH
@@ -1682,18 +1569,22 @@ Rock.settings.initialize({{
 
                 if ( Context.Items.Contains( "Rock:DebugTraceEnabled" ) && Activity.Current != null )
                 {
-                    Page.Trace.Warn( "Initializing Obsidian Page Timings" );
-                    Page.Form.Controls.Add( new Literal
-                    {
-                        ID = _obsidianPageTimingControlId,
-                        Text = $"<div id=\"{_obsidianPageTimingControlId}\" data-trace-id=\"{Activity.Current.TraceId}\"></div>"
-                    } );
+                    var tracePageId = Context.Items["Rock:DebugTraceEnabled"] as int?;
 
-                    DebugTraceProcessor.ValidateTrace( Activity.Current.TraceId.ToString() );
+                    if ( tracePageId == _pageCache.Id )
+                    {
+                        Page.Trace.Warn( "Initializing Obsidian Page Timings" );
+                        Page.Form.Controls.Add( new Literal
+                        {
+                            Text = RockPageHelper.GetObsidianPageTimingsContent()
+                        } );
+
+                        RockApp.Current.GetRequiredService<DebugTraceObserver>().ValidateTrace( Activity.Current.TraceId.ToString() );
+                    }
                 }
 
                 // Add configuration specific to Rock Page to the observability activity.
-                RockPageHelper.ConfigureActivity( Activity.Current, RequestContext, PageReference, IsPostBack );
+                RockPageHelper.ConfigureActivity( Activity.Current, RequestContext, IsPostBack );
             }
         }
 
@@ -2155,22 +2046,12 @@ Rock.settings.initialize({{
             {
                 _tsDuration = RockDateTime.Now.Subtract( ( DateTime ) Context.Items["Request_Start_Time"] );
 
-                if ( _pageNeedsObsidian )
+                Page.Trace.Warn( "Finalizing Obsidian Page Timings" );
+                if ( !ClientScript.IsStartupScriptRegistered( "rock-obsidian-page-timings" ) )
                 {
-                    Page.Trace.Warn( "Finalizing Obsidian Page Timings" );
-                    if ( !ClientScript.IsStartupScriptRegistered( "rock-obsidian-page-timings" ) )
-                    {
-                        var script = $@"
-Obsidian.onReady(() => {{
-    System.import('@Obsidian/Templates/rockPage.js').then(module => {{
-        module.initializePageTimings({{
-            elementId: '{_obsidianPageTimingControlId}'
-        }});
-    }});
-}});";
+                    var script = RockPageHelper.GetObsidianPageTimingsScript();
 
-                        ClientScript.RegisterStartupScript( this.Page.GetType(), "rock-obsidian-page-timings", script, true );
-                    }
+                    ClientScript.RegisterStartupScript( this.Page.GetType(), "rock-obsidian-page-timings", script, true );
                 }
             }
         }
@@ -2724,28 +2605,11 @@ Sys.Application.add_load(function () {
                     return;
                 }
 
-                // Parse the list of codes, we want the "G-" codes to be first because the first code is used as the default in the <script> src property.
-                var gtagCodes = code.Split( ',' ).Select( a => a.Trim() ).Where( a => a.StartsWith( "G-", StringComparison.OrdinalIgnoreCase ) ).ToList() ?? new List<string>();
+                var script = RockPageHelper.GetGoogleAnalyticsScriptTags( _pageCache );
 
-                // Add the measurement codes that start with 'UA' to the gtag script. If there are multiple measurement IDs the first one is used as the default.
-                gtagCodes.AddRange( code.Split( ',' ).Select( a => a.Trim() ).Where( a => a.StartsWith( "UA-", StringComparison.OrdinalIgnoreCase ) ).ToList() ?? new List<string>() );
-
-                if ( gtagCodes.Any() )
+                if ( script.IsNotNullOrWhiteSpace() )
                 {
-                    var sb = new StringBuilder();
-                    sb.Append( $@"
-    <!-- BEGIN Global site tag (gtag.js) - Google Analytics -->
-    <script async src=""https://www.googletagmanager.com/gtag/js?id={gtagCodes.First()}""></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){{window.dataLayer.push(arguments);}}
-      gtag('js', new Date());" );
-                    sb.AppendLine( "" );
-                    gtagCodes.ForEach( a => sb.AppendLine( $"      gtag('config', '{a}');" ) );
-                    sb.AppendLine( "    </script>" );
-                    sb.AppendLine( "    <!-- END Global site tag (gtag.js) - Google Analytics -->" );
-
-                    AddScriptToHead( this.Page, sb.ToString(), false );
+                    AddScriptToHead( this.Page, script, false );
                 }
             }
             catch ( Exception ex )
@@ -2760,14 +2624,9 @@ Sys.Application.add_load(function () {
         /// </summary>
         private void AddJesusHook()
         {
-            var script = $@"
-    <script>
-      console.info(
-        '%cCrafting Code For Christ | Col. 3:23-24',
-        'background: #ee7625; border-radius:0.5em; padding:0.2em 0.5em; color: white; font-weight: bold');
-      console.info('{_rockVersion}');
-    </script>";
-            AddScriptToHead( this.Page, script, false );
+            var script = RockPageHelper.GetJesusScript();
+
+            AddScriptToHead( this.Page, script, true );
         }
 
         /// <summary>

@@ -266,10 +266,6 @@
                         </div>
                     </div>
                 </ConditionalWell>
-
-                <InlineCheckBox v-model="allowIndexing"
-                                label="Allow Indexing"
-                                help="Controls whether search engines (like Google or Bing) can index this site's pages." />
             </ContentStack>
 
             <ContentStack>
@@ -289,6 +285,10 @@
                                  help="Start page or path for the Rock site indexer." />
                     </div>
                 </div>
+
+                <InlineCheckBox v-model="allowIndexing"
+                                label="Allow Indexing"
+                                help="Controls whether search engines (like Google or Bing) can index this site's pages." />
 
                 <InlineCheckBox v-model="enableExclusiveRoutes"
                                 label="Restrict Routes to This Site"

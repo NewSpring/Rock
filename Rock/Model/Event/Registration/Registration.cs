@@ -197,6 +197,10 @@ namespace Rock.Model
         /// <value>
         /// A <see cref="System.Int32"/> representing the Id of the <see cref="Rock.Model.Campus"/> the event occured
         /// </value>
+        /// <remarks>
+        /// [IgnoreCanDelete] since there is a ON DELETE SET NULL cascade on this
+        /// </remarks>
+        [IgnoreCanDelete]
         [DataMember]
         [FieldType(Rock.SystemGuid.FieldType.CAMPUS)]
         public int? CampusId { get; set; }

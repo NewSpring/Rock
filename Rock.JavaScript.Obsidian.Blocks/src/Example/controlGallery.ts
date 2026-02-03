@@ -263,6 +263,7 @@ import ExperieceModePickerGallery from "./ControlGallery/experienceModePickerGal
 import SearchResultsSearchField from "./ControlGallery/searchResultsSearchFieldGallery.partial.obs";
 import PillListGallery from "./ControlGallery/pillListGallery.partial.obs";
 import DockedPanelGallery from "./ControlGallery/dockedPanelGallery.partial.obs";
+import EventItemOccurrencePickerGalleryPartial from "./ControlGallery/eventItemOccurrencePickerGallery.partial.obs";
 
 const controlGalleryComponents: Record<string, Component> = [
     NotificationBoxGallery,
@@ -469,6 +470,7 @@ const controlGalleryComponents: Record<string, Component> = [
     DoughnutChartGallery,
     ExperieceModePickerGallery,
     SearchResultsSearchField,
+    EventItemOccurrencePickerGalleryPartial,
     PillListGallery,
     DockedPanelGallery
 ]

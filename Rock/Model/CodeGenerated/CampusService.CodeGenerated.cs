@@ -53,11 +53,7 @@ namespace Rock.Model
         {
             errorMessage = string.Empty;
 
-            if ( new Service<Attendance>( Context ).Queryable().Any( a => a.CampusId == item.Id ) )
-            {
-                errorMessage = string.Format( "This {0} is assigned to a {1}.", Campus.FriendlyTypeName, Attendance.FriendlyTypeName );
-                return false;
-            }
+            // ignoring Attendance,CampusId
 
             if ( new Service<BenevolenceRequest>( Context ).Queryable().Any( a => a.CampusId == item.Id ) )
             {
@@ -137,17 +133,9 @@ namespace Rock.Model
                 return false;
             }
 
-            if ( new Service<PrayerRequest>( Context ).Queryable().Any( a => a.CampusId == item.Id ) )
-            {
-                errorMessage = string.Format( "This {0} is assigned to a {1}.", Campus.FriendlyTypeName, PrayerRequest.FriendlyTypeName );
-                return false;
-            }
+            // ignoring PrayerRequest,CampusId
 
-            if ( new Service<Registration>( Context ).Queryable().Any( a => a.CampusId == item.Id ) )
-            {
-                errorMessage = string.Format( "This {0} is assigned to a {1}.", Campus.FriendlyTypeName, Registration.FriendlyTypeName );
-                return false;
-            }
+            // ignoring Registration,CampusId
 
             if ( new Service<Step>( Context ).Queryable().Any( a => a.CampusId == item.Id ) )
             {
