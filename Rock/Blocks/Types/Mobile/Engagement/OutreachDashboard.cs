@@ -314,7 +314,6 @@ namespace Rock.Blocks.Types.Mobile.Engagement
             person.OutreachEnableDailyNotification = savePreferenceBag.DailyNotificationsEnabled;
             person.OutreachNotificationTimeOfDay = savePreferenceBag.DailyNotificationsEnabled ? ( OutreachNotificationTimeOfDay? ) savePreferenceBag.TimeOfDay : null; // Clear out time of day if daily notifications are disabled
             person.OutreachEnableSpecialEventsNotification = savePreferenceBag.SpecialEventNotificationsEnabled;
-            person.OutreachTouchpointNotificationsEnabled = savePreferenceBag.DailyNotificationsEnabled || savePreferenceBag.SpecialEventNotificationsEnabled;
 
             RockContext.SaveChanges();
 
