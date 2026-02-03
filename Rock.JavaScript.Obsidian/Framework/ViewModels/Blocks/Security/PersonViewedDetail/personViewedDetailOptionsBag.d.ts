@@ -23,5 +23,6 @@
 
 /** The additional configuration options for the Person Viewed Detail block. */
 export type PersonViewedDetailOptionsBag = {
+    /** The title of the block based on target person viewed or target person viewing. */
     title?: string | null;
 };

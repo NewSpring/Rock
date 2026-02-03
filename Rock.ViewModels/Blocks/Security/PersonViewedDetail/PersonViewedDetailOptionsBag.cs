@@ -22,6 +22,9 @@ namespace Rock.ViewModels.Blocks.Security.PersonViewedDetail
     /// </summary>
     public class PersonViewedDetailOptionsBag
     {
+        /// <summary>
+        /// The title of the block based on target person viewed or target person viewing.
+        /// </summary>
         public string Title { get; set; }
     }
 }
