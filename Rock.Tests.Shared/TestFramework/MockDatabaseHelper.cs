@@ -1,7 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Data.Entity;
-using System.Linq;
 
 using Moq;
 using Moq.Protected;
@@ -18,44 +16,53 @@ namespace Rock.Tests.Shared.TestFramework
     public static class MockDatabaseHelper
     {
         /// <summary>
+        /// Create an <see cref="IRockContextFactory"/> object that always
+        /// returns the <see cref="RockContext"/> from <paramref name="rockContextMock"/>.
+        /// It is assumed this context will be configured to ignore the
+        /// Dispose() method.
+        /// </summary>
+        /// <param name="rockContextMock">The mock that contains the <see cref="RockContext"/> to return.</param>
+        /// <returns>An instance of <see cref="IRockContextFactory"/>.</returns>
+        public static IRockContextFactory CreateRockContextFactory( Mock<RockContext> rockContextMock )
+        {
+            var factoryMock = new Mock<IRockContextFactory>();
+
+            factoryMock.Setup( f => f.CreateRockContext() ).Returns( rockContextMock.Object );
+
+            return factoryMock.Object;
+        }
+
+        /// <summary>
         /// Gets a mocked <see cref="RockContext"/> that can be used to setup
         /// additional mocked values and then used for database access.
         /// </summary>
         /// <returns>An mocking instance for <see cref="RockContext"/>.</returns>
-        public static Mock<RockContext> GetRockContextMock()
+        public static RockMock<RockContext> CreateRockContextMock( bool autoMode = true )
         {
-            var rockContextMock = new Mock<RockContext>( MockBehavior.Strict, "invalidConnectionString" );
-            var autoDbSets = new Dictionary<Type, object>();
+            var rockContextMock = new RockMock<RockContext>( MockBehavior.Strict, "invalidConnectionString" );
 
             rockContextMock.Setup( m => m.ToString() ).Returns( "Mock RockContext" );
-            rockContextMock.Setup( m => m.Set<It.IsAnyType>() ).Returns( new InvocationFunc( invocation =>
+
+            if ( autoMode )
             {
-                var typeArgument = invocation.Method.GetGenericArguments()[0];
-
-                if ( !autoDbSets.TryGetValue( typeArgument, out var dbSet ) )
-                {
-                    var listType = typeof( List<> ).MakeGenericType( typeArgument );
-                    var dbSetList = Activator.CreateInstance( listType );
-                    var methods = typeof( MockTestExtensions ).GetMethods();
-                    var getDbSetMockMethod = typeof( MockTestExtensions )
-                        .GetMethods()
-                        .Where( m => m.GetParameters().Length == 1
-                            && m.GetParameters()[0].ParameterType.Name == typeof( List<> ).Name )
-                        .First();
-
-                    var dbSetMock = ( Mock ) getDbSetMockMethod.MakeGenericMethod( typeArgument ).Invoke( null, new object[] { dbSetList } );
-                    dbSet = dbSetMock.Object;
-
-                    autoDbSets.Add( typeArgument, dbSet );
-                }
-
-                return dbSet;
-            } ) );
+                rockContextMock.SetupAutoDbSets();
+                rockContextMock.SetupSaveChanges();
+            }
 
             // Ignore any call to dispose.
             rockContextMock.Protected().Setup( "Dispose", ItExpr.IsAny<bool>() );
 
             return rockContextMock;
+        }
+
+        /// <summary>
+        /// Gets a mocked <see cref="RockContext"/> that can be used to setup
+        /// additional mocked values and then used for database access.
+        /// </summary>
+        /// <returns>An mocking instance for <see cref="RockContext"/>.</returns>
+        public static RockMock<RockContext> GetRockContextMock( bool autoMode = true )
+        {
+            return CreateRockContextMock( autoMode );
         }
 
         /// <summary>
@@ -67,7 +74,7 @@ namespace Rock.Tests.Shared.TestFramework
         public static Mock<TEntity> CreateEntityMock<TEntity>( int id, Guid guid )
             where TEntity : class, IEntity, new()
         {
-            var entityMock = new LazyMock<TEntity>( MockBehavior.Loose )
+            var entityMock = new RockMock<TEntity>( MockBehavior.Loose )
             {
                 CallBase = true
             };

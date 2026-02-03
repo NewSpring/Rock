@@ -22,15 +22,14 @@ namespace Rock.Tests.Web.Cache
         [TestMethod]
         public void GetRootGroupTypes_WithSelfRecursiveGroupType_Succeeds()
         {
-            var rockContextMock = MockDatabaseHelper.GetRockContextMock();
+            var rockContextMock = MockDatabaseHelper.CreateRockContextMock();
             var groupTypeMock = MockDatabaseHelper.CreateEntityMock<GroupType>( 1, new Guid( "02353bd9-7c7c-4158-9ca2-5506ed6be2ab" ) );
 
             // Make this group type recursive.
             groupTypeMock.Object.ParentGroupTypes.Add( groupTypeMock.Object );
             groupTypeMock.Object.ChildGroupTypes.Add( groupTypeMock.Object );
 
-            rockContextMock.SetupDbSet( groupTypeMock.Object );
-            rockContextMock.SetupDbSet<DefinedValue>();
+            rockContextMock.Object.Set<GroupType>().Add( groupTypeMock.Object );
 
             var groupTypeCache = GroupTypeCache.Get( 1, rockContextMock.Object );
 
@@ -43,7 +42,7 @@ namespace Rock.Tests.Web.Cache
         [TestMethod]
         public void GetRootGroupTypes_WithRecursiveGroupType_Succeeds()
         {
-            var rockContextMock = MockDatabaseHelper.GetRockContextMock();
+            var rockContextMock = MockDatabaseHelper.CreateRockContextMock();
             var groupTypeAMock = MockDatabaseHelper.CreateEntityMock<GroupType>( 1, new Guid( "02353bd9-7c7c-4158-9ca2-5506ed6be2ab" ) );
             var groupTypeBMock = MockDatabaseHelper.CreateEntityMock<GroupType>( 2, new Guid( "4472c4d9-98af-4bb8-9202-fe41e9b44ac9" ) );
 
@@ -54,8 +53,8 @@ namespace Rock.Tests.Web.Cache
             groupTypeBMock.Object.ParentGroupTypes.Add( groupTypeAMock.Object );
             groupTypeBMock.Object.ChildGroupTypes.Add( groupTypeAMock.Object );
 
-            rockContextMock.SetupDbSet( groupTypeAMock.Object, groupTypeBMock.Object );
-            rockContextMock.SetupDbSet<DefinedValue>();
+            rockContextMock.Object.Set<GroupType>().Add( groupTypeAMock.Object );
+            rockContextMock.Object.Set<GroupType>().Add( groupTypeBMock.Object );
 
             var groupTypeCache = GroupTypeCache.Get( 1, rockContextMock.Object );
 
@@ -68,7 +67,7 @@ namespace Rock.Tests.Web.Cache
         [TestMethod]
         public void GetRootGroupTypes_WithABCPattern_ReturnsA()
         {
-            var rockContextMock = MockDatabaseHelper.GetRockContextMock();
+            var rockContextMock = MockDatabaseHelper.CreateRockContextMock();
             var groupTypeAMock = MockDatabaseHelper.CreateEntityMock<GroupType>( 1, new Guid( "02353bd9-7c7c-4158-9ca2-5506ed6be2ab" ) );
             var groupTypeBMock = MockDatabaseHelper.CreateEntityMock<GroupType>( 2, new Guid( "4472c4d9-98af-4bb8-9202-fe41e9b44ac9" ) );
             var groupTypeCMock = MockDatabaseHelper.CreateEntityMock<GroupType>( 3, new Guid( "ee137ffe-3f02-48c1-a533-227a16e329a6" ) );
@@ -81,8 +80,9 @@ namespace Rock.Tests.Web.Cache
 
             groupTypeCMock.Object.ParentGroupTypes.Add( groupTypeBMock.Object );
 
-            rockContextMock.SetupDbSet( groupTypeAMock.Object, groupTypeBMock.Object, groupTypeCMock.Object );
-            rockContextMock.SetupDbSet<DefinedValue>();
+            rockContextMock.Object.Set<GroupType>().Add( groupTypeAMock.Object );
+            rockContextMock.Object.Set<GroupType>().Add( groupTypeBMock.Object );
+            rockContextMock.Object.Set<GroupType>().Add( groupTypeCMock.Object );
 
             var groupTypeCache = GroupTypeCache.Get( 3, rockContextMock.Object );
 
@@ -95,7 +95,7 @@ namespace Rock.Tests.Web.Cache
         [TestMethod]
         public void GetRootGroupTypes_WithAABCPattern_ReturnsA()
         {
-            var rockContextMock = MockDatabaseHelper.GetRockContextMock();
+            var rockContextMock = MockDatabaseHelper.CreateRockContextMock();
             var groupTypeAMock = MockDatabaseHelper.CreateEntityMock<GroupType>( 1, new Guid( "02353bd9-7c7c-4158-9ca2-5506ed6be2ab" ) );
             var groupTypeBMock = MockDatabaseHelper.CreateEntityMock<GroupType>( 2, new Guid( "4472c4d9-98af-4bb8-9202-fe41e9b44ac9" ) );
             var groupTypeCMock = MockDatabaseHelper.CreateEntityMock<GroupType>( 3, new Guid( "ee137ffe-3f02-48c1-a533-227a16e329a6" ) );
@@ -110,8 +110,9 @@ namespace Rock.Tests.Web.Cache
 
             groupTypeCMock.Object.ParentGroupTypes.Add( groupTypeBMock.Object );
 
-            rockContextMock.SetupDbSet( groupTypeAMock.Object, groupTypeBMock.Object, groupTypeCMock.Object );
-            rockContextMock.SetupDbSet<DefinedValue>();
+            rockContextMock.Object.Set<GroupType>().Add( groupTypeAMock.Object );
+            rockContextMock.Object.Set<GroupType>().Add( groupTypeBMock.Object );
+            rockContextMock.Object.Set<GroupType>().Add( groupTypeCMock.Object );
 
             var groupTypeCache = GroupTypeCache.Get( 3, rockContextMock.Object );
 
@@ -124,7 +125,7 @@ namespace Rock.Tests.Web.Cache
         [TestMethod]
         public void GetRootGroupTypes_WithCheckinPurpose_ReturnsAB()
         {
-            var rockContextMock = MockDatabaseHelper.GetRockContextMock();
+            var rockContextMock = MockDatabaseHelper.CreateRockContextMock();
             var groupTypeAMock = MockDatabaseHelper.CreateEntityMock<GroupType>( 1, new Guid( "02353bd9-7c7c-4158-9ca2-5506ed6be2ab" ) );
             var groupTypeBMock = MockDatabaseHelper.CreateEntityMock<GroupType>( 2, new Guid( "4472c4d9-98af-4bb8-9202-fe41e9b44ac9" ) );
             var groupTypeCMock = MockDatabaseHelper.CreateEntityMock<GroupType>( 3, new Guid( "ee137ffe-3f02-48c1-a533-227a16e329a6" ) );
@@ -142,8 +143,10 @@ namespace Rock.Tests.Web.Cache
 
             groupTypeCMock.Object.ParentGroupTypes.Add( groupTypeBMock.Object );
 
-            rockContextMock.SetupDbSet( groupTypeAMock.Object, groupTypeBMock.Object, groupTypeCMock.Object );
-            rockContextMock.SetupDbSet<DefinedValue>( definedValueMock.Object );
+            rockContextMock.Object.Set<GroupType>().Add( groupTypeAMock.Object );
+            rockContextMock.Object.Set<GroupType>().Add( groupTypeBMock.Object );
+            rockContextMock.Object.Set<GroupType>().Add( groupTypeCMock.Object );
+            rockContextMock.Object.Set<DefinedValue>().Add( definedValueMock.Object );
 
             var groupTypeCache = GroupTypeCache.Get( 3, rockContextMock.Object );
 

@@ -6,13 +6,25 @@ using Moq;
 namespace Rock.Tests.Shared.TestFramework
 {
     /// <summary>
-    /// Provides a mock object that supports deferred initialization of object
-    /// property values. This allows a helper method to create a mock object and
-    /// return the mocking instance to the caller for further setup and still
-    /// set some property values when it has been initialized.
+    /// <para>
+    /// This is a custom subclass of Mock&lt;T&gt; that provides additional
+    /// features. These features make it easier to mock objects in Rock.
+    /// </para>
+    /// <list type="bullet">
+    /// <item>
+    /// Support for deferred initialization of object property values. This
+    /// allows a helper method to create a mock object and return the mocking
+    /// instance to the caller for further setup and still set some property
+    /// values when it has been initialized.
+    /// </item>
+    /// <item>
+    /// Store custom data values on the mock itself. These can be used to share
+    /// information between methods about the mocked object.
+    /// </item>
+    /// </list>
     /// </summary>
     /// <typeparam name="T">The type to be mocked.</typeparam>
-    internal class LazyMock<T> : Mock<T>
+    public class RockMock<T> : Mock<T>
         where T : class
     {
         #region Fields
@@ -30,14 +42,30 @@ namespace Rock.Tests.Shared.TestFramework
 
         #endregion
 
+        #region Properties
+
+        /// <summary>
+        /// A dictionary of custom data values associated with this mock. These
+        /// have no structure and can be anything that needs to be stored and
+        /// later retrieved.
+        /// </summary>
+        public Dictionary<string, object> CustomData { get; } = new Dictionary<string, object>();
+
+        #endregion
+
         #region Constructors
 
         /// <summary>
         /// Initializes a new instance of the LazyMock class.
         /// </summary>
         /// <param name="behavior">The behavior to use for the mock instance.</param>
-        public LazyMock( MockBehavior behavior )
+        public RockMock( MockBehavior behavior )
             : base( behavior )
+        {
+        }
+
+        public RockMock( MockBehavior behavior, params object[] args )
+            : base( behavior, args )
         {
         }
 

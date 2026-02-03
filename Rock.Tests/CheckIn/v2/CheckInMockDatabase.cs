@@ -17,7 +17,7 @@ namespace Rock.Tests.CheckIn.v2
         /// <inheritdoc cref="MockDatabaseHelper.GetRockContextMock"/>
         protected static Mock<RockContext> GetRockContextMock()
         {
-            return MockDatabaseHelper.GetRockContextMock();
+            return MockDatabaseHelper.CreateRockContextMock();
         }
 
         /// <inheritdoc cref="MockDatabaseHelper.CreateEntityMock{TEntity}(int, Guid)"/>

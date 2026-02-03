@@ -23,10 +23,10 @@ namespace Rock.Tests.Web.Cache
         [TestMethod]
         public void RawServiceTimes_FromLegacyServiceTimes_Succeeds()
         {
-            var rockContextMock = MockDatabaseHelper.GetRockContextMock();
+            var rockContextMock = MockDatabaseHelper.CreateRockContextMock();
             var campusMock = BasicMockedTestCampus();
 
-            rockContextMock.SetupDbSet( campusMock.Object );
+            rockContextMock.Object.Set<Campus>().Add( campusMock.Object );
 
             var campusCache = CampusCache.Get( 1, rockContextMock.Object );
 #pragma warning disable CS0612, CS0618
@@ -42,7 +42,7 @@ namespace Rock.Tests.Web.Cache
         [TestMethod]
         public void RawServiceTimes_FromCampusSchedules_Succeeds()
         {
-            var rockContextMock = MockDatabaseHelper.GetRockContextMock();
+            var rockContextMock = MockDatabaseHelper.CreateRockContextMock();
 
             var campusMock = BasicMockedTestCampus();
 
@@ -97,9 +97,9 @@ END:VCALENDAR
             campusMock.Object.CampusSchedules.Add( saturday430pm );
             campusMock.Object.CampusSchedules.Add( saturday6pm );
 
-            rockContextMock.SetupDbSet( schedule1Mock.Object );
-            rockContextMock.SetupDbSet( schedule2Mock.Object );
-            rockContextMock.SetupDbSet( campusMock.Object );
+            rockContextMock.Object.Set<Schedule>().Add( schedule1Mock.Object );
+            rockContextMock.Object.Set<Schedule>().Add( schedule2Mock.Object );
+            rockContextMock.Object.Set<Campus>().Add( campusMock.Object );
 
             var campusCache = CampusCache.Get( 1, rockContextMock.Object );
 
@@ -115,10 +115,10 @@ END:VCALENDAR
         [TestMethod]
         public void CondensedName_WithoutShortCode_Succeeds()
         {
-            var rockContextMock = MockDatabaseHelper.GetRockContextMock();
+            var rockContextMock = MockDatabaseHelper.CreateRockContextMock();
             var campusMock = BasicMockedTestCampus();
 
-            rockContextMock.SetupDbSet( campusMock.Object );
+            rockContextMock.Object.Set<Campus>().Add( campusMock.Object );
 
             var campusCache = CampusCache.Get( 1, rockContextMock.Object );
 
@@ -131,11 +131,11 @@ END:VCALENDAR
         [TestMethod]
         public void CondensedName_WithShortCode_Succeeds()
         {
-            var rockContextMock = MockDatabaseHelper.GetRockContextMock();
+            var rockContextMock = MockDatabaseHelper.CreateRockContextMock();
             var campusMock = BasicMockedTestCampus();
             campusMock.Object.ShortCode = "TC";
 
-            rockContextMock.SetupDbSet( campusMock.Object );
+            rockContextMock.Object.Set<Campus>().Add( campusMock.Object );
 
             var campusCache = CampusCache.Get( 1, rockContextMock.Object );
 
