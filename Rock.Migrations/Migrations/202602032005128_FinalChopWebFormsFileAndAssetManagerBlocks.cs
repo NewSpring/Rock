@@ -31,9 +31,8 @@ namespace Rock.Migrations
         public override void Up()
         {
             RockMigrationHelper.ReplaceWebformsWithObsidianBlockMigration(
-                "(final) File and Asset Manager",
+                "(final) File Manager",
                 blockTypeReplacements: new Dictionary<string, string> {
-                    { "13165D92-9CCD-4071-8484-3956169CB640", "535500a7-967f-4da3-8fca-cb844203cb3d" }, // Asset Manager
                     { "5EC30776-F12F-4F03-8B79-C0C819D97CCD", "535500a7-967f-4da3-8fca-cb844203cb3d" }, // File Manager #1 before it became BA327D25
                     { "BA327D25-BD8A-4B67-B04C-17B499DDA4B6", "535500a7-967f-4da3-8fca-cb844203cb3d" }, // File Manager
                 },
