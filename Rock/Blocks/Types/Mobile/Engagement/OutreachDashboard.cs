@@ -59,6 +59,13 @@ namespace Rock.Blocks.Types.Mobile.Engagement
         Key = AttributeKeys.ToolboxName,
         Order = 3 )]
 
+    [TextField( "Toolbox subtitle",
+        Description = "The subtitle appears below the Toolbox name.",
+        IsRequired = false,
+        DefaultValue = "Small actions with eternal impact.",
+        Key = AttributeKeys.ToolboxSubtitle,
+        Order = 4 )]
+
     [SystemGuid.EntityTypeGuid( SystemGuid.EntityType.MOBILE_OUTREACH_OUTREACH_DASHBOARD_BLOCK_TYPE )]
     [SystemGuid.BlockTypeGuid( SystemGuid.BlockType.MOBILE_OUTREACH_OUTREACH_BEACON_DASHBOARD )]
     public class OutreachDashboard : RockBlockType
@@ -71,6 +78,7 @@ namespace Rock.Blocks.Types.Mobile.Engagement
             public const string DetailPage = "DetailPage";
             public const string MyContact = "MyContact";
             public const string ToolboxName = "ToolboxName";
+            public const string ToolboxSubtitle = "ToolboxSubtitle";
         }
 
         #endregion
@@ -390,6 +398,7 @@ namespace Rock.Blocks.Types.Mobile.Engagement
                 BaptismInfoUrl = ResolveURL( GetAttributeValue( AttributeKeys.BaptismInfo ) ),
                 MyContactPage = GetAttributeValue( AttributeKeys.MyContact ).AsGuidOrNull(),
                 ToolboxName = GetAttributeValue( AttributeKeys.ToolboxName ),
+                ToolboxSubtitle = GetAttributeValue( AttributeKeys.ToolboxSubtitle )
             };
         }
     }
