@@ -48,18 +48,6 @@ namespace Rock.Tests.Shared.TestFramework
         {
             var dbSetMock = entities.GetDbSetMock();
 
-            dbSetMock.Setup( m => m.Add( It.IsAny<TEntity>() ) ).Returns<TEntity>( a =>
-            {
-                entities.Add( a );
-                return a;
-            } );
-
-            dbSetMock.Setup( m => m.Remove( It.IsAny<TEntity>() ) ).Returns<TEntity>( a =>
-            {
-                entities.Remove( a );
-                return a;
-            } );
-
             rockContextMock.Setup( m => m.Set<TEntity>() ).Returns( () => dbSetMock.Object );
 
             return dbSetMock;
@@ -76,14 +64,47 @@ namespace Rock.Tests.Shared.TestFramework
         {
             var queryable = sourceList.AsQueryable();
 
-            var dbSet = new Mock<DbSet<T>>( MockBehavior.Strict );
-            dbSet.As<IQueryable<T>>().Setup( m => m.Provider ).Returns( queryable.Provider );
-            dbSet.As<IQueryable<T>>().Setup( m => m.Expression ).Returns( queryable.Expression );
-            dbSet.As<IQueryable<T>>().Setup( m => m.ElementType ).Returns( queryable.ElementType );
-            dbSet.As<IQueryable<T>>().Setup( m => m.GetEnumerator() ).Returns( () => queryable.GetEnumerator() );
-            dbSet.Setup( m => m.AsNoTracking() ).Returns( () => dbSet.Object );
+            var dbSetMock = new Mock<DbSet<T>>( MockBehavior.Strict );
+            dbSetMock.As<IQueryable<T>>().Setup( m => m.Provider ).Returns( queryable.Provider );
+            dbSetMock.As<IQueryable<T>>().Setup( m => m.Expression ).Returns( queryable.Expression );
+            dbSetMock.As<IQueryable<T>>().Setup( m => m.ElementType ).Returns( queryable.ElementType );
+            dbSetMock.As<IQueryable<T>>().Setup( m => m.GetEnumerator() ).Returns( () => queryable.GetEnumerator() );
+            dbSetMock.Setup( m => m.AsNoTracking() ).Returns( () => dbSetMock.Object );
 
-            return dbSet;
+            return dbSetMock;
+        }
+
+        /// <summary>
+        /// Gets a mocked <see cref="DbSet{TEntity}"/> instance that will
+        /// provide access to the items in the <paramref name="sourceList"/>.
+        /// </summary>
+        /// <typeparam name="T">The type of entity provided by this <see cref="DbSet{TEntity}"/>.</typeparam>
+        /// <param name="sourceList">The source list of objects.</param>
+        /// <returns>A mocking instance for <see cref="DbSet{TEntity}"/>.</returns>
+        public static Mock<DbSet<T>> GetDbSetMock<T>( this List<T> sourceList ) where T : class
+        {
+            var queryable = sourceList.AsQueryable();
+
+            var dbSetMock = new Mock<DbSet<T>>( MockBehavior.Strict );
+            dbSetMock.As<IQueryable<T>>().Setup( m => m.Provider ).Returns( queryable.Provider );
+            dbSetMock.As<IQueryable<T>>().Setup( m => m.Expression ).Returns( queryable.Expression );
+            dbSetMock.As<IQueryable<T>>().Setup( m => m.ElementType ).Returns( queryable.ElementType );
+            dbSetMock.As<IQueryable<T>>().Setup( m => m.GetEnumerator() ).Returns( () => queryable.GetEnumerator() );
+            dbSetMock.Setup( m => m.AsNoTracking() ).Returns( () => dbSetMock.Object );
+
+            dbSetMock.Setup( m => m.Add( It.IsAny<T>() ) ).Returns<T>( a =>
+            {
+                sourceList.Add( a );
+                return a;
+            } );
+
+            dbSetMock.Setup( m => m.Remove( It.IsAny<T>() ) ).Returns<T>( a =>
+            {
+                sourceList.Remove( a );
+                return a;
+            } );
+
+            return dbSetMock;
         }
 
         /// <summary>

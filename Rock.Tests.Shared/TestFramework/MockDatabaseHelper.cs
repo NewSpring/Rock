@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data.Entity;
+using System.Linq;
 
 using Moq;
 using Moq.Protected;
@@ -24,8 +25,32 @@ namespace Rock.Tests.Shared.TestFramework
         public static Mock<RockContext> GetRockContextMock()
         {
             var rockContextMock = new Mock<RockContext>( MockBehavior.Strict, "invalidConnectionString" );
+            var autoDbSets = new Dictionary<Type, object>();
 
             rockContextMock.Setup( m => m.ToString() ).Returns( "Mock RockContext" );
+            rockContextMock.Setup( m => m.Set<It.IsAnyType>() ).Returns( new InvocationFunc( invocation =>
+            {
+                var typeArgument = invocation.Method.GetGenericArguments()[0];
+
+                if ( !autoDbSets.TryGetValue( typeArgument, out var dbSet ) )
+                {
+                    var listType = typeof( List<> ).MakeGenericType( typeArgument );
+                    var dbSetList = Activator.CreateInstance( listType );
+                    var methods = typeof( MockTestExtensions ).GetMethods();
+                    var getDbSetMockMethod = typeof( MockTestExtensions )
+                        .GetMethods()
+                        .Where( m => m.GetParameters().Length == 1
+                            && m.GetParameters()[0].ParameterType.Name == typeof( List<> ).Name )
+                        .First();
+
+                    var dbSetMock = ( Mock ) getDbSetMockMethod.MakeGenericMethod( typeArgument ).Invoke( null, new object[] { dbSetList } );
+                    dbSet = dbSetMock.Object;
+
+                    autoDbSets.Add( typeArgument, dbSet );
+                }
+
+                return dbSet;
+            } ) );
 
             // Ignore any call to dispose.
             rockContextMock.Protected().Setup( "Dispose", ItExpr.IsAny<bool>() );
@@ -42,21 +67,24 @@ namespace Rock.Tests.Shared.TestFramework
         public static Mock<TEntity> CreateEntityMock<TEntity>( int id, Guid guid )
             where TEntity : class, IEntity, new()
         {
-            var entityMock = new Mock<TEntity>( MockBehavior.Loose )
+            var entityMock = new LazyMock<TEntity>( MockBehavior.Loose )
             {
                 CallBase = true
             };
 
             entityMock.Setup( m => m.TypeId ).Returns( 0 );
 
-            entityMock.Object.Id = id;
-            entityMock.Object.Guid = guid;
-
-            if ( entityMock.Object is IHasAttributes attributeMock )
+            entityMock.SetupInitializer( instance =>
             {
-                attributeMock.Attributes = new Dictionary<string, AttributeCache>();
-                attributeMock.AttributeValues = new Dictionary<string, AttributeValueCache>();
-            }
+                instance.Id = id;
+                instance.Guid = guid;
+
+                if ( instance is IHasAttributes attributeMock )
+                {
+                    attributeMock.Attributes = new Dictionary<string, AttributeCache>();
+                    attributeMock.AttributeValues = new Dictionary<string, AttributeValueCache>();
+                }
+            } );
 
             return entityMock;
         }
