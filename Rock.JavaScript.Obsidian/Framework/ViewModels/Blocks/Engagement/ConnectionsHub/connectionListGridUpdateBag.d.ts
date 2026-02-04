@@ -22,6 +22,7 @@
 //
 
 import { ConnectionState } from "@Obsidian/Enums/Connection/connectionState";
+import { DueStatus } from "@Obsidian/Enums/Connection/dueStatus";
 import { ConnectionStatusBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionStatusBag";
 import { GroupingFieldBag } from "@Obsidian/ViewModels/Core/Grid/groupingFieldBag";
 import { PersonFieldBag } from "@Obsidian/ViewModels/Core/Grid/personFieldBag";
@@ -38,6 +39,14 @@ export type ConnectionListGridUpdateBag = {
     connectionStatusBag?: ConnectionStatusBag | null;
 
     connectorGrouping?: GroupingFieldBag | null;
+
+    dueDate?: string | null;
+
+    dueSoonDate?: string | null;
+
+    dueStatus: DueStatus;
+
+    dueStatusGrouping?: GroupingFieldBag | null;
 
     followUpDate?: string | null;
 

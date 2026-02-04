@@ -20,6 +20,7 @@ using System.Linq;
 using System.Runtime.Serialization;
 
 using Rock.Data;
+using Rock.Enums.Connection;
 using Rock.Model;
 
 namespace Rock.Web.Cache
@@ -180,6 +181,33 @@ namespace Rock.Web.Cache
         [DataMember]
         public int Order { get; private set; }
 
+        /// <summary>
+        /// Gets or sets the due date calculation mode.
+        /// </summary>
+        /// <value>
+        /// The due date calculation mode.
+        /// </value>
+        [DataMember]
+        public DueDateCalculationMode DueDateCalculationMode { get; set; }
+
+        /// <summary>
+        /// Gets or sets the request due date offset in days.
+        /// </summary>
+        /// <value>
+        /// The request due date offset in days.
+        /// </value>
+        [DataMember]
+        public int? RequestDueDateOffestInDays { get; set; }
+
+        /// <summary>
+        /// Gets or sets the request due soon date offset in days.
+        /// </summary>
+        /// <value>
+        /// The request due soon date offset in days.
+        /// </value>
+        [DataMember]
+        public int? RequestDueSoonOffsetInDays { get; set; }
+
         #endregion
 
         #region Public Methods
@@ -242,6 +270,9 @@ namespace Rock.Web.Cache
             RequestHeaderLava = sourceModel.RequestHeaderLava;
             RequestBadgeLava = sourceModel.RequestBadgeLava;
             Order = sourceModel.Order;
+            DueDateCalculationMode = sourceModel.DueDateCalculationMode;
+            RequestDueDateOffestInDays = sourceModel.RequestDueDateOffestInDays;
+            RequestDueSoonOffsetInDays = sourceModel.RequestDueSoonOffsetInDays;
         }
 
         /// <summary>

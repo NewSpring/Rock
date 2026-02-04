@@ -15,11 +15,15 @@
 // </copyright>
 //
 
+using System;
 using System.Collections.Generic;
 using System.Data.Entity;
 using System.Linq;
+
 using Rock.Data;
+using Rock.Enums.Connection;
 using Rock.Tasks;
+using Rock.Web.Cache;
 
 namespace Rock.Model
 {
@@ -66,6 +70,7 @@ namespace Rock.Model
                 var connectionRequest = this.Entity as ConnectionRequest;
 
                 var rockContext = ( RockContext ) this.RockContext;
+                var connectionTypeCache = ConnectionTypeCache.Get( connectionRequest.ConnectionTypeId );
                 var connectionOpportunity = connectionRequest.ConnectionOpportunity;
                 if ( connectionOpportunity == null )
                 {
@@ -78,6 +83,10 @@ namespace Rock.Model
                     this.Entity.ConnectionTypeId = connectionOpportunity.ConnectionTypeId;
                 }
 
+                int dueOffsetDays = 0;
+                int dueSoonOffsetDays = 0;
+                DateTime currentDateTime = RockDateTime.Now;
+
                 switch ( State )
                 {
                     case EntityContextState.Added:
@@ -88,9 +97,32 @@ namespace Rock.Model
                             History.EvaluateChange( HistoryChangeList, "ConnectionStatus", string.Empty, History.GetValue<ConnectionStatus>( connectionRequest.ConnectionStatus, connectionRequest.ConnectionStatusId, rockContext ) );
                             History.EvaluateChange( HistoryChangeList, "ConnectionState", null, connectionRequest.ConnectionState );
                             PersonHistoryChangeList.AddChange( History.HistoryVerb.ConnectionRequestAdded, History.HistoryChangeType.Record, connectionOpportunity.Name );
+
+                            if ( connectionTypeCache.DueDateCalculationMode == DueDateCalculationMode.FixedDaysFromStartTypeLevel )
+                            {
+                                dueOffsetDays = connectionTypeCache.RequestDueDateOffestInDays ?? 0;
+                                dueSoonOffsetDays = connectionTypeCache.RequestDueSoonOffsetInDays ?? 0;
+                            }
+                            else if ( connectionTypeCache.DueDateCalculationMode == DueDateCalculationMode.FixedDaysFromStartOpportunityLevel )
+                            {
+                                dueOffsetDays = connectionOpportunity.RequestDueDateOffestInDays ?? 0;
+                                dueSoonOffsetDays = connectionOpportunity.RequestDueSoonOffsetInDays ?? 0;
+                            }
+                            else
+                            {
+                                var connectionStatus = new ConnectionStatusService( RockContext ).Get( this.Entity.ConnectionStatusId );
+
+                                dueOffsetDays = connectionStatus.RequestStatusDueDateOffestInDays ?? 0;
+                                dueSoonOffsetDays = connectionStatus.RequestStatusDueSoonOffsetInDays ?? 0;
+                            }
+
+                            this.Entity.DueDate = currentDateTime.AddDays( dueOffsetDays );
+                            this.Entity.DueSoonDate = currentDateTime.AddDays( dueSoonOffsetDays );
+
                             if ( connectionRequest.ConnectionState == ConnectionState.Connected )
                             {
                                 PersonHistoryChangeList.AddChange( History.HistoryVerb.ConnectionRequestConnected, History.HistoryChangeType.Record, connectionOpportunity.Name );
+                                this.Entity.WasCompletedOnTime = !this.Entity.DueDate.HasValue || currentDateTime <= this.Entity.DueDate;
                             }
 
                             break;
@@ -111,6 +143,18 @@ namespace Rock.Model
                                 string connectionStatus = History.GetValue<ConnectionStatus>( connectionRequest.ConnectionStatus, connectionRequest.ConnectionStatusId, rockContext );
                                 History.EvaluateChange( HistoryChangeList, "ConnectionStatus", origConnectionStatus, connectionStatus );
                                 PersonHistoryChangeList.AddChange( History.HistoryVerb.ConnectionRequestStatusModify, History.HistoryChangeType.Record, connectionOpportunity.Name );
+
+                                // If the connection type is configured to calculate due dates based on status then we need to update the connection request due dates based on the new status.
+                                if ( connectionTypeCache.DueDateCalculationMode == DueDateCalculationMode.DurationPerStatus )
+                                {
+                                    var newConnectionStatus = new ConnectionStatusService( RockContext ).Get( this.Entity.ConnectionStatusId );
+
+                                    dueOffsetDays = newConnectionStatus.RequestStatusDueDateOffestInDays ?? 0;
+                                    dueSoonOffsetDays = newConnectionStatus.RequestStatusDueSoonOffsetInDays ?? 0;
+
+                                    this.Entity.DueDate = currentDateTime.AddDays( dueOffsetDays );
+                                    this.Entity.DueSoonDate = currentDateTime.AddDays( dueSoonOffsetDays );
+                                }
                             }
 
                             var originalConnectionState = Entry.OriginalValues[nameof( ConnectionRequest.ConnectionState )].ToStringSafe().ConvertToEnum<ConnectionState>();
@@ -120,6 +164,7 @@ namespace Rock.Model
                                 if ( connectionRequest.ConnectionState == ConnectionState.Connected )
                                 {
                                     PersonHistoryChangeList.AddChange( History.HistoryVerb.ConnectionRequestConnected, History.HistoryChangeType.Record, connectionOpportunity.Name );
+                                    this.Entity.WasCompletedOnTime = !this.Entity.DueDate.HasValue || currentDateTime <= this.Entity.DueDate;
                                 }
                                 else
                                 {

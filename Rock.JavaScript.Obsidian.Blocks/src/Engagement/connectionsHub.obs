@@ -1525,6 +1525,10 @@
                 row.statusGrouping = updateBag.statusGrouping;
                 row.connectionStatus = updateBag.connectionStatusBag;
                 row.connectionState = updateBag.connectionState;
+                row.dueStatusGrouping = updateBag.dueStatusGrouping;
+                row.dueStatus = updateBag.dueStatus;
+                row.dueDate = updateBag.dueDate;
+                row.dueSoonDate = updateBag.dueSoonDate;
             }
 
             // clear selected keys
@@ -1548,6 +1552,10 @@
             if (row) {
                 row.statusGrouping = result.data.statusGrouping;
                 row.connectionStatus = result.data.connectionStatusBag;
+                row.dueStatusGrouping = result.data.dueStatusGrouping;
+                row.dueStatus = result.data.dueStatus;
+                row.dueDate = result.data.dueDate;
+                row.dueSoonDate = result.data.dueSoonDate;
             }
             isFlyoutOpen.value = false;
         }

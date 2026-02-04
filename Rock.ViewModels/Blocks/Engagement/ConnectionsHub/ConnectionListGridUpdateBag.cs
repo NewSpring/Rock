@@ -40,6 +40,8 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
 
         public GroupingFieldBag CampusGrouping { get; set; }
 
+        public GroupingFieldBag DueStatusGrouping { get; set; }
+
         public ConnectionStatusBag ConnectionStatusBag { get; set; }
 
         public ConnectionState ConnectionState { get; set; }
@@ -54,6 +56,12 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
         public int? ActivityCount { get; set; }
 
         public string CelebrationText { get; set; }
+
+        public DueStatus DueStatus { get; set; }
+
+        public DateTime? DueDate { get; set; }
+
+        public DateTime? DueSoonDate { get; set; }
     }
 }
 

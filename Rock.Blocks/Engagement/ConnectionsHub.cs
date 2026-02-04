@@ -22,8 +22,6 @@ using Rock.SystemKey;
 using Rock.Web;
 using Rock.Enums.Connection;
 using Rock.Tasks;
-using System.Management.Automation;
-using Rock.Reporting.DataFilter.ConnectionRequest;
 
 namespace Rock.Blocks.Engagement
 {
@@ -1068,6 +1066,8 @@ namespace Rock.Blocks.Engagement
         [BlockAction]
         public BlockActionResult SaveConnectionRequest( ValidPropertiesBox<ConnectionRequestBag> box )
         {
+            var connectionType = GetConnectionTypeCacheFromPageParameters();
+
             // No edit mode at the moment.
             if ( !TryGetEntityForEditAction( null, out var entity, out var actionError ) )
             {
@@ -1186,12 +1186,12 @@ namespace Rock.Blocks.Engagement
             foreach ( var request in connectionRequests )
             {
                 var currentStatus = connectionStatuses.Where( s => s.Id == request.ConnectionStatusId ).FirstOrDefault();
+                var dueStatus = GetDueStatus( request.DueDate, request.DueSoonDate );
 
                 // If Completed request, then apply state update.
                 if ( completedRequestIdKeys.Contains( request.IdKey ) )
                 {
                     request.ConnectionState = ConnectionState.Connected;
-
 
                     gridUpdateBags.Add( new ConnectionListGridUpdateBag
                     {
@@ -1213,23 +1213,23 @@ namespace Rock.Blocks.Engagement
                             Name = currentStatus.Name,
                             HighlightColor = currentStatus.HighlightColor,
                             IsNoteRequiredOnCompletion = currentStatus.IsNoteRequiredOnCompletion
-                        }
+                        },
+                        DueStatusGrouping = GetGroupingFieldBag( ( int ) dueStatus, "text", dueStatus.ToString(), dueStatus.GetOrder(), "ti ti-calendar", null, GetDueStatusTextColorCssClass( dueStatus ) ),
+                        DueStatus = dueStatus,
+                        DueDate = request.DueDate,
+                        DueSoonDate = request.DueSoonDate
                     } );
-
                     continue;
                 }
                 if ( !statusBagByIdKey.TryGetValue( request.IdKey, out var updateBag ) )
                 {
                     continue;
                 }
-
                 var newStatus = connectionStatuses.Where( s => s.Guid == updateBag.ConnectionStatusGuid.AsGuid() ).FirstOrDefault();
-
                 if ( newStatus == null )
                 {
                     return ActionBadRequest( $"{ConnectionStatus.FriendlyTypeName} not found." );
                 }
-
                 if ( currentStatus.IsNoteRequiredOnCompletion &&
                         updateBag.Note.IsNullOrWhiteSpace() )
                 {
@@ -1259,7 +1259,11 @@ namespace Rock.Blocks.Engagement
                         Name = newStatus.Name,
                         HighlightColor = newStatus.HighlightColor,
                         IsNoteRequiredOnCompletion = newStatus.IsNoteRequiredOnCompletion
-                    }
+                    },
+                    DueStatusGrouping = GetGroupingFieldBag( ( int ) dueStatus, "text", dueStatus.ToString(), dueStatus.GetOrder(), "ti ti-calendar", null, GetDueStatusTextColorCssClass( dueStatus ) ),
+                    DueStatus = dueStatus,
+                    DueDate = request.DueDate,
+                    DueSoonDate = request.DueSoonDate
                 } );
             }
 
@@ -1295,10 +1299,16 @@ namespace Rock.Blocks.Engagement
                 return ActionBadRequest( "A note is required." );
             }
 
+            // Save status history for previous status
+
+            var connectionRequestStatusHistoryService = new ConnectionRequestStatusHistoryService( RockContext );
+
+            // Update to new status
             connectionRequest.ConnectionStatusId = connectionRequestStatus.Id;
-            // TODO - Link note up.
 
             RockContext.SaveChanges();
+
+            var dueStatus = GetDueStatus( connectionRequest.DueDate, connectionRequest.DueSoonDate );
 
             var gridUpdateBag = new ConnectionListGridUpdateBag
             {
@@ -1311,7 +1321,11 @@ namespace Rock.Blocks.Engagement
                     Name = connectionRequestStatus.Name,
                     HighlightColor = connectionRequestStatus.HighlightColor,
                     IsNoteRequiredOnCompletion = connectionRequestStatus.IsNoteRequiredOnCompletion
-                }
+                },
+                DueStatusGrouping = GetGroupingFieldBag( ( int ) dueStatus, "text", dueStatus.ToString(), dueStatus.GetOrder(), "ti ti-calendar", null, GetDueStatusTextColorCssClass( dueStatus ) ),
+                DueStatus = dueStatus,
+                DueDate = connectionRequest.DueDate,
+                DueSoonDate = connectionRequest.DueSoonDate
             };
 
             return ActionOk( gridUpdateBag );
