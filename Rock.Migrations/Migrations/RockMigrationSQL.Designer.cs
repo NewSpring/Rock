@@ -19,7 +19,7 @@ namespace Rock.Migrations.Migrations {
     // class via a tool like ResGen or Visual Studio.
     // To add or remove a member, edit your .ResX file then rerun ResGen
     // with the /str option, or rebuild your VS project.
-    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("System.Resources.Tools.StronglyTypedResourceBuilder", "17.0.0.0")]
+    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("System.Resources.Tools.StronglyTypedResourceBuilder", "18.0.0.0")]
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
     [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
     public class RockMigrationSQL {
@@ -1955,6 +1955,81 @@ namespace Rock.Migrations.Migrations {
         public static string _202512182358368_UpdatespCrm_PersonMerge {
             get {
                 return ResourceManager.GetString("_202512182358368_UpdatespCrm_PersonMerge", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to CREATE PROCEDURE dbo.spGivingAutomation_UpdateGivingBinsAndPercentiles
+        ///    @CurrentRockDateTime DATETIME,
+        ///    @TransactionTypeIds dbo.IdList READONLY,        -- List of allowed TransactionTypeValueIds ( Defined in Giving Automation Configuration Block )
+        ///    @FinancialAccountIds dbo.IdList READONLY        -- List of allowed FinancialAccounts ( Defined in Giving Automation Configuration Block )
+        ///AS
+        ///BEGIN
+        ///    SET NOCOUNT ON;
+        ///
+        ///    DECLARE @EndDate DATETIME = @CurrentRockDateTime;
+        ///    DECLARE @StartDate  [rest of string was truncated]&quot;;.
+        /// </summary>
+        public static string _202601152051145_AddGivingAutomationProcedures_spGivingAutomation_UpdateGivingBinsAndPercentiles {
+            get {
+                return ResourceManager.GetString("_202601152051145_AddGivingAutomationProcedures_spGivingAutomation_UpdateGivingBin" +
+                        "sAndPercentiles", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to CREATE PROCEDURE dbo.spGivingAutomation_UpdateGivingJourneyStages
+        ///    @CurrentRockDateTime DATETIME,
+        ///    @TransactionTypeIds dbo.IdList READONLY,                -- List of allowed TransactionTypeValueIds ( Defined in Giving Automation Configuration Block )
+        ///    @FinancialAccountIds dbo.IdList READONLY,               -- List of allowed FinancialAccounts ( Defined in Giving Automation Configuration Block )
+        ///    @NewGiverFirstGaveDays INT = 150,                       -- Max days since the first gift for some [rest of string was truncated]&quot;;.
+        /// </summary>
+        public static string _202601152051145_AddGivingAutomationProcedures_spGivingAutomation_UpdateGivingJourneyStages {
+            get {
+                return ResourceManager.GetString("_202601152051145_AddGivingAutomationProcedures_spGivingAutomation_UpdateGivingJou" +
+                        "rneyStages", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to /*
+        ///&lt;doc&gt;
+        ///	&lt;summary&gt;
+        ///		This procedure merges the data from the non-primary person to the primary person.  It
+        ///		is used when merging people in Rock and should never be used outside of that process. 
+        ///	&lt;/summary&gt;
+        ///
+        ///	&lt;returns&gt;
+        ///	&lt;/returns&gt;
+        ///	&lt;param name=&quot;Old Id&quot; datatype=&quot;int&quot;&gt;The person id of the non-primary Person being merged&lt;/param&gt;
+        ///	&lt;param name=&quot;New Id&quot; datatype=&quot;int&quot;&gt;The person id of the primary Person being merged&lt;/param&gt;
+        ///	&lt;remarks&gt;	
+        ///		Uses the following constants:
+        ///			* Group Type - Family: 790E [rest of string was truncated]&quot;;.
+        /// </summary>
+        public static string _202601212358292_AddEntitySetAdditionalSettingsJson_spCrm_PersonMerge {
+            get {
+                return ResourceManager.GetString("_202601212358292_AddEntitySetAdditionalSettingsJson_spCrm_PersonMerge", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to /*
+        ///&lt;doc&gt;
+        ///	&lt;summary&gt;
+        ///		This procedure merges the data from the non-primary person to the primary person.  It
+        ///		is used when merging people in Rock and should never be used outside of that process.
+        ///	&lt;/summary&gt;
+        ///
+        ///	&lt;returns&gt;&lt;/returns&gt;
+        ///	&lt;param name=&quot;Old Id&quot; datatype=&quot;int&quot;&gt;The person id of the non-primary Person being merged&lt;/param&gt;
+        ///	&lt;param name=&quot;New Id&quot; datatype=&quot;int&quot;&gt;The person id of the primary Person being merged&lt;/param&gt;
+        ///	&lt;remarks&gt;
+        ///        If calling this outside of C#, wrap in a transaction if you  [rest of string was truncated]&quot;;.
+        /// </summary>
+        public static string _202602021859057_UpdatePersonMergeWithThrow {
+            get {
+                return ResourceManager.GetString("_202602021859057_UpdatePersonMergeWithThrow", resourceCulture);
             }
         }
         

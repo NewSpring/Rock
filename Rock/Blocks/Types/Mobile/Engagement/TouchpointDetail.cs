@@ -21,7 +21,7 @@ using System.Data.Entity;
 using System.Linq;
 
 using Rock.Attribute;
-using Rock.Common.Mobile.Blocks.Engagement.BeaconDashboard;
+using Rock.Common.Mobile.Blocks.Engagement.OutreachDashboard;
 using Rock.Common.Mobile.Blocks.Engagement.ContactProfile;
 using Rock.Common.Mobile.Blocks.Engagement.TouchpointDetail;
 using Rock.Enums.Engagement;
@@ -112,7 +112,7 @@ namespace Rock.Blocks.Types.Mobile.Engagement
         /// <returns></returns>
         private TouchpointViewBag GetTouchpointView( TouchpointType touchpointType, Contact contact )
         {
-            var genderedPronoun = GetGenderString( contact.Gender, "him", "her", contact.FirstName );
+            var genderedPronoun = GetGenderString( contact.Gender, "his", "her", contact.FirstName );
             switch ( touchpointType )
             {
                 case TouchpointType.Prayer:
@@ -236,6 +236,7 @@ namespace Rock.Blocks.Types.Mobile.Engagement
                 LastUpdated = contact.ModifiedDateTime ?? contact.CreatedDateTime ?? DateTime.MinValue,
                 FirstName = contact.FirstName,
                 LastName = contact.LastName,
+                Gender = ( int ) contact.Gender.ToMobile(),
                 ConnectionNote = contact.ConnectionNote,
                 PrayerNote = contact.PrayerNote,
                 MobilePhone = contact.MobilePhone,

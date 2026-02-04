@@ -17,15 +17,11 @@
 
 import { SlidingDateRange } from "@Obsidian/Utility/slidingDateRange";
 import { PersonFieldBag } from "@Obsidian/ViewModels/Core/Grid/personFieldBag";
-import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
 
 export const enum PreferenceKey {
     FilterSendDateRange = "filter-send-date-range",
     FilterUnsubscribeDateRange = "filter-unsubscribe-date-range",
     FilterUnsubscribeLevel = "filter-unsubscribe-level",
-    FilterCommunicationName = "filter-communication-name",
-    FilterCommunicationTopic = "filter-communication-topic",
-    FilterSentBy = "filter-sent-by"
 }
 
 export type GridSettingsOptions = {
