@@ -1,4 +1,4 @@
-/*
+﻿/*
 <doc>
     <summary>
         Synchronizes the pending recipients of a communication with the current, active members of its list group,
@@ -19,7 +19,7 @@
 </doc>
 */
 
-ALTER PROCEDURE [dbo].[spCommunication_SynchronizeListRecipients]
+CREATE PROCEDURE [dbo].[spCommunication_SynchronizeListRecipients]
     @CommunicationId INT
 AS
 BEGIN
