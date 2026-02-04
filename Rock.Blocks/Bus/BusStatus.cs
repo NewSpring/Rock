@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.ComponentModel;
 using Rock.Attribute;
 using Rock.Bus;
@@ -75,7 +75,7 @@ namespace Rock.Blocks.Bus
         {
             return new Dictionary<string, string>
             {
-                [NavigationUrlKey.TransportSelectPage] = this.GetLinkedPageUrl( AttributeKey.TransportSelectPage, "TransportSelectPage", "((Key))" )
+                [NavigationUrlKey.TransportSelectPage] = this.GetLinkedPageUrl( AttributeKey.TransportSelectPage )
             };
         }
 
