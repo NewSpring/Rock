@@ -56,16 +56,6 @@ namespace Rock.Tests.Shared.TestFramework
         }
 
         /// <summary>
-        /// Gets a mocked <see cref="RockContext"/> that can be used to setup
-        /// additional mocked values and then used for database access.
-        /// </summary>
-        /// <returns>An mocking instance for <see cref="RockContext"/>.</returns>
-        public static RockMock<RockContext> GetRockContextMock( bool autoMode = true )
-        {
-            return CreateRockContextMock( autoMode );
-        }
-
-        /// <summary>
         /// Creates a mock <typeparamref name="TEntity"/> object.
         /// </summary>
         /// <param name="id">The entity identifier.</param>

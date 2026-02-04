@@ -19,7 +19,7 @@ namespace Rock.Tests.CheckIn.v2.Filters
     /// </summary>
     /// <seealso cref="MembershipOpportunityFilter"/>
     [TestClass]
-    public class MembershipOpportunityFilterTests : CheckInMockDatabase
+    public class MembershipOpportunityFilterTests : MockDatabaseTestsBase
     {
         #region IsGroupValid Tests
 

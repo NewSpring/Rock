@@ -20,7 +20,7 @@ namespace Rock.Tests.CheckIn.v2.Filters
     /// </summary>
     /// <seealso cref="ScheduleRequirementOpportunityFilter"/>
     [TestClass]
-    public class ScheduleRequirementOpportunityFilterTests : CheckInMockDatabase
+    public class ScheduleRequirementOpportunityFilterTests : MockDatabaseTestsBase
     {
         #region IsGroupValid Tests
 

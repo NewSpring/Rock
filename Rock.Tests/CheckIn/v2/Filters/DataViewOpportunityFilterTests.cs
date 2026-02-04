@@ -22,7 +22,7 @@ namespace Rock.Tests.CheckIn.v2.Filters
     /// </summary>
     /// <seealso cref="DataViewOpportunityFilter"/>
     [TestClass]
-    public class DataViewOpportunityFilterTests : CheckInMockDatabase
+    public class DataViewOpportunityFilterTests : MockDatabaseTestsBase
     {
         #region IsGroupValid Tests
 
