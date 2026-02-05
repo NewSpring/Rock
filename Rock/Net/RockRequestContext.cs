@@ -23,7 +23,6 @@ using System.Linq;
 using System.Web;
 
 using Rock.Attribute;
-using Rock.Communication.Chat;
 using Rock.Configuration;
 using Rock.Data;
 using Rock.Lava;

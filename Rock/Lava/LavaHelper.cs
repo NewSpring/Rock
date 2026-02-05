@@ -25,9 +25,6 @@ using System.Web;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
-using OpenXmlPowerTools;
-
-using Rock.Communication.Chat;
 using Rock.Data;
 using Rock.Model;
 using Rock.Net;
