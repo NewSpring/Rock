@@ -108,6 +108,8 @@ namespace Rock.Tests.Shared.TestFramework
             {
                 RecordsUpdated = ExecuteSaveChanges( rockContextMock )
             } );
+            rockContextMock.Setup( m => m.WrapTransaction( It.IsAny<Action>() ) ).Callback<Action>( a => a() );
+            rockContextMock.Setup( m => m.WrapTransactionIf( It.IsAny<Func<bool>>() ) ).Returns<Func<bool>>( a => a() );
         }
 
         /// <summary>
