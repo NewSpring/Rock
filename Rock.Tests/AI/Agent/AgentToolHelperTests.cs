@@ -297,7 +297,242 @@ namespace Rock.Tests.AI.Agent
 
         #region GetPaginatedItems
 
-        // TODO
+        [TestMethod]
+        public void GetPaginatedItems_WithQueryableAndSanitize_CallsSanitizeMethod()
+        {
+            var rockContext = MockDatabaseHelper.CreateRockContextMock().Object;
+            var agentRequestContext = new AgentRequestContext( new RockRequestContext(), rockContext );
+            var logger = new Mock<ILogger>().Object;
+
+            var helper = new AgentToolHelper( agentRequestContext, logger );
+
+            var itemMock = new Mock<EntityResultBase>();
+            itemMock.Setup( m => m.Sanitize( It.IsAny<AgentRequestContext>() ) ).Returns( true );
+
+            var originalItems = new[] { itemMock.Object }.AsQueryable();
+
+            var result = helper.GetPaginatedItems( originalItems, 1, sanitizeForSecurity: true );
+
+            Assert.HasCount( 1, result );
+            itemMock.Verify( m => m.Sanitize( It.IsAny<AgentRequestContext>() ), Times.Once );
+        }
+
+        [TestMethod]
+        public void GetPaginatedItems_WithQueryableAndNoSanitize_DoesNotCallSanitizeMethod()
+        {
+            var rockContext = MockDatabaseHelper.CreateRockContextMock().Object;
+            var agentRequestContext = new AgentRequestContext( new RockRequestContext(), rockContext );
+            var logger = new Mock<ILogger>().Object;
+
+            var helper = new AgentToolHelper( agentRequestContext, logger );
+
+            var itemMock = new Mock<EntityResultBase>();
+            itemMock.Setup( m => m.Sanitize( It.IsAny<AgentRequestContext>() ) ).Returns( true );
+
+            var originalItems = new[] { itemMock.Object }.AsQueryable();
+
+            var result = helper.GetPaginatedItems( originalItems, 1, sanitizeForSecurity: false );
+
+            Assert.HasCount( 1, result );
+            itemMock.Verify( m => m.Sanitize( It.IsAny<AgentRequestContext>() ), Times.Never );
+        }
+
+        [TestMethod]
+        public void GetPaginatedItems_WithQueryableAndPageNumber_ReturnsExpectedItems()
+        {
+            var rockContext = MockDatabaseHelper.CreateRockContextMock().Object;
+            var agentRequestContext = new AgentRequestContext( new RockRequestContext(), rockContext );
+            var logger = new Mock<ILogger>().Object;
+
+            var helper = new AgentToolHelper( agentRequestContext, logger );
+
+            var originalItems = Enumerable.Range( 1, 15 )
+                .AsQueryable();
+
+            var result = helper.GetPaginatedItems( originalItems, 2, 5 );
+
+            Assert.HasCount( 5, result );
+            Assert.AreEqual( 6, result[0] );
+            Assert.AreEqual( 7, result[1] );
+            Assert.AreEqual( 8, result[2] );
+            Assert.AreEqual( 9, result[3] );
+            Assert.AreEqual( 10, result[4] );
+        }
+
+        [TestMethod]
+        public void GetPaginatedItems_WithEnumerableAndPageNumber_ReturnsExpectedItems()
+        {
+            var rockContext = MockDatabaseHelper.CreateRockContextMock().Object;
+            var agentRequestContext = new AgentRequestContext( new RockRequestContext(), rockContext );
+            var logger = new Mock<ILogger>().Object;
+
+            var helper = new AgentToolHelper( agentRequestContext, logger );
+
+            var originalItems = Enumerable.Range( 1, 15 );
+
+            var result = helper.GetPaginatedItems( originalItems, 2, 5 );
+
+            Assert.HasCount( 5, result );
+            Assert.AreEqual( 6, result[0] );
+            Assert.AreEqual( 7, result[1] );
+            Assert.AreEqual( 8, result[2] );
+            Assert.AreEqual( 9, result[3] );
+            Assert.AreEqual( 10, result[4] );
+        }
+
+        #endregion
+
+        #region GetCursorPaginatedItems
+
+        [TestMethod]
+        public void GetCursorPaginatedItems_WithEnforceSecurity_DoesNotIncludeDeniedItems()
+        {
+            var rockContextMock = MockDatabaseHelper.CreateRockContextMock();
+            var rockContextFactory = MockDatabaseHelper.CreateRockContextFactory( rockContextMock );
+
+            using ( TestHelper.CreateScopedRockApp( sc => sc.AddSingleton( rockContextFactory ) ) )
+            {
+                var agentRequestContext = new AgentRequestContext( new RockRequestContext(), rockContextMock.Object );
+                var logger = new Mock<ILogger>().Object;
+                var helper = new AgentToolHelper( agentRequestContext, logger );
+
+                var allowedCampus = new Campus { Id = 1 };
+                var deniedCampus = new Campus { Id = 2 };
+                var deniedAuth = new Auth
+                {
+                    Id = 1,
+                    EntityTypeId = EntityTypeCache.Get<Campus>( true, rockContextMock.Object ).Id,
+                    EntityId = deniedCampus.Id,
+                    SpecialRole = SpecialRole.AllUsers,
+                    Action = Authorization.VIEW,
+                    AllowOrDeny = "D",
+                };
+
+                rockContextMock.Object.Set<Campus>().Add( allowedCampus );
+                rockContextMock.Object.Set<Campus>().Add( deniedCampus );
+                rockContextMock.Object.Set<Auth>().Add( deniedAuth );
+
+                var result = helper.GetCursorPaginatedItems( rockContextMock.Object.Set<Campus>(), null, enforceSecurity: true );
+
+                Assert.HasCount( 1, result );
+                Assert.AreSame( allowedCampus, result[0] );
+            }
+        }
+
+        [TestMethod]
+        public void GetCursorPaginatedItems_WithoutEnforceSecurity_IncludesDeniedItems()
+        {
+            var rockContextMock = MockDatabaseHelper.CreateRockContextMock();
+            var rockContextFactory = MockDatabaseHelper.CreateRockContextFactory( rockContextMock );
+
+            using ( TestHelper.CreateScopedRockApp( sc => sc.AddSingleton( rockContextFactory ) ) )
+            {
+                var agentRequestContext = new AgentRequestContext( new RockRequestContext(), rockContextMock.Object );
+                var logger = new Mock<ILogger>().Object;
+                var helper = new AgentToolHelper( agentRequestContext, logger );
+
+                var allowedCampus = new Campus { Id = 1 };
+                var deniedCampus = new Campus { Id = 2 };
+                var deniedAuth = new Auth
+                {
+                    Id = 1,
+                    EntityTypeId = EntityTypeCache.Get<Campus>( true, rockContextMock.Object ).Id,
+                    EntityId = deniedCampus.Id,
+                    SpecialRole = SpecialRole.AllUsers,
+                    Action = Authorization.VIEW,
+                    AllowOrDeny = "D",
+                };
+
+                rockContextMock.Object.Set<Campus>().Add( allowedCampus );
+                rockContextMock.Object.Set<Campus>().Add( deniedCampus );
+                rockContextMock.Object.Set<Auth>().Add( deniedAuth );
+
+                var result = helper.GetCursorPaginatedItems( rockContextMock.Object.Set<Campus>(), null, enforceSecurity: false );
+
+                Assert.HasCount( 2, result );
+            }
+        }
+
+        [TestMethod]
+        public void GetCursorPaginatedItems_WithCursor_ReturnsExpectedItems()
+        {
+            var rockContext = MockDatabaseHelper.CreateRockContextMock().Object;
+            var agentRequestContext = new AgentRequestContext( new RockRequestContext(), rockContext );
+            var logger = new Mock<ILogger>().Object;
+
+            var helper = new AgentToolHelper( agentRequestContext, logger );
+
+            var originalItems = Enumerable.Range( 1, 15 )
+                .Select( i => new Campus { Id = i } )
+                .AsQueryable();
+
+            var result = helper.GetCursorPaginatedItems( originalItems, 5.AsIdKey(), 5, enforceSecurity: false );
+
+            Assert.HasCount( 5, result );
+            Assert.AreEqual( 6, result[0].Id );
+            Assert.AreEqual( 7, result[1].Id );
+            Assert.AreEqual( 8, result[2].Id );
+            Assert.AreEqual( 9, result[3].Id );
+            Assert.AreEqual( 10, result[4].Id );
+        }
+
+        [TestMethod]
+        public void GetCursorPaginatedItems_WithEmptySet_ReturnsEmptyList()
+        {
+            var rockContext = MockDatabaseHelper.CreateRockContextMock().Object;
+            var agentRequestContext = new AgentRequestContext( new RockRequestContext(), rockContext );
+            var logger = new Mock<ILogger>().Object;
+
+            var helper = new AgentToolHelper( agentRequestContext, logger );
+
+            var originalItems = Enumerable.Range( 1, 15 )
+                .Select( i => new Campus { Id = i } )
+                .AsQueryable();
+
+            var result = helper.GetCursorPaginatedItems( new Campus[0].AsQueryable(), null, 5, enforceSecurity: false );
+
+            Assert.IsEmpty( result );
+        }
+
+        [TestMethod]
+        public void GetCursorPaginatedItems_WithLotsOfDeniedItems_BailsOutEarly()
+        {
+            var rockContextMock = MockDatabaseHelper.CreateRockContextMock();
+            var rockContextFactory = MockDatabaseHelper.CreateRockContextFactory( rockContextMock );
+
+            using ( TestHelper.CreateScopedRockApp( sc => sc.AddSingleton( rockContextFactory ) ) )
+            {
+                var agentRequestContext = new AgentRequestContext( new RockRequestContext(), rockContextMock.Object );
+                var logger = new Mock<ILogger>().Object;
+                var helper = new AgentToolHelper( agentRequestContext, logger );
+
+                var campusEntityTypeId = EntityTypeCache.Get<Campus>( true, rockContextMock.Object ).Id;
+                // Generate a set of 1,000 campuses. The first and last being
+                // allowed access while the rest deny access. We should only
+                // get the first item in our result due to early bail out.
+                Enumerable.Range( 1, 1000 )
+                    .ToList()
+                    .ForEach( i =>
+                    {
+                        rockContextMock.Object.Set<Campus>().Add( new Campus { Id = i } );
+
+                        rockContextMock.Object.Set<Auth>().Add( new Auth
+                        {
+                            Id = 1,
+                            EntityTypeId = campusEntityTypeId,
+                            EntityId = i,
+                            SpecialRole = SpecialRole.AllUsers,
+                            Action = Authorization.VIEW,
+                            AllowOrDeny = i == 1 || i == 1000 ? "A" : "D",
+                        } );
+                    } );
+
+                var result = helper.GetCursorPaginatedItems( rockContextMock.Object.Set<Campus>(), null, pageSize: 10, enforceSecurity: true );
+
+                Assert.HasCount( 1, result );
+                Assert.AreEqual( 1, result[0].Id );
+            }
+        }
 
         #endregion
 
@@ -3059,6 +3294,36 @@ namespace Rock.Tests.AI.Agent
                 Assert.IsFalse( helper.HasErrors );
                 Assert.AreEqual( 123, campus.CampusTypeValueId );
                 Assert.AreEqual( 123, campus.CampusTypeValue.Id );
+            }
+        }
+
+        [TestMethod]
+        public void UpdateDefinedValueProperty_WithValidTargetAndNoConstraintAttribute_SetsValue()
+        {
+            var rockContextMock = MockDatabaseHelper.CreateRockContextMock();
+            var rockContextFactory = MockDatabaseHelper.CreateRockContextFactory( rockContextMock );
+
+            using ( TestHelper.CreateScopedRockApp( sc => sc.AddSingleton( rockContextFactory ) ) )
+            {
+                var rockContext = rockContextMock.Object;
+
+                var errorClass = new HelperErrorClass();
+                var logger = new Mock<ILogger>().Object;
+                var agentRequestContext = new AgentRequestContext( new RockRequestContext(), rockContext );
+
+                rockContext.Set<DefinedValue>().Add( new DefinedValue
+                {
+                    Id = 123,
+                    DefinedTypeId = 456,
+                } );
+
+                var helper = new AgentToolHelper( agentRequestContext, logger );
+
+                helper.UpdateDefinedValueProperty( errorClass, e => e.RequiredDefinedValueForeignKey, 123.AsIdKey(), parameterExpression: "parameterExpression" );
+
+                Assert.IsFalse( helper.HasErrors );
+                Assert.AreEqual( 123, errorClass.RequiredDefinedValueForeignKeyId );
+                Assert.AreEqual( 123, errorClass.RequiredDefinedValueForeignKey.Id );
             }
         }
 
