@@ -1014,7 +1014,6 @@ namespace Rock.Net
             }
 
             mergeFields.Add( "Geolocation", ClientInformation?.Geolocation );
-            mergeFields.Add( "IsChatEnabled", ChatHelper.IsChatEnabled );
             mergeFields.Add( $"{LavaHelper.InternalMergeFieldPrefix}RockRequestContext", this );
 
             return mergeFields;

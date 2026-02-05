@@ -213,8 +213,6 @@ namespace Rock.Lava
                 mergeFields.Add( "Geolocation", rockPage.RequestContext?.ClientInformation?.Geolocation );
             }
 
-            mergeFields.Add( "IsChatEnabled", ChatHelper.IsChatEnabled );
-
             return mergeFields;
         }
 
