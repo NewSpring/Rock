@@ -33730,7 +33730,6 @@
       "StyleClass": "ti-mobiledata-off",
       "IconSvg": "<svg\n  xmlns=\"http://www.w3.org/2000/svg\"\n  width=\"24\"\n  height=\"24\"\n  viewBox=\"0 0 24 24\"\n  fill=\"none\"\n  stroke=\"currentColor\"\n  stroke-width=\"2\"\n  stroke-linecap=\"round\"\n  stroke-linejoin=\"round\"\n  class=\"icon icon-tabler icons-tabler-outline icon-tabler-mobiledata-off\"\n>\n  <path stroke=\"none\" d=\"M0 0h24v24H0z\" fill=\"none\"/>\n  <path d=\"M16 12v-8\" />\n  <path d=\"M8 20v-8\" />\n  <path d=\"M13 7l3 -3l3 3\" />\n  <path d=\"M5 17l3 3l3 -3\" />\n  <path d=\"M3 3l18 18\" />\n</svg>"
     },
-
     {
       "Title": "moneybag",
       "SearchTerms": [
