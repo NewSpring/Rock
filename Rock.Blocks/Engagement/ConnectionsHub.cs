@@ -22,6 +22,9 @@ using Rock.SystemKey;
 using Rock.Web;
 using Rock.Enums.Connection;
 using Rock.Tasks;
+using Rock.ClientService.Core.Note;
+using System.Data.Entity.Core.Metadata.Edm;
+using Slingshot.Core;
 
 namespace Rock.Blocks.Engagement
 {
@@ -52,6 +55,13 @@ namespace Rock.Blocks.Engagement
         Key = AttributeKey.WorkflowEntryPage,
         DefaultValue = Rock.SystemGuid.Page.WORKFLOW_ENTRY )]
 
+    [BadgesField(
+        "Badges",
+        Description = "The badges to display in this block.",
+        IsRequired = false,
+        Order = 10,
+        Key = AttributeKey.Badges )]
+
     #endregion
 
     [Rock.SystemGuid.EntityTypeGuid( "CEE15B88-3B23-4378-9CB1-E59A97A94D1B" )]
@@ -64,6 +74,7 @@ namespace Rock.Blocks.Engagement
         {
             public const string WorkflowDetailPage = "WorkflowDetailPage";
             public const string WorkflowEntryPage = "WorkflowEntryPage";
+            public const string Badges = "Badges";
         }
 
         private static class PageParameterKey
@@ -166,6 +177,9 @@ namespace Rock.Blocks.Engagement
             options.AreCelebrationsEnabled = connectionType.EnabledFeatures.HasFlag( EnabledFeatureFlags.Celebration );
             options.AreRemindersEnabled = connectionType.EnabledFeatures.HasFlag( EnabledFeatureFlags.Reminder );
             options.AreGroupPlacementsEnabled = connectionType.EnabledFeatures.HasFlag( EnabledFeatureFlags.GroupPlacement );
+
+            var delimitedBadgeGuids = GetAttributeValue( AttributeKey.Badges );
+            options.BadgeGuids = delimitedBadgeGuids.SplitDelimitedValues().AsGuidList();
 
             var manualWorkflows = new List<ConnectionWorkflow>();
             var authorizedWorkflowItems = new List<ListItemBag>();
@@ -972,7 +986,7 @@ namespace Rock.Blocks.Engagement
                 {
                     Key = request.ConnectionState.ToString(),
                     Type = "text",
-                    Label = request.ConnectionState.GetDescription() ?? request.ConnectionState.ToString(),
+                    Label = request.ConnectionState.GetDescription().IsNullOrWhiteSpace() ? request.ConnectionState.ToString() : request.ConnectionState.GetDescription(),
                     IconCssClass = GetStateIconCssClass( request.ConnectionState ),
                     Order = ( int ) request.ConnectionState
                 };
@@ -1200,7 +1214,7 @@ namespace Rock.Blocks.Engagement
                         {
                             Key = request.ConnectionState.ToString(),
                             Type = "text",
-                            Label = request.ConnectionState.GetDescription(),
+                            Label = request.ConnectionState.GetDescription().IsNullOrWhiteSpace() ? request.ConnectionState.ToString() : request.ConnectionState.GetDescription(),
                             IconCssClass = GetStateIconCssClass( request.ConnectionState ),
                             Order = ( int ) request.ConnectionState
                         },
@@ -1237,7 +1251,7 @@ namespace Rock.Blocks.Engagement
                 }
 
                 request.ConnectionStatusId = newStatus.Id;
-                // TODO: attach note
+                request.ConnectionStatusHistoryNote = statusUpdateBags.First().Note;
 
                 gridUpdateBags.Add( new ConnectionListGridUpdateBag
                 {
@@ -1246,7 +1260,7 @@ namespace Rock.Blocks.Engagement
                     {
                         Key = request.ConnectionState.ToString(),
                         Type = "text",
-                        Label = request.ConnectionState.GetDescription(),
+                        Label = request.ConnectionState.GetDescription().IsNullOrWhiteSpace() ? request.ConnectionState.ToString() : request.ConnectionState.GetDescription(),
                         IconCssClass = GetStateIconCssClass( request.ConnectionState ),
                         Order = ( int ) request.ConnectionState
                     },
@@ -1305,6 +1319,7 @@ namespace Rock.Blocks.Engagement
 
             // Update to new status
             connectionRequest.ConnectionStatusId = connectionRequestStatus.Id;
+            connectionRequest.ConnectionStatusHistoryNote = bag.Note;
 
             RockContext.SaveChanges();
 
@@ -1370,7 +1385,7 @@ namespace Rock.Blocks.Engagement
                     {
                         Key = request.ConnectionState.ToString(),
                         Type = "text",
-                        Label = request.ConnectionState.GetDescription(),
+                        Label = request.ConnectionState.GetDescription().IsNullOrWhiteSpace() ? request.ConnectionState.ToString() : request.ConnectionState.GetDescription(),
                         IconCssClass = GetStateIconCssClass( request.ConnectionState ),
                         Order = ( int ) request.ConnectionState
                     },
@@ -1746,6 +1761,91 @@ namespace Rock.Blocks.Engagement
             // TODO - may need to add logic to recalculate pending people.
             return ActionOk( );
         }
+
+        #region Detail View Block Actions
+
+        [BlockAction]
+        public BlockActionResult GetConnectionRequestDetails( string connectionRequestIdKey )
+        {
+            var connectionRequestService = new ConnectionRequestService( RockContext );
+            var connectionRequest = connectionRequestService.Get( connectionRequestIdKey, !PageCache.Layout.Site.DisablePredictableIds );
+            if ( connectionRequest == null )
+            {
+                return ActionBadRequest( $"{Rock.Model.ConnectionRequest.FriendlyTypeName} not found." );
+            }
+
+            if ( !connectionRequest.IsAuthorized( Authorization.VIEW, RequestContext.CurrentPerson ) )
+            {
+                return ActionBadRequest( "You are not authorized to view this Connection Request." );
+            }
+
+            var bag = new ConnectionRequestDetailsBag();
+
+            var requesterPerson = connectionRequest.PersonAlias.Person;
+            string connectionStatus = null;
+            if ( requesterPerson.ConnectionStatusValueId.HasValue )
+            {
+                var connectionStatusValue = DefinedValueCache.Get( requesterPerson.ConnectionStatusValueId.Value );
+                if ( connectionStatusValue != null )
+                {
+                    connectionStatus = connectionStatusValue.Value;
+                }
+            }
+            string maritalStatus = null;
+            if ( requesterPerson.MaritalStatusValueId.HasValue )
+            {
+                var maritalStatusValue = DefinedValueCache.Get( requesterPerson.MaritalStatusValueId.Value );
+                if ( maritalStatusValue != null )
+                {
+                    maritalStatus = maritalStatusValue.Value;
+                }
+            }
+
+            bag.RequesterPerson = new RequesterPersonBag
+            {
+                IdKey = requesterPerson.IdKey,
+                NickName = requesterPerson.NickName,
+                LastName = requesterPerson.LastName,
+                PhotoUrl = requesterPerson.PhotoUrl,
+                ConnectionStatus = connectionStatus,
+                Age = requesterPerson.Age,
+                Gender = requesterPerson.Gender.ToString(),
+                MaritalStatus = maritalStatus
+            };
+
+            // TODO - Apply filtering when we have more details about additional settings JSON structure
+            var additionalRequestsProjection = connectionRequestService.Queryable()
+                .AsNoTracking()
+                .Where( r => r.PersonAlias.PersonId == requesterPerson.Id )
+                .Select( r => new
+                {
+                    RequestId = r.Id,
+                    ConnectionOpportunityId = r.ConnectionOpportunity.Id,
+                    ConnectionOpportunityName = r.ConnectionOpportunity.Name,
+                    ConnectionStatus = r.ConnectionStatus.Name,
+                    r.ConnectorPersonAlias,
+                    ConnectorNickName = r.ConnectorPersonAlias != null ?  r.ConnectorPersonAlias.Person.NickName : string.Empty,
+                    ConnectorLastName = r.ConnectorPersonAlias != null ? r.ConnectorPersonAlias.Person.LastName : string.Empty,
+                    RequestCreatedDateTime = r.CreatedDateTime,
+                    RequesterNickName = r.PersonAlias.Person.NickName,
+                    RequesterLastName = r.PersonAlias.Person.LastName
+                } ).ToList();
+
+            bag.AdditionalRequests = additionalRequestsProjection.Select( r => new AdditionalRequestBag
+            {
+                RequestIdKey = IdHasher.Instance.GetHash( r.RequestId ),
+                ConnectionOpportunityIdKey = IdHasher.Instance.GetHash( r.ConnectionOpportunityId ),
+                ConnectionOpportunityName = r.ConnectionOpportunityName,
+                ConnectionStatus = r.ConnectionStatus,
+                Connector = r.ConnectorPersonAlias == null ? "Unassigned" : r.ConnectorNickName + " " + r.ConnectorLastName,
+                RequestCreatedDateTime = r.RequestCreatedDateTime?.ToRockDateTimeOffset(),
+                Requester = r.RequesterNickName + " " + r.RequesterLastName
+            } ).ToList();
+
+            return ActionOk( bag );
+        }
+
+        #endregion Detail View Block Actions
 
         [BlockAction]
         public BlockActionResult GetSmsConfiguration( GetSmsConfigurationRequestBag bag )

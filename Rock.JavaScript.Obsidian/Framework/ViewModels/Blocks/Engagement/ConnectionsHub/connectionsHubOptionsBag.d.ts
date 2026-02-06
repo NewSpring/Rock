@@ -38,6 +38,8 @@ export type ConnectionsHubOptionsBag = {
 
     areRemindersEnabled: boolean;
 
+    badgeGuids?: Guid[] | null;
+
     connectionActivities?: ConnectionActivityBag[] | null;
 
     connectionOpportunities?: ListItemBag[] | null;

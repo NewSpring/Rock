@@ -2,7 +2,7 @@
     <teleport to="body">
         <div v-if="isRendered"
              class="docked-panel-container styled-scroll"
-            data-position="right">
+             data-position="right">
 
             <transition name="docked-panel-slide"
                         appear
@@ -71,6 +71,7 @@
             calc(100% - var(--resize-handle-width)));
     left: auto;
 }
+
 .docked-panel-resize-handle:hover {
     opacity: .3;
 }
@@ -100,6 +101,7 @@
     right: 0;
     border-radius: var(--rounded-large) 0 0 var(--rounded-large);
 }
+
 .docked-panel-header,
 .docked-panel-footer {
     flex: 0 0 auto;

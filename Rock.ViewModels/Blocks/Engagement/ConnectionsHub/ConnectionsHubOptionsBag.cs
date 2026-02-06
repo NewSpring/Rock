@@ -47,6 +47,8 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
 
         public bool? IsSequentialStatusMode { get; set; }
 
+        public List<Guid> BadgeGuids { get; set; }
+
         public List<ConnectionStatusBag> ConnectionStatuses { get; set; }
 
         public List<ListItemBag> ConnectionOpportunities { get; set; }

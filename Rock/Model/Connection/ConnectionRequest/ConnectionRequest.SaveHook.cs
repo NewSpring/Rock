@@ -70,7 +70,7 @@ namespace Rock.Model
                 var connectionRequest = this.Entity as ConnectionRequest;
 
                 var rockContext = ( RockContext ) this.RockContext;
-                var connectionTypeCache = ConnectionTypeCache.Get( connectionRequest.ConnectionTypeId );
+
                 var connectionOpportunity = connectionRequest.ConnectionOpportunity;
                 if ( connectionOpportunity == null )
                 {
@@ -82,6 +82,8 @@ namespace Rock.Model
                 {
                     this.Entity.ConnectionTypeId = connectionOpportunity.ConnectionTypeId;
                 }
+
+                var connectionTypeCache = ConnectionTypeCache.Get( this.Entity.ConnectionTypeId );
 
                 int dueOffsetDays = 0;
                 int dueSoonOffsetDays = 0;
@@ -154,6 +156,34 @@ namespace Rock.Model
 
                                     this.Entity.DueDate = currentDateTime.AddDays( dueOffsetDays );
                                     this.Entity.DueSoonDate = currentDateTime.AddDays( dueSoonOffsetDays );
+                                }
+
+                                if ( originalConnectionStatusId.HasValue )
+                                {
+                                    var connectionRequestStatusHistoryService = new ConnectionRequestStatusHistoryService( rockContext );
+
+                                    // Determine the start time for this status history entry by using the most recent
+                                    // matching status history record. If none exists, fall back to the connection
+                                    // request's created date; if that is unavailable, use the current date and time.
+                                    DateTime statusHistoryStartTime = connectionRequestStatusHistoryService.Queryable()
+                                        .Where( h => h.ConnectionRequestId == this.Entity.Id && h.ConnectionStatusId == this.Entity.ConnectionStatusId )
+                                        .OrderByDescending( h => h.EndDateTime )
+                                        .Select( h => ( DateTime? ) h.StartDateTime )
+                                        .FirstOrDefault()
+                                        ?? this.Entity.CreatedDateTime
+                                        ?? currentDateTime;
+
+                                    connectionRequestStatusHistoryService.Add( new ConnectionRequestStatusHistory
+                                    {
+                                        ConnectionRequestId = this.Entity.Id,
+                                        ConnectionStatusId = this.Entity.ConnectionStatusId,
+                                        StartDateTime = statusHistoryStartTime,
+                                        EndDateTime = currentDateTime,
+                                        CompletedByPersonAliasId = rockContext.GetCurrentPersonAliasId(),
+                                        WasCompletedOnTime = currentDateTime < this.Entity.DueDate,
+                                        Note = this.Entity.ConnectionStatusHistoryNote,
+                                        //PreviousConnectionStatusId = originalConnectionStatusId.Value TODO - Add this when the property exists.
+                                    } );
                                 }
                             }
 

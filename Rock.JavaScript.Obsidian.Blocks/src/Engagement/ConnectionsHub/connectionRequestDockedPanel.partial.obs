@@ -1,0 +1,248 @@
+<!-- Copyright by the Spark Development Network; Licensed under the Rock Community License -->
+<template>
+    <DockedPanel v-model="isVisible"
+                 v-model:width="dockedPanelWidth"
+                 :canResize="true"
+                 class="docked-panel">
+        <template #header>
+            <div class="mb-spacing-sm">
+                <div class="pt-spacing-xs bg-interface-softer">
+                    <div class="d-flex justify-content-between px-spacing-sm">
+                        <div class="d-flex gap-sm">
+                            <i class="ti ti-chevron-left cursor-pointer" :class="{ disabled: !hasPrevious }" @click="goPrevious"></i>
+                            <i class="ti ti-chevron-right cursor-pointer" :class="{ disabled: !hasNext }" @click="goNext"></i>
+                        </div>
+                        <i class="ti ti-x cursor-pointer" @click="closeDockedPanel"></i>
+                    </div>
+                    <template v-if="requestDetails?.requesterPerson">
+                        <div class="px-spacing-md py-spacing-xs d-flex align-items-center justify-content-between">
+                            <div class="d-flex gap-sm">
+                                <PersonAvatar :personIdKey="requestDetails.requesterPerson.idKey ?? ''"
+                                              :photoUrl="requestDetails.requesterPerson.photoUrl ?? ''"
+                                              :photoSize="70" />
+                                <div class="d-flex flex-column flex-shrink-0 person-details">
+                                    <div class="text-interface-stronger text-md">{{ requestDetails.requesterPerson.nickName }} {{ requestDetails.requesterPerson.lastName }}</div>
+                                    <div v-if="!isNullOrWhiteSpace(requestDetails.requesterPerson.connectionStatus)" class="text-interface-medium text-sm">{{ requestDetails.requesterPerson.connectionStatus }}</div>
+                                    <div v-if="requestDetails.requesterPerson.age" class="text-interface-medium text-sm">{{ requestDetails.requesterPerson.age }} {{ pluralize("year", requestDetails.requesterPerson.age) }} old</div>
+                                    <div class="text-interface-medium text-sm">{{ requestDetails.requesterPerson.gender }} | {{ requestDetails.requesterPerson.maritalStatus }}</div>
+                                </div>
+                            </div>
+                            <div>
+                                <BadgeList :entityTypeGuid="EntityType.Person"
+                                           :entityKey="requestDetails.requesterPerson.idKey ?? ''"
+                                           :badgeTypeGuids="options?.badgeGuids ?? []"
+                                           class="align-items-center justify-content-center flex-wrap" />
+                            </div>
+                            <div class="d-flex py-spacing-lg gap-xs">
+                                <RockButton class="px-spacing-sm">
+                                    <i class="ti ti-user"></i>
+                                </RockButton>
+                                <RockButton class="px-spacing-sm">
+                                    <i class="ti ti-message-circle-plus"></i>
+                                </RockButton>
+                                <RockButton class="px-spacing-sm">
+                                    <i class="ti ti-mail-plus"></i>
+                                </RockButton>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+                <!-- TODO - Disuss notes with Jon -->
+                <!-- <div v-if="expandedNotes && expandedNotes.length > 0" class="bg-info-soft">
+                        <div class="w-100 text-center cursor-pointer">{{ areNotesVisible ? "Hide" : "Show" }} {{ expandedNotes.length }} {{ pluralize("Note", expandedNotes.length) }}</div>
+                        <TransitionVerticalCollapse>
+                        </TransitionVerticalCollapse>
+                </div> -->
+            </div>
+        </template>
+        <template #default>
+            <div class="px-spacing-md pb-spacing-lg d-flex flex-column gap-md">
+                <!-- TODO - AI Summary -->
+                <!-- TODO - Custom Lava Header -->
+                <div class="border rounded p-spacing-sm">
+                    <div class="d-flex align-items-center gap-tiny text-interface-strong">
+                        <i class="ti ti-plug-connected header-icon"></i>
+                        <!-- TODO - Add logic to show additional requests for family members. -->
+                        <div class="text-small text-semibold">Additional Requests</div>
+                    </div>
+                    <div class="d-flex flex-column gap-tiny">
+                        <p v-for="additionalRequest in requestDetails?.additionalRequests" class="mb-0" :class="{ 'additional-request': dockedPanelWidthNumber < 350 }">
+                            <span class="text-link text-small pr-spacing-sm">{{ additionalRequest.connectionOpportunityName }} </span>
+                            <span class="text-interface-medium text-xs">{{ getRequestMeta(additionalRequest) }}</span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </template>
+    </DockedPanel>
+</template>
+
+<style scoped>
+.disabled {
+    cursor: default;
+    color: var(--color-interface-medium);
+}
+
+.person-details {
+    white-space: nowrap;
+}
+
+.header-icon {
+    width: 20px;
+    height: 20px;
+}
+
+.additional-request {
+    display: flex;
+    flex-direction: column;
+}
+
+/* text-sm is incorrectly return xsmall at the moment in develop */
+.text-small {
+    font-size: var(--font-size-small);
+}
+
+.gap-tiny {
+    gap: var(--spacing-tiny);
+}
+
+.gap-xs {
+    gap: var(--spacing-xsmall);
+}
+
+.gap-sm {
+    gap: var(--spacing-small);
+}
+
+.gap-md {
+    gap: var(--spacing-medium);
+}
+</style>
+
+<script setup lang="ts">
+    import DockedPanel from "@Obsidian/Controls/Internal/dockedPanel.obs";
+    import { ref, PropType, watch, computed } from "vue";
+    import { useVModelPassthrough } from "@Obsidian/Utility/component";
+    import { ConnectionRequestDetailsBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionRequestDetailsBag";
+    import PersonAvatar from "@Obsidian/Controls/personAvatar.obs";
+    import BadgeList from "@Obsidian/Controls/badgeList.obs";
+    import RockButton from "@Obsidian/Controls/rockButton.obs";
+    import { isNullOrWhiteSpace, pluralize } from "@Obsidian/Utility/stringUtils";
+    import { EntityType } from "@Obsidian/SystemGuids/entityType";
+    import TransitionVerticalCollapse from "@Obsidian/Controls/transitionVerticalCollapse.obs";
+    import { ExpandedNoteBag } from "@Obsidian/Controls/Internal/Notes/types.partial";
+    import { ConnectionsHubOptionsBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionsHubOptionsBag";
+    import { RockDateTime } from "@Obsidian/Utility/rockDateTime";
+    import { AdditionalRequestBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/additionalRequestBag";
+
+    const props = defineProps({
+        modelValue: {
+            type: Boolean as PropType<boolean>,
+            required: true
+        },
+
+        currentKey: {
+            type: String as PropType<string>,
+            required: true
+        },
+
+        // TODO - order is messed up between grouped grids
+        orderedKeys: {
+            type: Array as PropType<string[]>,
+            required: true
+        },
+
+        requestDetails: {
+            type: Object as PropType<ConnectionRequestDetailsBag | undefined>,
+            required: true
+        },
+
+        options: {
+            type: Object as PropType<ConnectionsHubOptionsBag | null | undefined>,
+            required: true
+        }
+    });
+
+    const emit = defineEmits<{
+        (e: "update:modelValue", value: boolean): void;
+        (e: "navigate", value: string | null): void;
+    }>();
+
+    const isVisible = useVModelPassthrough(props, "modelValue", emit);
+
+    const dockedPanelWidth = ref("700px");
+    const areNotesVisible = ref(false);
+
+    const currentIndex = computed(() =>
+        props.orderedKeys.indexOf(props.currentKey)
+    );
+
+    const hasPrevious = computed(() =>
+        currentIndex.value > 0
+    );
+
+    const hasNext = computed(() =>
+        currentIndex.value !== -1 && currentIndex.value < props.orderedKeys.length - 1
+    );
+
+    const previousKey = computed(() =>
+        hasPrevious.value ? props.orderedKeys[currentIndex.value - 1] : null
+    );
+
+    const nextKey = computed(() =>
+        hasNext.value ? props.orderedKeys[currentIndex.value + 1] : null
+    );
+
+    const dockedPanelWidthNumber = computed(() => {
+        if (!dockedPanelWidth) {
+            return 0;
+        }
+
+        return parseInt(dockedPanelWidth.value, 10);
+    });
+
+
+    function goPrevious() {
+        if (hasPrevious.value) {
+            emit("navigate", previousKey.value);
+        }
+    }
+
+    function goNext() {
+        if (hasNext.value) {
+            emit("navigate", nextKey.value);
+        }
+    }
+
+    function getRequestMeta(request: AdditionalRequestBag) {
+        const parts: string[] = [];
+
+        if (request.connectionStatus) {
+            parts.push(request.connectionStatus);
+        }
+
+        if (request.connector) {
+            parts.push(request.connector);
+        }
+
+        if (request.requestCreatedDateTime) {
+            parts.push(`Requested ${getHumanizedDate(request.requestCreatedDateTime)}`);
+        }
+
+        if (request.requester) {
+            parts.push(`by ${request.requester}`);
+        }
+
+        return parts.join(" • ");
+    }
+
+
+    function getHumanizedDate(dateTime: string | null | undefined): string | undefined {
+        const requestDateTime = RockDateTime.parseISO(dateTime ?? "");
+        return requestDateTime?.humanizeElapsed();
+    }
+
+    function closeDockedPanel(): void {
+        isVisible.value = false;
+    }
+</script>

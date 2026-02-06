@@ -133,8 +133,9 @@
                   :isCountMessageVisible="false"
                   :hideFilterHeaderRow="true"
                   light
-                  @selectedKeysChanged="state => onSelectedKeysChanged(group.key, state)">
-
+                  class="grid-hover"
+                  @selectedKeysChanged="state => onSelectedKeysChanged(group.key, state)"
+                  @selectItem="onSelectItem">
                 <SelectColumn />
 
                 <PersonColumn name="requestDetails"
@@ -232,7 +233,7 @@
                            data-placement="auto"
                            data-container="body"
                            data-original-title="Add Celebration"
-                           @click="showCelebrationModal(row)">
+                           @click.stop="showCelebrationModal(row)">
                         </i>
                         <i v-else
                            class="ti ti-confetti cursor-pointer text-info-strong"
@@ -241,7 +242,7 @@
                            data-placement="auto"
                            data-container="body"
                            data-original-title="Has Celebration"
-                           @click="showCelebrationModal(row)">
+                           @click.stop="showCelebrationModal(row)">
                         </i>
                     </template>
                 </Column>
@@ -258,7 +259,7 @@
                            data-placement="auto"
                            data-container="body"
                            :data-original-title="`${row.reminderCount} ${pluralize('Reminder', row.reminderCount)}`"
-                           @click="showReminderModal(row)">
+                           @click.stop="showReminderModal(row)">
                         </i>
                         <i v-else
                            class="ti ti-bell cursor-pointer"
@@ -267,7 +268,7 @@
                            data-placement="auto"
                            data-container="body"
                            data-original-title="Add Reminder"
-                           @click="showReminderModal(row)">
+                           @click.stop="showReminderModal(row)">
                         </i>
                     </template>
                 </Column>
@@ -278,14 +279,14 @@
                         <div class="w-100">
                             <template v-if="row.connectionState === ConnectionState.Active">
                                 <div v-if="box.options?.isSequentialStatusMode"
-                                     @click="(e) => onStatusClick(row.idKey, row.connectionStatus, row.connectionState, e)"
+                                     @click.stop="(e) => onStatusClick(row.idKey, row.connectionStatus, row.connectionState, e)"
                                      class="cursor-pointer py-spacing-tiny px-spacing-xs rounded-huge text-semibold text-interface-softest d-flex align-items-center"
                                      :style="`background-color: ${row.connectionStatus.highlightColor}`">
                                     <i class="ti ti-circle-check"></i>
                                     <sapn class="w-100 text-center">{{ row.connectionStatus.name }}</sapn>
                                 </div>
                                 <div v-else
-                                     @click="(e) => onStatusClick(row.idKey, row.connectionStatus, row.connectionState, e)"
+                                     @click.stop="(e) => onStatusClick(row.idKey, row.connectionStatus, row.connectionState, e)"
                                      class="cursor-pointer py-spacing-tiny px-spacing-xs rounded-huge text-semibold text-interface-softest d-flex align-items-center"
                                      :style="`background-color: ${row.connectionStatus.highlightColor}`">
                                     <sapn class="w-100 text-center">{{ row.connectionStatus.name }}</sapn>
@@ -313,8 +314,8 @@
                         width="52"
                         itemClass="grid-cell-overflow">
                     <template #format="{ row }">
-                        <div class="dropdown dropdown-right">
-                            <i class="ti ti-dots-vertical cursor-pointer" data-toggle="dropdown"></i>
+                        <div :class="['dropdown', 'dropdown-right', { 'open': openDropdownIndex === row.idKey }]">
+                            <i class="ti ti-dots-vertical cursor-pointer" data-toggle="dropdown" @click.stop="toggleGridRowDropdown(row.idKey)"></i>
                             <ul class="dropdown-menu">
                                 <li>
                                     <button type="button"
@@ -466,6 +467,13 @@
     <ModalAlert v-model="isModalAlertVisible">
         <p>{{ modalAlertText }}</p>
     </ModalAlert>
+
+    <ConnectionRequestDockedPanel v-model="isDockedPanelVisible"
+                                  :currentKey="selectedRequestKey"
+                                  :orderedKeys="orderedRequestKeys ?? []"
+                                  :requestDetails="requestDetails"
+                                  :options="box.options"
+                                  @navigate="updateSelectedRequestKey" />
 </template>
 
 <style>
@@ -585,7 +593,7 @@
 </style>
 
 <script setup lang="ts">
-    import { useBlockBrowserBus, useConfigurationValues, useInvokeBlockAction, usePersonPreferences } from "@Obsidian/Utility/block";
+    import { onConfigurationValuesChanged, useBlockBrowserBus, useConfigurationValues, useInvokeBlockAction, usePersonPreferences, useReloadBlock } from "@Obsidian/Utility/block";
     import { GridDataBag } from "@Obsidian/ViewModels/Core/Grid/gridDataBag";
     import { computed, reactive, Ref, ref, watch } from "vue";
     import { ListBlockBox } from "@Obsidian/ViewModels/Blocks/listBlockBox";
@@ -661,6 +669,8 @@
     import { UpsertCelebrationBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/UpsertCelebrationBag";
     import ReminderModal from "@Obsidian/Controls/Internal/reminderModal.obs";
     import RequestTable from "./ConnectionsHub/requestTable.partial.obs";
+    import ConnectionRequestDockedPanel from "./ConnectionsHub/connectionRequestDockedPanel.partial.obs";
+    import { ConnectionRequestDetailsBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionRequestDetailsBag";
 
     /* =====================================================
      * Configuration & Data Loading
@@ -691,6 +701,8 @@
 
     const groupedGridPanel = ref();
 
+    const openDropdownIndex = ref<string | null | undefined>();
+
     const isSendSMSModalVisible = ref(false);
     const isSendEmailModalVisible = ref(false);
 
@@ -719,6 +731,10 @@
     const isNoteRequired = ref<boolean>(false);
 
     const requestDetailsForModal = ref<BulkRequestViewBag[]>([]);
+
+    const isDockedPanelVisible = ref(false);
+    const selectedRequestKey = ref();
+    const requestDetails = ref<ConnectionRequestDetailsBag | undefined>();
 
     const viewOptions = ref<ViewOptions>({
         sortBy: preferences.getValue(getConnectionFilterKey(PreferenceKey.FilterSortByConnectionTypIdKey)),
@@ -1045,6 +1061,11 @@
         });
     });
 
+    const orderedRequestKeys = computed(() =>
+        sortedRows.value.map(r => (r.idKey ?? "") as string)
+    );
+
+
     const allGroupingFields = <ListItemBag[]>[
         {
             text: "Connector",
@@ -1155,6 +1176,23 @@
     }
 
     /**
+     * Called when a row has been selected by the individual.
+     *
+     * @param key The key of the row that was selected.
+     */
+    function onSelectItem(key: string): void {
+        selectedRequestKey.value = key;
+        isDockedPanelVisible.value = true;
+    }
+
+    function updateSelectedRequestKey(key: string | null): void {
+        console.log("Updating: ", key);
+        if (!isNullOrWhiteSpace(key)) {
+            selectedRequestKey.value = key;
+        }
+    }
+
+    /**
      * Gets a preference key with the current connection type id applied.
      *
      * Replaces the `{0}` token in the provided preference key with the
@@ -1205,6 +1243,10 @@
         }
 
         row.reminderCount++;
+    }
+
+    function toggleGridRowDropdown(key: string | null | undefined): void {
+        openDropdownIndex.value = openDropdownIndex.value === key ? null : key;
     }
 
     /**
@@ -1792,6 +1834,17 @@
         console.error(result.errorMessage);
     }
 
+    async function getConnectionRequestDetails(requestIdKey: string): Promise<void> {
+        const result = await invokeBlockAction<ConnectionRequestDetailsBag>("GetConnectionRequestDetails", { connectionRequestIdKey: requestIdKey });
+
+        if (result.isSuccess && result.data) {
+            requestDetails.value = result.data;
+            return;
+        }
+
+        console.error(result.errorMessage);
+    }
+
     watch(selectedOpportunity, async () => {
         preferences.setValue(getConnectionFilterKey(PreferenceKey.ConnectionmOpportunityFilterConnectionTypeIdKey), selectedOpportunity.value);
 
@@ -1823,7 +1876,6 @@
         }
     });
 
-
     watch(viewOptions, async () => {
         preferences.setValue(getConnectionFilterKey(PreferenceKey.FilterSortByConnectionTypIdKey), viewOptions.value.sortBy ?? "");
         preferences.setValue(getConnectionFilterKey(PreferenceKey.FilterIsAssignedToMeConnectionTypeIdKey), viewOptions.value.isAssignedToMe.toString());
@@ -1846,5 +1898,12 @@
         await preferences.save();
     });
 
+    watch(selectedRequestKey, async () => {
+        if (!isNullOrWhiteSpace(selectedRequestKey.value)) {
+            await getConnectionRequestDetails(selectedRequestKey.value);
+        }
+    });
+
     loadGridData();
+    onConfigurationValuesChanged(useReloadBlock());
 </script>
