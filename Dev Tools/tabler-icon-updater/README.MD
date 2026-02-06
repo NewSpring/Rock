@@ -1,19 +1,16 @@
 ### How it work?
-This script automates building the data behind a searchable Tabler icon picker. It scans the Tabler outline icons that are installed in the project, checks which icons are missing search keywords, and fills in the gaps automatically. For any missing icon, it asks an AI service to generate a small set of human-friendly keywords that someone would realistically type when searching for that icon, then saves those keywords so the process is repeatable. Once the keyword list is complete, the script generates a final icons file that combines each icon’s name, CSS class, search terms, and SVG content into one clean, sorted JSON file. The end result is a consistently updated, ready-to-use icon catalog that powers the icon picker without any manual maintenance.
+This script is an update script that incrementally keeps your Tabler outline icon data in sync rather than recreating it from scratch. It scans the Tabler outline SVG directory to determine the current set of available icons, loads the existing `styleclass-searchterms.json`, and only adds entries for icons that are newly introduced or previously missing, leaving all existing keywords untouched and making the process idempotent. For each missing icon, it uses the OpenAI Chat Completions API to generate a small, normalized set of human-friendly search terms based on the icon’s name and likely visual shape, then writes those additions back to the search-terms file in a stable, sorted format. After the search terms are updated, the script rebuilds `tabler-icons.json` deterministically from the now-complete search-terms mapping and the SVG files themselves, embedding the SVG markup alongside each icon’s title, style class, and keywords. The result is a safe, repeatable update process that can be rerun at any time to pick up new icons while preserving all existing data and ensuring the icon picker always has a complete, up-to-date library.
 
-### Instruction:
-1. Navigate to Rock/Dev Tools/tabler-icon-updater.  
+
+### Instructions
+1. Navigate to `Rock/Dev Tools/tabler-icon-updater`.  
 2. Open the project in VS Code.
-3. Open the package.json
-4. Increment the @tabler/icons-webfont version to the desired version.
-    Note: Only version increments are supported—you cannot downgrade. If you mess up, just discard your Git 6. changes and retry.
-5. Run npm install to install the updated package.
-6. In the terminal, set the OpenAI API key: $env:OPENAI_KEY=""
+3. Open the `package.json`
+4. Increment the `@tabler/icons-webfont` version to the desired version.
+Note: Only version increments are supported—you cannot downgrade. If you mess up, just discard your Git changes and retry.
+5. Run `npm install` to install the updated package.
+6. In the terminal, set the OpenAI API key: `$env:OPENAI_KEY=""`
 Note: You can use the triumph OpenAI Key in RDM 
-
-7. Run npm run generateIcon.
-8. The tabler-icons.json file will be regenerated with the new icons.
-9. Copy its contents and paste them into:
-    RockWeb/Assets/Libraries/tabler-icons.json
-10. Restart Rock and clear cache then make sure it applies.
-11. Done.
+7. Run `npm run generateIcon`.
+8. Restart Rock and clear cache then make sure it applies.
+9. Done.

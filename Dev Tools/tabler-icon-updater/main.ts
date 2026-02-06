@@ -22,7 +22,7 @@ const OUTLINE_DIR = path.resolve(
 );
 
 const SEARCHTERMS_PATH = path.resolve(process.cwd(), "styleclass-searchterms.json");
-const TABLER_ICONS_JSON_PATH = path.resolve(process.cwd(), "tabler-icons.json");
+const TABLER_ICONS_JSON_PATH = path.resolve("../../RockWeb/Assets/Icons/Libraries/tabler-icons.json");
 
 /**
  * Calls OpenAI GPT API with input and range, using API key from environment variable.
@@ -166,108 +166,28 @@ function writeTablerIconsJson(p: string, data: IconsPickerJson) {
   fs.writeFileSync(p, JSON.stringify(data, null, 2) + "\n", "utf8");
 }
 
-function mergeIconPickerJson(
-  existing: IconsPickerJson,
+function rebuildIconPickerJson(
   searchTerms: SearchTermsJson,
   svgNames: Set<string>
 ): IconsPickerJson {
-  const out: IconsPickerJson = {
-    StyleClassPrefix: existing.StyleClassPrefix || "ti",
-    Icons: [...(existing.Icons ?? [])],
-  };
+  const icons: IconsPickerJson["Icons"] = [];
 
-  const existingByStyle = toIconMapByStyleClass(out.Icons);
-
-  // Ensure: every key in searchTerms exists in tabler-icons.json
   for (const styleClass of Object.keys(searchTerms).sort()) {
-    if (!styleClass.startsWith("ti-")) continue;
+    if (!styleClass.startsWith("ti-")) continue; // enforce your prefix
 
-    const title = normalizeIconTitleFromStyleClass(styleClass);
-    const terms = normalizeKeywords(searchTerms[styleClass] ?? []).slice(0, 4);
+    const title = stripTiPrefix(styleClass); // e.g. "a-b-2"
+    if (!svgNames.has(title)) continue; // skip orphaned entries
 
-    const found = existingByStyle.get(styleClass);
-    if (found) {
-      // Update search terms (and optionally Title if you want it normalized)
-      found.SearchTerms = terms;
-      found.Title = found.Title || title;
-
-      // Only update IconSvg if SVG exists NOW
-      if (svgNames.has(title)) {
-        try {
-          found.IconSvg = readSvg(title);
-        } catch (e) {
-          // keep existing IconSvg for backward compatibility
-        }
-      }
-    } else {
-      // Brand new entry
-      let iconSvg = "";
-      if (svgNames.has(title)) {
-        try {
-          iconSvg = readSvg(title);
-        } catch {
-          iconSvg = "";
-        }
-      }
-
-      const created = {
-        Title: title,
-        SearchTerms: terms,
-        StyleClass: styleClass,
-        IconSvg: iconSvg,
-      };
-
-      out.Icons.push(created);
-      existingByStyle.set(styleClass, created);
-    }
-  }
-
-  // ALSO: add SVG icons that are missing from searchTerms (rare if step 1 ran)
-  // This keeps behavior robust even if searchTerms file is behind.
-  const knownTitles = new Set<string>(
-    out.Icons.map((i) => i?.Title).filter(Boolean) as string[]
-  );
-
-  for (const svgTitle of [...svgNames].sort()) {
-    const styleClass = `ti-${svgTitle}`;
-    if (existingByStyle.has(styleClass)) continue;
-
-    // If searchTerms didn't have it, fall back to name split
-    const terms =
-      normalizeKeywords(searchTerms[styleClass] ?? svgTitle.split("-")).slice(0, 4);
-
-    let iconSvg = "";
-    try {
-      iconSvg = readSvg(svgTitle);
-    } catch {
-      iconSvg = "";
-    }
-
-    out.Icons.push({
-      Title: svgTitle,
-      SearchTerms: terms,
+    const svg = readSvg(title);
+    icons.push({
+      Title: title,
+      SearchTerms: normalizeKeywords(searchTerms[styleClass] ?? []).slice(0, 4),
       StyleClass: styleClass,
-      IconSvg: iconSvg,
+      IconSvg: svg,
     });
-
-    knownTitles.add(svgTitle);
   }
 
-  return out;
-}
-
-
-function normalizeIconTitleFromStyleClass(styleClass: string): string {
-  return stripTiPrefix(styleClass); // assumes ti- prefix
-}
-
-function toIconMapByStyleClass(icons: IconsPickerJson["Icons"]) {
-  const map = new Map<string, IconsPickerJson["Icons"][number]>();
-  for (const icon of icons) {
-    if (!icon?.StyleClass) continue;
-    map.set(icon.StyleClass, icon);
-  }
-  return map;
+  return { StyleClassPrefix: "ti", Icons: icons };
 }
 
 async function main() {
@@ -315,11 +235,13 @@ async function main() {
   //    - SearchTerms
   //    - StyleClass
   //    - IconSvg (actual svg file contents)
-  const existing = readTablerIconsJson(TABLER_ICONS_JSON_PATH);
-  const merged = mergeIconPickerJson(existing, searchTerms, svgNames);
-  writeTablerIconsJson(TABLER_ICONS_JSON_PATH, merged);
+  const rebuilt = rebuildIconPickerJson(searchTerms, svgNames);
 
-  console.log(`Wrote ${TABLER_ICONS_JSON_PATH} (${merged.Icons.length} icons)`);
+  // Optional: keep existing file around but overwrite deterministically
+  writeTablerIconsJson(TABLER_ICONS_JSON_PATH, rebuilt);
+
+  console.log(`Wrote ${TABLER_ICONS_JSON_PATH} (${rebuilt.Icons.length} icons)`);
+
 }
 
 main().catch((e) => {

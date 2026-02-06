@@ -15,8 +15,10 @@
     {
       "Title": "a-b-2",
       "SearchTerms": [
-        "alphabet",
-        "letters"
+        "a-b-2: alphabet",
+        "letters",
+        "text",
+        "abc"
       ],
       "StyleClass": "ti-a-b-2",
       "IconSvg": "<svg\n  xmlns=\"http://www.w3.org/2000/svg\"\n  width=\"24\"\n  height=\"24\"\n  viewBox=\"0 0 24 24\"\n  fill=\"none\"\n  stroke=\"currentColor\"\n  stroke-width=\"2\"\n  stroke-linecap=\"round\"\n  stroke-linejoin=\"round\"\n  class=\"icon icon-tabler icons-tabler-outline icon-tabler-a-b-2\"\n>\n  <path stroke=\"none\" d=\"M0 0h24v24H0z\" fill=\"none\"/>\n  <path d=\"M16 21h3c.81 0 1.48 -.67 1.48 -1.48l.02 -.02c0 -.82 -.69 -1.5 -1.5 -1.5h-3v3z\" />\n  <path d=\"M16 15h2.5c.84 -.01 1.5 .66 1.5 1.5s-.66 1.5 -1.5 1.5h-2.5v-3z\" />\n  <path d=\"M4 9v-4c0 -1.036 .895 -2 2 -2s2 .964 2 2v4\" />\n  <path d=\"M2.99 11.98a9 9 0 0 0 9 9m9 -9a9 9 0 0 0 -9 -9\" />\n  <path d=\"M8 7h-4\" />\n</svg>"
@@ -33730,7 +33732,6 @@
       "StyleClass": "ti-mobiledata-off",
       "IconSvg": "<svg\n  xmlns=\"http://www.w3.org/2000/svg\"\n  width=\"24\"\n  height=\"24\"\n  viewBox=\"0 0 24 24\"\n  fill=\"none\"\n  stroke=\"currentColor\"\n  stroke-width=\"2\"\n  stroke-linecap=\"round\"\n  stroke-linejoin=\"round\"\n  class=\"icon icon-tabler icons-tabler-outline icon-tabler-mobiledata-off\"\n>\n  <path stroke=\"none\" d=\"M0 0h24v24H0z\" fill=\"none\"/>\n  <path d=\"M16 12v-8\" />\n  <path d=\"M8 20v-8\" />\n  <path d=\"M13 7l3 -3l3 3\" />\n  <path d=\"M5 17l3 3l3 -3\" />\n  <path d=\"M3 3l18 18\" />\n</svg>"
     },
-
     {
       "Title": "moneybag",
       "SearchTerms": [
@@ -41844,27 +41845,6 @@
       "IconSvg": "<svg\n  xmlns=\"http://www.w3.org/2000/svg\"\n  width=\"24\"\n  height=\"24\"\n  viewBox=\"0 0 24 24\"\n  fill=\"none\"\n  stroke=\"currentColor\"\n  stroke-width=\"2\"\n  stroke-linecap=\"round\"\n  stroke-linejoin=\"round\"\n  class=\"icon icon-tabler icons-tabler-outline icon-tabler-section-sign\"\n>\n  <path stroke=\"none\" d=\"M0 0h24v24H0z\" fill=\"none\"/>\n  <path d=\"M9.172 19a3 3 0 1 0 2.828 -4\" />\n  <path d=\"M14.83 5a3 3 0 1 0 -2.83 4\" />\n  <path d=\"M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0\" />\n</svg>"
     },
     {
-      "Title": "seeding",
-      "SearchTerms": [
-        "planting",
-        "agriculture",
-        "farming"
-      ],
-      "StyleClass": "ti-seeding",
-      "IconSvg": "<svg\n  xmlns=\"http://www.w3.org/2000/svg\"\n  width=\"24\"\n  height=\"24\"\n  viewBox=\"0 0 24 24\"\n  fill=\"none\"\n  stroke=\"currentColor\"\n  stroke-width=\"2\"\n  stroke-linecap=\"round\"\n  stroke-linejoin=\"round\"\n  class=\"icon icon-tabler icons-tabler-outline icon-tabler-seeding\"\n>\n  <path stroke=\"none\" d=\"M0 0h24v24H0z\" fill=\"none\"/>\n  <path d=\"M12 10a6 6 0 0 0 -6 -6h-3v2a6 6 0 0 0 6 6h3\" />\n  <path d=\"M12 14a6 6 0 0 1 6 -6h3v1a6 6 0 0 1 -6 6h-3\" />\n  <path d=\"M12 20l0 -10\" />\n</svg>"
-    },
-    {
-      "Title": "seeding-off",
-      "SearchTerms": [
-        "growth",
-        "plant",
-        "seed",
-        "disabled"
-      ],
-      "StyleClass": "ti-seeding-off",
-      "IconSvg": "<svg\n  xmlns=\"http://www.w3.org/2000/svg\"\n  width=\"24\"\n  height=\"24\"\n  viewBox=\"0 0 24 24\"\n  fill=\"none\"\n  stroke=\"currentColor\"\n  stroke-width=\"2\"\n  stroke-linecap=\"round\"\n  stroke-linejoin=\"round\"\n  class=\"icon icon-tabler icons-tabler-outline icon-tabler-seeding-off\"\n>\n  <path stroke=\"none\" d=\"M0 0h24v24H0z\" fill=\"none\"/>\n  <path d=\"M11.412 7.407a6.025 6.025 0 0 0 -2.82 -2.82m-4.592 -.587h-1v2a6 6 0 0 0 6 6h3\" />\n  <path d=\"M12 14a6 6 0 0 1 .255 -1.736m1.51 -2.514a5.981 5.981 0 0 1 4.235 -1.75h3v1c0 2.158 -1.14 4.05 -2.85 5.107m-3.15 .893h-3\" />\n  <path d=\"M12 20v-8\" />\n  <path d=\"M3 3l18 18\" />\n</svg>"
-    },
-    {
       "Title": "seedling",
       "SearchTerms": [
         "plant",
@@ -41958,7 +41938,9 @@
     {
       "Title": "separator",
       "SearchTerms": [
-        "divider"
+        "divider",
+        "line",
+        "separator"
       ],
       "StyleClass": "ti-separator",
       "IconSvg": "<svg\n  xmlns=\"http://www.w3.org/2000/svg\"\n  width=\"24\"\n  height=\"24\"\n  viewBox=\"0 0 24 24\"\n  fill=\"none\"\n  stroke=\"currentColor\"\n  stroke-width=\"2\"\n  stroke-linecap=\"round\"\n  stroke-linejoin=\"round\"\n  class=\"icon icon-tabler icons-tabler-outline icon-tabler-separator\"\n>\n  <path stroke=\"none\" d=\"M0 0h24v24H0z\" fill=\"none\"/>\n  <path d=\"M3 12l0 .01\" />\n  <path d=\"M7 12l10 0\" />\n  <path d=\"M21 12l0 .01\" />\n</svg>"
@@ -41966,8 +41948,10 @@
     {
       "Title": "separator-horizontal",
       "SearchTerms": [
+        "separator",
+        "line",
         "divider",
-        "horizontal line"
+        "horizontal"
       ],
       "StyleClass": "ti-separator-horizontal",
       "IconSvg": "<svg\n  xmlns=\"http://www.w3.org/2000/svg\"\n  width=\"24\"\n  height=\"24\"\n  viewBox=\"0 0 24 24\"\n  fill=\"none\"\n  stroke=\"currentColor\"\n  stroke-width=\"2\"\n  stroke-linecap=\"round\"\n  stroke-linejoin=\"round\"\n  class=\"icon icon-tabler icons-tabler-outline icon-tabler-separator-horizontal\"\n>\n  <path stroke=\"none\" d=\"M0 0h24v24H0z\" fill=\"none\"/>\n  <path d=\"M4 12l16 0\" />\n  <path d=\"M8 8l4 -4l4 4\" />\n  <path d=\"M16 16l-4 4l-4 -4\" />\n</svg>"
@@ -41975,7 +41959,10 @@
     {
       "Title": "separator-vertical",
       "SearchTerms": [
-        "vertical line"
+        "divider",
+        "line",
+        "separator",
+        "vertical"
       ],
       "StyleClass": "ti-separator-vertical",
       "IconSvg": "<svg\n  xmlns=\"http://www.w3.org/2000/svg\"\n  width=\"24\"\n  height=\"24\"\n  viewBox=\"0 0 24 24\"\n  fill=\"none\"\n  stroke=\"currentColor\"\n  stroke-width=\"2\"\n  stroke-linecap=\"round\"\n  stroke-linejoin=\"round\"\n  class=\"icon icon-tabler icons-tabler-outline icon-tabler-separator-vertical\"\n>\n  <path stroke=\"none\" d=\"M0 0h24v24H0z\" fill=\"none\"/>\n  <path d=\"M12 4l0 16\" />\n  <path d=\"M8 8l-4 4l4 4\" />\n  <path d=\"M16 16l4 -4l-4 -4\" />\n</svg>"
@@ -47671,8 +47658,9 @@
     {
       "Title": "transfer",
       "SearchTerms": [
-        "transfer",
-        "exchange"
+        "send",
+        "exchange",
+        "arrows"
       ],
       "StyleClass": "ti-transfer",
       "IconSvg": "<svg\n  xmlns=\"http://www.w3.org/2000/svg\"\n  width=\"24\"\n  height=\"24\"\n  viewBox=\"0 0 24 24\"\n  fill=\"none\"\n  stroke=\"currentColor\"\n  stroke-width=\"2\"\n  stroke-linecap=\"round\"\n  stroke-linejoin=\"round\"\n  class=\"icon icon-tabler icons-tabler-outline icon-tabler-transfer\"\n>\n  <path stroke=\"none\" d=\"M0 0h24v24H0z\" fill=\"none\"/>\n  <path d=\"M20 10h-16l5.5 -6\" />\n  <path d=\"M4 14h16l-5.5 6\" />\n</svg>"
@@ -47681,7 +47669,8 @@
       "Title": "transfer-in",
       "SearchTerms": [
         "transfer",
-        "import"
+        "in",
+        "arrow"
       ],
       "StyleClass": "ti-transfer-in",
       "IconSvg": "<svg\n  xmlns=\"http://www.w3.org/2000/svg\"\n  width=\"24\"\n  height=\"24\"\n  viewBox=\"0 0 24 24\"\n  fill=\"none\"\n  stroke=\"currentColor\"\n  stroke-width=\"2\"\n  stroke-linecap=\"round\"\n  stroke-linejoin=\"round\"\n  class=\"icon icon-tabler icons-tabler-outline icon-tabler-transfer-in\"\n>\n  <path stroke=\"none\" d=\"M0 0h24v24H0z\" fill=\"none\"/>\n  <path d=\"M4 18v3h16v-14l-8 -4l-8 4v3\" />\n  <path d=\"M4 14h9\" />\n  <path d=\"M10 11l3 3l-3 3\" />\n</svg>"
@@ -47948,7 +47937,9 @@
     {
       "Title": "triangle",
       "SearchTerms": [
-        "triangle"
+        "triangle",
+        "shape",
+        "geometry"
       ],
       "StyleClass": "ti-triangle",
       "IconSvg": "<svg\n  xmlns=\"http://www.w3.org/2000/svg\"\n  width=\"24\"\n  height=\"24\"\n  viewBox=\"0 0 24 24\"\n  fill=\"none\"\n  stroke=\"currentColor\"\n  stroke-width=\"2\"\n  stroke-linecap=\"round\"\n  stroke-linejoin=\"round\"\n  class=\"icon icon-tabler icons-tabler-outline icon-tabler-triangle\"\n>\n  <path stroke=\"none\" d=\"M0 0h24v24H0z\" fill=\"none\"/>\n  <path d=\"M10.363 3.591l-8.106 13.534a1.914 1.914 0 0 0 1.636 2.871h16.214a1.914 1.914 0 0 0 1.636 -2.87l-8.106 -13.536a1.914 1.914 0 0 0 -3.274 0z\" />\n</svg>"

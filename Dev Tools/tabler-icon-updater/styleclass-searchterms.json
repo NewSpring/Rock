@@ -6,8 +6,10 @@
     "font"
   ],
   "ti-a-b-2": [
-    "alphabet",
-    "letters"
+    "a-b-2: alphabet",
+    "letters",
+    "text",
+    "abc"
   ],
   "ti-a-b-off": [
     "letter",
@@ -21413,14 +21415,21 @@
     "optimization"
   ],
   "ti-separator": [
-    "divider"
+    "divider",
+    "line",
+    "separator"
   ],
   "ti-separator-horizontal": [
+    "separator",
+    "line",
     "divider",
-    "horizontal line"
+    "horizontal"
   ],
   "ti-separator-vertical": [
-    "vertical line"
+    "divider",
+    "line",
+    "separator",
+    "vertical"
   ],
   "ti-server": [
     "server",
@@ -24321,12 +24330,14 @@
     "money"
   ],
   "ti-transfer": [
-    "transfer",
-    "exchange"
+    "send",
+    "exchange",
+    "arrows"
   ],
   "ti-transfer-in": [
     "transfer",
-    "import"
+    "in",
+    "arrow"
   ],
   "ti-transfer-out": [
     "export",
@@ -24463,7 +24474,9 @@
     "chart"
   ],
   "ti-triangle": [
-    "triangle"
+    "triangle",
+    "shape",
+    "geometry"
   ],
   "ti-triangle-inverted": [
     "triangle",
