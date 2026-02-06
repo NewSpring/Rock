@@ -568,5 +568,10 @@ namespace Rock.SystemGuid
         /// The job to run Post v18.1 Data Migrations to add indexes to improve communication prep performance.
         /// </summary>
         public const string DATA_MIGRATIONS_181_ADD_INDEXES_FOR_COMMUNICATION_PREP = "88C42A48-6713-4CB1-BF6B-A12AB2E292E7";
+
+        /// <summary>
+        /// The job to run Post v18.3 Data Migrations to fix any possible broken achievement types.
+        /// </summary>
+        public const string DATA_MIGRATIONS_183_FIX_BROKEN_ACHIEVEMENT_TYPES = "2463AB43-8CB2-400E-BAAF-F96FC3E1A43D";
     }
 }
