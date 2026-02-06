@@ -161,7 +161,7 @@ namespace Rock.Model
             target.IsNoteRequiredOnCompletion = source.IsNoteRequiredOnCompletion;
             target.Name = source.Name;
             target.Order = source.Order;
-            target.RequestStatusDueDateOffestInDays = source.RequestStatusDueDateOffestInDays;
+            target.RequestStatusDueDateOffsetInDays = source.RequestStatusDueDateOffsetInDays;
             target.RequestStatusDueSoonOffsetInDays = source.RequestStatusDueSoonOffsetInDays;
             target.CreatedDateTime = source.CreatedDateTime;
             target.ModifiedDateTime = source.ModifiedDateTime;
