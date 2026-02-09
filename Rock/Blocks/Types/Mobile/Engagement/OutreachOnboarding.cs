@@ -15,8 +15,10 @@
 // </copyright>
 
 using System.ComponentModel;
+using System.Data.Entity;
 
 using Rock.Attribute;
+using System.Linq;
 using Rock.Common.Mobile.Blocks.Engagement.OutreachOnboarding.cs;
 using Rock.Common.Mobile.ViewModel;
 using Rock.Enums.Core;
@@ -77,6 +79,23 @@ namespace Rock.Blocks.Types.Mobile.Engagement
         #region Block Actions
 
         /// <summary>
+        /// Gets a value indicating whether the current person has at least one contact.
+        /// </summary>
+        /// <returns></returns>
+        [BlockAction]
+        public BlockActionResult GetHasAtOneContact()
+        {
+            var currPerson = GetCurrentPerson();
+
+            ContactService contactService = new ContactService( RockContext );
+            var contactCount = contactService.Queryable()
+                .Where( c => c.OwnerPersonAliasId == currPerson.PrimaryAliasId )
+                .Count();
+
+            return ActionOk( contactCount > 0 );
+        }
+
+        /// <summary>
         /// Finishes the onboarding.
         /// </summary>
         /// <param name="option"></param>
@@ -96,10 +115,10 @@ namespace Rock.Blocks.Types.Mobile.Engagement
             }
 
             person.OutreachTouchpointSchedule = ( DaysOfWeekFlags ) option.DayOfWeekFlags;
-            person.OutreachTouchpointNotificationsEnabled = option.DailyNotificationsEnabled || option.SpecialEventNotificationsEnabled;
             person.OutreachEnableDailyNotification = option.DailyNotificationsEnabled;
             person.OutreachNotificationTimeOfDay = option.DailyNotificationsEnabled ? option.NotificationTime?.ToNative() : null; // Clear out time if daily notifications are not enabled
             person.OutreachEnableSpecialEventsNotification = option.SpecialEventNotificationsEnabled;
+            person.OutreachTouchpointGenerationEnabled = true;
 
             RockContext.SaveChanges();
 

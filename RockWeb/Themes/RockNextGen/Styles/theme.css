@@ -2,7 +2,7 @@
 /* CSS Overrides Top Start */
 @import url('/Styles/styles-v2/icons/fontawesome-icon.css?v=4232385967');
 @import url('/Styles/styles-v2/icons/fontawesome-solid.css?v=4137481333');
-@import url('/Styles/styles-v2/icons/tabler-icon.css?v=225734114');
+@import url('/Styles/styles-v2/icons/tabler-icon.css?v=116410291');
 /* CSS Overrides Top End */
 
 @import "../../../Styles/summernote/summernote.min.css";
@@ -1189,7 +1189,7 @@ iframe {
 }
 
 .config-bar {
-  font-size: var(--font-size-h5);
+  font-size: var(--font-size-regular);
   line-height: var(--line-height-normal);
 }
 .config-bar,
@@ -33592,7 +33592,7 @@ mark,
 }
 
 .text-sm {
-  font-size: var(--font-size-xsmall);
+  font-size: var(--font-size-small);
 }
 
 .text-xs {
