@@ -11238,25 +11238,51 @@ ul ul, ol ul, ul ol, ol ol {
   align-items: center;
 }
 
-.grid-obsidian > .grid-header > .grid-title-header > .grid-actions {
-  background-color: initial;
-  text-align: initial;
-}
-.grid-obsidian > .grid-header > .grid-title-header > .grid-actions:last-child {
-  border-top-right-radius: var(--rounded-small);
-}
-.grid-obsidian > .grid-header > .grid-title-header > .grid-actions:last-child .btn-grid-action:last-child {
-  border-top-right-radius: var(--rounded-small);
-}
-.grid-obsidian > .grid-header > .grid-title-header > .grid-actions:last-child .btn-grid-action.btn-quick-filter {
-  border-top-right-radius: var(--rounded-small);
-}
-
-.grid-obsidian > .grid-header > .grid-title-header > .grid-actions .btn-grid-action {
+.grid-obsidian > .grid-header > .grid-title-header > .grid-actions button.btn-grid-action {
   width: 56px;
   height: 56px;
   margin: 0;
   border-radius: 0;
+}
+.grid-obsidian > .grid-header > .grid-title-header > .grid-actions button.btn-grid-action:last-child {
+  border-top-right-radius: var(--rounded-small);
+}
+
+.grid-obsidian > .grid-header > .grid-title-header .grid-actions {
+  background-color: initial;
+  text-align: initial;
+}
+.grid-obsidian > .grid-header > .grid-title-header .grid-actions:last-child {
+  border-top-right-radius: var(--rounded-small);
+}
+.grid-obsidian > .grid-header > .grid-title-header .grid-actions:last-child .btn-grid-action:last-child {
+  border-top-right-radius: var(--rounded-small);
+}
+.grid-obsidian > .grid-header > .grid-title-header .grid-actions:has(+ .grid-actions),
+.grid-obsidian > .grid-header > .grid-title-header .grid-actions + .grid-actions:has(+ .grid-actions) {
+  border-radius: 0;
+}
+.grid-obsidian > .grid-header > .grid-title-header .grid-actions:has(+ .grid-actions) .btn-grid-action,
+.grid-obsidian > .grid-header > .grid-title-header .grid-actions + .grid-actions:has(+ .grid-actions) .btn-grid-action {
+  border-radius: 0;
+}
+@media (max-width: 992px) {
+  .grid-obsidian > .grid-header > .grid-title-header .grid-actions:last-child,
+  .grid-obsidian > .grid-header > .grid-title-header .quick-filter.grid-actions,
+  .grid-obsidian > .grid-header > .grid-title-header .quick-filter.grid-actions + .grid-actions {
+    border-top-right-radius: 0;
+  }
+  .grid-obsidian > .grid-header > .grid-title-header .grid-actions:last-child .quick-filter-open form input,
+  .grid-obsidian > .grid-header > .grid-title-header .grid-actions:last-child .btn-grid-action,
+  .grid-obsidian > .grid-header > .grid-title-header .grid-actions:last-child .btn-grid-action:last-child,
+  .grid-obsidian > .grid-header > .grid-title-header .quick-filter.grid-actions .quick-filter-open form input,
+  .grid-obsidian > .grid-header > .grid-title-header .quick-filter.grid-actions .btn-grid-action,
+  .grid-obsidian > .grid-header > .grid-title-header .quick-filter.grid-actions .btn-grid-action:last-child,
+  .grid-obsidian > .grid-header > .grid-title-header .quick-filter.grid-actions + .grid-actions .quick-filter-open form input,
+  .grid-obsidian > .grid-header > .grid-title-header .quick-filter.grid-actions + .grid-actions .btn-grid-action,
+  .grid-obsidian > .grid-header > .grid-title-header .quick-filter.grid-actions + .grid-actions .btn-grid-action:last-child {
+    border-top-right-radius: 0;
+  }
 }
 
 .grid-obsidian > .grid-header > .grid-title-header > .grid-actions .btn-grid-action.active {
@@ -11716,6 +11742,85 @@ ul ul, ol ul, ul ol, ol ol {
     top: calc(var(--sticky-element-offset) + 114px);
   }
 }
+.grid-comfy .grid-header {
+  z-index: 4;
+}
+.grid-comfy .grid-content-container {
+  padding: 0 var(--spacing-medium) var(--spacing-medium) var(--spacing-medium);
+  background-color: var(--color-interface-softer);
+}
+.grid-comfy .grid-content-container .grid-column-header-container.sticky-column-header {
+  background-color: inherit;
+}
+@media (max-width: 742px) {
+  .grid-comfy .grid-content-container .grid-column-header-container.sticky-column-header {
+    top: calc(var(--sticky-element-offset) + 164px);
+  }
+}
+.grid-comfy .grid-content-container .grid-column-header {
+  border-bottom: none;
+}
+.grid-comfy .grid-content-container .grid-body {
+  display: flex;
+  flex-direction: column;
+  border-bottom-left-radius: var(--rounded-medium);
+  border-bottom-right-radius: var(--rounded-medium);
+  background-color: inherit;
+}
+.grid-comfy .grid-content-container .grid-body .grid-row {
+  padding-bottom: var(--spacing-small);
+}
+.grid-comfy .grid-content-container .grid-body .grid-row:last-of-type {
+  padding-bottom: 0;
+}
+.grid-comfy .grid-content-container .grid-body .grid-row:not(:has(.grid-columnreorder)):nth-last-child(2) {
+  padding-bottom: 0;
+}
+.grid-comfy .grid-content-container .grid-body .grid-row:has(.table-empty) {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+.grid-comfy .grid-content-container .grid-body .grid-row .grid-cell {
+  border: 1px solid var(--color-interface-soft);
+}
+.grid-comfy .grid-content-container .grid-body .grid-row .grid-cell.grid-cell-text .highlight-title {
+  font-weight: var(--font-weight-regular);
+}
+.grid-comfy .grid-content-container .grid-body .grid-row .grid-cell:first-of-type.table-empty {
+  width: 100%;
+  border-right: 1px solid var(--color-interface-soft);
+}
+.grid-comfy .grid-content-container .grid-body .grid-row .grid-cell:first-of-type {
+  border-top-left-radius: var(--rounded-medium);
+  border-bottom-left-radius: var(--rounded-medium);
+  border-right: none;
+}
+.grid-comfy .grid-content-container .grid-body .grid-row .grid-cell:last-of-type {
+  border-top-right-radius: var(--rounded-medium);
+  border-bottom-right-radius: var(--rounded-medium);
+  border-right: 1px solid var(--color-interface-soft);
+}
+.grid-comfy .grid-content-container .grid-body .grid-row .grid-cell:not(:last-of-type) {
+  border-right: none;
+}
+.grid-comfy .grid-content-container .grid-body .grid-row .grid-cell:not(:first-of-type) {
+  border-left: none;
+}
+.grid-comfy .grid-footing:has(.grid-paging-footer) {
+  border-top: 1px solid var(--color-interface-soft);
+}
+.grid-comfy:not(:has(.grid-footing .grid-paging-footer)) .grid-content-container {
+  border-bottom-left-radius: var(--rounded-medium);
+  border-bottom-right-radius: var(--rounded-medium);
+}
+.grid-comfy.grid-light .grid-content-container {
+  background-color: inherit;
+  padding-bottom: 0;
+}
+.grid-comfy.grid-light .grid-content-container .grid-body .grid-row:nth-last-child(2) {
+  padding-bottom: var(--spacing-small);
+}
+
 .personlist {
   padding-left: 0;
   list-style: none;
@@ -13043,12 +13148,26 @@ div.aspNetDisabled {
   cursor: pointer;
 }
 
-.loginstatus > li {
+.rock-top-header .loginstatus > li {
   min-width: 160px;
   text-align: right;
 }
-.loginstatus > li li {
+.rock-top-header .loginstatus > li li {
   text-align: left;
+}
+.rock-top-header .loginstatus.loginstatus-minimal {
+  margin-left: var(--spacing-small);
+  margin-right: var(--spacing-medium);
+}
+.rock-top-header .loginstatus.loginstatus-minimal a.dropdown-toggle.navbar-link {
+  padding: 0;
+}
+.rock-top-header .loginstatus.loginstatus-minimal a.dropdown-toggle.navbar-link .loginstatus-wrapper {
+  margin-left: 0;
+  padding: 0;
+}
+.rock-top-header .loginstatus.loginstatus-minimal a.dropdown-toggle.navbar-link .loginstatus-wrapper .profile-photo {
+  margin-right: 0;
 }
 
 .splash-form-btn {
@@ -16606,8 +16725,8 @@ iframe.file-browser {
 
 .main-content:has(.profile-content, .person-profile) {
   max-width: 100%;
-  padding: 0 !important;
-  margin: 0 !important;
+  padding: 0;
+  margin: 0;
 }
 
 .main-content:has(.profile-content, .person-profile) .main-footer:has(.html-content) {
@@ -20074,6 +20193,7 @@ iframe.file-browser {
 .badge-circle {
   border-radius: 999px;
   width: 24px;
+  aspect-ratio: 1;
 }
 
 .btn {
@@ -20397,7 +20517,7 @@ li.list-group-item:has(> a) {
   padding: 0;
 }
 
-li.list-group-item:hover:has(> a) {
+li.list-group-item:hover:has(a) {
   background-color: var(--color-interface-softer) !important;
 }
 
@@ -20454,6 +20574,12 @@ li.list-group-item:hover:has(> a) {
   border-bottom-left-radius: var(--rounded-medium);
 }
 .grid.grid-panel .grid-table:not(:has(tfoot)) tr:last-child > td:last-child {
+  border-bottom-right-radius: var(--rounded-medium);
+}
+.grid.grid-panel .grid-table:not(:has(tfoot > *)) tr:last-child, .grid.grid-panel .grid-table:not(:has(tfoot > *)) tr:last-child > td:first-child {
+  border-bottom-left-radius: var(--rounded-medium);
+}
+.grid.grid-panel .grid-table:not(:has(tfoot > *)) tr:last-child > td:last-child {
   border-bottom-right-radius: var(--rounded-medium);
 }
 
