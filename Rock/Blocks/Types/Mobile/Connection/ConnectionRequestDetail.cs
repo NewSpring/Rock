@@ -667,7 +667,6 @@ namespace Rock.Blocks.Types.Mobile.Connection
         {
             return connectionType.ConnectionStatuses
                 .OrderBy( s => s.Order )
-                .OrderByDescending( s => s.IsDefault )
                 .ThenBy( s => s.Name )
                 .Select( s => new ListItemBag
                 {
