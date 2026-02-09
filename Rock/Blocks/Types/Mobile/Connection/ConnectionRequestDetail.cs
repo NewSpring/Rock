@@ -488,6 +488,7 @@ namespace Rock.Blocks.Types.Mobile.Connection
                 Comments = request.Comments,
                 ConnectorGuid = request.ConnectorPersonAlias?.Person.Guid,
                 PlacementGroupGuid = request.AssignedGroup?.Guid,
+                States = GetOpportunityStateListItems( request.ConnectionOpportunity ),
                 State = request.ConnectionState,
                 FutureFollowUpDate = request.FollowupDate?.ToRockDateTimeOffset(),
                 StatusGuid = request.ConnectionStatus.Guid,
@@ -674,6 +675,21 @@ namespace Rock.Blocks.Types.Mobile.Connection
                     Text = s.Name
                 } )
                 .ToList();
+        }
+
+        private static List<ListItemBag> GetOpportunityStateListItems( ConnectionOpportunity connectionOpportunity )
+        {
+            var states = Enum.GetValues( typeof( ConnectionState ) )
+                .Cast<ConnectionState>()
+                .Where( s => !( s == ConnectionState.Connected && !connectionOpportunity.ShowConnectButton ) )
+                .Select( s => new ListItemBag
+                {
+                    Value = s.ToString(),
+                    Text = s.ToString()
+                } )
+                .ToList();
+
+            return states;
         }
 
         /// <summary>
@@ -2842,6 +2858,11 @@ namespace Rock.Blocks.Types.Mobile.Connection
             /// The placement groups available to pick from.
             /// </value>
             public List<PlacementGroupItemViewModel> PlacementGroups { get; set; }
+
+            /// <summary>
+            /// Gets or sets the states available to pick from.
+            /// </summary>
+            public List<ListItemBag> States { get; set; }
 
             /// <summary>
             /// Gets or sets the statuses available to pick from.
