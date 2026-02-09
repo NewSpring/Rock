@@ -107,14 +107,14 @@ namespace Rock.Model
                             }
                             else if ( connectionTypeCache.DueDateCalculationMode == DueDateCalculationMode.FixedDaysFromStartOpportunityLevel )
                             {
-                                dueOffsetDays = connectionOpportunity.RequestDueDateOffestInDays ?? 0;
+                                dueOffsetDays = connectionOpportunity.RequestDueSoonOffsetInDays ?? 0;
                                 dueSoonOffsetDays = connectionOpportunity.RequestDueSoonOffsetInDays ?? 0;
                             }
                             else
                             {
                                 var connectionStatus = new ConnectionStatusService( RockContext ).Get( this.Entity.ConnectionStatusId );
 
-                                dueOffsetDays = connectionStatus.RequestStatusDueDateOffestInDays ?? 0;
+                                dueOffsetDays = connectionStatus.RequestStatusDueDateOffsetInDays ?? 0;
                                 dueSoonOffsetDays = connectionStatus.RequestStatusDueSoonOffsetInDays ?? 0;
                             }
 
@@ -151,7 +151,7 @@ namespace Rock.Model
                                 {
                                     var newConnectionStatus = new ConnectionStatusService( RockContext ).Get( this.Entity.ConnectionStatusId );
 
-                                    dueOffsetDays = newConnectionStatus.RequestStatusDueDateOffestInDays ?? 0;
+                                    dueOffsetDays = newConnectionStatus.RequestStatusDueDateOffsetInDays ?? 0;
                                     dueSoonOffsetDays = newConnectionStatus.RequestStatusDueSoonOffsetInDays ?? 0;
 
                                     this.Entity.DueDate = currentDateTime.AddDays( dueOffsetDays );

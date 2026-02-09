@@ -986,7 +986,7 @@ namespace Rock.Blocks.Engagement
                 {
                     Key = request.ConnectionState.ToString(),
                     Type = "text",
-                    Label = request.ConnectionState.GetDescription().IsNullOrWhiteSpace() ? request.ConnectionState.ToString() : request.ConnectionState.GetDescription(),
+                    Label = request.ConnectionState.GetDisplayName(),
                     IconCssClass = GetStateIconCssClass( request.ConnectionState ),
                     Order = ( int ) request.ConnectionState
                 };
@@ -1214,7 +1214,7 @@ namespace Rock.Blocks.Engagement
                         {
                             Key = request.ConnectionState.ToString(),
                             Type = "text",
-                            Label = request.ConnectionState.GetDescription().IsNullOrWhiteSpace() ? request.ConnectionState.ToString() : request.ConnectionState.GetDescription(),
+                            Label = request.ConnectionState.GetDisplayName(),
                             IconCssClass = GetStateIconCssClass( request.ConnectionState ),
                             Order = ( int ) request.ConnectionState
                         },
@@ -1260,7 +1260,7 @@ namespace Rock.Blocks.Engagement
                     {
                         Key = request.ConnectionState.ToString(),
                         Type = "text",
-                        Label = request.ConnectionState.GetDescription().IsNullOrWhiteSpace() ? request.ConnectionState.ToString() : request.ConnectionState.GetDescription(),
+                        Label = request.ConnectionState.GetDisplayName(),
                         IconCssClass = GetStateIconCssClass( request.ConnectionState ),
                         Order = ( int ) request.ConnectionState
                     },
@@ -1385,7 +1385,7 @@ namespace Rock.Blocks.Engagement
                     {
                         Key = request.ConnectionState.ToString(),
                         Type = "text",
-                        Label = request.ConnectionState.GetDescription().IsNullOrWhiteSpace() ? request.ConnectionState.ToString() : request.ConnectionState.GetDescription(),
+                        Label = request.ConnectionState.GetDisplayName(),
                         IconCssClass = GetStateIconCssClass( request.ConnectionState ),
                         Order = ( int ) request.ConnectionState
                     },

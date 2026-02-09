@@ -271,7 +271,7 @@ namespace Rock.Web.Cache
             RequestBadgeLava = sourceModel.RequestBadgeLava;
             Order = sourceModel.Order;
             DueDateCalculationMode = sourceModel.DueDateCalculationMode;
-            RequestDueDateOffestInDays = sourceModel.RequestDueDateOffestInDays;
+            RequestDueSoonOffsetInDays = sourceModel.RequestDueSoonOffsetInDays;
             RequestDueSoonOffsetInDays = sourceModel.RequestDueSoonOffsetInDays;
         }
 
