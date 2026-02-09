@@ -417,7 +417,7 @@ namespace Rock.Blocks.Types.Mobile.Connection
                     Connector = a.ConnectorPersonAlias?.Person != null ?
                         new ConnectorItemViewModel
                         {
-                            FirstName = a.ConnectorPersonAlias.Person.FirstName,
+                            FirstName = a.ConnectorPersonAlias.Person.NickName,
                             LastName = a.ConnectorPersonAlias.Person.LastName,
                             PhotoUrl = MobileHelper.BuildPublicApplicationRootUrl( a.ConnectorPersonAlias.Person.PhotoUrl )
                         }
