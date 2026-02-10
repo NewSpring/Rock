@@ -18870,7 +18870,6 @@ iframe.file-browser {
   flex: 1 1 80%;
   gap: var(--spacing-xlarge);
   height: auto;
-  overflow-y: auto;
   scroll-behavior: smooth;
 }
 
