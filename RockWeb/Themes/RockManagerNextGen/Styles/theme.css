@@ -10290,8 +10290,8 @@ ul ul, ol ul, ul ol, ol ol {
 }
 
 .label-campus {
-  color: var(--base-interface-softest);
-  background-color: var(--color-secondary);
+  color: var(--color-info-strong);
+  border: 1px solid var(--color-info-strong);
 }
 
 .label-type {
@@ -35843,6 +35843,9 @@ html {
 }
 .rostergrid .grid-content-container .grid-body .grid-row .grid-cell.grid-cell-present-button:last-child {
   border-left: none;
+}
+.rostergrid .grid-content-container .grid-body .grid-row .grid-cell-action-button .btn {
+  border: none;
 }
 .rostergrid .grid-content-container .check-in-details {
   display: grid;
