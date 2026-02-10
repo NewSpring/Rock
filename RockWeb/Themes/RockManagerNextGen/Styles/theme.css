@@ -21733,6 +21733,18 @@ body.hide-block-role-secondary .block-instance.block-role-secondary:not(.block-r
   color: var(--color-success-strong);
 }
 
+.notification-messages .notification-item {
+  margin-bottom: var(--spacing-medium);
+}
+.notification-messages .notification-item:last-child {
+  margin-bottom: 0;
+}
+.notification-messages .filter-button.active {
+  background-color: var(--color-interface-soft);
+  padding: var(--spacing-tiny) var(--spacing-xsmall);
+  border-radius: var(--rounded-xsmall);
+}
+
 .group-location-map {
   margin-bottom: var(--spacing-large);
 }
