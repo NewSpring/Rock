@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 // </copyright>
-//S
+//
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -394,6 +394,7 @@ namespace Rock.Jobs
             var contactsQry = new ContactService( rockContext ).Queryable();
 
             // Include people:
+            // - Who have enabled touchpoint generation
             // - Whose notification day(s) includes today
             // - Whose notification time of day matches the current run
             // - Who have at least one contact
@@ -401,7 +402,8 @@ namespace Rock.Jobs
             return new PersonService( rockContext )
                 .Queryable()
                 .AsNoTracking()
-                .Where( p => ( p.OutreachTouchpointSchedule & dayOfWeekFlag ) != 0
+                .Where( p => p.OutreachTouchpointGenerationEnabled
+                    && ( p.OutreachTouchpointSchedule & dayOfWeekFlag ) != 0
                     && p.OutreachNotificationTimeOfDay == timeOfDay
                     && contactsQry.Any( c => c.OwnerPersonAlias.PersonId == p.Id )
                     && !touchpointsQry.Any( t => t.Contact.OwnerPersonAlias.PersonId == p.Id ) )
@@ -479,7 +481,9 @@ namespace Rock.Jobs
 
                     if ( processingContext.LatestTouchpoints.TryGetValue( c.Id, out var touchpointDate ) )
                     {
-                        lastTouchpointDate = touchpointDate;
+                        // Trim off the time portion. Otherwise we might end up
+                        // ignoring some contacts based on small clock drifts.
+                        lastTouchpointDate = touchpointDate.Date;
                     }
 
                     return new
@@ -565,13 +569,13 @@ namespace Rock.Jobs
             var contactsQry = new ContactService( rockContext ).Queryable();
 
             // Include people:
-            // - Who have special event notifications enabled
+            // - Who have enabled touchpoint generation
             // - Who have at least one contact
             // - Who do not have touchpoints created today
             return new PersonService( rockContext )
                 .Queryable()
                 .AsNoTracking()
-                .Where( p => p.OutreachEnableSpecialEventsNotification
+                .Where( p => p.OutreachTouchpointGenerationEnabled
                     && contactsQry.Any( c => c.OwnerPersonAlias.PersonId == p.Id )
                     && !touchpointsQry.Any( t => t.Contact.OwnerPersonAlias.PersonId == p.Id ) )
                 .ToList();
@@ -846,13 +850,15 @@ namespace Rock.Jobs
             var contactsQry = new ContactService( rockContext ).Queryable();
 
             // Include contacts:
+            // - Who have enabled touchpoint generation
             // - Whose notification day(s) includes today
             // - Who do not have an active pulse touchpoint already
             // - Who have not had a pulse touchpoint created recently
             var contacts = new ContactService( rockContext )
                 .Queryable()
                 .AsNoTracking()
-                .Where( c => ( c.OwnerPersonAlias.Person.OutreachTouchpointSchedule & dayOfWeekFlag ) != 0
+                .Where( c => c.OwnerPersonAlias.Person.OutreachTouchpointGenerationEnabled
+                    && ( c.OwnerPersonAlias.Person.OutreachTouchpointSchedule & dayOfWeekFlag ) != 0
                     && !activeTouchpointsQry.Any( t => t.Contact.OwnerPersonAlias.PersonId == c.OwnerPersonAlias.PersonId ) )
                 .Select( c => new
                 {
@@ -952,7 +958,22 @@ namespace Rock.Jobs
                         .GroupBy( pd => pd.PersonAlias.PersonId )
                         .ToDictionary( g => g.Key, g => g.Select( pd => pd.DeviceRegistrationId ).ToList() );
 
-                    sentCount += SendNotificationsBatch( runContext, rockContext, batch, personalDeviceRegistrationIds, notificationPage );
+                    var personNotificationStates = new PersonService( rockContext )
+                        .Queryable()
+                        .Where( p => personIds.Contains( p.Id ) )
+                        .Select( p => new
+                        {
+                            p.Id,
+                            p.OutreachEnableDailyNotification,
+                            p.OutreachEnableSpecialEventsNotification,
+                        } )
+                        .ToDictionary( k => k.Id, v => new PersonNotificationState
+                        {
+                            EnableDailyNotifications = v.OutreachEnableDailyNotification,
+                            EnableSpecialEventNotifications = v.OutreachEnableSpecialEventsNotification,
+                        } );
+
+                    sentCount += SendNotificationsBatch( runContext, rockContext, batch, personalDeviceRegistrationIds, personNotificationStates, notificationPage );
                 }
             }
 
@@ -1006,9 +1027,10 @@ namespace Rock.Jobs
         /// <param name="rockContext">The context to use if access to the database is required.</param>
         /// <param name="batch">The batch of person identifier keys and notification data.</param>
         /// <param name="personalDeviceRegistrationIds">The dictionary of person identifiers and personal device registration identifiers.</param>
+        /// <param name="personNotificationStates">The dictionary of person identifiers and their notification state.</param>
         /// <param name="notificationPage">The notification page.</param>
         /// <returns>The number of notifications that were sent for this batch.</returns>
-        private int SendNotificationsBatch( RunContext runContext, RockContext rockContext, IEnumerable<KeyValuePair<int, TouchpointNotifications>> batch, Dictionary<int, List<string>> personalDeviceRegistrationIds, PageCache notificationPage )
+        private int SendNotificationsBatch( RunContext runContext, RockContext rockContext, IEnumerable<KeyValuePair<int, TouchpointNotifications>> batch, Dictionary<int, List<string>> personalDeviceRegistrationIds, Dictionary<int, PersonNotificationState> personNotificationStates, PageCache notificationPage )
         {
             var sentCount = 0;
 
@@ -1022,9 +1044,14 @@ namespace Rock.Jobs
                     continue;
                 }
 
+                if ( !personNotificationStates.TryGetValue( personId, out var notificationState ) )
+                {
+                    continue;
+                }
+
                 try
                 {
-                    sentCount += SendPersonNotifications( registrationIds, notifications, notificationPage );
+                    sentCount += SendPersonNotifications( registrationIds, notificationState, notifications, notificationPage );
                 }
                 catch ( Exception ex )
                 {
@@ -1042,86 +1069,113 @@ namespace Rock.Jobs
         /// device registration identifiers.
         /// </summary>
         /// <param name="deviceRegistrationIds">The device identifiers that will receive the notifications.</param>
+        /// <param name="notificationState">Determines which notifications this person wants to receive.</param>
         /// <param name="notifications">The object containing the information about which notifications to send.</param>
         /// <param name="notificationPage">The notification page.</param>
         /// <returns>The number of notifications that were sent.</returns>
-        private int SendPersonNotifications( List<string> deviceRegistrationIds, TouchpointNotifications notifications, PageCache notificationPage )
+        private int SendPersonNotifications( List<string> deviceRegistrationIds, PersonNotificationState notificationState, TouchpointNotifications notifications, PageCache notificationPage )
         {
             var mergeFields = new Dictionary<string, object>();
             var recipient = RockPushMessageRecipient.CreateAnonymous( string.Join( ",", deviceRegistrationIds ), mergeFields );
             var sentCount = 0;
 
-            foreach ( var touchpoint in notifications.AnnualTouchpoints )
+            if ( notificationState.EnableSpecialEventNotifications )
             {
-                var pushMessage = GetAnnualNotificationMessage( touchpoint );
-
-                if ( pushMessage == null )
+                foreach ( var touchpoint in notifications.AnnualTouchpoints )
                 {
-                    continue;
+                    SendAnnualNotification( recipient, touchpoint, notificationPage );
+
+                    sentCount += 1;
                 }
-
-                if ( notificationPage != null )
-                {
-                    pushMessage.OpenAction = Utility.PushOpenAction.LinkToMobilePage;
-                    pushMessage.Data = new PushData
-                    {
-                        MobilePageId = notificationPage.Id,
-                        MobilePageQueryString = new Dictionary<string, string>
-                        {
-                            { "TouchpointIdKeys", touchpoint.IdKey }
-                        }
-                    };
-                }
-
-                pushMessage.AddRecipient( recipient );
-                pushMessage.Send();
-
-                sentCount += 1;
             }
 
-            if ( notifications.Contacts.Count > 0 )
+            if ( notificationState.EnableDailyNotifications && notifications.Contacts.Count > 0 )
             {
-                string prefix;
-
-                if ( notifications.Contacts.Count == 1 )
-                {
-                    prefix = $"{notifications.Contacts[0].FirstName} is";
-                }
-                else if ( notifications.Contacts.Count == 2 )
-                {
-                    prefix = $"{notifications.Contacts[0].FirstName} and {notifications.Contacts[1].FirstName} are";
-                }
-                else
-                {
-                    prefix = $"{notifications.Contacts[0].FirstName}, {notifications.Contacts[1].FirstName}, and {notifications.Contacts.Count - 2} others are";
-                }
-
-
-                var messageIndex = _random.Next( 0, DailyNotificationMessages.Length );
-
-                var pushMessage = new RockPushMessage
-                {
-                    Title = "Keep the connection going!",
-                    Message = $"{prefix} {DailyNotificationMessages[messageIndex]}",
-                    Data = new PushData()
-                };
-
-                if ( notificationPage != null )
-                {
-                    pushMessage.OpenAction = Utility.PushOpenAction.LinkToMobilePage;
-                    pushMessage.Data = new PushData
-                    {
-                        MobilePageId = notificationPage.Id,
-                    };
-                }
-
-                pushMessage.AddRecipient( recipient );
-                pushMessage.Send();
+                SendDailyNotification( recipient, notifications.Contacts, notificationPage );
 
                 sentCount += 1;
             }
 
             return sentCount;
+        }
+
+        /// <summary>
+        /// Sends the push notification for a contact's annual touchpoint, such as a birthday.
+        /// </summary>
+        /// <param name="recipient">The person who will receive the push notification.</param>
+        /// <param name="touchpoint">The touchpoint that describes what to send.</param>
+        /// <param name="notificationPage">The page to open when the notification is tapped.</param>
+        private void SendAnnualNotification( RockPushMessageRecipient recipient, ContactTouchpoint touchpoint, PageCache notificationPage )
+        {
+            var pushMessage = GetAnnualNotificationMessage( touchpoint );
+
+            if ( pushMessage == null )
+            {
+                return;
+            }
+
+            if ( notificationPage != null )
+            {
+                pushMessage.OpenAction = Utility.PushOpenAction.LinkToMobilePage;
+                pushMessage.Data = new PushData
+                {
+                    MobilePageId = notificationPage.Id,
+                    MobilePageQueryString = new Dictionary<string, string>
+                    {
+                        { "TouchpointIdKeys", touchpoint.IdKey }
+                    }
+                };
+            }
+
+            pushMessage.AddRecipient( recipient );
+            pushMessage.Send();
+        }
+
+        /// <summary>
+        /// Sends the push notification for the daily touchpoints that were
+        /// created for the set of contacts.
+        /// </summary>
+        /// <param name="recipient">The person who will receive the push notification.</param>
+        /// <param name="contacts">The contacts that had touchpoints created for them.</param>
+        /// <param name="notificationPage">The page to open when the notification is tapped.</param>
+        private void SendDailyNotification( RockPushMessageRecipient recipient, List<Contact> contacts, PageCache notificationPage )
+        {
+            string prefix;
+
+            if ( contacts.Count == 1 )
+            {
+                prefix = $"{contacts[0].FirstName} is";
+            }
+            else if ( contacts.Count == 2 )
+            {
+                prefix = $"{contacts[0].FirstName} and {contacts[1].FirstName} are";
+            }
+            else
+            {
+                prefix = $"{contacts[0].FirstName}, {contacts[1].FirstName}, and {contacts.Count - 2} others are";
+            }
+
+
+            var messageIndex = _random.Next( 0, DailyNotificationMessages.Length );
+
+            var pushMessage = new RockPushMessage
+            {
+                Title = "Keep the connection going!",
+                Message = $"{prefix} {DailyNotificationMessages[messageIndex]}",
+                Data = new PushData()
+            };
+
+            if ( notificationPage != null )
+            {
+                pushMessage.OpenAction = Utility.PushOpenAction.LinkToMobilePage;
+                pushMessage.Data = new PushData
+                {
+                    MobilePageId = notificationPage.Id,
+                };
+            }
+
+            pushMessage.AddRecipient( recipient );
+            pushMessage.Send();
         }
 
         /// <summary>
@@ -1366,12 +1420,16 @@ namespace Rock.Jobs
         {
             /// <summary>
             /// The contacts that will be mentioned in the group notification.
-            /// This includes prayer, connection and reminder touchpoints.
+            /// This includes prayer, connection and reminder touchpoints. Sending
+            /// these notifications is controlled by
+            /// <see cref="Person.OutreachEnableDailyNotification"/>.
             /// </summary>
             public List<Contact> Contacts { get; } = new List<Contact>();
 
             /// <summary>
             /// The annual touchpoints that will each get their own notification.
+            /// Sending these notifications is controlled by
+            /// <see cref="Person.OutreachEnableSpecialEventsNotification"/>.
             /// </summary>
             public List<ContactTouchpoint> AnnualTouchpoints { get; } = new List<ContactTouchpoint>();
         }
@@ -1450,6 +1508,22 @@ namespace Rock.Jobs
             /// The date and time the last evening processing completed.
             /// </summary>
             public DateTime? LastEveningRun { get; set; }
+        }
+
+        /// <summary>
+        /// Notification states for a person.
+        /// </summary>
+        private class PersonNotificationState
+        {
+            /// <summary>
+            /// Determines if daily notifications are enabled for the person.
+            /// </summary>
+            public bool EnableDailyNotifications { get; set; }
+
+            /// <summary>
+            /// Determines if special event notifications are enabled for the person.
+            /// </summary>
+            public bool EnableSpecialEventNotifications { get; set; }
         }
 
         #endregion
