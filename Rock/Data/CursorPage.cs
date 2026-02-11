@@ -19,23 +19,55 @@ using System.Collections.Generic;
 
 namespace Rock.Data
 {
-    public class CursorPage<T>
+    /// <summary>
+    /// Represents a single page of results in a cursor-based pagination
+    /// sequence.
+    /// </summary>
+    /// <typeparam name="T">The type of items contained in the page.</typeparam>
+    internal class CursorPage<T>
     {
+        #region Properties
+
+        /// <summary>
+        /// Gets the collection of items contained in the list.
+        /// </summary>
         public IList<T> Items { get; }
 
+        /// <summary>
+        /// Gets the cursor that can be used to retrieve the next page of
+        /// results in a paginated query.
+        /// </summary>
         public string NextCursor { get; }
 
+        /// <summary>
+        /// Gets a value indicating whether there are additional items
+        /// available to retrieve.
+        /// </summary>
         public bool HasMore => NextCursor != null;
 
+        #endregion
+
+        #region Constructors
+
+        /// <summary>
+        /// Initializes a new, empty, instance of the <see cref="CursorPage{T}"/> class.
+        /// </summary>
         internal CursorPage()
         {
             Items = Array.Empty<T>();
         }
 
+        /// <summary>
+        /// Initializes a new, instance of the <see cref="CursorPage{T}"/> class.
+        /// </summary>
+        /// <param name="items">The collection of items contained in the list.</param>
+        /// <param name="nextCursor">The cursor that can be used to retrieve the next page of results in a paginated query.</param>
         internal CursorPage( IList<T> items, string nextCursor )
         {
             Items = items;
             NextCursor = nextCursor;
         }
+
+        #endregion
     }
 }
