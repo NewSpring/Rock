@@ -195,6 +195,7 @@ namespace Rock.Model
                                 {
                                     PersonHistoryChangeList.AddChange( History.HistoryVerb.ConnectionRequestConnected, History.HistoryChangeType.Record, connectionOpportunity.Name );
                                     this.Entity.WasCompletedOnTime = !this.Entity.DueDate.HasValue || currentDateTime <= this.Entity.DueDate;
+                                    this.Entity.ConnectedDateTime = RockDateTime.Now;
                                 }
                                 else
                                 {

@@ -1,0 +1,83 @@
+<template>
+    <GalleryAndResult :importCode="importCode" :exampleCode="exampleCode">
+
+        <div class="row">
+            <div class="col-md-12">
+                <LinearGaugeChart :series="values"
+                                  :hideLegend="hideLegend"
+                                  :title="title"
+                                  :sectionStyle="sectionStyle"
+                                  :width="width" />
+            </div>
+        </div>
+
+        <template #settings>
+            <div class="settings">
+                <div class="row">
+                    <div class="col-md-3">
+                        <TextBox v-model="width" label="Width" />
+                    </div>
+                    <div class="col-md-3">
+                        <DropDownList v-model="sectionStyle" :items="sectionStyleItems" label="Section Style" :showBlankItem="false" />
+                    </div>
+                    <div class="col-md-3">
+                        <TextBox v-model="title" label="Title" />
+                    </div>
+                    <div class="col-md-3">
+                        <Switch v-model="hideLegend" label="Hide Legend?" />
+                    </div>
+                </div>
+            </div>
+        </template>
+    </GalleryAndResult>
+</template>
+
+<style scoped>
+.settings {
+    max-height: 350px;
+    overflow: auto;
+}
+</style>
+
+<script setup lang="ts">
+    import { ref } from "vue";
+    import GalleryAndResult from "./common/galleryAndResult.partial.obs";
+    import { getSfcControlImportPath } from "./common/utils.partial";
+    import DropDownList from "@Obsidian/Controls/dropDownList.obs";
+    import LinearGaugeChart from "@Obsidian/Controls/linearGaugeChart.obs";
+    import Switch from "@Obsidian/Controls/switch.obs";
+    import TextBox from "@Obsidian/Controls/textBox.obs";
+    import { LinearGaugeSectionStyle, LinearGaugeSeries } from "@Obsidian/Core/Controls/chart";
+    import { Enumerable } from "@Obsidian/Utility/linq";
+    import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
+    import { toTitleCase } from "@Obsidian/Utility/stringUtils";
+
+    const importCode = getSfcControlImportPath("linearGaugeChart");
+    const exampleCode = `<LinearGaugeChart :modelValue="values" :hideLegend="false" title="Connection Requests" lineStyle="segmented" width="400px" />`;
+
+    const sectionStyles: LinearGaugeSectionStyle[] = ["segmented", "continuous"];
+
+    const sectionStyleItems = Enumerable
+        .from(sectionStyles)
+        .select<ListItemBag>(ls => {
+            return {
+                text: toTitleCase(ls),
+                value: ls
+            };
+        })
+        .toArray();
+
+    // #region Values
+
+    const values: LinearGaugeSeries[] = [
+        { label: "Completed", data: [70], color: "var(--color-success-strong)" },
+        { label: "In Progress", data: [20], color: "#F59E0B" },
+        { label: "Not Started", data: [10], color: "#EF4444" }
+    ];
+    const width = ref<string>("auto");
+    const sectionStyle = ref<LinearGaugeSectionStyle>("segmented");
+    const hideLegend = ref<boolean>(false);
+    const title = ref<string>("Connection Requests");
+
+    // #endregion Values
+</script>

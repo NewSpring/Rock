@@ -30,6 +30,7 @@ namespace Rock.Plugin.HotFixes
         {
             JPH_AddConnectionsPages_Up();
             JPH_AddConnectionNavigationViewBlocks_Up();
+            JMH_AddConnectionOperationalSnapshotBlock_Up();
         }
 
         /// <summary>
@@ -37,6 +38,7 @@ namespace Rock.Plugin.HotFixes
         /// </summary>S
         public override void Down()
         {
+            JMH_AddConnectionOperationalSnapshotBlock_Down();
             JPH_AddConnectionNavigationViewBlocks_Down();
             JPH_AddConnectionsPages_Down();
         }
@@ -422,6 +424,64 @@ namespace Rock.Plugin.HotFixes
             //  Site: Rock RMS
             //  Layout: Full Width
             RockMigrationHelper.DeletePage( Rock.SystemGuid.Page.CONNECTIONS_LIST );
+        }
+
+        private void JMH_AddConnectionOperationalSnapshotBlock_Up()
+        {
+            
+            // Add/Update Obsidian Block Entity Type
+            //   EntityType:Rock.Blocks.Engagement.ConnectionOperationalSnapshot
+            RockMigrationHelper.UpdateEntityType("Rock.Blocks.Engagement.ConnectionOperationalSnapshot", "Connection Operational Snapshot", "Rock.Blocks.Engagement.ConnectionOperationalSnapshot, Rock.Blocks, Version=19.0.5.0, Culture=neutral, PublicKeyToken=null", false, false, "92236EAD-C18C-4484-9685-6792B51FB7F7");
+
+            // Add/Update Obsidian Block Type
+            //   Name:Connection Operational Snapshot
+            //   Category:Engagement
+            //   EntityType:Rock.Blocks.Engagement.ConnectionOperationalSnapshot
+            RockMigrationHelper.AddOrUpdateEntityBlockType("Connection Operational Snapshot", "Displays analytics and operational metrics for Connection Requests and Connectors.", "Rock.Blocks.Engagement.ConnectionOperationalSnapshot", "Engagement", "B5FAF2A4-8195-4972-AA09-F65615939EA8");
+
+            // Add Block 
+            //  Block Name: Connection Operational Snapshot
+            //  Page Name: Operational Snapshot
+            //  Layout: -
+            //  Site: Rock RMS
+            RockMigrationHelper.AddBlock( true, SystemGuid.Page.CONNECTIONS_OPERATIONAL_SNAPSHOT.AsGuid(),null,"C2D29296-6A87-47A9-A753-EE4E9159C4C4".AsGuid(),"B5FAF2A4-8195-4972-AA09-F65615939EA8".AsGuid(), "Connection Operational Snapshot","Main",@"",@"",0,"BAD25336-28FF-4012-8078-C9C34C62FE7F"); 
+
+            // Attribute for BlockType
+            //   BlockType: Connection Operational Snapshot
+            //   Category: Engagement
+            //   Attribute: Connections Hub Page
+            RockMigrationHelper.AddOrUpdateBlockTypeAttribute( "B5FAF2A4-8195-4972-AA09-F65615939EA8", "BD53F9C9-EBA9-4D3F-82EA-DE5DD34A8108", "Connections Hub Page", "ConnectionsHubPage", "Connections Hub Page", @"The page to navigate to if a Connectors grid row is clicked.", 0, @"8B5F2875-0D36-4625-8EE4-B738AE8E12F5", "0EA453F6-5984-4760-A6D3-B5DF513B1EEC" );
+
+            // Add Block Attribute Value
+            //   Block: Connection Operational Snapshot
+            //   BlockType: Connection Operational Snapshot
+            //   Category: Engagement
+            //   Block Location: Page=Operational Snapshot, Site=Rock RMS
+            //   Attribute: Connections Hub Page
+            /*   Attribute Value: 8b5f2875-0d36-4625-8ee4-b738ae8e12f5,565dfc73-e223-4c52-9174-11bb65700b7b */
+            //   Skip If Already Exists: true
+            RockMigrationHelper.AddBlockAttributeValue( true ,"BAD25336-28FF-4012-8078-C9C34C62FE7F","0EA453F6-5984-4760-A6D3-B5DF513B1EEC",$@"{SystemGuid.Page.CONNECTIONS_LIST},565dfc73-e223-4c52-9174-11bb65700b7b");
+        }
+
+        private void JMH_AddConnectionOperationalSnapshotBlock_Down()
+        {
+            // Attribute for BlockType
+            //   BlockType: Connection Operational Snapshot
+            //   Category: Engagement
+            //   Attribute: Connections Hub Page
+            RockMigrationHelper.DeleteAttribute("0EA453F6-5984-4760-A6D3-B5DF513B1EEC");
+
+            // Remove Block
+            //  Name: Connection Operational Snapshot, from Page: Operational Snapshot, Site: Rock RMS
+            //  from Page: Operational Snapshot, Site: Rock RMS
+            RockMigrationHelper.DeleteBlock("BAD25336-28FF-4012-8078-C9C34C62FE7F");
+
+            // Delete BlockType 
+            //   Name: Connection Operational Snapshot
+            //   Category: Engagement
+            //   Path: -
+            //   EntityType: Connection Operational Snapshot
+            RockMigrationHelper.DeleteBlockType("B5FAF2A4-8195-4972-AA09-F65615939EA8");
         }
     }
 }
