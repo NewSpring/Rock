@@ -10753,6 +10753,10 @@ ul ul, ol ul, ul ol, ol ol {
   background-color: var(--color-interface-soft);
   color: var(--color-interface-stronger);
 }
+.panel.panel-flex > .panel-heading .panel-header-actions .dropdown:has(.btn-panel-action),
+.panel.panel-flex > .panel-header .panel-header-actions .dropdown:has(.btn-panel-action) {
+  margin-right: 0;
+}
 .panel.panel-flex > .panel-heading .panel-header-actions .btn-panel-action:last-child,
 .panel.panel-flex > .panel-heading .panel-header-actions .panel-secondary-actions:last-child .btn-panel-action,
 .panel.panel-flex > .panel-heading .panel-header-actions .quick-filter:last-child,
@@ -19868,6 +19872,10 @@ iframe.file-browser {
 .panel.panel-flex > .panel-header .panel-header-actions .btn-panel-action:hover {
   background-color: var(--color-interface-soft);
   color: var(--color-interface-stronger);
+}
+.panel.panel-flex > .panel-heading .panel-header-actions .dropdown:has(.btn-panel-action),
+.panel.panel-flex > .panel-header .panel-header-actions .dropdown:has(.btn-panel-action) {
+  margin-right: 0;
 }
 .panel.panel-flex > .panel-heading .panel-header-actions .btn-panel-action:last-child,
 .panel.panel-flex > .panel-heading .panel-header-actions .panel-secondary-actions:last-child .btn-panel-action,
