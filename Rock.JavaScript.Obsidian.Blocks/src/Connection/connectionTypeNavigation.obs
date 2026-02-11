@@ -1,0 +1,244 @@
+<!-- Copyright by the Spark Development Network; Licensed under the Rock Community License -->
+<template>
+    <NotificationBox v-if="config.errorMessage" :alertType="AlertType.Warning" v-html="config.errorMessage"></NotificationBox>
+
+    <template v-else>
+        <ContextSlicer title="Filters" class="connection-type-navigation-slicer" showCampus />
+
+        <Panel title="Connection Types">
+            <template v-if="config.showConfigureConnectionTypesButton" #headerActions>
+                <button type="button"
+                        class="btn btn-panel-action"
+                        @click="onConfigurationClick">
+                    <i class="ti ti-settings"></i>
+                </button>
+            </template>
+
+            <template #default>
+
+                <NotificationBox v-if="fetchConnectionTypeSummariesErrorMessage"
+                                 :alertType="AlertType.Warning"
+                                 v-html="fetchConnectionTypeSummariesErrorMessage"></NotificationBox>
+
+                <NotificationBox v-if="!connectionTypeSummaries.length" :alertType="AlertType.Info">
+                    There are no connection types that match the current filters.
+                </NotificationBox>
+
+                <DisplayCardContainer v-else>
+
+                    <DisplayCard v-for="summary of connectionTypeSummaries"
+                                 :key="summary.idKey!"
+                                 :iconCssClass="summary.iconCssClass"
+                                 iconLabelType="default"
+                                 :title="summary.name"
+                                 :description="summary.description"
+                                 :primaryActions="getPrimaryActions(summary)"
+                                 @click="onConnectionTypeClick(summary.idKey!)">
+
+                        <template #prepend>
+                            <HighlightLabel iconCssClass="ti ti-user-circle"
+                                            labelType="info"
+                                            tooltip="Assigned to You"
+                                            tooltipPlacement="top">
+                                {{ asFormattedString(summary.assignedToYouRequestCount) }}
+                            </HighlightLabel>
+                        </template>
+
+                        <template #rightMiddleSection>
+                            <div class="connection-type-navigation-request-counts">
+                                <HighlightLabel iconCssClass="ti ti-bolt"
+                                                labelType="success"
+                                                tooltip="Active Requests"
+                                                tooltipPlacement="top">
+                                    {{ asFormattedString(summary.activeRequestCount) }}
+                                </HighlightLabel>
+                                <HighlightLabel iconCssClass="ti ti-exclamation-circle"
+                                                labelType="danger"
+                                                tooltip="Overdue Requests"
+                                                tooltipPlacement="top">
+                                    {{ asFormattedString(summary.overdueRequestCount) }}
+                                </HighlightLabel>
+                                <HighlightLabel iconCssClass="ti ti-calendar-due"
+                                                labelType="warning"
+                                                tooltip="Due Soon Requests"
+                                                tooltipPlacement="top">
+                                    {{ asFormattedString(summary.dueSoonRequestCount) }}
+                                </HighlightLabel>
+                                <HighlightLabel iconCssClass="ti ti-user-off"
+                                                labelType="default"
+                                                tooltip="Unassigned Requests"
+                                                tooltipPlacement="top">
+                                    {{ asFormattedString(summary.unassignedRequestCount) }}
+                                </HighlightLabel>
+                            </div>
+                        </template>
+
+                    </DisplayCard>
+
+                </DisplayCardContainer>
+            </template>
+        </Panel>
+    </template>
+</template>
+
+<style scoped>
+.connection-type-navigation-slicer {
+    margin-bottom: var(--spacing-large);
+}
+
+.connection-type-navigation-request-counts {
+    display: flex;
+    gap: var(--spacing-small);
+}
+</style>
+
+<script setup lang="ts">
+    import { ref } from "vue";
+    import { NavigationUrlKey } from "./ConnectionTypeNavigation/types.partial";
+    import ContextSlicer from "@Obsidian/Controls/contextSlicer.obs";
+    import DisplayCardContainer from "@Obsidian/Controls/displayCardContainer.obs";
+    import DisplayCard from "@Obsidian/Controls/displayCard.obs";
+    import HighlightLabel from "@Obsidian/Controls/highlightLabel.obs";
+    import NotificationBox from "@Obsidian/Controls/notificationBox.obs";
+    import Panel from "@Obsidian/Controls/panel.obs";
+    import { AlertType } from "@Obsidian/Enums/Controls/alertType";
+    import { EntityType } from "@Obsidian/SystemGuids/entityType";
+    import { MenuAction } from "@Obsidian/Types/Controls/dropDownMenu";
+    import { ContextEntityChangedData, Message } from "@Obsidian/Types/Utility/browserBus";
+    import { onConfigurationValuesChanged, useBlockBrowserBus, useConfigurationValues, useInvokeBlockAction, useReloadBlock } from "@Obsidian/Utility/block";
+    import { PageMessages } from "@Obsidian/Utility/browserBus";
+    import { areEqual } from "@Obsidian/Utility/guid";
+    import { asFormattedString } from "@Obsidian/Utility/numberUtils";
+    import { ConnectionTypeSummaryBag } from "@Obsidian/ViewModels/Blocks/Connection/ConnectionTypeNavigation/connectionTypeSummaryBag";
+    import { ConnectionTypeNavigationInitializationBox } from "@Obsidian/ViewModels/Blocks/Connection/ConnectionTypeNavigation/connectionTypeNavigationInitializationBox";
+
+    const config = useConfigurationValues<ConnectionTypeNavigationInitializationBox>();
+    const browserBus = useBlockBrowserBus();
+    const invokeBlockAction = useInvokeBlockAction();
+
+    onConfigurationValuesChanged(useReloadBlock());
+
+    browserBus.subscribe(PageMessages.ContextEntityChanged, async (message: Message<ContextEntityChangedData>) => {
+        if (areEqual(message.data.entityTypeGuid, EntityType.Campus)) {
+            await fetchConnectionTypes();
+        }
+    });
+
+    // #region Values
+
+    const connectionTypeSummaries = ref<ConnectionTypeSummaryBag[]>(config.connectionTypeSummaries || []);
+    const isFetchingConnectionTypeSummaries = ref(false);
+    const fetchConnectionTypeSummariesErrorMessage = ref("");
+
+    const configurationPageUrl = ref(config.navigationUrls?.[NavigationUrlKey.ConfigurationPage]);
+    const opportunitiesPageUrl = ref(config.navigationUrls?.[NavigationUrlKey.OpportunitiesPage]);
+    const connectionsListPageUrl = ref(config.navigationUrls?.[NavigationUrlKey.ConnectionsListPage]);
+    const connectionBoardPageUrl = ref(config.navigationUrls?.[NavigationUrlKey.ConnectionBoardPage]);
+    const operationalSnapshotPageUrl = ref(config.navigationUrls?.[NavigationUrlKey.OperationalSnapshotPage]);
+
+    // #endregion Values
+
+    // #region Functions
+
+    /**
+     * Gets the primary actions for a given connection type summary.
+     *
+     * @param summary The connection type summary for which to get
+     * the primary actions.
+     * @returns An array of primary menu actions.
+     */
+    function getPrimaryActions(summary: ConnectionTypeSummaryBag): MenuAction[] {
+        const actions: MenuAction[] = [];
+
+        if (connectionsListPageUrl.value && summary.isListViewEnabled) {
+            actions.push({
+                iconCssClass: "ti ti-layout-list",
+                title: "Connections List",
+                type: "default",
+                handler: () => {
+                    window.location.href = connectionsListPageUrl.value!.replace("((Key))", summary.idKey!);
+                }
+            });
+        }
+        else if (connectionBoardPageUrl.value) {
+            if (summary.isGridViewEnabled) {
+                actions.push({
+                    iconCssClass: "ti ti-table",
+                    title: "Connection Board (Grid View)",
+                    type: "default",
+                    handler: () => {
+                        window.location.href = connectionBoardPageUrl.value!.replace("((Key))", summary.idKey!);
+                    }
+                });
+            }
+            else if (summary.isBoardViewEnabled) {
+                actions.push({
+                    iconCssClass: "ti ti-layout-cards",
+                    title: "Connection Board",
+                    type: "default",
+                    handler: () => {
+                        window.location.href = connectionBoardPageUrl.value!.replace("((Key))", summary.idKey!);
+                    }
+                });
+            }
+        }
+
+        if (operationalSnapshotPageUrl.value && summary.isSnapshotViewEnabled) {
+            actions.push({
+                iconCssClass: "ti ti-chart-bar",
+                title: "Operational Snapshot",
+                type: "default",
+                handler: () => {
+                    window.location.href = operationalSnapshotPageUrl.value!.replace("((Key))", summary.idKey!);
+                }
+            });
+        }
+
+        return actions;
+    }
+
+    /**
+     * Fetches the connection types from the server.
+     */
+    async function fetchConnectionTypes(): Promise<void> {
+        if (isFetchingConnectionTypeSummaries.value) {
+            return;
+        }
+
+        isFetchingConnectionTypeSummaries.value = true;
+        fetchConnectionTypeSummariesErrorMessage.value = "";
+
+        const result = await invokeBlockAction<ConnectionTypeSummaryBag[]>("GetConnectionTypeSummaries");
+        isFetchingConnectionTypeSummaries.value = false;
+
+        if (!result.isSuccess || !result.data) {
+            fetchConnectionTypeSummariesErrorMessage.value = result.errorMessage || "Unknown error while trying to load connection types.";
+            return;
+        }
+
+        connectionTypeSummaries.value = result.data;
+    }
+
+    // #endregion Functions
+
+    // #region Event Handlers
+
+    /** Navigates to the configuration page. */
+    function onConfigurationClick(): void {
+        if (configurationPageUrl.value) {
+            window.location.href = configurationPageUrl.value;
+        }
+    }
+
+    /**
+     * Navigates to the connection opportunities page for the selected
+     * connection type.
+     */
+    function onConnectionTypeClick(idKey: string): void {
+        if (opportunitiesPageUrl.value) {
+            window.location.href = opportunitiesPageUrl.value.replace("((Key))", idKey);
+        }
+    }
+
+    // #endregion Event Handlers
+</script>

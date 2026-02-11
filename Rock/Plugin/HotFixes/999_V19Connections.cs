@@ -1,0 +1,427 @@
+﻿// <copyright>
+// Copyright by the Spark Development Network
+//
+// Licensed under the Rock Community License (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.rockrms.com/license
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+// </copyright>
+
+namespace Rock.Plugin.HotFixes
+{
+    /// <summary>
+    /// Plug-in migration
+    /// </summary>
+    /// <seealso cref="Rock.Plugin.Migration" />
+    [MigrationNumber( 999, "19.0" )]
+    public class V19Connections : Migration
+    {
+        /// <summary>
+        /// Operations to be performed during the upgrade process.
+        /// </summary>
+        public override void Up()
+        {
+            JPH_AddConnectionsPages_Up();
+            JPH_AddConnectionNavigationViewBlocks_Up();
+        }
+
+        /// <summary>
+        /// Operations to be performed during the downgrade process.
+        /// </summary>S
+        public override void Down()
+        {
+            JPH_AddConnectionNavigationViewBlocks_Down();
+            JPH_AddConnectionsPages_Down();
+        }
+
+        /// <summary>
+        /// JPH: Add the connections pages - up.
+        /// </summary>
+        private void JPH_AddConnectionsPages_Up()
+        {
+            // Add Page 
+            //  Internal Name: Connections List
+            //  Site: Rock RMS
+            RockMigrationHelper.AddPage( true, Rock.SystemGuid.Page.CONNECTION_OPPORTUNITY_SELECT, "D65F783D-87A9-4CC9-8110-E83466A0EADB", "Connections List", "", Rock.SystemGuid.Page.CONNECTIONS_LIST, "" );
+
+            // Add Page Route
+            //   Page:Connections List
+            //   Route:people/connections/list
+            RockMigrationHelper.AddOrUpdatePageRoute( Rock.SystemGuid.Page.CONNECTIONS_LIST, "people/connections/list", "565DFC73-E223-4C52-9174-11BB65700B7B" );
+
+            // ----------------------------------
+
+            // Add Page 
+            //  Internal Name: Operational Snapshot
+            //  Site: Rock RMS
+            RockMigrationHelper.AddPage( true, Rock.SystemGuid.Page.CONNECTION_TYPES, "D65F783D-87A9-4CC9-8110-E83466A0EADB", "Operational Snapshot", "", Rock.SystemGuid.Page.CONNECTIONS_OPERATIONAL_SNAPSHOT, "" );
+
+            // Add Page Route
+            //   Page:Operational Snapshot
+            //   Route:people/connections/types/snapshot
+            RockMigrationHelper.AddOrUpdatePageRoute( Rock.SystemGuid.Page.CONNECTIONS_OPERATIONAL_SNAPSHOT, "people/connections/types/snapshot", "75077C7C-79AD-4041-A460-B4BFF9AFC8CF" );
+
+            // ----------------------------------
+
+            // Add Page 
+            //  Internal Name: Connections Opportunities
+            //  Site: Rock RMS
+            RockMigrationHelper.AddPage( true, Rock.SystemGuid.Page.CONNECTION_OPPORTUNITY_SELECT, "D65F783D-87A9-4CC9-8110-E83466A0EADB", "Connections Opportunities", "", Rock.SystemGuid.Page.CONNECTIONS_OPPORTUNITIES, "" );
+
+            // Add Page Route
+            //   Page:Connections Opportunities
+            //   Route:people/connections/opportunities
+            RockMigrationHelper.AddOrUpdatePageRoute( Rock.SystemGuid.Page.CONNECTIONS_OPPORTUNITIES, "people/connections/opportunities", "92F02BD8-F7B2-47C6-99BE-F9E009D081E2" );
+        }
+
+        /// <summary>
+        /// JPH: Add the connections navigation view blocks - up.
+        /// </summary>
+        private void JPH_AddConnectionNavigationViewBlocks_Up()
+        {
+            /*
+                1/27/2026 - JPH
+
+                The ConnectionOpportunitySelect block is being chopped in favor of the new Obsidian
+                ConnectionTypeNavigation block.
+
+                The following block settings will remain:
+                -----
+                ConfigurationPage
+                ConnectionTypes
+
+                The following block settings are no longer needed and will be removed in this migration:
+                -----
+                OpportunityDetailPage
+                StatusTemplate
+                OpportunitySummaryTemplate
+
+                The following block settings are new and will be added in this migration:
+                -----
+                OpportunitiesPage
+                ConnectionsListPage
+                ConnectionBoardPage
+                OperationalSnapshotPage
+
+                Reason: Explain block chop details.
+            */
+
+            // -----
+            // Update the Legacy attributes that will remain:
+
+            // [Updated] Attribute for BlockType: Connection Type Navigation:Configuration Page
+            RockMigrationHelper.AddOrUpdateBlockTypeAttribute( "23438CBC-105B-4ADB-8B9A-D5DDDCDD7643", "BD53F9C9-EBA9-4D3F-82EA-DE5DD34A8108", "Configuration Page", "ConfigurationPage", "Configuration Page", @"Select the page that the configuration button should open to create and modify connection types.", 1, "", "C170AC54-47B3-4B25-A149-742627D254CE" );
+
+            // [Updated] Attribute for BlockType: Connection Type Navigation:Connection Types
+            RockMigrationHelper.AddOrUpdateBlockTypeAttribute( "23438CBC-105B-4ADB-8B9A-D5DDDCDD7643", "E4E72958-4604-498F-956B-BA095976A60B", "Connection Types", "ConnectionTypes", "Connection Types", @"Optional list of connection types to limit the display to (All will be displayed by default).", 5, "", "9D1A73B7-79A9-43FB-A465-DE9A0BD61A09" );
+
+            // -----
+            // Remove the Legacy attributes that are no longer needed:
+
+            // Opportunity Detail Page Attribute for BlockType: Connection Opportunity Select
+            RockMigrationHelper.DeleteAttribute( "4CB57D26-4848-4F24-BB5B-2D3C44ED9434" );
+
+            // Status Template Attribute for BlockType: Connection Opportunity Select
+            RockMigrationHelper.DeleteAttribute( "DD58A091-CBB2-4A09-BC1A-19A5DA7FD6C1" );
+
+            // Opportunity Summary Template Attribute for BlockType: Connection Opportunity Select
+            RockMigrationHelper.DeleteAttribute( "D042660B-00C2-440D-A700-B8B41398BD48" );
+
+            // -----
+            // Add the new entity type and attributes needed for the Obsidian version of the block.
+
+            // Add/Update Obsidian Block Entity Type
+            //   EntityType:Rock.Blocks.Connection.ConnectionTypeNavigation
+            RockMigrationHelper.UpdateEntityType( "Rock.Blocks.Connection.ConnectionTypeNavigation", "Connection Type Navigation", "Rock.Blocks.Connection.ConnectionTypeNavigation, Rock.Blocks, Version=19.0.4.0, Culture=neutral, PublicKeyToken=null", false, false, "E8C57557-31B7-4846-8F63-36BDDBB88719" );
+
+            // Attribute for BlockType
+            //   BlockType: Connection Type Navigation
+            //   Category: Connection
+            //   Attribute: Opportunities Page
+            RockMigrationHelper.AddOrUpdateBlockTypeAttribute( "23438CBC-105B-4ADB-8B9A-D5DDDCDD7643", "BD53F9C9-EBA9-4D3F-82EA-DE5DD34A8108", "Opportunities Page", "OpportunitiesPage", "Opportunities Page", @"Select the page that should open to view opportunities when a connection type is selected.", 1, Rock.SystemGuid.Page.CONNECTIONS_OPPORTUNITIES, "39E56CE0-0154-4A80-902C-0EFAAD5A4483" );
+
+            // Attribute for BlockType
+            //   BlockType: Connection Type Navigation
+            //   Category: Connection
+            //   Attribute: Connections List Page
+            RockMigrationHelper.AddOrUpdateBlockTypeAttribute( "23438CBC-105B-4ADB-8B9A-D5DDDCDD7643", "BD53F9C9-EBA9-4D3F-82EA-DE5DD34A8108", "Connections List Page", "ConnectionsListPage", "Connections List Page", @"Select the page that the list button should open to view the connections list.", 2, Rock.SystemGuid.Page.CONNECTIONS_LIST, "A783108E-D015-49B1-AA86-B7F18F438BCA" );
+
+            // Attribute for BlockType
+            //   BlockType: Connection Type Navigation
+            //   Category: Connection
+            //   Attribute: Connection Board Page
+            RockMigrationHelper.AddOrUpdateBlockTypeAttribute( "23438CBC-105B-4ADB-8B9A-D5DDDCDD7643", "BD53F9C9-EBA9-4D3F-82EA-DE5DD34A8108", "Connection Board Page", "ConnectionBoardPage", "Connection Board Page", @"Select the page that the board and grid buttons should open to view the connection board in board or grid view.", 3, Rock.SystemGuid.Page.CONNECTIONS_BOARD, "30415B17-54DD-4632-A8DD-96BB218E938C" );
+
+            // Attribute for BlockType
+            //   BlockType: Connection Type Navigation
+            //   Category: Connection
+            //   Attribute: Operational Snapshot Page
+            RockMigrationHelper.AddOrUpdateBlockTypeAttribute( "23438CBC-105B-4ADB-8B9A-D5DDDCDD7643", "BD53F9C9-EBA9-4D3F-82EA-DE5DD34A8108", "Operational Snapshot Page", "OperationalSnapshotPage", "Operational Snapshot Page", @"Select the page that the snapshot button should open to view the operational snapshot.", 4, Rock.SystemGuid.Page.CONNECTIONS_OPERATIONAL_SNAPSHOT, "573840DA-75F8-4664-A08F-6F3F0813F749" );
+
+            // -----
+            // Add the attribute values for page settings so we can include the preferred route.
+
+            // Add Block Attribute Value
+            //   Block: Connection Type Navigation
+            //   BlockType: Connection Type Navigation
+            //   Category: Connection
+            //   Block Location: Page=Connections, Site=Rock RMS
+            //   Attribute: Configuration Page
+            /*   Attribute Value: 9cc19684-7ad2-4d4e-a7c4-10dae56e7fa6,197d9507-795b-3f50-92f0-e6e0d41661a2 */
+            //   Skip If Already Exists: true
+            RockMigrationHelper.AddBlockAttributeValue( false, "340FBA54-FC54-4EA1-8DD2-301536405034", "C170AC54-47B3-4B25-A149-742627D254CE", $"{Rock.SystemGuid.Page.CONNECTION_TYPES},197d9507-795b-3f50-92f0-e6e0d41661a2" );
+
+            // Add Block Attribute Value
+            //   Block: Connection Type Navigation
+            //   BlockType: Connection Type Navigation
+            //   Category: Connection
+            //   Block Location: Page=Connections, Site=Rock RMS
+            //   Attribute: Opportunities Page
+            /*   Attribute Value: f8b0e0ce-76a3-4449-b4eb-28dd9a42d71f,92f02bd8-f7b2-47c6-99be-f9e009d081e2 */
+            //   Skip If Already Exists: true
+            RockMigrationHelper.AddBlockAttributeValue( false, "340FBA54-FC54-4EA1-8DD2-301536405034", "39E56CE0-0154-4A80-902C-0EFAAD5A4483", $"{Rock.SystemGuid.Page.CONNECTIONS_OPPORTUNITIES},92f02bd8-f7b2-47c6-99be-f9e009d081e2" );
+
+            // Add Block Attribute Value
+            //   Block: Connection Type Navigation
+            //   BlockType: Connection Type Navigation
+            //   Category: Connection
+            //   Block Location: Page=Connections, Site=Rock RMS
+            //   Attribute: Connections List Page
+            /*   Attribute Value: 8b5f2875-0d36-4625-8ee4-b738ae8e12f5,565dfc73-e223-4c52-9174-11bb65700b7b */
+            //   Skip If Already Exists: true
+            RockMigrationHelper.AddBlockAttributeValue( false, "340FBA54-FC54-4EA1-8DD2-301536405034", "A783108E-D015-49B1-AA86-B7F18F438BCA", $"{Rock.SystemGuid.Page.CONNECTIONS_LIST},565dfc73-e223-4c52-9174-11bb65700b7b" );
+
+            // Add Block Attribute Value
+            //   Block: Connection Type Navigation
+            //   BlockType: Connection Type Navigation
+            //   Category: Connection
+            //   Block Location: Page=Connections, Site=Rock RMS
+            //   Attribute: Connection Board Page
+            /*   Attribute Value: 4fbceb52-8892-4035-bdea-112a494be81f,18b7ff61-442c-00db-8b20-191dfba92b2c */
+            //   Skip If Already Exists: true
+            RockMigrationHelper.AddBlockAttributeValue( false, "340FBA54-FC54-4EA1-8DD2-301536405034", "30415B17-54DD-4632-A8DD-96BB218E938C", $"{Rock.SystemGuid.Page.CONNECTIONS_BOARD},18b7ff61-442c-00db-8b20-191dfba92b2c" );
+
+            // Add Block Attribute Value
+            //   Block: Connection Type Navigation
+            //   BlockType: Connection Type Navigation
+            //   Category: Connection
+            //   Block Location: Page=Connections, Site=Rock RMS
+            //   Attribute: Operational Snapshot Page
+            /*   Attribute Value: 3421fd03-018f-457d-a0b6-9326c5d5a5f4,75077c7c-79ad-4041-a460-b4bff9afc8cf */
+            //   Skip If Already Exists: true
+            RockMigrationHelper.AddBlockAttributeValue( false, "340FBA54-FC54-4EA1-8DD2-301536405034", "573840DA-75F8-4664-A08F-6F3F0813F749", $"{Rock.SystemGuid.Page.CONNECTIONS_OPERATIONAL_SNAPSHOT},75077c7c-79ad-4041-a460-b4bff9afc8cf" );
+
+            // ----------------------------------
+
+            // Add/Update Obsidian Block Entity Type
+            //   EntityType:Rock.Blocks.Connection.ConnectionOpportunityNavigation
+            RockMigrationHelper.UpdateEntityType( "Rock.Blocks.Connection.ConnectionOpportunityNavigation", "Connection Opportunity Navigation", "Rock.Blocks.Connection.ConnectionOpportunityNavigation, Rock.Blocks, Version=19.0.4.0, Culture=neutral, PublicKeyToken=null", false, false, "6A3E1450-486E-45CF-8979-E280DACAEFEA" );
+
+            // Add/Update Obsidian Block Type
+            //   Name:Connection Opportunity Navigation
+            //   Category:Connection
+            //   EntityType:Rock.Blocks.Connection.ConnectionOpportunityNavigation
+            RockMigrationHelper.AddOrUpdateEntityBlockType( "Connection Opportunity Navigation", "Displays metrics of a connection type's combined opportunities and provides easy navigation into each opportunity's connection requests.", "Rock.Blocks.Connection.ConnectionOpportunityNavigation", "Connection", "91080C44-AFBF-4A02-AD0D-BD7E01F9D1DE" );
+
+            // Attribute for BlockType
+            //   BlockType: Connection Opportunity Navigation
+            //   Category: Connection
+            //   Attribute: Connections List Page
+            RockMigrationHelper.AddOrUpdateBlockTypeAttribute( "91080C44-AFBF-4A02-AD0D-BD7E01F9D1DE", "BD53F9C9-EBA9-4D3F-82EA-DE5DD34A8108", "Connections List Page", "ConnectionsListPage", "Connections List Page", @"Select the page that the ""View Requests"" and list buttons should open to view the connections list.", 0, Rock.SystemGuid.Page.CONNECTIONS_LIST, "D43E5BE5-3375-44E9-9FCC-93D5B7A5C7CC" );
+
+            // Attribute for BlockType
+            //   BlockType: Connection Opportunity Navigation
+            //   Category: Connection
+            //   Attribute: Connection Board Page
+            RockMigrationHelper.AddOrUpdateBlockTypeAttribute( "91080C44-AFBF-4A02-AD0D-BD7E01F9D1DE", "BD53F9C9-EBA9-4D3F-82EA-DE5DD34A8108", "Connection Board Page", "ConnectionBoardPage", "Connection Board Page", @"Select the page that the board and grid buttons should open to view the connection board in board or grid view.", 1, Rock.SystemGuid.Page.CONNECTIONS_BOARD, "294BC369-5706-4179-AA62-9DFB68070667" );
+
+            // Attribute for BlockType
+            //   BlockType: Connection Opportunity Navigation
+            //   Category: Connection
+            //   Attribute: Operational Snapshot Page
+            RockMigrationHelper.AddOrUpdateBlockTypeAttribute( "91080C44-AFBF-4A02-AD0D-BD7E01F9D1DE", "BD53F9C9-EBA9-4D3F-82EA-DE5DD34A8108", "Operational Snapshot Page", "OperationalSnapshotPage", "Operational Snapshot Page", @"Select the page that the snapshot button should open to view the operational snapshot.", 2, Rock.SystemGuid.Page.CONNECTIONS_OPERATIONAL_SNAPSHOT, "63EBC197-9519-4A39-9ABB-DBB1DC9A67B8" );
+
+            // ----------------------------------
+
+            // Add Block 
+            //  Block Name: Connection Opportunity Navigation
+            //  Page Name: Connections Opportunities
+            //  Layout: -
+            //  Site: Rock RMS
+            RockMigrationHelper.AddBlock( true, Rock.SystemGuid.Page.CONNECTIONS_OPPORTUNITIES.AsGuid(), null, "C2D29296-6A87-47A9-A753-EE4E9159C4C4".AsGuid(), "91080C44-AFBF-4A02-AD0D-BD7E01F9D1DE".AsGuid(), "Connection Opportunity Navigation", "Main", @"", @"", 0, "D5130BD5-92A1-4904-ACEB-5CC6D9E8CDA5" );
+
+            // -----
+            // Add the attribute values for page settings so we can include the preferred route.
+
+            // Add Block Attribute Value
+            //   Block: Connection Opportunity Navigation
+            //   BlockType: Connection Opportunity Navigation
+            //   Category: Connection
+            //   Block Location: Page=Connections Opportunities, Site=Rock RMS
+            //   Attribute: Connections List Page
+            /*   Attribute Value: 8b5f2875-0d36-4625-8ee4-b738ae8e12f5,565dfc73-e223-4c52-9174-11bb65700b7b */
+            //   Skip If Already Exists: true
+            RockMigrationHelper.AddBlockAttributeValue( false, "D5130BD5-92A1-4904-ACEB-5CC6D9E8CDA5", "D43E5BE5-3375-44E9-9FCC-93D5B7A5C7CC", $"{Rock.SystemGuid.Page.CONNECTIONS_LIST},565dfc73-e223-4c52-9174-11bb65700b7b" );
+
+            // Add Block Attribute Value
+            //   Block: Connection Opportunity Navigation
+            //   BlockType: Connection Opportunity Navigation
+            //   Category: Connection
+            //   Block Location: Page=Connections Opportunities, Site=Rock RMS
+            //   Attribute: Connection Board Page
+            /*   Attribute Value: 4fbceb52-8892-4035-bdea-112a494be81f,18b7ff61-442c-00db-8b20-191dfba92b2c */
+            //   Skip If Already Exists: true
+            RockMigrationHelper.AddBlockAttributeValue( false, "D5130BD5-92A1-4904-ACEB-5CC6D9E8CDA5", "294BC369-5706-4179-AA62-9DFB68070667", $"{Rock.SystemGuid.Page.CONNECTIONS_BOARD},18b7ff61-442c-00db-8b20-191dfba92b2c" );
+
+            // Add Block Attribute Value
+            //   Block: Connection Opportunity Navigation
+            //   BlockType: Connection Opportunity Navigation
+            //   Category: Connection
+            //   Block Location: Page=Connections Opportunities, Site=Rock RMS
+            //   Attribute: Operational Snapshot Page
+            /*   Attribute Value: 3421fd03-018f-457d-a0b6-9326c5d5a5f4,75077c7c-79ad-4041-a460-b4bff9afc8cf */
+            //   Skip If Already Exists: true
+            RockMigrationHelper.AddBlockAttributeValue( false, "D5130BD5-92A1-4904-ACEB-5CC6D9E8CDA5", "63EBC197-9519-4A39-9ABB-DBB1DC9A67B8", $"{Rock.SystemGuid.Page.CONNECTIONS_OPERATIONAL_SNAPSHOT},75077c7c-79ad-4041-a460-b4bff9afc8cf" );
+        }
+
+        /// <summary>
+        /// JPH: Add the connections navigation view blocks - down.
+        /// </summary>
+        private void JPH_AddConnectionNavigationViewBlocks_Down()
+        {
+            // Remove Block
+            //  Name: Connection Opportunity Navigation, from Page: Connections Opportunities, Site: Rock RMS
+            //  from Page: Connections Opportunities, Site: Rock RMS
+            RockMigrationHelper.DeleteBlock( "D5130BD5-92A1-4904-ACEB-5CC6D9E8CDA5" );
+
+            // ----------------------------------
+
+            // Attribute for BlockType
+            //   BlockType: Connection Opportunity Navigation
+            //   Category: Connection
+            //   Attribute: Operational Snapshot Page
+            RockMigrationHelper.DeleteAttribute( "63EBC197-9519-4A39-9ABB-DBB1DC9A67B8" );
+
+            // Attribute for BlockType
+            //   BlockType: Connection Opportunity Navigation
+            //   Category: Connection
+            //   Attribute: Connection Board Page
+            RockMigrationHelper.DeleteAttribute( "294BC369-5706-4179-AA62-9DFB68070667" );
+
+            // Attribute for BlockType
+            //   BlockType: Connection Opportunity Navigation
+            //   Category: Connection
+            //   Attribute: Connections List Page
+            RockMigrationHelper.DeleteAttribute( "D43E5BE5-3375-44E9-9FCC-93D5B7A5C7CC" );
+
+            // Delete BlockType 
+            //   Name: Connection Opportunity Navigation
+            //   Category: Connection
+            //   Path: -
+            //   EntityType: Connection Opportunity Navigation
+            RockMigrationHelper.DeleteBlockType( "91080C44-AFBF-4A02-AD0D-BD7E01F9D1DE" );
+
+            // Delete Obsidian Block Entity Type
+            //   EntityType:Rock.Blocks.Connection.ConnectionOpportunityNavigation
+            RockMigrationHelper.DeleteEntityType( "6A3E1450-486E-45CF-8979-E280DACAEFEA" );
+
+            // ----------------------------------
+
+            // Attribute for BlockType
+            //   BlockType: Connection Type Navigation
+            //   Category: Connection
+            //   Attribute: Operational Snapshot Page
+            RockMigrationHelper.DeleteAttribute( "573840DA-75F8-4664-A08F-6F3F0813F749" );
+
+            // Attribute for BlockType
+            //   BlockType: Connection Type Navigation
+            //   Category: Connection
+            //   Attribute: Connection Board Page
+            RockMigrationHelper.DeleteAttribute( "30415B17-54DD-4632-A8DD-96BB218E938C" );
+
+            // Attribute for BlockType
+            //   BlockType: Connection Type Navigation
+            //   Category: Connection
+            //   Attribute: Connections List Page
+            RockMigrationHelper.DeleteAttribute( "A783108E-D015-49B1-AA86-B7F18F438BCA" );
+
+            // Attribute for BlockType
+            //   BlockType: Connection Type Navigation
+            //   Category: Connection
+            //   Attribute: Opportunities Page
+            RockMigrationHelper.DeleteAttribute( "39E56CE0-0154-4A80-902C-0EFAAD5A4483" );
+
+            // Delete Obsidian Block Entity Type
+            //   EntityType:Rock.Blocks.Connection.ConnectionTypeNavigation
+            RockMigrationHelper.DeleteEntityType( "E8C57557-31B7-4846-8F63-36BDDBB88719" );
+
+            // -----
+            // Re-add the Legacy attributes that were removed in the up migration:
+
+            // Attribute for BlockType: Connection Opportunity Select:Configuration Page
+            RockMigrationHelper.AddOrUpdateBlockTypeAttribute( "23438CBC-105B-4ADB-8B9A-D5DDDCDD7643", "BD53F9C9-EBA9-4D3F-82EA-DE5DD34A8108", "Configuration Page", "ConfigurationPage", "Configuration Page", @"Page used to modify and create connection opportunities.", 1, @"9CC19684-7AD2-4D4E-A7C4-10DAE56E7FA6", "C170AC54-47B3-4B25-A149-742627D254CE" );
+
+            // Attribute for BlockType: Connection Opportunity Select:Opportunity Detail Page
+            RockMigrationHelper.AddOrUpdateBlockTypeAttribute( "23438CBC-105B-4ADB-8B9A-D5DDDCDD7643", "BD53F9C9-EBA9-4D3F-82EA-DE5DD34A8108", "Opportunity Detail Page", "OpportunityDetailPage", "Opportunity Detail Page", @"Page to go to when an opportunity is selected.", 2, @"4FBCEB52-8892-4035-BDEA-112A494BE81F", "4CB57D26-4848-4F24-BB5B-2D3C44ED9434" );
+
+            // Attribute for BlockType: Connection Opportunity Select:Connection Types
+            RockMigrationHelper.AddOrUpdateBlockTypeAttribute( "23438CBC-105B-4ADB-8B9A-D5DDDCDD7643", "E4E72958-4604-498F-956B-BA095976A60B", "Connection Types", "ConnectionTypes", "Connection Types", @"Optional list of connection types to limit the display to (All will be displayed by default).", 3, @"", "9D1A73B7-79A9-43FB-A465-DE9A0BD61A09" );
+
+            // Attribute for BlockType: Connection Opportunity Select:Status Template
+            RockMigrationHelper.AddOrUpdateBlockTypeAttribute( "23438CBC-105B-4ADB-8B9A-D5DDDCDD7643", "1D0D3794-C210-48A8-8C68-3FBEC08A6BA5", "Status Template", "StatusTemplate", "Status Template", @"Lava Template that can be used to customize what is displayed in the status bar. Includes common merge fields plus ConnectionOpportunities, ConnectionTypes and the default IdleTooltip.", 4, @"
+<div class='badge-legend expand-on-hover padding-r-md'>
+    <span class='badge badge-info badge-circle js-legend-badge'>Assigned To You</span>
+    <span class='badge badge-warning badge-circle js-legend-badge'>Unassigned Item</span>
+    <span class='badge badge-critical badge-circle js-legend-badge'>Critical Status</span>
+    <span class='badge badge-danger badge-circle js-legend-badge'>{{ IdleTooltip }}</span>
+</div>", "DD58A091-CBB2-4A09-BC1A-19A5DA7FD6C1" );
+
+            // Attribute for BlockType: Connection Opportunity Select:Opportunity Summary Template
+            RockMigrationHelper.AddOrUpdateBlockTypeAttribute( "23438CBC-105B-4ADB-8B9A-D5DDDCDD7643", "1D0D3794-C210-48A8-8C68-3FBEC08A6BA5", "Opportunity Summary Template", "OpportunitySummaryTemplate", "Opportunity Summary Template", @"Lava Template that can be used to customize what is displayed in each Opportunity Summary. Includes common merge fields plus the OpportunitySummary and ConnectionOpportunity.", 5, @"
+<i class='{{ OpportunitySummary.IconCssClass }}'></i>
+<h3>{{ OpportunitySummary.Name }}</h3>
+<div class='status-list'>
+    <span class='badge badge-info'>{{ OpportunitySummary.AssignedToYou | Format:'#,###,###' }}</span>
+    <span class='badge badge-warning'>{{ OpportunitySummary.UnassignedCount | Format:'#,###,###' }}</span>
+    <span class='badge badge-critical'>{{ OpportunitySummary.CriticalCount | Format:'#,###,###' }}</span>
+    <span class='badge badge-danger'>{{ OpportunitySummary.IdleCount | Format:'#,###,###' }}</span>
+</div>
+", "D042660B-00C2-440D-A700-B8B41398BD48" );
+        }
+
+        /// <summary>
+        /// JPH: Add the connections pages - down.
+        /// </summary>S
+        private void JPH_AddConnectionsPages_Down()
+        {
+            // Delete Page 
+            //  Internal Name: Connections Opportunities
+            //  Site: Rock RMS
+            //  Layout: Full Width
+            RockMigrationHelper.DeletePage( Rock.SystemGuid.Page.CONNECTIONS_OPPORTUNITIES );
+
+            // ----------------------------------
+
+            // Delete Page 
+            //  Internal Name: Operational Snapshot
+            //  Site: Rock RMS
+            //  Layout: Full Width
+            RockMigrationHelper.DeletePage( Rock.SystemGuid.Page.CONNECTIONS_OPERATIONAL_SNAPSHOT );
+
+            // ----------------------------------
+
+            // Delete Page 
+            //  Internal Name: Connections List
+            //  Site: Rock RMS
+            //  Layout: Full Width
+            RockMigrationHelper.DeletePage( Rock.SystemGuid.Page.CONNECTIONS_LIST );
+        }
+    }
+}

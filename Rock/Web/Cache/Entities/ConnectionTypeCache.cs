@@ -188,7 +188,7 @@ namespace Rock.Web.Cache
         /// The due date calculation mode.
         /// </value>
         [DataMember]
-        public DueDateCalculationMode DueDateCalculationMode { get; set; }
+        public DueDateCalculationMode DueDateCalculationMode { get; private set; }
 
         /// <summary>
         /// Gets or sets the request due date offset in days.
@@ -197,7 +197,7 @@ namespace Rock.Web.Cache
         /// The request due date offset in days.
         /// </value>
         [DataMember]
-        public int? RequestDueDateOffestInDays { get; set; }
+        public int? RequestDueDateOffsetInDays { get; private set; }
 
         /// <summary>
         /// Gets or sets the request due soon date offset in days.
@@ -206,7 +206,13 @@ namespace Rock.Web.Cache
         /// The request due soon date offset in days.
         /// </value>
         [DataMember]
-        public int? RequestDueSoonOffsetInDays { get; set; }
+        public int? RequestDueSoonOffsetInDays { get; private set; }
+
+        /// <summary>
+        /// Flags that specify which request views are enabled for this connection type.
+        /// </summary>
+        [DataMember]
+        public EnabledViewFlags EnabledViews { get; private set; }
 
         #endregion
 
@@ -271,8 +277,9 @@ namespace Rock.Web.Cache
             RequestBadgeLava = sourceModel.RequestBadgeLava;
             Order = sourceModel.Order;
             DueDateCalculationMode = sourceModel.DueDateCalculationMode;
+            RequestDueDateOffsetInDays = sourceModel.RequestDueDateOffsetInDays;
             RequestDueSoonOffsetInDays = sourceModel.RequestDueSoonOffsetInDays;
-            RequestDueSoonOffsetInDays = sourceModel.RequestDueSoonOffsetInDays;
+            EnabledViews = sourceModel.EnabledViews;
         }
 
         /// <summary>
