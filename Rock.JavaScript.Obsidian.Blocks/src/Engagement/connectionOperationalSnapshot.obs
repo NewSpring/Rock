@@ -121,7 +121,8 @@
 
                 <div class="col-md-7">
                     <Panel title="Connectors" titleIconCssClass="ti ti-user-circle">
-                        <Grid :definition="config.gridDefinition ?? undefined"
+                        <Grid comfy
+                              :definition="config.gridDefinition ?? undefined"
                               :data="gridDataSource"
                               :entityTypeGuid="EntityType.PersonAlias"
                               itemTerm="Connector"

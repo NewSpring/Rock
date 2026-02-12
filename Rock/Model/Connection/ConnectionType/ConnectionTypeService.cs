@@ -315,7 +315,13 @@ namespace Rock.Model
                             IsDueSoon =
                                 cr.ConnectionState == ConnectionState.Active
                                 && cr.DueSoonDate.HasValue
-                                && DbFunctions.TruncateTime( cr.DueSoonDate.Value ) <= today,
+                                && DbFunctions.TruncateTime( cr.DueSoonDate.Value ) <= today
+
+                                // and not overdue
+                                && !(
+                                    cr.DueDate.HasValue
+                                    && DbFunctions.TruncateTime( cr.DueDate.Value ) < today
+                                ),
 
                             IsOverdue =
                                 cr.ConnectionState == ConnectionState.Active
@@ -327,12 +333,20 @@ namespace Rock.Model
                                 && !cr.ConnectorPersonAliasId.HasValue
                         } )
                         .GroupBy( _ => 1 )
-                        .Select( g => new ConnectionRequestHealthSnapshot
+                        .Select( g => new
                         {
                             ActiveCount = g.Sum( x => x.IsActive ? 1 : 0 ),
                             DueSoonCount = g.Sum( x => x.IsDueSoon ? 1 : 0 ),
                             OverdueCount = g.Sum( x => x.IsOverdue ? 1 : 0 ),
                             UnassignedCount = g.Sum( x => x.IsUnassigned ? 1 : 0 )
+                        } )
+                        .Select( s => new ConnectionRequestHealthSnapshot
+                        { 
+                            ActiveCount = s.ActiveCount,
+                            DueSoonCount = s.DueSoonCount,
+                            OverdueCount = s.OverdueCount,
+                            UnassignedCount = s.UnassignedCount,
+                            OnTrackCount = s.ActiveCount - s.DueSoonCount - s.OverdueCount                            
                         } )
                         .FirstOrDefault()
                 );
@@ -371,7 +385,13 @@ namespace Rock.Model
                             IsDueSoon =
                                 cr.ConnectionState == ConnectionState.Active
                                 && cr.DueSoonDate.HasValue
-                                && DbFunctions.TruncateTime( cr.DueSoonDate.Value ) <= today,
+                                && DbFunctions.TruncateTime( cr.DueSoonDate.Value ) <= today
+
+                                // and not overdue
+                                && !(
+                                    cr.DueDate.HasValue
+                                    && DbFunctions.TruncateTime( cr.DueDate.Value ) < today
+                                ),
 
                             IsOverdue =
                                 cr.ConnectionState == ConnectionState.Active
