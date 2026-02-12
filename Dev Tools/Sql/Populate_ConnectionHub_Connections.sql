@@ -31,7 +31,7 @@ BEGIN
 	UPDATE ConnectionType
 	SET
 		DueDateCalculationMode = 0,          -- FixedDaysFromStartTypeLevel
-		RequestDueDateOffestInDays = 21,      -- Due in 21 days
+		RequestDueDateOffsetInDays = 21,      -- Due in 21 days
 		RequestDueSoonOffsetInDays = 5,       -- Due soon at 5 days
 		EnabledFeatures = 5,                  -- Reminder | GroupPlacement
 		EnabledViews = 27,                    -- List | Board | Snapshot | Analytics
@@ -78,7 +78,7 @@ BEGIN
         EnableFullActivityList,
         IsActive,
         DueDateCalculationMode,
-        RequestDueDateOffestInDays,
+        RequestDueDateOffsetInDays,
         RequestDueSoonOffsetInDays,
         EnabledFeatures,
         EnabledViews,
@@ -188,7 +188,7 @@ DECLARE
 IF NOT EXISTS ( SELECT 1 FROM ConnectionStatus WHERE Name = 'No Contact' AND ConnectionTypeId = @CareTypeId )
 INSERT INTO ConnectionStatus (
     Name, ConnectionTypeId, IsCritical, IsDefault, IsActive,
-    RequestStatusDueDateOffestInDays, RequestStatusDueSoonOffsetInDays,
+    RequestStatusDueDateOffsetInDays, RequestStatusDueSoonOffsetInDays,
     [Order], Guid, CreatedDateTime, ModifiedDateTime, HighlightColor
 )
 VALUES (
@@ -200,7 +200,7 @@ VALUES (
 IF NOT EXISTS ( SELECT 1 FROM ConnectionStatus WHERE Name = 'In Progress' AND ConnectionTypeId = @CareTypeId )
 INSERT INTO ConnectionStatus (
     Name, ConnectionTypeId, IsCritical, IsDefault, IsActive,
-    RequestStatusDueDateOffestInDays, RequestStatusDueSoonOffsetInDays,
+    RequestStatusDueDateOffsetInDays, RequestStatusDueSoonOffsetInDays,
     [Order], Guid, CreatedDateTime, ModifiedDateTime, HighlightColor
 )
 VALUES (
@@ -401,7 +401,7 @@ INSERT INTO @SupportOps VALUES
 INSERT INTO ConnectionOpportunity (
     Name, PublicName, Summary, IconCssClass,
     ConnectionTypeId, IsActive,
-    RequestDueDateOffestInDays,
+    RequestDueDateOffsetInDays,
     RequestDueSoonOffsetInDays,
     [Order], ShowConnectButton,
     Guid, CreatedDateTime, ModifiedDateTime
@@ -1082,7 +1082,7 @@ Requests AS (
 Statuses AS (
     SELECT
         cs.Id AS ConnectionStatusId,
-		cs.RequestStatusDueDateOffestInDays,
+		cs.RequestStatusDueDateOffsetInDays,
 		cs.RequestStatusDueSoonOffsetInDays,
         cs.ConnectionTypeId,
         ROW_NUMBER() OVER (
@@ -1161,9 +1161,9 @@ CROSS APPLY (
     SELECT
         DueDateOffset =
             CASE ct.DueDateCalculationMode
-                WHEN 0 THEN ct.RequestDueDateOffestInDays
-                WHEN 1 THEN co.RequestDueDateOffestInDays
-                WHEN 2 THEN s.RequestStatusDueDateOffestInDays
+                WHEN 0 THEN ct.RequestDueDateOffsetInDays
+                WHEN 1 THEN co.RequestDueDateOffsetInDays
+                WHEN 2 THEN s.RequestStatusDueDateOffsetInDays
             END,
         DueSoonOffset =
             CASE ct.DueDateCalculationMode

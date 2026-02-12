@@ -19,6 +19,8 @@ using System;
 using System.Collections.Generic;
 using System.Data.Entity;
 using System.Linq;
+
+using Rock.Model.Connection.ConnectionType.DTO;
 using Rock.Web.Cache;
 
 namespace Rock.Model
