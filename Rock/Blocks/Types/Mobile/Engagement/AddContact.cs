@@ -15,8 +15,10 @@
 // </copyright>
 
 using System.ComponentModel;
+using System.Linq;
 
 using Rock.Attribute;
+using Rock.Common.Mobile;
 using Rock.Common.Mobile.Blocks.Engagement.AddContact;
 using Rock.Common.Mobile.ViewModel;
 using Rock.Communication;
@@ -100,6 +102,7 @@ namespace Rock.Blocks.Types.Mobile.Engagement
             contactService.Add( new Contact
             {
                 OwnerPersonAliasId = personAlias.Value,
+                ForeignKey = saveContactBag.contactIdentifier,
                 FirstName = saveContactBag.FirstName,
                 LastName = saveContactBag.LastName,
                 Gender = saveContactBag.Gender.ToNative(),
@@ -130,6 +133,38 @@ namespace Rock.Blocks.Types.Mobile.Engagement
             return ActionOk();
         }
 
+        /// <summary>
+        /// Checks if the contact has already been imported by looking for a matching foreign key.
+        /// </summary>
+        /// <param name="rockContact"></param>
+        /// <returns></returns>
+        [BlockAction]
+        public BlockActionResult CheckForContactMatch( RockContact rockContact )
+        {
+            var currentAliasId = GetCurrentPerson()?.PrimaryAliasId;
+            if ( currentAliasId == null )
+            {
+                return ActionOk( ContactMatch.NoMatch );
+            }
+
+            var qry = new ContactService( RockContext ).Queryable()
+                .Where( c => c.OwnerPersonAliasId == currentAliasId );
+
+            // First look for a match on the foreign key, but if that doesn't exist then look for a match on first and last name.
+            // If either of those are true then return no match.
+            var match = qry
+                .Where( c =>
+                    c.ForeignKey == rockContact.Identifier ||
+                    ( c.FirstName == rockContact.FirstName && c.LastName == rockContact.LastName ) )
+                .Select( c => c.ForeignKey == rockContact.Identifier
+                        ? ContactMatch.HardMatch
+                        : ContactMatch.SoftMatch )
+                .DefaultIfEmpty( ContactMatch.NoMatch )
+                .Max();
+
+            return ActionOk( match );
+        }
+
         #endregion
 
         #region IRockMobileBlockType Implementation
@@ -144,5 +179,12 @@ namespace Rock.Blocks.Types.Mobile.Engagement
         }
 
         #endregion
+    }
+
+    public enum ContactMatch
+    {
+        NoMatch = 0,
+        SoftMatch = 1,
+        HardMatch = 2
     }
 }
