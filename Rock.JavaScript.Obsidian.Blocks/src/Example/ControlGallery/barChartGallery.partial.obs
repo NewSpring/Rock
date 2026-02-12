@@ -49,6 +49,7 @@
                             <div class="col-md-4">
                                 <DropDownList v-model="appearance"
                                               :items="appearanceItems"
+                                              help="Applies predefined visual styling such as stacking, axis visibility, and grid display. All presets can be further customized with the other settings on this page."
                                               label="Appearance"
                                               :showBlankItem="false" />
                             </div>
@@ -356,6 +357,15 @@
             `:series="series"`
         ];
 
+        if (appearance.value && appearance.value !== "default") {
+            barChartProps.push(`appearance="${appearance.value}"`);
+        }
+        if (!isNullish(categoryHideAxisLabels.value)) {
+            barChartProps.push(`:categoryHideAxisLabels="${categoryHideAxisLabels.value}"`);
+        }
+        if (!isNullish(categoryHideAxisLine.value)) {
+            barChartProps.push(`:categoryHideAxisLine="${categoryHideAxisLine.value}"`);
+        }
         if (categoryLabel.value) {
             barChartProps.push(`categoryLabel="${categoryLabel.value}"`);
         }
@@ -408,6 +418,12 @@
         }
         if (!isNullish(isUnfilled.value)) {
             barChartProps.push(`":unfilled="${isUnfilled.value}"`);
+        }
+        if (!isNullish(valueHideAxisLine.value)) {
+            barChartProps.push(`:valueHideAxisLine="${valueHideAxisLine.value}"`);
+        }
+        if (!isNullish(valueHideAxisLabels.value)) {
+            barChartProps.push(`:valueHideAxisLabels="${valueHideAxisLabels.value}"`);
         }
         if (!isNullish(valueHideGridLines.value)) {
             barChartProps.push(`:valueHideGridLines="${valueHideGridLines.value}"`);

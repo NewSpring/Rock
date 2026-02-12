@@ -38,6 +38,9 @@ export type OptionsBag = {
     /** Gets or sets the connection type identifier key. */
     connectionTypeIdKey?: string | null;
 
+    /** Gets or sets the connection type name. */
+    connectionTypeName?: string | null;
+
     /** Gets or sets the supported filter values and defaults for the block. */
     filters?: FiltersBag | null;
 

@@ -11,7 +11,7 @@
 
             <div class="row">
                 <div class="col-md-5">
-                    <Panel title="Involvement" titleIconCssClass="ti ti-seeding">
+                    <Panel :title="config.options?.connectionTypeName || 'Connection Type'" titleIconCssClass="ti ti-seeding">
                         <div class="involvement-container">
                             <div class="panel-section-title">Current Metrics</div>
 

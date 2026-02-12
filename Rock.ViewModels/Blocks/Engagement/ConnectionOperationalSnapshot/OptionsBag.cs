@@ -15,10 +15,6 @@
 // </copyright>
 //
 
-using System.Collections.Generic;
-
-using Rock.ViewModels.Core.Grid;
-
 namespace Rock.ViewModels.Blocks.Engagement.ConnectionOperationalSnapshot
 {
     /// <summary>
@@ -32,6 +28,11 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionOperationalSnapshot
         /// Gets or sets the connection type identifier key.
         /// </summary>
         public string ConnectionTypeIdKey { get; set; }
+
+        /// <summary>
+        /// Gets or sets the connection type name.
+        /// </summary>
+        public string ConnectionTypeName { get; set; }
 
         /// <summary>
         /// Gets or sets the supported filter values and defaults for the block.

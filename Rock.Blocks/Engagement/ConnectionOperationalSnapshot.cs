@@ -210,9 +210,11 @@ namespace Rock.Blocks.Engagement
         /// and request timeline.</returns>
         private OptionsBag GetOptions()
         {
+            var connectionType = GetConnectionTypeQueryable().FirstOrDefault();
             return new OptionsBag
             {
-                ConnectionTypeIdKey = GetConnectionTypeIdKey(),
+                ConnectionTypeIdKey = connectionType?.IdKey,
+                ConnectionTypeName = connectionType?.Name,
                 CompletionMetrics = GetCompletionMetrics(),
                 Filters = GetFilters(),
                 RequestState = GetRequestState(),
