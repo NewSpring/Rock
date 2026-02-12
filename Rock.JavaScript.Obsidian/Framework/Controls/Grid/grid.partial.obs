@@ -64,7 +64,7 @@
                       @width="calculateOverflow"
                       @click="onRowClick" />
 
-            <div class="grid-body" v-else-if="!keyField || light || isNestedInScrollable">
+            <div class="grid-body" v-else-if="!keyField || (light && !forceVirtualRowsOnLight) || isNestedInScrollable">
                 <DataRows
                           :columns="visibleColumnDefinitions"
                           :rows="visibleRows"
@@ -583,6 +583,11 @@
          * WILL be removed in the future.
          */
         isNestedInScrollable: {
+            type: Boolean as PropType<boolean>,
+            default: false
+        },
+
+        forceVirtualRowsOnLight: {
             type: Boolean as PropType<boolean>,
             default: false
         },

@@ -1598,7 +1598,7 @@ namespace Rock.Blocks.Engagement
             var isSingleRequest = connectionRequests.Count() == 1;
             string statusMessage = string.Empty;
             var launchWorkflowResultBag = new LaunchWorkflowResultBag();
-            var launchedWorkflowCout = 0;
+            var launchedWorkflowCount = 0;
 
             foreach ( var request in connectionRequests )
             {
@@ -1667,10 +1667,10 @@ namespace Rock.Blocks.Engagement
                     launchWorkflowResultBag.WorkflowEntryPageUrl = this.GetLinkedPageUrl( AttributeKey.WorkflowEntryPage, qryParam );
                 }
 
-                launchedWorkflowCout++;
+                launchedWorkflowCount++;
             }
 
-            if ( launchedWorkflowCout == 0 )
+            if ( launchedWorkflowCount == 0 )
             {
                 statusMessage = $"The '{workflowType.Name}' workflow was not started for any of the selected connection requests due to its configuration.";
             }
@@ -1678,13 +1678,13 @@ namespace Rock.Blocks.Engagement
             {
                 statusMessage = $"A '{workflowType.Name}' workflow has been started. The new workflow has an active form that is ready for input.";
             }
-            else if ( launchedWorkflowCout == connectionRequests.Count() )
+            else if ( launchedWorkflowCount == connectionRequests.Count() )
             {
                 statusMessage = $"The '{workflowType.Name}' workflow was successfully started for all selected connection requests.";
             }
             else
             {
-                statusMessage = $"The '{workflowType.Name}' workflow was started for {launchedWorkflowCout} of the {connectionRequests.Count()} selected connection requests due to its configuration.";
+                statusMessage = $"The '{workflowType.Name}' workflow was started for {launchedWorkflowCount} of the {connectionRequests.Count()} selected connection requests due to its configuration.";
             }
 
             launchWorkflowResultBag.StatusMessage = statusMessage;

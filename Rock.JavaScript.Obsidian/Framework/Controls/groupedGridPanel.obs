@@ -42,8 +42,10 @@
             </slot> -->
         </template>
         <ContentSectionContainer ref="sectionContainer" :sidebar="false">
-            <template v-for="group in filteredGroups" :key="`${selectedGrouping}-${group.key}`">
-                <ContentSection :isCollapsed="group.key === 'unassigned'">
+            <!-- <div :style="beforePadStyle"></div> -->
+            <template v-for="group in filteredGroups" :key="`${groupingKey}-${group.key}`">
+                <ContentSection :isCollapsed="collapsedGroupDictionary[`${groupingKey}-${group.key}`] || collapsedGroupDictionary[`${groupingKey}-${group.key}`] === undefined" :unmountOnCollapse="true" @onSectionTransition="(isCollapsed) => onGroupTransition(`${groupingKey}-${group.key}`, isCollapsed)">
+                    <!-- <ContentSection v-if="group.key" :isCollapsed="collapsedGroups[group.key]"> -->
                     <template #title>
                         <div class="d-flex align-items-center">
                             <template v-if="group.type === 'person' && group.person">
@@ -70,6 +72,7 @@
                     </ContentStack>
                 </ContentSection>
             </template>
+            <!-- <div :style="afterPadStyle"></div> -->
         </ContentSectionContainer>
     </Panel>
 </template>
@@ -77,7 +80,7 @@
 <style scoped></style>
 
 <script setup lang="ts">
-    import { computed, ref, watch, PropType, ComponentPublicInstance } from "vue";
+    import { computed, ref, watch, PropType, ComponentPublicInstance, Ref, reactive, nextTick } from "vue";
     import PersonAvatar from "./personAvatar.obs";
     import ContentSectionContainer from "./contentSectionContainer.obs";
     import ContentSection from "./contentSection.obs";
@@ -94,6 +97,8 @@
     import { useVModelPassthrough } from "@Obsidian/Utility/component";
     import ActionToolbar from "./actionToolbar.obs";
     import { IContentSectionHolder } from "@Obsidian/Core/Controls/contentSection";
+    import { PersonFieldBag } from "@Obsidian/ViewModels/Core/Grid/personFieldBag";
+    import { useVirtualScroller } from "@Obsidian/Core/Utilities/virtualScroll";
 
     const props = defineProps({
         groupingKey: {
@@ -155,9 +160,27 @@
         "update:groupingKey",
     ]);
 
+    type GroupedGrid = {
+        gridData: {
+            rows: Record<string, unknown>[];
+        };
+        iconCssClass?: string | null;
+        key?: string | null;
+        label?: string | null;
+        order?: number | null;
+        person?: PersonFieldBag | null;
+        textColorCssClass?: string | null;
+        type?: string | null;
+    };
+
     const internalQuickFilterValue = useVModelPassthrough(props, "quickFilterValue", emit);
     const groupingKey = useVModelPassthrough(props, "groupingKey", emit);
-    const sectionContainer = ref<{ getSections: () => IContentSectionHolder[]; } | null>(null);
+    const sectionContainer = ref<{
+        getSections: () => IContentSectionHolder[];
+        getRootElRef: () => Ref<HTMLElement | null>;
+    } | null>(null);
+
+    let collapsedGroupDictionary: Record<string, boolean> = {};
 
     //TODO - Determine if this is the correct spot for the interface
     // interface IClearableGrid {
@@ -222,22 +245,24 @@
     });
 
 
-    const filteredGroups = computed(() => {
+    const filteredGroups = computed((): GroupedGrid[] => {
         if (!groupingKey.value) {
             return [{
                 key: "all",
                 label: "All",
+                // gridData: { rows: props.filteredAndSortedRows.slice(0, 20) }
                 gridData: { rows: props.filteredAndSortedRows }
             }];
         }
 
-        return Enumerable
+        const groupedGrids = Enumerable
             .from(props.filteredAndSortedRows)
             .groupBy(r => {
                 const field = r[groupingKey.value] as GroupingFieldBag;
                 return field?.key ?? "";
             })
             .select(g => {
+                // const rows = g.toArray().slice(0, 20);
                 const rows = g.toArray();
                 const groupingField = rows[0][groupingKey.value] as GroupingFieldBag;
 
@@ -250,6 +275,8 @@
             .thenOrderBy(g => g.order)
             .thenOrderBy(g => g.label)
             .toArray();
+
+        return groupedGrids;
     });
 
     /**
@@ -311,4 +338,32 @@
             return `${asFormattedString(filteredAndSortedRows.length)} of ${asFormattedString(totalGroupCount)} ${pluralize(props.itemTerm, totalGroupCount)}`;
         }
     }
+
+
+    function onGroupTransition(key: string, isCollapsed: boolean): void {
+        collapsedGroupDictionary[key] = isCollapsed;
+    }
+
+
+    watch(groupingKey, () => {
+        collapsedGroupDictionary = {};
+    });
+
+    // Virtualization Testing.
+
+    // function onExpanded(key: string, height: number): void {
+    //     updateItemHeight(key, height);
+    // }
+
+    // const {
+    //     virtualItems,
+    //     beforePadStyle,
+    //     afterPadStyle,
+    //     updateItemHeight
+    // } = useVirtualScroller({
+    //     items: filteredGroups,
+    //     itemKey: "key",
+    //     container: sectionContainer.value?.getRootElRef(),
+    //     estimatedItemHeight: 58, // Height of row + padding
+    // });
 </script>
