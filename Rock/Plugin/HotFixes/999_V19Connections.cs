@@ -30,6 +30,7 @@ namespace Rock.Plugin.HotFixes
         {
             JPH_AddConnectionsPages_Up();
             JPH_AddConnectionNavigationViewBlocks_Up();
+            KH_AddConnectionsListBlockUp();
         }
 
         /// <summary>
@@ -422,6 +423,30 @@ namespace Rock.Plugin.HotFixes
             //  Site: Rock RMS
             //  Layout: Full Width
             RockMigrationHelper.DeletePage( Rock.SystemGuid.Page.CONNECTIONS_LIST );
+        }
+
+
+        /// <summary>
+        /// Temporary migration to add Connections List Block to page.
+        /// </summary>
+        private void KH_AddConnectionsListBlockUp()
+        {
+            // Add/Update Obsidian Block Entity Type
+            //   EntityType:Rock.Blocks.Engagement.ConnectionsHub
+            RockMigrationHelper.UpdateEntityType( "Rock.Blocks.Engagement.ConnectionsHub", "Connections Hub", "Rock.Blocks.Engagement.ConnectionsHub, Rock.Blocks, Version=19.0.5.0, Culture=neutral, PublicKeyToken=null", false, false, "CEE15B88-3B23-4378-9CB1-E59A97A94D1B" );
+
+            // Add/Update Obsidian Block Type
+            //   Name:Connections Hub
+            //   Category:Engagement
+            //   EntityType:Rock.Blocks.Engagement.ConnectionsHub
+            RockMigrationHelper.AddOrUpdateEntityBlockType( "Connections Hub", "Displays the Connections Hub.", "Rock.Blocks.Engagement.ConnectionsHub", "Engagement", "8674FB3A-9E0E-421C-821C-2DA862A20ED2" );
+
+            // Add Block 
+            //  Block Name: Connections List
+            //  Page Name: Connections List
+            //  Layout: -
+            //  Site: Rock RMS
+            RockMigrationHelper.AddBlock( true, "8B5F2875-0D36-4625-8EE4-B738AE8E12F5".AsGuid(), null, "C2D29296-6A87-47A9-A753-EE4E9159C4C4".AsGuid(), "8674FB3A-9E0E-421C-821C-2DA862A20ED2".AsGuid(), "Connections List", "Main", @"", @"", 0, "1422636F-548F-4F50-BF2A-D494FB936A5C" );
         }
     }
 }

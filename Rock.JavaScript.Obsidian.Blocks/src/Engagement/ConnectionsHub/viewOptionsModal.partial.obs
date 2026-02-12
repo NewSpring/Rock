@@ -38,12 +38,12 @@
             </ContentSection>
             <ContentSection title="Filter" icon="ti ti-filter" disableCollapse>
                 <ContentStack>
-                    <div class="row">
+                    <!-- <div class="row">
                         <div class="col-md-6">
                             <Switch v-model="isAssignedToMe"
                                     text="Requests Assigned to Me" />
                         </div>
-                    </div>
+                    </div> -->
                     <CheckBoxList v-model="stateFilter"
                                   :items="props.connectionStates"
                                   label="State" />
@@ -110,7 +110,7 @@
     const isVisible = useVModelPassthrough(props, "visible", emit);
     const errorMessage = ref();
     const sortBy = ref(props.modelValue.sortBy ?? "DueDateAsc");
-    const isAssignedToMe = ref(props.modelValue.isAssignedToMe);
+    // const isAssignedToMe = ref(props.modelValue.isAssignedToMe);
     const gridDataToShow = ref(props.modelValue.gridDataToShow ?? []);
     const isRequestSourceShown = ref(props.modelValue.isRequestSourceShown);
     const stateFilter = ref(props.modelValue.stateFilter ?? []);
@@ -166,7 +166,7 @@
     function onSave(): void {
         const value: ViewOptions = {
             sortBy: sortBy.value,
-            isAssignedToMe: isAssignedToMe.value,
+            // isAssignedToMe: isAssignedToMe.value,
             gridDataToShow: gridDataToShow.value,
             isRequestSourceShown: isRequestSourceShown.value,
             stateFilter: stateFilter.value,

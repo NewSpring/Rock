@@ -4,6 +4,9 @@
                    class="mb-spacing-lg"
                    showCampus>
         <template #default>
+            <DropDownList v-model="areOnlyMyRequestsVisible"
+                          :items="requestToggleItems"
+                          :showBlankItem="false" />
             <DropDownList v-model="selectedOpportunity"
                           :items="box.options?.connectionOpportunities ?? []"
                           blankValue="All Opportunities" />
@@ -12,6 +15,7 @@
 
     <GroupedGridPanel v-model:quickFilterValue="rawQuickFilter"
                       v-model:groupingKey="selectedGrouping"
+                      v-model:orderedRequestKeys="orderedRequestKeys"
                       ref="groupedGridPanel"
                       :title="box.options?.title ?? ''"
                       :titleIconCssClass="`${box.options?.iconCssClass ?? ''} panel-icon`"
@@ -221,7 +225,6 @@
 
                 <AttributeColumns :attributes="attributesToShow" />
 
-                <!-- TODO - Missing filled icon -->
                 <Column v-if="box.options?.areCelebrationsEnabled"
                         name="celebration"
                         field="celebration"
@@ -237,7 +240,7 @@
                            @click.stop="showCelebrationModal(row)">
                         </i>
                         <i v-else
-                           class="ti ti-confetti cursor-pointer text-info-strong"
+                           class="ti ti-confetti-filled cursor-pointer text-info-strong"
                            :ref="(el) => addTooltip(el as Element)"
                            data-toggle="tooltip"
                            data-placement="auto"
@@ -695,7 +698,7 @@
     import { PreferenceKey, ViewOptions } from "./ConnectionsHub/types.partial";
     import { IGridState } from "@Obsidian/Types/Controls/grid";
     import { HttpResult } from "@Obsidian/Types/Utility/http";
-    import { asBoolean } from "@Obsidian/Utility/booleanUtils";
+    import { asBoolean, asBooleanOrNull } from "@Obsidian/Utility/booleanUtils";
     import RockLabel from "@Obsidian/Controls/rockLabel.obs";
     import Badge from "@Obsidian/Controls/badge.obs";
     import RockButton from "@Obsidian/Controls/rockButton.obs";
@@ -739,6 +742,7 @@
     import { ConnectionRequestDetailsBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionRequestDetailsBag";
     import { debounce } from "@Obsidian/Utility/util";
     import DropDownContent from "@Obsidian/Controls/dropDownContent.obs";
+    import { removeCurrentUrlQueryParams } from "@Obsidian/Utility/url";
 
     /* =====================================================
      * Configuration & Data Loading
@@ -758,7 +762,48 @@
         }
     });
 
-    const selectedGrouping = ref<string>(preferences.getValue(PreferenceKey.SelectedGroupByMode));
+    // TODO - Potentially put this in a bag.
+    const allGroupingFields = <ListItemBag[]>[
+        {
+            text: "Connector",
+            value: "connectorGrouping"
+        },
+        {
+            text: "State",
+            value: "stateGrouping"
+        },
+        {
+            text: "Status",
+            value: "statusGrouping"
+        },
+        {
+            text: "Opportunity",
+            value: "opportunityGrouping"
+        },
+        {
+            text: "Campus",
+            value: "campusGrouping"
+        },
+        {
+            text: "Due Status",
+            value: "dueStatusGrouping"
+        },
+    ];
+
+    const requestToggleItems = <ListItemBag[]>[
+        {
+            text: "My Opportunities",
+            value: "true"
+        },
+        {
+            text: "All Opportunities",
+            value: "false"
+        }
+    ];
+
+    // Setting default value to connector grouping
+    const selectedGrouping = ref<string>(isNullOrWhiteSpace(preferences.getValue(PreferenceKey.SelectedGroupByMode)) ? "connectorGrouping" : preferences.getValue(PreferenceKey.SelectedGroupByMode));
+    const areOnlyMyRequestsVisible = ref<string>(isNullOrWhiteSpace(preferences.getValue(PreferenceKey.AreOnlyMyRequestsVisible)) ? "true" : preferences.getValue(PreferenceKey.AreOnlyMyRequestsVisible));
     const internalSelectedOpportunity = ref(box.options?.connectionOpportunityGuidFromPageParameter ?? preferences.getValue(getConnectionFilterKey(PreferenceKey.ConnectionmOpportunityFilterConnectionTypeIdKey)));
 
     const newConnectionRequest = ref<ValidPropertiesBox<ConnectionRequestBag>>({ bag: { connectionOpportunityGuid: internalSelectedOpportunity.value } as ConnectionRequestBag });
@@ -800,6 +845,7 @@
 
     const requestDetailsForModal = ref<BulkRequestViewBag[]>([]);
 
+    const orderedRequestKeys = ref<string[]>([]);
     const isDockedPanelVisible = ref(false);
     const selectedRequestKey = ref();
     const requestDetails = ref<ConnectionRequestDetailsBag | undefined>();
@@ -808,7 +854,7 @@
 
     const viewOptions = ref<ViewOptions>({
         sortBy: preferences.getValue(getConnectionFilterKey(PreferenceKey.FilterSortByConnectionTypIdKey)),
-        isAssignedToMe: asBoolean(preferences.getValue(getConnectionFilterKey(PreferenceKey.FilterIsAssignedToMeConnectionTypeIdKey))),
+        // isAssignedToMe: asBoolean(preferences.getValue(getConnectionFilterKey(PreferenceKey.FilterIsAssignedToMeConnectionTypeIdKey))),
         gridDataToShow: safeParseJson(preferences.getValue(getConnectionFilterKey(PreferenceKey.FilterGridDataToShowConnectionTypIdKey))),
         isRequestSourceShown: asBoolean(preferences.getValue(getConnectionFilterKey(PreferenceKey.FilterIsRequestSourceShownConnectionTypIdKey))),
         stateFilter: safeParseJson(preferences.getValue(getConnectionFilterKey(PreferenceKey.FilterStateConnectionTypIdKey))),
@@ -963,37 +1009,6 @@
 
     const normalizedQuickFilter = computed(() => debouncedQuickFilter.value.toLowerCase());
 
-    const orderedRequestKeys = computed(() =>
-        visibleRows.value.map(r => (r.idKey ?? "") as string)
-    );
-
-    const allGroupingFields = <ListItemBag[]>[
-        {
-            text: "Connector",
-            value: "connectorGrouping"
-        },
-        {
-            text: "State",
-            value: "stateGrouping"
-        },
-        {
-            text: "Status",
-            value: "statusGrouping"
-        },
-        {
-            text: "Opportunity",
-            value: "opportunityGrouping"
-        },
-        {
-            text: "Campus",
-            value: "campusGrouping"
-        },
-        {
-            text: "Due Status",
-            value: "dueStatusGrouping"
-        },
-    ];
-
     function filterRows(rows: Record<string, unknown>[]): Record<string, unknown>[] {
         return rows.filter(row => {
             const requestDetailsValue = row["requestDetails"] as PersonFieldBag | undefined;
@@ -1043,7 +1058,8 @@
             }
 
             // Requests Assigned to Me
-            if (viewOptions.value.isAssignedToMe) {
+            // TODO Is this still needed?
+            if (areOnlyMyRequestsVisible.value === "true") {
                 const connectorValue = row["connectorDetails"] as PersonFieldBag | undefined;
 
                 if (!connectorValue || typeof connectorValue !== "object") {
@@ -1261,7 +1277,7 @@
     }
 
     function updateSelectedRequestKey(key: string | null): void {
-        console.log("Updating: ", key);
+        requestDetails.value = undefined;
         if (!isNullOrWhiteSpace(key)) {
             selectedRequestKey.value = key;
         }
@@ -1830,8 +1846,8 @@
         });
 
         if (result.isSuccess) {
+            await loadGridData();
             isAddConnectionRequestModalVisible.value = false;
-            loadGridData();
             return;
         }
 
@@ -1920,6 +1936,14 @@
         console.error(result.errorMessage);
     }
 
+    watch(areOnlyMyRequestsVisible, async () => {
+        preferences.setValue(PreferenceKey.AreOnlyMyRequestsVisible, areOnlyMyRequestsVisible.value);
+
+        await preferences.save();
+
+        loadGridData();
+    });
+
     watch(selectedOpportunity, async () => {
         preferences.setValue(getConnectionFilterKey(PreferenceKey.ConnectionmOpportunityFilterConnectionTypeIdKey), selectedOpportunity.value);
 
@@ -1934,6 +1958,9 @@
         else {
             connectionOpportunityDetails.value = {};
         }
+
+        // Remove the Connection Opportunity query param.
+        removeCurrentUrlQueryParams("ConnectionOpportunity");
 
         // TODO - client side filter?
         loadGridData();
@@ -1953,7 +1980,7 @@
 
     watch(viewOptions, async () => {
         preferences.setValue(getConnectionFilterKey(PreferenceKey.FilterSortByConnectionTypIdKey), viewOptions.value.sortBy ?? "");
-        preferences.setValue(getConnectionFilterKey(PreferenceKey.FilterIsAssignedToMeConnectionTypeIdKey), viewOptions.value.isAssignedToMe.toString());
+        // preferences.setValue(getConnectionFilterKey(PreferenceKey.FilterIsAssignedToMeConnectionTypeIdKey), viewOptions.value.isAssignedToMe.toString());
         preferences.setValue(getConnectionFilterKey(PreferenceKey.FilterGridDataToShowConnectionTypIdKey), JSON.stringify(viewOptions.value.gridDataToShow));
         preferences.setValue(getConnectionFilterKey(PreferenceKey.FilterIsRequestSourceShownConnectionTypIdKey), viewOptions.value.isRequestSourceShown.toString());
         preferences.setValue(getConnectionFilterKey(PreferenceKey.FilterStateConnectionTypIdKey), JSON.stringify(viewOptions.value.stateFilter));

@@ -43,8 +43,10 @@
         </template>
         <ContentSectionContainer ref="sectionContainer" :sidebar="false">
             <!-- <div :style="beforePadStyle"></div> -->
-            <template v-for="group in filteredGroups" :key="`${groupingKey}-${group.key}`">
-                <ContentSection :isCollapsed="collapsedGroupDictionary[`${groupingKey}-${group.key}`] || collapsedGroupDictionary[`${groupingKey}-${group.key}`] === undefined" :unmountOnCollapse="true" @onSectionTransition="(isCollapsed) => onGroupTransition(`${groupingKey}-${group.key}`, isCollapsed)">
+            <template v-for="(group, index) in filteredGroups" :key="`${groupingKey}-${group.key}`">
+                <ContentSection :isCollapsed="getInitialIsCollapsed(group.key, index)"
+                                :unmountOnCollapse="true"
+                                @onSectionTransition="(isCollapsed) => onGroupTransition(`${groupingKey}-${group.key}`, isCollapsed)">
                     <!-- <ContentSection v-if="group.key" :isCollapsed="collapsedGroups[group.key]"> -->
                     <template #title>
                         <div class="d-flex align-items-center">
@@ -77,7 +79,11 @@
     </Panel>
 </template>
 
-<style scoped></style>
+<style scoped>
+:deep(.contentsection-list) {
+    gap: var(--spacing-medium);
+}
+</style>
 
 <script setup lang="ts">
     import { computed, ref, watch, PropType, ComponentPublicInstance, Ref, reactive, nextTick } from "vue";
@@ -155,10 +161,11 @@
         }
     });
 
-    const emit = defineEmits([
-        "update:quickFilterValue",
-        "update:groupingKey",
-    ]);
+    const emit = defineEmits<{
+        (e: "update:quickFilterValue", value: string): void;
+        (e: "update:groupingKey", value: string): void;
+        (e: "update:orderedRequestKeys", value: string[]): void;
+    }>();
 
     type GroupedGrid = {
         gridData: {
@@ -279,6 +286,12 @@
         return groupedGrids;
     });
 
+    const orderedRequestKeysAfterGrouping = computed(() =>
+        filteredGroups.value
+            .flatMap(g => g.gridData.rows)
+            .map(r => (r.idKey ?? "") as string)
+    );
+
     /**
      * Updates the message that describes the items and how many there are.
      */
@@ -344,10 +357,29 @@
         collapsedGroupDictionary[key] = isCollapsed;
     }
 
+    function getInitialIsCollapsed(groupKey: string | null | undefined, index: number): boolean {
+        const key = `${groupingKey.value}-${groupKey ?? ""}`;
+
+        // If we've already seen a transition for this section, honor it.
+        if (key in collapsedGroupDictionary) {
+            return collapsedGroupDictionary[key];
+        }
+
+        // Default behavior on first mount:
+        // Expand first group unless it's "unassigned", then expand the second group.
+        const firstExpandedIndex = filteredGroups.value[0]?.key === "unassigned" ? 1 : 0;
+
+        const result = index !== firstExpandedIndex;
+        return result; // true means collapsed
+    }
 
     watch(groupingKey, () => {
         collapsedGroupDictionary = {};
     });
+
+    watch(orderedRequestKeysAfterGrouping, (keys) => {
+        emit("update:orderedRequestKeys", keys);
+    }, { immediate: true });
 
     // Virtualization Testing.
 

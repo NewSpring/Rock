@@ -37,7 +37,7 @@ namespace Rock.Blocks.Engagement
     [Description( "Displays the Connections Hub." )]
     [IconCssClass( "ti ti-list" )]
     [SupportedSiteTypes( Model.SiteType.Web )]
-    [ContextAware( typeof( Campus ), typeof( ConnectionOpportunity ) )]
+    [ContextAware( typeof( Campus ) )]
 
     #region Block Attributes
 
@@ -89,9 +89,18 @@ namespace Rock.Blocks.Engagement
         {
             public const string ConnectionmOpportunityFilterConnectionTypeIdKey = "ConnectionOpportunityFilter_ConnectionTypeIdKey_{0}";
             public const string SelectedGroupByMode = "SelectedGroupByMode";
+            public const string AreOnlyMyRequestsVisible = "AreOnlyMyRequestsVisible";
         }
 
         #endregion Keys
+
+        #region Properties
+
+        protected bool AreOnlyMyRequestsVisible => GetBlockPersonPreferences()
+            .GetValue( PreferenceKey.AreOnlyMyRequestsVisible )
+            .AsBoolean( true );
+
+        #endregion Properties
 
         #region Methods
 
@@ -776,10 +785,12 @@ namespace Rock.Blocks.Engagement
             ConnectionType connectionType;
 
             var connectionOpportunity = new ConnectionOpportunityService( RockContext ).GetInclude( PageParameter( PageParameterKey.ConnectionOpportunity ), o => o.ConnectionType, !PageCache.Layout.Site.DisablePredictableIds );
+            bool isConnectionOpportunityPageParameterValid = false;
 
             if ( connectionOpportunity != null )
             {
                 connectionType = connectionOpportunity.ConnectionType;
+                isConnectionOpportunityPageParameterValid = true;
             }
             else
             {
@@ -890,21 +901,21 @@ namespace Rock.Blocks.Engagement
             }
 
             var connectionOpportunityFilter = GetConnectionOpportunityFilter( IdHasher.Instance.GetHash( connectionType.Id ) );
-            if ( connectionOpportunityFilter.HasValue )
+            if ( connectionOpportunityFilter.HasValue || isConnectionOpportunityPageParameterValid )
             {
-                connectionRequestsQry = connectionRequestsQry.Where( c => c.ConnectionOpportunityGuid == connectionOpportunityFilter.Value );
+                var connectionOpportunityGuid = connectionOpportunityFilter.HasValue ? connectionOpportunityFilter.Value : connectionOpportunity.Guid;
+                connectionRequestsQry = connectionRequestsQry.Where( c => c.ConnectionOpportunityGuid == connectionOpportunityGuid );
             }
 
-            var opportunityContext = RequestContext.GetContextEntity<ConnectionOpportunity>();
-            if ( opportunityContext != null )
+            if ( AreOnlyMyRequestsVisible )
             {
-                connectionRequestsQry = connectionRequestsQry.Where( c => c.ConnectionOpportunityId == opportunityContext.Id );
+                connectionRequestsQry = connectionRequestsQry.Where( c => c.ConnectorPersonProjection.Id == RequestContext.CurrentPerson.Id );
             }
 
             var connectionRequests = connectionRequestsQry.ToList();
 
             foreach ( var request in connectionRequests )
-            {
+            {   
                 request.ConnectionStatus = new ConnectionStatusBag
                 {
                     Guid = request.ConnectionStatusProjection.Guid,
@@ -1526,7 +1537,7 @@ namespace Rock.Blocks.Engagement
                 {
                     IdKey = request.IdKey,
                     LastActivityDateTime = DateTime.Now,
-                    ActivityCount = request.ConnectionRequestActivities?.Count + 1 ?? 1
+                    ActivityCount = request.ConnectionRequestActivities?.Count ?? 1
                 } );
             }
 

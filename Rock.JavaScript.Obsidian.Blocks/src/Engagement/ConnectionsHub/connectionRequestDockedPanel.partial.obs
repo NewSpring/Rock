@@ -5,7 +5,10 @@
                  :canResize="true"
                  class="docked-panel">
         <template #header>
-            <div class="mb-spacing-sm">
+            <div v-if="areRequestDetailsLoading" class="d-flex align-items-center justify-content-center">
+                <Loading :isLoading="areRequestDetailsLoading" />
+            </div>
+            <div v-else class="mb-spacing-sm">
                 <div class="pt-spacing-xs bg-interface-softer">
                     <div class="d-flex justify-content-between px-spacing-sm">
                         <div class="d-flex gap-sm">
@@ -32,10 +35,11 @@
                                 </div>
                             </div>
                             <div>
-                                <BadgeList :entityTypeGuid="EntityType.Person"
+                                <!-- TODO: Fix Styling -->
+                                <!-- <BadgeList :entityTypeGuid="EntityType.Person"
                                            :entityKey="requestDetails.requesterPerson.idKey ?? ''"
                                            :badgeTypeGuids="options?.badgeGuids ?? []"
-                                           class="align-items-center justify-content-center flex-wrap" />
+                                           class="align-items-center justify-content-center flex-wrap" /> -->
                             </div>
                             <div class="d-flex py-spacing-lg gap-xs">
                                 <RockButton class="px-spacing-sm">
@@ -60,7 +64,7 @@
             </div>
         </template>
         <template #default>
-            <div class="px-spacing-md pb-spacing-lg d-flex flex-column gap-md">
+            <div v-if="!areRequestDetailsLoading" class="px-spacing-md pb-spacing-lg d-flex flex-column gap-md">
                 <!-- TODO - AI Summary -->
                 <!-- TODO - Custom Lava Header -->
                 <div class="border rounded p-spacing-sm">
@@ -87,12 +91,13 @@
                         </div>
                     </template>
                     <template #preBody>
-                        <div class="border-top border-bottom px-spacing-md py-spacing-xs">
+                        <!-- <div class="border-top border-bottom px-spacing-md py-spacing-xs">
                             Badge Bar
-                        </div>
+                        </div> -->
                     </template>
                     <ContentStack>
                         <RockLabel>Request Detail</RockLabel>
+                        <div class="text-center"><i class="ti ti-tool"></i> Under Construction</div>
                     </ContentStack>
                 </ContentSection>
             </div>
@@ -160,6 +165,7 @@
     import ContentSection from "@Obsidian/Controls/contentSection.obs";
     import ContentStack from "@Obsidian/Controls/contentStack.obs";
     import RockLabel from "@Obsidian/Controls/rockLabel.obs";
+    import Loading from "@Obsidian/Controls/loading.obs";
 
     const props = defineProps({
         modelValue: {
@@ -201,6 +207,8 @@
     const isFullWidth = ref(false);
     const dockedPanelWidth = ref(defaultDockedPanelWidth);
     const areNotesVisible = ref(false);
+
+    const areRequestDetailsLoading = ref(true);
 
     const currentIndex = computed(() =>
         props.orderedKeys.indexOf(props.currentKey)
@@ -284,6 +292,15 @@
         }
         else {
             dockedPanelWidth.value = defaultDockedPanelWidth;
+        }
+    });
+
+    watch(() => props.requestDetails, () => {
+        if (!props.requestDetails) {
+            areRequestDetailsLoading.value = true;
+        }
+        else {
+            areRequestDetailsLoading.value = false;
         }
     });
 </script>

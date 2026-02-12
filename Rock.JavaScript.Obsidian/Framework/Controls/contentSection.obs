@@ -129,7 +129,7 @@
     import TransitionVerticalCollapse from "@Obsidian/Controls/transitionVerticalCollapse.obs";
     import { createSection, useSectionContainer } from "@Obsidian/Core/Controls/contentSection";
     import { isNullOrWhiteSpace } from "@Obsidian/Utility/stringUtils";
-    import { computed, onBeforeUnmount, PropType, ref, useSlots, watch, nextTick } from "vue";
+    import { computed, onBeforeUnmount, PropType, ref, useSlots, watch, nextTick, onMounted } from "vue";
 
     const props = defineProps({
         /**
@@ -305,6 +305,17 @@
 
     watch(() => props.disableCollapse || section.isCollapsed.value, async (isCollapsed) => {
         if (!isCollapsed) {
+            isRendered.value = true;
+            await nextTick();
+            isVisible.value = true;
+        }
+        else {
+            isVisible.value = false;
+        }
+    });
+
+    onMounted(async () => {
+        if (!section.isCollapsed.value) {
             isRendered.value = true;
             await nextTick();
             isVisible.value = true;
