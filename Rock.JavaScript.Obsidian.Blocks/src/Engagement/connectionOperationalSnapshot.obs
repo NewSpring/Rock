@@ -7,7 +7,13 @@
         <div class="connection-operational-snapshot">
             <ContextSlicer class="context-slicer"
                            showCampus
-                           title="Filters" />
+                           title="Filters">
+                <template #default>
+                    <DropDownList v-model="selectedOpportunityGuidOrEmptyString"
+                                  :items="config.options?.connectionOpportunities ?? []"
+                                  blankValue="All Opportunities" />
+                </template>
+            </ContextSlicer>
 
             <div class="row">
                 <div class="col-md-5">
@@ -409,6 +415,9 @@
         Neutral = "var(--color-interface-medium)"
     }
 
+    const selectedDateRangeFilterPreferenceKey = config.options?.preferenceKeys?.selectedDateRangeFilter ?? "";
+    const connectionOpportunityFilterPreferenceKey = config.options?.preferenceKeys?.connectionOpportunityFilter ?? "";
+
     // #endregion Types
 
     // #region Values
@@ -418,11 +427,28 @@
     const requestTimeline = ref<RequestTimelineBag | null | undefined>(config.options?.requestTimeline);
     const completionMetrics = ref<CompletionMetricsBag | null | undefined>(config.options?.completionMetrics);
 
-    const selectedDateRangeOrEmptyString = ref<string>(
-        personPreferences.blockPreferences.getValue("selectedDateRange")
-        ?? config.options?.filters?.defaultDateRangeValue
-        ?? ""
-    );
+    const selectedDateRangeOrEmptyString = ref<string>((() => {
+        if (selectedDateRangeFilterPreferenceKey) {
+            const preferenceValue = personPreferences.blockPreferences.getValue(selectedDateRangeFilterPreferenceKey);
+            if (preferenceValue) {
+                return preferenceValue;
+            }
+        }
+
+        if (config.options?.filters?.defaultDateRangeValue) {
+            return config.options.filters.defaultDateRangeValue;
+        }
+
+        return "";
+    })());
+
+    const selectedOpportunityGuidOrEmptyString = ref<string>((() => {
+        if (connectionOpportunityFilterPreferenceKey) {
+            return personPreferences.blockPreferences.getValue(connectionOpportunityFilterPreferenceKey);
+        }
+
+        return "";
+    })());
 
     // #endregion Values
 
@@ -729,9 +755,26 @@
     // #region Watchers
 
     watch(selectedDateRangeOrEmptyString, async () => {
-        personPreferences.blockPreferences.setValue("SelectedDateRangeFilter", selectedDateRangeOrEmptyString.value);
-        await personPreferences.blockPreferences.save();
+        if (selectedDateRangeFilterPreferenceKey) {
+            personPreferences.blockPreferences.setValue(selectedDateRangeFilterPreferenceKey, selectedDateRangeOrEmptyString.value);
+            await personPreferences.blockPreferences.save();
+        }
+
         await refreshCompletionMetrics();
+    });
+
+    watch(selectedOpportunityGuidOrEmptyString, async () => {
+        if (connectionOpportunityFilterPreferenceKey) {
+            const connectionTypeIdKey = config.options?.connectionTypeIdKey;
+            if (!connectionTypeIdKey) {
+                throw new Error("Connection Type Id Key is not configured for the block.");
+            }
+
+            personPreferences.blockPreferences.setValue(connectionOpportunityFilterPreferenceKey, selectedOpportunityGuidOrEmptyString.value);
+            await personPreferences.blockPreferences.save();
+        }
+
+        await Promise.all([refreshMetrics(), refreshGrid()]);
     });
 
     // #endregion Watchers
@@ -742,8 +785,7 @@
 
     browserBus.subscribe(PageMessages.ContextEntityChanged, async (message: Message<ContextEntityChangedData>) => {
         if (areEqual(message.data.entityTypeGuid, EntityType.Campus)) {
-            refreshGrid();
-            await refreshMetrics();
+            await Promise.all([refreshMetrics(), refreshGrid()]);
         }
     });
 

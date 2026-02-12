@@ -68,8 +68,7 @@ namespace Rock.Blocks.Engagement
 
         private static class PreferenceKey
         {
-            public const string ConnectionOpportunityFilterForConnectionTypeIdKey = "ConnectionOpportunityFilter_ForConnectionTypeIdKey_{0}";
-            public const string CampusFilterForConnectionTypeIdKey = "CampusFilter_ForConnectionTypeIdKey_{0}";
+            public const string ConnectionOpportunityFilterTemplate = "ConnectionOpportunityFilter_ForConnectionTypeIdKey_{0}";
             public const string SelectedDateRangeFilter = "SelectedDateRangeFilter";
         }
 
@@ -79,6 +78,46 @@ namespace Rock.Blocks.Engagement
         }
 
         #endregion Keys
+
+        #region Properties
+
+        private ConnectionType _connectionType = null;
+        /// <summary>
+        /// Gets the connection type based on the current page parameter.
+        /// <para>This entity is used in multiple places in a request, especially on load,
+        /// so it is cached in a private variable to avoid multiple queries.</para>
+        /// </summary>
+        private ConnectionType ConnectionType
+        {
+            get
+            {
+                _connectionType ??= ConnectionTypeQuery.FirstOrDefault();
+
+                return _connectionType;
+            }
+        }
+
+        private IQueryable<ConnectionType> _connectionTypeQuery = null;
+        /// <summary>
+        /// Gets a queryable that returns the connection type based on the current page parameter.
+        /// <para>This is used in cases where we want to further filter or shape the connection type query before executing it,
+        /// such as when getting the list of filtered connection opportunities.</para>
+        /// </summary>
+        private IQueryable<ConnectionType> ConnectionTypeQuery
+        {
+            get
+            {
+                if ( _connectionTypeQuery is null )
+                {
+                    var connectionTypeService = new ConnectionTypeService( RockContext );
+                    _connectionTypeQuery = connectionTypeService.GetQueryableByKey( PageParameter( PageParameterKey.ConnectionType ), !RequestContext.Page.Layout.Site.DisablePredictableIds );
+                }
+
+                return _connectionTypeQuery;
+            }
+        }
+
+        #endregion
 
         public override object GetObsidianBlockInitialization()
         {
@@ -195,7 +234,7 @@ namespace Rock.Blocks.Engagement
                         AttributeKey.ConnectionsHubPage,
                         new Dictionary<string, string>
                         {
-                            { "ConnectionType", GetConnectionTypeIdKey() },
+                            { "ConnectionType", ConnectionType?.IdKey },
                             { "Connector", "((Key))" }
                         }
                     )
@@ -210,42 +249,67 @@ namespace Rock.Blocks.Engagement
         /// and request timeline.</returns>
         private OptionsBag GetOptions()
         {
-            var connectionType = GetConnectionTypeQueryable().FirstOrDefault();
             return new OptionsBag
             {
-                ConnectionTypeIdKey = connectionType?.IdKey,
-                ConnectionTypeName = connectionType?.Name,
+                ConnectionTypeIdKey = ConnectionType?.IdKey,
+                ConnectionTypeName = ConnectionType?.Name,
+                ConnectionOpportunities = GetConnectionOpportunities(),
                 CompletionMetrics = GetCompletionMetrics(),
                 Filters = GetFilters(),
                 RequestState = GetRequestState(),
-                RequestTimeline = GetRequestTimeline()
+                RequestTimeline = GetRequestTimeline(),
+
+                // Pass the preference keys in a bag since some of them are dynamic based on the ConnectionType and need to be generated in code.
+                PreferenceKeys = GetPreferenceKeys()
             };
         }
 
-        private IQueryable<ConnectionType> GetConnectionTypeQueryable()
+        private PreferenceKeysBag GetPreferenceKeys()
         {
-            var connectionTypeService = new ConnectionTypeService( RockContext );
-            return connectionTypeService.GetQueryableByKey( PageParameter( PageParameterKey.ConnectionType ), !RequestContext.Page.Layout.Site.DisablePredictableIds );
+            var preferenceKeys = new PreferenceKeysBag
+            {
+                SelectedDateRangeFilter = PreferenceKey.SelectedDateRangeFilter
+            };
+
+            if ( ConnectionType?.IdKey is null )
+            {
+                preferenceKeys.ConnectionOpportunityFilter = null;
+            }
+            else
+            {
+                preferenceKeys.ConnectionOpportunityFilter = PreferenceKey.ConnectionOpportunityFilterTemplate.Replace( "{0}", ConnectionType.IdKey );
+            }
+
+            return preferenceKeys;
         }
 
-        private string GetConnectionTypeIdKey()
+        private List<ListItemBag> GetConnectionOpportunities()
         {
-            return GetConnectionTypeQueryable().FirstOrDefault()?.IdKey;       
+            return ConnectionTypeQuery
+                .SelectMany( ct => ct.ConnectionOpportunities )
+                .Where( co => co.IsActive )
+                .OrderBy( co => co.Order )
+                .ThenBy( co => co.PublicName )
+                .ToListItemBagList( co => co.PublicName );
         }
 
         private CompletionMetricsBag GetCompletionMetrics()
         {
             var blockPersonPreferences = GetBlockPersonPreferences();
-            var lastNDays = blockPersonPreferences.GetValue( PreferenceKey.SelectedDateRangeFilter ).AsIntegerOrNull() ?? 7;
+            var preferenceKeys = GetPreferenceKeys();
+            var lastNDays = blockPersonPreferences.GetValue( preferenceKeys.SelectedDateRangeFilter ).AsIntegerOrNull() ?? 7;
+            var connectionOpportunityGuid = blockPersonPreferences.GetValue( preferenceKeys.ConnectionOpportunityFilter ).AsGuidOrNull();
+
             var connectionTypeService = new ConnectionTypeService( RockContext );
             var completionMetricsComparison = connectionTypeService
                 .GetConnectionRequestCompletionMetricsComparison(
-                    GetConnectionTypeQueryable(),
+                    ConnectionTypeQuery,
                     RockDateTime.Today.AddDays( -lastNDays ),
                     RockDateTime.Today,
                     new ConnectionRequestCompletionMetricsQueryOptions
                     {
-                        CampusGuid = RequestContext.GetContextEntity<Campus>()?.Guid
+                        CampusGuid = RequestContext.GetContextEntity<Campus>()?.Guid,
+                        ConnectionOpportunityGuid = connectionOpportunityGuid
                     } )
                 .Select( c => new CompletionMetricsBag
                 {
@@ -286,23 +350,28 @@ namespace Rock.Blocks.Engagement
         {
             var connectionTypeService = new ConnectionTypeService( RockContext );
             var connectionStatusService = new ConnectionStatusService( RockContext );
+            var preferences = GetBlockPersonPreferences();
+            var preferenceKeys = GetPreferenceKeys();
+            var connectionOpportunityGuid = preferences.GetValue( preferenceKeys.ConnectionOpportunityFilter ).AsGuidOrNull();
 
             var connectionRequestHealthSnapshot = connectionTypeService
                 .GetConnectionRequestHealthSnapshot(
-                    GetConnectionTypeQueryable(),
+                    ConnectionTypeQuery,
                     new ConnectionRequestHealthSnapshotQueryOptions
                     {
-                        CampusGuid = RequestContext.GetContextEntity<Campus>()?.Guid
+                        CampusGuid = RequestContext.GetContextEntity<Campus>()?.Guid,
+                        ConnectionOpportunityGuid = connectionOpportunityGuid
                     }
                 )
                 .FirstOrDefault();
 
             var connectionRequestStatusDistributions = connectionTypeService
                 .GetConnectionRequestStatusDistributions(
-                    GetConnectionTypeQueryable(),
+                    ConnectionTypeQuery,
                     new ConnectionRequestStatusDistributionQueryOptions
                     {
-                        CampusGuid = RequestContext.GetContextEntity<Campus>()?.Guid
+                        CampusGuid = RequestContext.GetContextEntity<Campus>()?.Guid,
+                        ConnectionOpportunityGuid = connectionOpportunityGuid
                     }
                 )
                 .Select( sd => new RequestStatusCountBag
@@ -327,13 +396,19 @@ namespace Rock.Blocks.Engagement
 
         private RequestTimelineBag GetRequestTimeline()
         {
+            var preferences = GetBlockPersonPreferences();
+            var preferenceKeys = GetPreferenceKeys();
+
+            var connectionOpportunityGuid = preferences.GetValue( preferenceKeys.ConnectionOpportunityFilter ).AsGuidOrNull();
+
             var connectionTypeService = new ConnectionTypeService( RockContext );
             var upcomingFollowUps = connectionTypeService
                 .GetConnectionRequestUpcomingFollowUpWindows(
-                    GetConnectionTypeQueryable(),
+                    ConnectionTypeQuery,
                     new ConnectionRequestUpcomingFollowUpWindowQueryOptions
                     {
-                        CampusGuid = RequestContext.GetContextEntity<Campus>()?.Guid
+                        CampusGuid = RequestContext.GetContextEntity<Campus>()?.Guid,
+                        ConnectionOpportunityGuid = connectionOpportunityGuid
                     }
                 )
                 .Select( w => new UpcomingFollowUpBag
@@ -373,18 +448,24 @@ namespace Rock.Blocks.Engagement
             var twentyEightDaysAgo = today.AddDays( -28 );
             var campusGuid = RequestContext.GetContextEntity<Campus>()?.Guid;
 
-            var connectionTypeQuery = GetConnectionTypeQueryable();
+            var preferences = GetBlockPersonPreferences();
+            var preferenceKeys = GetPreferenceKeys();
+
+            var connectionOpportunityGuid = preferences.GetValue( preferenceKeys.ConnectionOpportunityFilter ).AsGuidOrNull();
 
             // 1. Aggregate metrics per connector in SQL
-            var metrics = connectionTypeQuery.SelectMany( ct => ct.ConnectionOpportunities.SelectMany( co => co.ConnectionRequests ) )
+            var metrics = ConnectionTypeQuery
+                .SelectMany( ct => ct.ConnectionOpportunities
+                    .Where( co => !connectionOpportunityGuid.HasValue || co.Guid == connectionOpportunityGuid.Value )
+                    .SelectMany( co => co.ConnectionRequests )
+                )
                 .Where( cr =>
                     cr.ConnectionState == ConnectionState.Active
                     || cr.ConnectionState == ConnectionState.Connected
                     || cr.ConnectionState == ConnectionState.FutureFollowUp )
                 .Where( cr => cr.ConnectorPersonAliasId.HasValue )
                 .Where( cr => !campusGuid.HasValue
-                    || cr.Campus.Guid == campusGuid.Value
-                    || cr.ConnectorPersonAlias.Person.PrimaryCampus.Guid == campusGuid.Value )
+                    || cr.Campus.Guid == campusGuid.Value )
                 .GroupBy( cr => cr.ConnectorPersonAlias.PersonId )
                 .Select( crGrouping => new
                 {
@@ -433,7 +514,7 @@ namespace Rock.Blocks.Engagement
 
             var people = new PersonService( RockContext )
                 .Queryable()
-                .Include( p => p.PrimaryCampus )
+                .Include( p => p.PrimaryCampus ) // This is needed to get the primary campus of the connector person to display under their name.
                 .Where( p => personIds.Contains( p.Id ) )
                 .AsNoTracking()
                 .ToDictionary( p => p.Id );

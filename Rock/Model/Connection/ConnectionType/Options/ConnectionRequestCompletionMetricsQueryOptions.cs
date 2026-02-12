@@ -28,5 +28,11 @@ namespace Rock.Model.Connection.ConnectionType.Options
         /// If this is not set then metrics will not be filtered by campus.
         /// </summary>
         public Guid? CampusGuid { get; set; }
+
+        /// <summary>
+        /// Gets or sets the unique identifier of the connection opportunity to filter the metrics by.
+        /// If this is not set then the metrics will not be filtered by connection opportunity.
+        /// </summary>
+        public Guid? ConnectionOpportunityGuid { get; set; }
     }
 }

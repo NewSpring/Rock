@@ -28,5 +28,6 @@ namespace Rock.Model.Connection.ConnectionType.Options
         /// If this is not set then upcoming follow-up windows will not be filtered by campus.
         /// </summary>
         public Guid? CampusGuid { get; set; }
+        public Guid? ConnectionOpportunityGuid { get; internal set; }
     }
 }

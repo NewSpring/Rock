@@ -293,41 +293,48 @@ namespace Rock.Model
         {
             var today = RockDateTime.Today;
             var campusGuid = options?.CampusGuid;
+            var connectionOpportunityGuid = options?.ConnectionOpportunityGuid;
 
             return connectionTypeQuery
-                .Select( ct => ct.ConnectionOpportunities
-                    .SelectMany( co => co.ConnectionRequests
-                        .Where( cr => !campusGuid.HasValue
-                            || cr.Campus.Guid == campusGuid.Value 
+                .Select( ct =>
+                    ct.ConnectionOpportunities
+                        .Where( co =>
+                            !connectionOpportunityGuid.HasValue
+                            || co.Guid == connectionOpportunityGuid.Value
                         )
-                    )
-                    .Select( cr => new
-                    {
-                        IsActive = cr.ConnectionState == ConnectionState.Active,
+                        .SelectMany( co =>
+                            co.ConnectionRequests
+                                .Where( cr => !campusGuid.HasValue
+                                    || cr.Campus.Guid == campusGuid.Value 
+                                )
+                        )
+                        .Select( cr => new
+                        {
+                            IsActive = cr.ConnectionState == ConnectionState.Active,
 
-                        IsDueSoon =
-                            cr.ConnectionState == ConnectionState.Active
-                            && cr.DueSoonDate.HasValue
-                            && DbFunctions.TruncateTime( cr.DueSoonDate.Value ) <= today,
+                            IsDueSoon =
+                                cr.ConnectionState == ConnectionState.Active
+                                && cr.DueSoonDate.HasValue
+                                && DbFunctions.TruncateTime( cr.DueSoonDate.Value ) <= today,
 
-                        IsOverdue =
-                            cr.ConnectionState == ConnectionState.Active
-                            && cr.DueDate.HasValue
-                            && DbFunctions.TruncateTime( cr.DueDate.Value ) < today,
+                            IsOverdue =
+                                cr.ConnectionState == ConnectionState.Active
+                                && cr.DueDate.HasValue
+                                && DbFunctions.TruncateTime( cr.DueDate.Value ) < today,
 
-                        IsUnassigned =
-                            cr.ConnectionState == ConnectionState.Active
-                            && !cr.ConnectorPersonAliasId.HasValue
-                    } )
-                    .GroupBy( _ => 1 )
-                    .Select( g => new ConnectionRequestHealthSnapshot
-                    {
-                        ActiveCount = g.Sum( x => x.IsActive ? 1 : 0 ),
-                        DueSoonCount = g.Sum( x => x.IsDueSoon ? 1 : 0 ),
-                        OverdueCount = g.Sum( x => x.IsOverdue ? 1 : 0 ),
-                        UnassignedCount = g.Sum( x => x.IsUnassigned ? 1 : 0 )
-                    } )
-                    .FirstOrDefault()
+                            IsUnassigned =
+                                cr.ConnectionState == ConnectionState.Active
+                                && !cr.ConnectorPersonAliasId.HasValue
+                        } )
+                        .GroupBy( _ => 1 )
+                        .Select( g => new ConnectionRequestHealthSnapshot
+                        {
+                            ActiveCount = g.Sum( x => x.IsActive ? 1 : 0 ),
+                            DueSoonCount = g.Sum( x => x.IsDueSoon ? 1 : 0 ),
+                            OverdueCount = g.Sum( x => x.IsOverdue ? 1 : 0 ),
+                            UnassignedCount = g.Sum( x => x.IsUnassigned ? 1 : 0 )
+                        } )
+                        .FirstOrDefault()
                 );
         }
 
@@ -335,6 +342,7 @@ namespace Rock.Model
         /// Retrieves health count statistics for connection requests associated with the specified connection types.
         /// </summary>
         /// <param name="connectionOpportunityQuery">A queryable collection of connection types for which to retrieve request health counts. Cannot be null.</param>
+        /// <param name="options">The options that describe the filters to apply to the query.</param>
         /// <returns>A queryable collection of health count results for each specified connection type.</returns>
         internal IQueryable<ConnectionRequestHealthSnapshot> GetRequestHealthCounts(
             IQueryable<ConnectionOpportunity> connectionOpportunityQuery,
@@ -343,73 +351,95 @@ namespace Rock.Model
         {
             var today = RockDateTime.Today;
             var campusGuid = options?.CampusGuid;
+            var connectionOpportunityGuid = options?.ConnectionOpportunityGuid;
 
             return connectionOpportunityQuery
-                .Select( co => co.ConnectionRequests
-                    .Where( cr =>
-                        !campusGuid.HasValue
-                        || cr.Campus.Guid == campusGuid.Value
-                    )
-                    .Select( cr => new
-                    {
-                        IsActive = cr.ConnectionState == ConnectionState.Active,
+                .Where( co =>
+                    !connectionOpportunityGuid.HasValue
+                    || co.Guid == connectionOpportunityGuid.Value
+                )
+                .Select( co =>
+                    co.ConnectionRequests
+                        .Where( cr =>
+                            !campusGuid.HasValue
+                            || cr.Campus.Guid == campusGuid.Value
+                        )
+                        .Select( cr => new
+                        {
+                            IsActive = cr.ConnectionState == ConnectionState.Active,
 
-                        IsDueSoon =
-                            cr.ConnectionState == ConnectionState.Active
-                            && cr.DueSoonDate.HasValue
-                            && DbFunctions.TruncateTime( cr.DueSoonDate.Value ) <= today,
+                            IsDueSoon =
+                                cr.ConnectionState == ConnectionState.Active
+                                && cr.DueSoonDate.HasValue
+                                && DbFunctions.TruncateTime( cr.DueSoonDate.Value ) <= today,
 
-                        IsOverdue =
-                            cr.ConnectionState == ConnectionState.Active
-                            && cr.DueDate.HasValue
-                            && DbFunctions.TruncateTime( cr.DueDate.Value ) < today,
+                            IsOverdue =
+                                cr.ConnectionState == ConnectionState.Active
+                                && cr.DueDate.HasValue
+                                && DbFunctions.TruncateTime( cr.DueDate.Value ) < today,
 
-                        IsUnassigned =
-                            cr.ConnectionState == ConnectionState.Active
-                            && !cr.ConnectorPersonAliasId.HasValue
-                    } )
-                    .GroupBy( _ => 1 )
-                    .Select( g => new ConnectionRequestHealthSnapshot
-                    {
-                        ActiveCount = g.Sum( x => x.IsActive ? 1 : 0 ),
-                        DueSoonCount = g.Sum( x => x.IsDueSoon ? 1 : 0 ),
-                        OverdueCount = g.Sum( x => x.IsOverdue ? 1 : 0 ),
-                        UnassignedCount = g.Sum( x => x.IsUnassigned ? 1 : 0 )
-                    } )
-                    .FirstOrDefault()
+                            IsUnassigned =
+                                cr.ConnectionState == ConnectionState.Active
+                                && !cr.ConnectorPersonAliasId.HasValue
+                        } )
+                        .GroupBy( _ => 1 )
+                        .Select( g => new ConnectionRequestHealthSnapshot
+                        {
+                            ActiveCount = g.Sum( x => x.IsActive ? 1 : 0 ),
+                            DueSoonCount = g.Sum( x => x.IsDueSoon ? 1 : 0 ),
+                            OverdueCount = g.Sum( x => x.IsOverdue ? 1 : 0 ),
+                            UnassignedCount = g.Sum( x => x.IsUnassigned ? 1 : 0 )
+                        } )
+                        .FirstOrDefault()
                 );
         }
 
+        /// <summary>
+        /// Retrieves a queryable collection of connection request status distributions.
+        /// </summary>
+        /// <param name="connectionTypeQuery">An <see cref="IQueryable{T}"/> sequence of connection types to include in the status distribution calculation.</param>
+        /// <param name="options">The options used to filter the results by campus or connection opportunity. If <c>null</c>, no filtering is applied.</param>
+        /// <returns>An <see cref="IQueryable{T}"/> sequence of <see cref="ConnectionRequestStatusDistribution"/> objects,
+        /// each representing the count and color for a specific connection request status.</returns>
         internal IQueryable<ConnectionRequestStatusDistribution> GetConnectionRequestStatusDistributions(
             IQueryable<ConnectionType> connectionTypeQuery,
             ConnectionRequestStatusDistributionQueryOptions options
         )
         {
             var campusGuid = options?.CampusGuid;
+            var connectionOpportunityGuid = options?.ConnectionOpportunityGuid;
 
             return connectionTypeQuery
                 .SelectMany( ct =>
                     ct.ConnectionOpportunities
-                        .SelectMany( co => co.ConnectionRequests
-                            .Where( cr => !campusGuid.HasValue
-                                || cr.Campus.Guid == campusGuid.Value
-                            )
+                        .Where( co =>
+                            !connectionOpportunityGuid.HasValue
+                            || co.Guid == connectionOpportunityGuid.Value
+                        )
+                        .SelectMany( co =>
+                            co.ConnectionRequests
+                                .Where( cr =>
+                                    !campusGuid.HasValue
+                                    || cr.Campus.Guid == campusGuid.Value
+                                )
                         )
                 )
-                .GroupBy( cr => new
+                .GroupBy( cr => cr.ConnectionStatusId )
+                .Select( g => new
                 {
-                    cr.ConnectionStatusId,
-                    cr.ConnectionStatus.Order,
-                    cr.ConnectionStatus.Name,
-                    cr.ConnectionStatus.HighlightColor
-                } )
-                .OrderBy( g => g.Key.Order )
-                .ThenBy( g => g.Key.Name )
-                .Select( g => new ConnectionRequestStatusDistribution
-                {
-                    Status = g.Key.Name,
-                    Color = g.Key.HighlightColor,
+                    ConnectionStatusId = g.Key,
+                    Order = g.Min( cr => cr.ConnectionStatus.Order ),
+                    Name = g.Min( cr => cr.ConnectionStatus.Name ),
+                    Color = g.Min( cr => cr.ConnectionStatus.HighlightColor ),
                     Count = g.Count()
+                } )
+                .OrderBy( s => s.Order )
+                .ThenBy( s => s.Name )
+                .Select( s => new ConnectionRequestStatusDistribution
+                {
+                    Status = s.Name,
+                    Color = s.Color,
+                    Count = s.Count
                 } );
         }
 
@@ -435,16 +465,22 @@ namespace Rock.Model
             var today = RockDateTime.Today;
             var maxFollowUpDate = today.AddDays( 28 );
             var campusGuid = options?.CampusGuid;
+            var connectionOpportunityGuid = options?.ConnectionOpportunityGuid;
 
             var query =
                 from cr in connectionTypeQuery
                     .SelectMany( ct =>
                         ct.ConnectionOpportunities
-                            .SelectMany( co => co.ConnectionRequests
-                                .Where( cr =>
-                                    !campusGuid.HasValue
-                                    || cr.Campus.Guid == campusGuid.Value
-                                )
+                            .Where( co =>
+                                !connectionOpportunityGuid.HasValue
+                                || co.Guid == connectionOpportunityGuid.Value
+                            )
+                            .SelectMany( co =>
+                                co.ConnectionRequests
+                                    .Where( cr =>
+                                        !campusGuid.HasValue
+                                        || cr.Campus.Guid == campusGuid.Value
+                                    )
                             )
                     )
                 where cr.FollowupDate.HasValue
@@ -475,6 +511,19 @@ namespace Rock.Model
                 .ThenBy( w => w.StartOffsetDays );
         }
 
+        /// <summary>
+        /// Retrieves a summary of connection request completion metrics for the specified connection types and date range.
+        /// </summary>
+        /// <remarks>The returned query is not executed until enumerated. Filtering by campus or
+        /// connection opportunity is applied if specified in the <paramref name="options"/> parameter.</remarks>
+        /// <param name="connectionTypeQuery">An <see cref="IQueryable{T}"/> sequence of connection types to include in the metrics calculation.</param>
+        /// <param name="startDate">The start date of the date range for which to calculate metrics. Only requests modified on or after this
+        /// date are included.</param>
+        /// <param name="endDate">The end date of the date range for which to calculate metrics. Only requests modified before the day after
+        /// this date are included.</param>
+        /// <param name="options">An object containing additional filtering options.</param>
+        /// <returns>An <see cref="IQueryable{T}"/> sequence of <see cref="ConnectionRequestCompletionMetricsSummary"/> objects,
+        /// each representing completion metrics for a connection type within the specified date range and filters.</returns>
         internal IQueryable<ConnectionRequestCompletionMetricsSummary> GetConnectionRequestCompletionMetricsSummary(
             IQueryable<ConnectionType> connectionTypeQuery,
             DateTime startDate,
@@ -485,12 +534,18 @@ namespace Rock.Model
             var rangeStart = startDate.Date;
             var rangeEnd = endDate.Date.AddDays( 1 );
             var campusGuid = options?.CampusGuid;
+            var connectionOpportunityGuid = options?.ConnectionOpportunityGuid;
 
             var query =
                 from cr in connectionTypeQuery
                     .SelectMany( ct =>
                         ct.ConnectionOpportunities
-                            .SelectMany( co => co.ConnectionRequests ) )
+                            .Where( co =>
+                                !connectionOpportunityGuid.HasValue
+                                || co.Guid == connectionOpportunityGuid.Value
+                            )
+                            .SelectMany( co => co.ConnectionRequests )
+                    )
                 where cr.ConnectionState == ConnectionState.Connected
                     && cr.ModifiedDateTime.HasValue
                     && cr.ModifiedDateTime >= rangeStart
@@ -516,32 +571,47 @@ namespace Rock.Model
 
                     RequestsCompletedCount = g.Count(),
 
-                    TimelinessPercent =
-                        g.Count( x =>
+                    TimelinessPercent = g
+                        .Count( x =>
                             !x.cr.DueDate.HasValue
-                            || x.cr.ModifiedDateTime <= x.cr.DueDate ) * 100m
+                            || x.cr.ModifiedDateTime <= x.cr.DueDate
+                        )
+                        * 100m
                         / g.Count(),
 
-                    AverageResponsivenessDays =
-                        g.Where( x =>
-                                x.cr.CreatedDateTime.HasValue
-                                && x.firstActivityDate.HasValue )
-                         .Average( x =>
-                             ( decimal ) DbFunctions.DiffDays(
-                                 x.cr.CreatedDateTime.Value,
-                                 x.firstActivityDate.Value ) ),
+                    AverageResponsivenessDays = g
+                        .Where( x =>
+                            x.cr.CreatedDateTime.HasValue
+                            && x.firstActivityDate.HasValue
+                        )
+                        .Average( x =>
+                            ( decimal ) DbFunctions.DiffDays( x.cr.CreatedDateTime.Value, x.firstActivityDate.Value )
+                        ),
 
-                    AverageCompletionDays =
-                        g.Where( x => x.cr.CreatedDateTime.HasValue )
-                         .Average( x =>
-                             ( decimal ) DbFunctions.DiffDays(
-                                 x.cr.CreatedDateTime.Value,
-                                 x.cr.ModifiedDateTime.Value ) )
+                    AverageCompletionDays = g
+                        .Where( x => x.cr.CreatedDateTime.HasValue )
+                        .Average( x =>
+                             ( decimal ) DbFunctions.DiffDays( x.cr.CreatedDateTime.Value, x.cr.ModifiedDateTime.Value )
+                        )
                 };
 
             return query;
         }
 
+        /// <summary>
+        /// Compares connection request completion metrics for the specified date range with the immediately preceding
+        /// period for each connection type.
+        /// </summary>
+        /// <remarks>The previous period is defined as the same length as the current period, immediately
+        /// preceding the specified start date. For example, if the current period is 7 days, the previous period will
+        /// be the 7 days before the start date. The returned query is not executed until enumerated.</remarks>
+        /// <param name="connectionTypeQuery">A queryable collection of connection types to include in the comparison. Only metrics for these connection
+        /// types are considered.</param>
+        /// <param name="startDate">The start date of the current period for which to calculate metrics. The time component is ignored.</param>
+        /// <param name="endDate">The end date of the current period for which to calculate metrics. The time component is ignored.</param>
+        /// <param name="options">Options that control how the completion metrics are calculated and filtered.</param>
+        /// <returns>An <see cref="IQueryable{ConnectionRequestCompletionMetricsComparison}"/> containing comparison results for
+        /// each connection type, including metrics for the current and previous periods and their differences.</returns>
         internal IQueryable<ConnectionRequestCompletionMetricsComparison> GetConnectionRequestCompletionMetricsComparison(
             IQueryable<ConnectionType> connectionTypeQuery,
             DateTime startDate,
@@ -596,6 +666,5 @@ namespace Rock.Model
 
             return comparison;
         }
-
     }
 }
