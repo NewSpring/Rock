@@ -355,7 +355,17 @@ namespace Rock.Blocks.Connection
                 .ThenBy( s => s.Name )
                 .ToList();
 
-            summaries.ForEach( s => s.TranslateIdToIdKey() );
+            summaries.ForEach( s =>
+            {
+                s.TranslateIdToIdKey();
+
+                // We might want to resolve merge fields on the Summary in the future, at which point we'll need to:
+                //  1. Consider the merge fields being made "available" in the Connection Opportunity Detail block.
+                //  2. Consider the merge fields being added in the Connection Opportunity Search block.
+                //  3. Load more supporting data from the database.
+                // But for now, we'll just strip any HTML to keep things simple.
+                s.Summary = s.Summary.StripHtml();
+            } );
 
             return summaries;
         }
@@ -369,13 +379,16 @@ namespace Rock.Blocks.Connection
         /// <returns>Counts of <see cref="ConnectionRequest"/>s per day.</returns>
         private ConnectionRequestCountsPerDayBag LoadRequestsCountsPerDay( int connectionTypeId )
         {
+            var campusId = RequestContext.GetContextEntity<Campus>()?.Id;
+
             var startDate = RockDateTime.Today.AddDays( -29 ); // 30 days including today.
             var endDate = RockDateTime.Today.AddDays( 1 );
 
             var connectionRequestQry = new ConnectionRequestService( RockContext )
                 .Queryable()
                 .Where( cr =>
-                    cr.ConnectionOpportunity.ConnectionTypeId == connectionTypeId
+                    ( !campusId.HasValue || cr.CampusId == campusId.Value )
+                    && cr.ConnectionOpportunity.ConnectionTypeId == connectionTypeId
                 );
 
             if ( OpportunityVisibilityPreference == OpportunityVisibility.MyOpportunitiesValue )

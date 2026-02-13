@@ -26,7 +26,7 @@
                 </RockButton>
             </template>
 
-            <template #preBody>
+            <template v-if="anyConnectionOpportunities" #preBody>
                 <div class="connection-opportunity-navigation-metrics" :class="{ 'connection-opportunity-navigation-metrics-flex': breakpointHelper?.isMdOrLarger }">
 
                     <div class="connection-opportunity-navigation-metric connection-opportunity-navigation-metric-active-requests">
@@ -72,7 +72,7 @@
                                  :alertType="AlertType.Warning"
                                  v-html="fetchNavigationDetailsErrorMessage"></NotificationBox>
 
-                <NotificationBox v-else-if="!connectionOpportunitySummaries.length" :alertType="AlertType.Info">
+                <NotificationBox v-else-if="!anyConnectionOpportunities" :alertType="AlertType.Info">
                     There are no connection opportunities that match the current filters.
                 </NotificationBox>
 
@@ -83,6 +83,7 @@
                                  :iconCssClass="summary.iconCssClass"
                                  iconLabelType="default"
                                  :title="summary.name"
+                                 :description="summary.summary"
                                  :primaryActions="getPrimaryActions(summary)">
 
                         <template #prepend>
@@ -92,10 +93,6 @@
                                             tooltipPlacement="top">
                                 {{ asFormattedString(summary.assignedToYouRequestCount) }}
                             </HighlightLabel>
-                        </template>
-
-                        <template v-if="summary.summary" #description>
-                            <div v-html="summary.summary"></div>
                         </template>
 
                         <template #rightMiddleSection>
@@ -402,6 +399,10 @@
 
     const connectionOpportunitySummaries = computed((): ConnectionOpportunitySummaryBag[] => {
         return navigationDetails.value?.connectionOpportunitySummaries ?? [];
+    });
+
+    const anyConnectionOpportunities = computed((): boolean => {
+        return !!connectionOpportunitySummaries.value.length;
     });
 
     // #endregion Computed Values

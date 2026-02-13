@@ -152,6 +152,25 @@
     function getPrimaryActions(summary: ConnectionTypeSummaryBag): MenuAction[] {
         const actions: MenuAction[] = [];
 
+        /*
+            2/17/2026 - JPH
+
+            When choosing which of the "List", "Grid", or "Board" buttons to
+            show for a given connection type, the logic should be as follows:
+
+            1. If List is configured at all (even if Grid and Board views are as
+               well), it should be the default action button on the Connection
+               Type display card.
+
+            2. If List is not configured, and Grid is (or Grid + Board), use
+               current behavior [link to Connection Request Board] and default
+               to Grid view.
+
+            3. Only show Board view if it is the only view of the three configured.
+
+            Reason: Cases for Displaying Linked Page Buttons.
+        */
+
         if (connectionsListPageUrl.value && summary.isListViewEnabled) {
             actions.push({
                 iconCssClass: "ti ti-layout-list",
