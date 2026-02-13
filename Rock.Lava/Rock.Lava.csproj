@@ -59,7 +59,7 @@
     <ProjectReference Include="..\Rock.Lava.Shared\Rock.Lava.Shared.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
+  <ItemGroup Condition="'$(TargetFramework)' == 'net472'">
     <Reference Include="System.Web" />
   </ItemGroup>
 
