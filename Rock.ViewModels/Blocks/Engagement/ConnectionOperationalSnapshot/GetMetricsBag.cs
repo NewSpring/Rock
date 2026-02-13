@@ -15,21 +15,19 @@
 // </copyright>
 //
 
+using System;
+
 namespace Rock.ViewModels.Blocks.Engagement.ConnectionOperationalSnapshot
 {
     /// <summary>
-    /// Represents a container for preference keys used to store filter values in person preferences.
+    /// Represents a request bag containing information required to retrieve metrics.
     /// </summary>
-    public class PreferenceKeysBag
+    public class GetMetricsBag
     {
         /// <summary>
-        /// Gets or sets the preference key used to store the selected date range filter value.
+        /// Gets or sets the unique identifier of the connection opportunity to filter the metrics by.
+        /// If this is not set then the metrics will not be filtered by connection opportunity.
         /// </summary>
-        public string SelectedDateRangeFilter { get; set; }
-
-        /// <summary>
-        /// Gets or sets the preference key used to store the selected connection opportunity filter value.
-        /// </summary>
-        public string ConnectionOpportunityFilter { get; set; }
+        public Guid? ConnectionOpportunityGuid { get; set; }
     }
 }

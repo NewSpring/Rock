@@ -21,18 +21,20 @@
 // </copyright>
 //
 
-import { CompletionMetricsBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionOperationalSnapshot/completionMetricsBag";
-import { RequestStateBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionOperationalSnapshot/requestStateBag";
-import { RequestTimelineBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionOperationalSnapshot/requestTimelineBag";
+/** Represents a ListItemBag with an IdKey property. */
+export type IdKeyListItemBag = {
+    /** Gets or sets the category for this item. */
+    category?: string | null;
 
-/** Represents a container for aggregating request state, timeline, and completion metrics for a connection operation. */
-export type MetricsBag = {
-    /** Gets or sets the metrics related to completion quality and efficiency. */
-    completionMetrics?: CompletionMetricsBag | null;
+    /** Gets or sets disabled for this item. */
+    disabled?: boolean | null;
 
-    /** Gets or sets the current snapshot of connection request state. */
-    requestState?: RequestStateBag | null;
+    /** Gets or sets the unique identifier key for the list item bag. */
+    idKey?: string | null;
 
-    /** Gets or sets the time-based workload and upcoming follow-up data. */
-    requestTimeline?: RequestTimelineBag | null;
+    /** Gets or sets the text. */
+    text?: string | null;
+
+    /** Gets or sets the value. */
+    value?: string | null;
 };

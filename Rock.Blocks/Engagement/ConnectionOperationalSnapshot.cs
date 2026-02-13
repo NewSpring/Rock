@@ -14,6 +14,7 @@
 // limitations under the License.
 // </copyright>
 //
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data.Entity;
@@ -148,22 +149,22 @@ namespace Rock.Blocks.Engagement
         #region Block Actions
 
         [BlockAction]
-        public BlockActionResult GetRowData()
+        public BlockActionResult GetRowData( GetMetricsBag bag )
         {
             var builder = GetGridBuilder();
-            var gridDataBag = builder.Build( GetConnectors() );
+            var gridDataBag = builder.Build( GetConnectors( bag ) );
 
             return ActionOk( gridDataBag );
         }
 
         [BlockAction]
-        public BlockActionResult GetMetrics()
+        public BlockActionResult GetMetrics( GetMetricsBag bag )
         {
             var metrics = new MetricsBag
             {
-                CompletionMetrics = GetCompletionMetrics(),
-                RequestState = GetRequestState(),
-                RequestTimeline = GetRequestTimeline()
+                CompletionMetrics = GetCompletionMetrics( bag ),
+                RequestState = GetRequestState( bag ),
+                RequestTimeline = GetRequestTimeline( bag )
             };
 
             return ActionOk( metrics );
@@ -235,7 +236,8 @@ namespace Rock.Blocks.Engagement
                         new Dictionary<string, string>
                         {
                             { "ConnectionType", ConnectionType?.IdKey },
-                            { "Connector", "((Key))" }
+                            { "Connector", "((Key))" },
+                            { "ConnectionOpportunity", "((ConnectionOpportunityKey))" }
                         }
                     )
                 }
@@ -257,48 +259,34 @@ namespace Rock.Blocks.Engagement
                 CompletionMetrics = GetCompletionMetrics(),
                 Filters = GetFilters(),
                 RequestState = GetRequestState(),
-                RequestTimeline = GetRequestTimeline(),
-
-                // Pass the preference keys in a bag since some of them are dynamic based on the ConnectionType and need to be generated in code.
-                PreferenceKeys = GetPreferenceKeys()
+                RequestTimeline = GetRequestTimeline()
             };
         }
 
-        private PreferenceKeysBag GetPreferenceKeys()
-        {
-            var preferenceKeys = new PreferenceKeysBag
-            {
-                SelectedDateRangeFilter = PreferenceKey.SelectedDateRangeFilter
-            };
-
-            if ( ConnectionType?.IdKey is null )
-            {
-                preferenceKeys.ConnectionOpportunityFilter = null;
-            }
-            else
-            {
-                preferenceKeys.ConnectionOpportunityFilter = PreferenceKey.ConnectionOpportunityFilterTemplate.Replace( "{0}", ConnectionType.IdKey );
-            }
-
-            return preferenceKeys;
-        }
-
-        private List<ListItemBag> GetConnectionOpportunities()
+        private List<IdKeyListItemBag> GetConnectionOpportunities()
         {
             return ConnectionTypeQuery
                 .SelectMany( ct => ct.ConnectionOpportunities )
                 .Where( co => co.IsActive )
                 .OrderBy( co => co.Order )
                 .ThenBy( co => co.PublicName )
-                .ToListItemBagList( co => co.PublicName );
+                .ToList()
+                .Select( co => new IdKeyListItemBag
+                {
+                    // Use IdKeys instead of guid so they can be used as page parameters when navigating to the Connections Hub
+                    // instead of having to IdKeys by Guid later.
+                    Value = co.Guid.ToString(),
+                    Text = co.PublicName,
+                    IdKey = co.IdKey
+                } )
+                .ToList();
         }
 
-        private CompletionMetricsBag GetCompletionMetrics()
+        private CompletionMetricsBag GetCompletionMetrics( GetMetricsBag bag = null )
         {
             var blockPersonPreferences = GetBlockPersonPreferences();
-            var preferenceKeys = GetPreferenceKeys();
-            var lastNDays = blockPersonPreferences.GetValue( preferenceKeys.SelectedDateRangeFilter ).AsIntegerOrNull() ?? 7;
-            var connectionOpportunityGuid = blockPersonPreferences.GetValue( preferenceKeys.ConnectionOpportunityFilter ).AsGuidOrNull();
+            var lastNDays = blockPersonPreferences.GetValue( PreferenceKey.SelectedDateRangeFilter ).AsIntegerOrNull() ?? 7;
+            var connectionOpportunityGuid = bag?.ConnectionOpportunityGuid;
 
             var connectionTypeService = new ConnectionTypeService( RockContext );
             var completionMetricsComparison = connectionTypeService
@@ -346,13 +334,11 @@ namespace Rock.Blocks.Engagement
             };
         }
 
-        private RequestStateBag GetRequestState()
+        private RequestStateBag GetRequestState( GetMetricsBag bag = null )
         {
             var connectionTypeService = new ConnectionTypeService( RockContext );
             var connectionStatusService = new ConnectionStatusService( RockContext );
-            var preferences = GetBlockPersonPreferences();
-            var preferenceKeys = GetPreferenceKeys();
-            var connectionOpportunityGuid = preferences.GetValue( preferenceKeys.ConnectionOpportunityFilter ).AsGuidOrNull();
+            var connectionOpportunityGuid = bag?.ConnectionOpportunityGuid;
 
             var connectionRequestHealthSnapshot = connectionTypeService
                 .GetConnectionRequestHealthSnapshot(
@@ -394,12 +380,9 @@ namespace Rock.Blocks.Engagement
             };
         }
 
-        private RequestTimelineBag GetRequestTimeline()
+        private RequestTimelineBag GetRequestTimeline( GetMetricsBag bag = null )
         {
-            var preferences = GetBlockPersonPreferences();
-            var preferenceKeys = GetPreferenceKeys();
-
-            var connectionOpportunityGuid = preferences.GetValue( preferenceKeys.ConnectionOpportunityFilter ).AsGuidOrNull();
+            var connectionOpportunityGuid = bag?.ConnectionOpportunityGuid;
 
             var connectionTypeService = new ConnectionTypeService( RockContext );
             var upcomingFollowUps = connectionTypeService
@@ -442,16 +425,12 @@ namespace Rock.Blocks.Engagement
                 .AddField( nameof( ConnectorBag.AverageCompletionDays ).ToCamelCase(), row => row.AverageCompletionDays );
         }
 
-        private List<ConnectorBag> GetConnectors()
+        private List<ConnectorBag> GetConnectors( GetMetricsBag bag = null )
         {
             var today = RockDateTime.Today;
             var twentyEightDaysAgo = today.AddDays( -28 );
             var campusGuid = RequestContext.GetContextEntity<Campus>()?.Guid;
-
-            var preferences = GetBlockPersonPreferences();
-            var preferenceKeys = GetPreferenceKeys();
-
-            var connectionOpportunityGuid = preferences.GetValue( preferenceKeys.ConnectionOpportunityFilter ).AsGuidOrNull();
+            var connectionOpportunityGuid = bag?.ConnectionOpportunityGuid;
 
             // 1. Aggregate metrics per connector in SQL
             var metrics = ConnectionTypeQuery

@@ -41,7 +41,7 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionOperationalSnapshot
         /// <summary>
         /// Gets or sets the connection opportunities for the connection type.
         /// </summary>
-        public List<ListItemBag> ConnectionOpportunities { get; set; }
+        public List<IdKeyListItemBag> ConnectionOpportunities { get; set; }
 
         /// <summary>
         /// Gets or sets the supported filter values and defaults for the block.
@@ -62,10 +62,5 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionOperationalSnapshot
         /// Gets or sets the metrics related to completion quality and efficiency.
         /// </summary>
         public CompletionMetricsBag CompletionMetrics { get; set; }
-
-        /// <summary>
-        /// Gets or sets the collection of preference keys used to access person preferences.
-        /// </summary>
-        public PreferenceKeysBag PreferenceKeys { get; set; }
     }
 }

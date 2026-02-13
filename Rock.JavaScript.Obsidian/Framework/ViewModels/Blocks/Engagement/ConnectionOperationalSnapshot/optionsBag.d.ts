@@ -23,10 +23,9 @@
 
 import { CompletionMetricsBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionOperationalSnapshot/completionMetricsBag";
 import { FiltersBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionOperationalSnapshot/filtersBag";
-import { PreferenceKeysBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionOperationalSnapshot/preferenceKeysBag";
+import { IdKeyListItemBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionOperationalSnapshot/idKeyListItemBag";
 import { RequestStateBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionOperationalSnapshot/requestStateBag";
 import { RequestTimelineBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionOperationalSnapshot/requestTimelineBag";
-import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
 
 /**
  * Initialization data for the Connection Operational Snapshot block.
@@ -38,7 +37,7 @@ export type OptionsBag = {
     completionMetrics?: CompletionMetricsBag | null;
 
     /** Gets or sets the connection opportunities for the connection type. */
-    connectionOpportunities?: ListItemBag[] | null;
+    connectionOpportunities?: IdKeyListItemBag[] | null;
 
     /** Gets or sets the connection type identifier key. */
     connectionTypeIdKey?: string | null;
@@ -48,9 +47,6 @@ export type OptionsBag = {
 
     /** Gets or sets the supported filter values and defaults for the block. */
     filters?: FiltersBag | null;
-
-    /** Gets or sets the collection of preference keys used to access person preferences. */
-    preferenceKeys?: PreferenceKeysBag | null;
 
     /** Gets or sets the current snapshot of connection request state. */
     requestState?: RequestStateBag | null;

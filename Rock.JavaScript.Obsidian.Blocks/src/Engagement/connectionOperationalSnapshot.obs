@@ -9,9 +9,9 @@
                            showCampus
                            title="Filters">
                 <template #default>
-                    <DropDownList v-model="selectedOpportunityGuidOrEmptyString"
+                    <DropDownList v-model="selectedOpportunityGuidOrDefaultText"
                                   :items="config.options?.connectionOpportunities ?? []"
-                                  blankValue="All Opportunities" />
+                                  :blankValue="blankConnectionOpportunityValue" />
                 </template>
             </ContextSlicer>
 
@@ -375,7 +375,7 @@
         useReloadBlock
     } from "@Obsidian/Utility/block";
     import { PageMessages } from "@Obsidian/Utility/browserBus";
-    import { areEqual } from "@Obsidian/Utility/guid";
+    import { areEqual, toGuidOrNull } from "@Obsidian/Utility/guid";
     import { Enumerable } from "@Obsidian/Utility/linq";
     import { isNullish } from "@Obsidian/Utility/util";
     import { ConnectorBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionOperationalSnapshot/connectorBag";
@@ -385,6 +385,7 @@
     import { GridDataBag } from "@Obsidian/ViewModels/Core/Grid/gridDataBag";
     import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
     import { CompletionMetricsBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionOperationalSnapshot/completionMetricsBag";
+    import { GetMetricsBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionOperationalSnapshot/getMetricsBag";
     import { RequestStateBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionOperationalSnapshot/requestStateBag";
     import { RequestTimelineBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionOperationalSnapshot/requestTimelineBag";
 
@@ -416,8 +417,8 @@
         Neutral = "var(--color-interface-medium)"
     }
 
-    const selectedDateRangeFilterPreferenceKey = config.options?.preferenceKeys?.selectedDateRangeFilter ?? "";
-    const connectionOpportunityFilterPreferenceKey = config.options?.preferenceKeys?.connectionOpportunityFilter ?? "";
+    const selectedDateRangeFilterPreferenceKey = "SelectedDateRangeFilter";
+    const blankConnectionOpportunityValue = "All Opportunities";
 
     // #endregion Types
 
@@ -443,13 +444,14 @@
         return "";
     })());
 
-    const selectedOpportunityGuidOrEmptyString = ref<string>((() => {
-        if (connectionOpportunityFilterPreferenceKey) {
-            return personPreferences.blockPreferences.getValue(connectionOpportunityFilterPreferenceKey);
-        }
+    const selectedOpportunityGuidOrDefaultText = ref<string>("");
 
-        return "";
-    })());
+    const selectedOpportunityIdKeyOrEmptyString = computed<string>(() => {
+        return config.options
+            ?.connectionOpportunities
+            ?.find(o => areEqual(o.value, selectedOpportunityGuidOrDefaultText.value))
+            ?.idKey ?? "";
+    });
 
     // #endregion Values
 
@@ -587,6 +589,12 @@
         return selectedDateRangeOrEmptyString.value ? ` vs. Previous ${selectedDateRangeOrEmptyString.value} Days` : "";
     });
 
+    const getMetricsBag = computed<GetMetricsBag>(() => {
+        return {
+            connectionOpportunityGuid: toGuidOrNull(selectedOpportunityGuidOrDefaultText.value)
+        };
+    });
+
     // #endregion Computed Values
 
     // #region Functions
@@ -689,7 +697,9 @@
     }
 
     async function loadGridData(): Promise<GridDataBag> {
-        const result = await invokeBlockAction<GridDataBag>("GetRowData");
+        const result = await invokeBlockAction<GridDataBag>("GetRowData", {
+            bag: getMetricsBag.value
+        });
 
         if (result.isSuccess && result.data) {
             return result.data;
@@ -712,7 +722,9 @@
     }
 
     async function refreshMetrics(): Promise<void> {
-        const result = await invokeBlockAction<MetricsBag>("GetMetrics");
+        const result = await invokeBlockAction<MetricsBag>("GetMetrics", {
+            bag: getMetricsBag.value
+        });
 
         if (result.isSuccess) {
             completionMetrics.value = result.data?.completionMetrics;
@@ -743,9 +755,8 @@
 
     // #region Event Handlers
 
-    function onConnectorRowClicked(personAliasIdKey: string): void {
-        const connectionsHubUrl = config.navigationUrls?.["ConnectionsHub"]?.replace("((Key))", personAliasIdKey);
-
+    function onConnectorRowClicked(personIdKey: string): void {
+        const connectionsHubUrl = config.navigationUrls?.["ConnectionsHub"]?.replace("((Key))", personIdKey).replace("((ConnectionOpportunityKey))", selectedOpportunityIdKeyOrEmptyString.value);
         if (connectionsHubUrl) {
             window.location.href = connectionsHubUrl;
         }
@@ -764,17 +775,7 @@
         await refreshCompletionMetrics();
     });
 
-    watch(selectedOpportunityGuidOrEmptyString, async () => {
-        if (connectionOpportunityFilterPreferenceKey) {
-            const connectionTypeIdKey = config.options?.connectionTypeIdKey;
-            if (!connectionTypeIdKey) {
-                throw new Error("Connection Type Id Key is not configured for the block.");
-            }
-
-            personPreferences.blockPreferences.setValue(connectionOpportunityFilterPreferenceKey, selectedOpportunityGuidOrEmptyString.value);
-            await personPreferences.blockPreferences.save();
-        }
-
+    watch(getMetricsBag, async () => {
         await Promise.all([refreshMetrics(), refreshGrid()]);
     });
 

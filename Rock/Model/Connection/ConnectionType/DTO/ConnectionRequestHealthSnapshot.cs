@@ -24,6 +24,11 @@ namespace Rock.Model.Connection.ConnectionType.DTO
     internal class ConnectionRequestHealthSnapshot
     {
         /// <summary>
+        /// Gets or sets the connection type identifier.
+        /// </summary>
+        public int ConnectionTypeId { get; set; }
+
+        /// <summary>
         /// Gets or sets the number of Connection Requests that are currently on track.
         /// </summary>
         public int OnTrackCount { get; set; }

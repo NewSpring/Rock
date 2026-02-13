@@ -21,18 +21,13 @@
 // </copyright>
 //
 
-import { CompletionMetricsBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionOperationalSnapshot/completionMetricsBag";
-import { RequestStateBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionOperationalSnapshot/requestStateBag";
-import { RequestTimelineBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionOperationalSnapshot/requestTimelineBag";
+import { Guid } from "@Obsidian/Types";
 
-/** Represents a container for aggregating request state, timeline, and completion metrics for a connection operation. */
-export type MetricsBag = {
-    /** Gets or sets the metrics related to completion quality and efficiency. */
-    completionMetrics?: CompletionMetricsBag | null;
-
-    /** Gets or sets the current snapshot of connection request state. */
-    requestState?: RequestStateBag | null;
-
-    /** Gets or sets the time-based workload and upcoming follow-up data. */
-    requestTimeline?: RequestTimelineBag | null;
+/** Represents a request bag containing information required to retrieve metrics. */
+export type GetMetricsBag = {
+    /**
+     * Gets or sets the unique identifier of the connection opportunity to filter the metrics by.
+     * If this is not set then the metrics will not be filtered by connection opportunity.
+     */
+    connectionOpportunityGuid?: Guid | null;
 };

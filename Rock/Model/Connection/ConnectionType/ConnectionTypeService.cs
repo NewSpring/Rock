@@ -295,124 +295,65 @@ namespace Rock.Model
             var campusGuid = options?.CampusGuid;
             var connectionOpportunityGuid = options?.ConnectionOpportunityGuid;
 
-            return connectionTypeQuery
-                .Select( ct =>
-                    ct.ConnectionOpportunities
-                        .Where( co =>
-                            !connectionOpportunityGuid.HasValue
-                            || co.Guid == connectionOpportunityGuid.Value
-                        )
-                        .SelectMany( co =>
-                            co.ConnectionRequests
-                                .Where( cr => !campusGuid.HasValue
-                                    || cr.Campus.Guid == campusGuid.Value 
-                                )
-                        )
-                        .Select( cr => new
-                        {
-                            IsActive = cr.ConnectionState == ConnectionState.Active,
+            var baseQuery =
+                from ct in connectionTypeQuery
 
-                            IsDueSoon =
-                                cr.ConnectionState == ConnectionState.Active
-                                && cr.DueSoonDate.HasValue
-                                && DbFunctions.TruncateTime( cr.DueSoonDate.Value ) <= today
+                from co in ct.ConnectionOpportunities
+                    .Where(co =>
+                        !connectionOpportunityGuid.HasValue
+                        || co.Guid == connectionOpportunityGuid.Value
+                    )
 
-                                // and not overdue
-                                && !(
-                                    cr.DueDate.HasValue
-                                    && DbFunctions.TruncateTime( cr.DueDate.Value ) < today
-                                ),
+                from cr in co.ConnectionRequests
 
-                            IsOverdue =
-                                cr.ConnectionState == ConnectionState.Active
-                                && cr.DueDate.HasValue
-                                && DbFunctions.TruncateTime( cr.DueDate.Value ) < today,
+                where !campusGuid.HasValue
+                      || cr.Campus.Guid == campusGuid.Value
+                      || (cr.Campus == null && campusGuid == null)
 
-                            IsUnassigned =
-                                cr.ConnectionState == ConnectionState.Active
-                                && !cr.ConnectorPersonAliasId.HasValue
-                        } )
-                        .GroupBy( _ => 1 )
-                        .Select( g => new
-                        {
-                            ActiveCount = g.Sum( x => x.IsActive ? 1 : 0 ),
-                            DueSoonCount = g.Sum( x => x.IsDueSoon ? 1 : 0 ),
-                            OverdueCount = g.Sum( x => x.IsOverdue ? 1 : 0 ),
-                            UnassignedCount = g.Sum( x => x.IsUnassigned ? 1 : 0 )
-                        } )
-                        .Select( s => new ConnectionRequestHealthSnapshot
-                        { 
-                            ActiveCount = s.ActiveCount,
-                            DueSoonCount = s.DueSoonCount,
-                            OverdueCount = s.OverdueCount,
-                            UnassignedCount = s.UnassignedCount,
-                            OnTrackCount = s.ActiveCount - s.DueSoonCount - s.OverdueCount                            
-                        } )
-                        .FirstOrDefault()
-                );
+                select new
+                {
+                    ct.Id,
+
+                    IsActive = cr.ConnectionState == ConnectionState.Active,
+
+                    IsDueSoon =
+                        cr.ConnectionState == ConnectionState.Active
+                        && cr.DueSoonDate.HasValue
+                        && DbFunctions.TruncateTime(cr.DueSoonDate.Value) <= today
+                        && !(
+                            cr.DueDate.HasValue
+                            && DbFunctions.TruncateTime(cr.DueDate.Value) < today
+                        ),
+
+                    IsOverdue =
+                        cr.ConnectionState == ConnectionState.Active
+                        && cr.DueDate.HasValue
+                        && DbFunctions.TruncateTime(cr.DueDate.Value) < today,
+
+                    IsUnassigned =
+                        cr.ConnectionState == ConnectionState.Active
+                        && !cr.ConnectorPersonAliasId.HasValue
+                };
+
+            return
+                from x in baseQuery
+                group x by x.Id into g
+                select new ConnectionRequestHealthSnapshot
+                {
+                    ConnectionTypeId = g.Key,
+
+                    ActiveCount = g.Sum(x => x.IsActive ? 1 : 0),
+                    DueSoonCount = g.Sum(x => x.IsDueSoon ? 1 : 0),
+                    OverdueCount = g.Sum(x => x.IsOverdue ? 1 : 0),
+                    UnassignedCount = g.Sum(x => x.IsUnassigned ? 1 : 0),
+
+                    OnTrackCount =
+                        g.Sum(x => x.IsActive ? 1 : 0)
+                        - g.Sum(x => x.IsDueSoon ? 1 : 0)
+                        - g.Sum(x => x.IsOverdue ? 1 : 0)
+                };
         }
 
-        /// <summary>
-        /// Retrieves health count statistics for connection requests associated with the specified connection types.
-        /// </summary>
-        /// <param name="connectionOpportunityQuery">A queryable collection of connection types for which to retrieve request health counts. Cannot be null.</param>
-        /// <param name="options">The options that describe the filters to apply to the query.</param>
-        /// <returns>A queryable collection of health count results for each specified connection type.</returns>
-        internal IQueryable<ConnectionRequestHealthSnapshot> GetRequestHealthCounts(
-            IQueryable<ConnectionOpportunity> connectionOpportunityQuery,
-            ConnectionRequestHealthSnapshotQueryOptions options
-        )
-        {
-            var today = RockDateTime.Today;
-            var campusGuid = options?.CampusGuid;
-            var connectionOpportunityGuid = options?.ConnectionOpportunityGuid;
-
-            return connectionOpportunityQuery
-                .Where( co =>
-                    !connectionOpportunityGuid.HasValue
-                    || co.Guid == connectionOpportunityGuid.Value
-                )
-                .Select( co =>
-                    co.ConnectionRequests
-                        .Where( cr =>
-                            !campusGuid.HasValue
-                            || cr.Campus.Guid == campusGuid.Value
-                        )
-                        .Select( cr => new
-                        {
-                            IsActive = cr.ConnectionState == ConnectionState.Active,
-
-                            IsDueSoon =
-                                cr.ConnectionState == ConnectionState.Active
-                                && cr.DueSoonDate.HasValue
-                                && DbFunctions.TruncateTime( cr.DueSoonDate.Value ) <= today
-
-                                // and not overdue
-                                && !(
-                                    cr.DueDate.HasValue
-                                    && DbFunctions.TruncateTime( cr.DueDate.Value ) < today
-                                ),
-
-                            IsOverdue =
-                                cr.ConnectionState == ConnectionState.Active
-                                && cr.DueDate.HasValue
-                                && DbFunctions.TruncateTime( cr.DueDate.Value ) < today,
-
-                            IsUnassigned =
-                                cr.ConnectionState == ConnectionState.Active
-                                && !cr.ConnectorPersonAliasId.HasValue
-                        } )
-                        .GroupBy( _ => 1 )
-                        .Select( g => new ConnectionRequestHealthSnapshot
-                        {
-                            ActiveCount = g.Sum( x => x.IsActive ? 1 : 0 ),
-                            DueSoonCount = g.Sum( x => x.IsDueSoon ? 1 : 0 ),
-                            OverdueCount = g.Sum( x => x.IsOverdue ? 1 : 0 ),
-                            UnassignedCount = g.Sum( x => x.IsUnassigned ? 1 : 0 )
-                        } )
-                        .FirstOrDefault()
-                );
-        }
 
         /// <summary>
         /// Retrieves a queryable collection of connection request status distributions.
@@ -429,39 +370,34 @@ namespace Rock.Model
             var campusGuid = options?.CampusGuid;
             var connectionOpportunityGuid = options?.ConnectionOpportunityGuid;
 
-            return connectionTypeQuery
-                .SelectMany( ct =>
-                    ct.ConnectionOpportunities
-                        .Where( co =>
-                            !connectionOpportunityGuid.HasValue
-                            || co.Guid == connectionOpportunityGuid.Value
-                        )
-                        .SelectMany( co =>
-                            co.ConnectionRequests
-                                .Where( cr =>
-                                    !campusGuid.HasValue
-                                    || cr.Campus.Guid == campusGuid.Value
-                                )
-                        )
-                )
-                .GroupBy( cr => cr.ConnectionStatusId )
-                .Select( g => new
+            return
+                from ct in connectionTypeQuery
+                from co in ct.ConnectionOpportunities
+                    .Where(co =>
+                        !connectionOpportunityGuid.HasValue
+                        || co.Guid == connectionOpportunityGuid.Value
+                    )
+                from cr in co.ConnectionRequests
+                where !campusGuid.HasValue
+                      || cr.Campus.Guid == campusGuid.Value
+                      || (cr.Campus == null && campusGuid == null)
+                group cr by new
                 {
-                    ConnectionStatusId = g.Key,
-                    Order = g.Min( cr => cr.ConnectionStatus.Order ),
-                    Name = g.Min( cr => cr.ConnectionStatus.Name ),
-                    Color = g.Min( cr => cr.ConnectionStatus.HighlightColor ),
+                    cr.ConnectionStatusId,
+                    cr.ConnectionStatus.Order,
+                    cr.ConnectionStatus.Name,
+                    cr.ConnectionStatus.HighlightColor
+                }
+                into g
+                orderby g.Key.Order, g.Key.Name
+                select new ConnectionRequestStatusDistribution
+                {
+                    Status = g.Key.Name,
+                    Color = g.Key.HighlightColor,
                     Count = g.Count()
-                } )
-                .OrderBy( s => s.Order )
-                .ThenBy( s => s.Name )
-                .Select( s => new ConnectionRequestStatusDistribution
-                {
-                    Status = s.Name,
-                    Color = s.Color,
-                    Count = s.Count
-                } );
+                };
         }
+
 
         /// <summary>
         /// Gets upcoming connection request follow up counts for the specified
