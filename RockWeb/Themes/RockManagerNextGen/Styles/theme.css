@@ -21946,6 +21946,51 @@ body.hide-block-role-secondary .block-instance.block-role-secondary:not(.block-r
   border-radius: var(--rounded-xsmall);
 }
 
+.web-farm-settings .bg-disabled {
+  color: var(--color-interface-soft);
+  background: var(--color-interface-softer);
+}
+.web-farm-settings .bg-disabled .indicator {
+  background: var(--color-interface-soft);
+}
+.web-farm-settings .card-node {
+  margin-bottom: 24px;
+  border-top: 0;
+}
+.web-farm-settings .card-node .indicator {
+  height: 4px;
+}
+.web-farm-settings .card-node .card-header {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 8px;
+  background: transparent;
+  align-items: center;
+}
+.web-farm-settings .server-meta {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: nowrap;
+  align-items: center;
+  overflow: hidden;
+  font-size: 20px;
+  line-height: 36px;
+}
+.web-farm-settings .node-name {
+  margin-left: 4px;
+  font-weight: 700;
+}
+.web-farm-settings .node-type-icon {
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+.web-farm-settings .card-node .card-body {
+  padding: 0;
+}
+.web-farm-settings .card .indicator {
+  height: 4px;
+}
+
 .group-location-map {
   margin-bottom: var(--spacing-large);
 }
