@@ -9,7 +9,8 @@
                         @after-leave="onAfterLeave">
                 <div v-show="internalValue"
                      ref="dockedPanelRef"
-                     class="docked-panel">
+                     class="docked-panel"
+                     :class="{ dragging: isResizing }">
                     <div v-if="$slots.header"
                          class="docked-panel-header">
                         <slot name="header"></slot>
@@ -95,6 +96,13 @@
 
     /* Drawer is the only interactive surface */
     pointer-events: auto;
+
+    /* Add width transition so setting the width programmatically animates smoothly (like when maximizing to fullscreen). */
+    transition: width 150ms ease;
+}
+.docked-panel.dragging {
+    /* Disable transitions while dragging, otherwise the drag feels sluggish. */
+    transition: none;
 }
 
 .docked-panel-container[data-position="right"] .docked-panel {
