@@ -4,6 +4,7 @@
                           :height="height || 'auto'"
                           :hideLegend="isLegendHidden"
                           :legendAlign="legendAlign"
+                          :legendPosition="legendPosition"
                           :sectionStyle="sectionStyle"
                           :title="title"
                           :titleAlign="titleAlign"
@@ -57,6 +58,11 @@
 
                     <ContentStack title="Legend">
                         <div class="autolayout">
+                            <DropDownList :modelValue="legendPosition ?? ''"
+                                          :items="legendPositionItems"
+                                          label="Position"
+                                          @update:modelValue="legendPosition = <LegendPosition>$event" />
+
                             <DropDownList :modelValue="legendAlign ?? ''"
                                           :items="legendAlignItems"
                                           label="Alignment"
@@ -99,6 +105,8 @@
     import {
         LegendAlign,
         LegendAlignDescription,
+        LegendPosition,
+        LegendPositionDescription,
         LinearGaugeSectionStyle,
         LinearGaugeSectionStyleDescription,
         LinearGaugeSeries,
@@ -114,6 +122,12 @@
         { text: LegendAlignDescription[LegendAlign.Center], value: LegendAlign.Center },
         { text: LegendAlignDescription[LegendAlign.End], value: LegendAlign.End }
     ];
+    const legendPositionItems = [
+        { text: LegendPositionDescription[LegendPosition.Top], value: LegendPosition.Top },
+        { text: LegendPositionDescription[LegendPosition.Bottom], value: LegendPosition.Bottom },
+        { text: LegendPositionDescription[LegendPosition.Left], value: LegendPosition.Left },
+        { text: LegendPositionDescription[LegendPosition.Right], value: LegendPosition.Right }
+    ];
     const sectionStyleItems = [
         { text: LinearGaugeSectionStyleDescription[LinearGaugeSectionStyle.Segmented], value: LinearGaugeSectionStyle.Segmented },
         { text: LinearGaugeSectionStyleDescription[LinearGaugeSectionStyle.Continuous], value: LinearGaugeSectionStyle.Continuous }
@@ -127,8 +141,9 @@
     // #region Values
 
     const height = ref<string | undefined>();
-    const isLegendHidden = ref<boolean>(false);
+    const isLegendHidden = ref<boolean | undefined>();
     const legendAlign = ref<LegendAlign | undefined>();
+    const legendPosition = ref<LegendPosition | undefined>();
     const sectionStyle = ref<LinearGaugeSectionStyle>(LinearGaugeSectionStyle.Segmented);
     const series: LinearGaugeSeries[] = [
         { label: "Completed", data: [70], color: "var(--color-success-strong)" },
@@ -157,6 +172,9 @@
         }
         if (!isNullish(legendAlign.value)) {
             linearGaugeChartProps.push(`legendAlign="${legendAlign.value}"`);
+        }
+        if (!isNullish(legendPosition.value)) {
+            linearGaugeChartProps.push(`legendPosition="${legendPosition.value}"`);
         }
         if (title.value) {
             linearGaugeChartProps.push(`title="${title.value}"`);

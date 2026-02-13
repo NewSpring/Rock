@@ -4,40 +4,43 @@
              class="linear-gauge-chart-label"
              :class="titleAlign">{{ title }}</div>
 
-        <div ref="chartContentRef"
-             class="linear-gauge-chart-content">
-            <div v-for="gauge of gauges"
-                 :key="gauge.id"
-                 class="linear-gauge"
-                 :class="sectionStyle">
-                <div v-for="section of gauge.sections"
-                     :key="section.id"
-                     class="linear-gauge-section"
-                     :data-original-title="section.tooltip"
-                     :ref="applyTooltip">
-                    <div v-for="segment of section.segments"
-                         :key="segment.id"
-                         class="linear-gauge-section-segment"
-                         :style="{ backgroundColor: segment.color, width: segment.width + 'px' }" />
+        <div class="linear-gauge-chart-and-legend"
+             :class="legendPosition">
+            <div ref="chartContentRef"
+                 class="linear-gauge-chart-content">
+                <div v-for="gauge of gauges"
+                     :key="gauge.id"
+                     class="linear-gauge"
+                     :class="sectionStyle">
+                    <div v-for="section of gauge.sections"
+                         :key="section.id"
+                         class="linear-gauge-section"
+                         :data-original-title="section.tooltip"
+                         :ref="applyTooltip">
+                        <div v-for="segment of section.segments"
+                             :key="segment.id"
+                             class="linear-gauge-section-segment"
+                             :style="{ backgroundColor: segment.color, width: segment.width + 'px' }" />
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <div v-if="!hideLegend"
-             class="linear-gauge-chart-legend"
-             :class="legendAlign">
-            <div v-for="(item, i) of series"
-                 :key="i"
-                 class="linear-gauge-chart-legend-item"
-                 :class="{ 'legend-item-hidden': hiddenSeries[item.label] }"
-                 @click="toggleSeries(item.label)">
-                <span class="linear-gauge-chart-legend-item-icon"
-                      :style="{ color: item.color }">
-                    <i class="ti ti-circle-filled"></i>
-                </span>
-                <span class="linear-gauge-chart-legend-item-label">
-                    {{ item.label }}
-                </span>
+            <div v-if="!hideLegend"
+                 class="linear-gauge-chart-legend"
+                 :class="legendAlign">
+                <div v-for="(item, i) of series"
+                     :key="i"
+                     class="linear-gauge-chart-legend-item"
+                     :class="{ 'legend-item-hidden': hiddenSeries[item.label] }"
+                     @click="toggleSeries(item.label)">
+                    <span class="linear-gauge-chart-legend-item-icon"
+                          :style="{ color: item.color }">
+                        <i class="ti ti-circle-filled"></i>
+                    </span>
+                    <span class="linear-gauge-chart-legend-item-label">
+                        {{ item.label }}
+                    </span>
+                </div>
             </div>
         </div>
     </div>
@@ -73,10 +76,33 @@
     text-align: right;
 }
 
+.linear-gauge-chart-and-legend {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-small);
+}
+
+.linear-gauge-chart-and-legend.left {
+    flex-direction: row-reverse;
+}
+
+.linear-gauge-chart-and-legend.right {
+    flex-direction: row;
+}
+
+.linear-gauge-chart-and-legend.top {
+    flex-direction: column-reverse;
+}
+
+.linear-gauge-chart-and-legend.bottom {
+    flex-direction: column;
+}
+
 .linear-gauge-chart-content {
     display: flex;
     flex-direction: column;
     gap: var(--spacing-small);
+    flex: 1;
 }
 
 .linear-gauge {
@@ -119,10 +145,16 @@
 
 .linear-gauge-chart-legend {
     display: flex;
+    flex-direction: row;
     flex-wrap: wrap;
     gap: var(--spacing-small);
     row-gap: var(--spacing-tiny);
     justify-content: center;
+}
+
+.linear-gauge-chart-and-legend.left .linear-gauge-chart-legend,
+.linear-gauge-chart-and-legend.right .linear-gauge-chart-legend {
+    flex-direction: column;
 }
 
 .linear-gauge-chart-legend.start {
@@ -169,6 +201,7 @@
     import { computed, onMounted, onUnmounted, PropType, ref, watch } from "vue";
     import {
         LegendAlign,
+        LegendPosition,
         LinearGaugeSectionStyle,
         LinearGaugeSeries,
         TitleAlign,
@@ -235,6 +268,13 @@
          */
         legendAlign: {
             type: Object as PropType<LegendAlign | null | undefined>
+        },
+
+        /**
+         * The position of the legend in the chart.
+         */
+        legendPosition: {
+            type: Object as PropType<LegendPosition | undefined>
         },
 
         /**
@@ -505,6 +545,14 @@
     }
 
     watch(() => props.sectionStyle, calculateSegments);
+
+    watch(() => props.legendPosition, () => {
+        // Clear the gauges to make way for the legend.
+        gauges.value = [];
+
+        // Let the legend position update in the DOM before recalculating segments to ensure the resize observer has accurate container width
+        requestAnimationFrame(calculateSegments);
+    });
 
     watch(
         () => props.series,
