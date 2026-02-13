@@ -15,7 +15,10 @@
 // </copyright>
 //
 
+using System.Collections.Generic;
+
 using Rock.Enums.Connection;
+using Rock.ViewModels.Utility;
 
 namespace Rock.ViewModels.Blocks.Connection.ConnectionOpportunityNavigation
 {
@@ -24,6 +27,11 @@ namespace Rock.ViewModels.Blocks.Connection.ConnectionOpportunityNavigation
     /// </summary>
     public class ConnectionOpportunityNavigationInitializationBox : BlockBox
     {
+        /// <summary>
+        /// Gets or sets the list of opportunity visibility items the individual may select.
+        /// </summary>
+        public List<ListItemBag> OpportunityVisibilityItems { get; set; }
+
         /// <summary>
         /// Gets or sets the icon CSS class for the parent connection type.
         /// </summary>
@@ -60,8 +68,8 @@ namespace Rock.ViewModels.Blocks.Connection.ConnectionOpportunityNavigation
         public bool IsSnapshotViewEnabled => EnabledViews.HasFlag( EnabledViewFlags.Snapshot );
 
         /// <summary>
-        /// Gets or sets the connection opportunity analytics and summaries.
+        /// Gets or sets the connection opportunity metrics and summaries.
         /// </summary>
-        public ConnectionOpportunityAnalyticsAndSummariesBag AnalyticsAndSummaries { get; set; }
+        public ConnectionOpportunityNavigationDetailsBag NavigationDetails { get; set; }
     }
 }

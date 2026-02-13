@@ -26,6 +26,7 @@ using Rock.Model;
 using Rock.Security;
 using Rock.Utility;
 using Rock.ViewModels.Blocks.Connection.ConnectionOpportunityNavigation;
+using Rock.ViewModels.Utility;
 using Rock.Web.Cache;
 using Rock.Web.UI;
 
@@ -99,12 +100,35 @@ namespace Rock.Blocks.Connection
 
         private static class PersonPreferenceKey
         {
-            public const string OnlyShowMyOpportunities = "only-show-my-opportunities";
+            public const string OpportunityVisibility = "opportunity-visibility";
         }
 
         #endregion Keys
 
+        #region Fields
+
+        private List<ListItemBag> _opportunityVisibilityItems;
+
+        #endregion Fields
+
         #region Properties
+
+        private List<ListItemBag> OpportunityVisibilityItems
+        {
+            get
+            {
+                if ( _opportunityVisibilityItems == null )
+                {
+                    _opportunityVisibilityItems = new List<ListItemBag>
+                    {
+                        OpportunityVisibility.AllOpportunites,
+                        OpportunityVisibility.MyOpportunities
+                    };
+                }
+
+                return _opportunityVisibilityItems;
+            }
+        }
 
         /// <summary>
         /// Gets the block person preferences.
@@ -112,11 +136,23 @@ namespace Rock.Blocks.Connection
         private PersonPreferenceCollection BlockPersonPreferences => this.GetBlockPersonPreferences();
 
         /// <summary>
-        /// Gets whether to show only they current person's opportunities.
+        /// Gets or sets the current person's opportunity visibility preference.
         /// </summary>
-        private bool OnlyShowMyOpportunities => BlockPersonPreferences
-            .GetValue( PersonPreferenceKey.OnlyShowMyOpportunities )
-            .AsBoolean( true );
+        private string OpportunityVisibilityPreference
+        {
+            get
+            {
+                var opportunityVisibility = BlockPersonPreferences
+                    .GetValue( PersonPreferenceKey.OpportunityVisibility );
+
+                if ( opportunityVisibility.IsNotNullOrWhiteSpace() )
+                {
+                    return opportunityVisibility;
+                }
+
+                return OpportunityVisibility.MyOpportunitiesValue;
+            }
+        }
 
         #endregion Properties
 
@@ -142,10 +178,11 @@ namespace Rock.Blocks.Connection
                 return box;
             }
 
+            box.OpportunityVisibilityItems = OpportunityVisibilityItems;
             box.Name = connectionType.Name;
             box.IconCssClass = connectionType.IconCssClass;
             box.EnabledViews = connectionType.EnabledViews;
-            box.AnalyticsAndSummaries = LoadAnalyticsAndSummaries( connectionType.Id );
+            box.NavigationDetails = LoadNavigationDetails( connectionType.Id );
             box.NavigationUrls = GetBoxNavigationUrls();
 
             return box;
@@ -156,11 +193,11 @@ namespace Rock.Blocks.Connection
         #region Block Actions
 
         /// <summary>
-        /// Gets the connection opportunity analytics and summaries.
+        /// Gets the connection opportunity metrics and summaries.
         /// </summary>
-        /// <returns>An object containing information about the connection opportunity analytics and summaries.</returns>
+        /// <returns>An object containing information about the connection opportunity metrics and summaries.</returns>
         [BlockAction]
-        public BlockActionResult GetAnalyticsAndSummaries()
+        public BlockActionResult GetNavigationDetails()
         {
             var connectionType = GetConnectionTypeFromPageParameter();
             if ( connectionType == null )
@@ -173,7 +210,7 @@ namespace Rock.Blocks.Connection
                 return ActionUnauthorized( EditModeMessage.NotAuthorizedToView( ConnectionType.FriendlyTypeName ) );
             }
 
-            var response = LoadAnalyticsAndSummaries( connectionType.Id );
+            var response = LoadNavigationDetails( connectionType.Id );
 
             return ActionOk( response );
         }
@@ -206,17 +243,18 @@ namespace Rock.Blocks.Connection
         }
 
         /// <summary>
-        /// Loads connection opportunity analytics and summaries for the provided <paramref name="connectionTypeId"/>.
+        /// Loads connection opportunity metrics and summaries for the provided <paramref name="connectionTypeId"/>.
         /// </summary>
         /// <param name="connectionTypeId">
-        /// The identifier of the <see cref="ConnectionType"/> for which to load opportunity analytics and summaries.
+        /// The identifier of the <see cref="ConnectionType"/> for which to load opportunity metrics and summaries.
         /// </param>
-        /// <returns>A <see cref="ConnectionOpportunityAnalyticsAndSummariesBag"/>.S</returns>
-        private ConnectionOpportunityAnalyticsAndSummariesBag LoadAnalyticsAndSummaries( int connectionTypeId )
+        /// <returns>A <see cref="ConnectionOpportunityNavigationDetailsBag"/>.</returns>
+        private ConnectionOpportunityNavigationDetailsBag LoadNavigationDetails( int connectionTypeId )
         {
-            return new ConnectionOpportunityAnalyticsAndSummariesBag
+            return new ConnectionOpportunityNavigationDetailsBag
             {
-                ConnectionOpportunitySummaries = LoadConnectionOpportunitySummaries( connectionTypeId )
+                ConnectionOpportunitySummaries = LoadConnectionOpportunitySummaries( connectionTypeId ),
+                RequestCountsPerDay = LoadRequestsCountsPerDay( connectionTypeId )
             };
         }
 
@@ -237,19 +275,16 @@ namespace Rock.Blocks.Connection
             var connectionRequestQry = new ConnectionRequestService( RockContext )
                 .Queryable()
                 .Where( cr =>
-                    cr.ConnectionOpportunity.ConnectionTypeId == connectionTypeId
+                    cr.ConnectionState == ConnectionState.Active
                     && ( !campusId.HasValue || cr.CampusId == campusId.Value )
-                    && (
-                        cr.ConnectionState == ConnectionState.Active
-                        || cr.ConnectionState == ConnectionState.FutureFollowUp
-                    )
+                    && cr.ConnectionOpportunity.ConnectionTypeId == connectionTypeId
                 );
 
             var connectionOpportunityQry = new ConnectionOpportunityService( RockContext )
                 .Queryable()
                 .Where( co => co.ConnectionTypeId == connectionTypeId );
 
-            if ( OnlyShowMyOpportunities )
+            if ( OpportunityVisibilityPreference == OpportunityVisibility.MyOpportunitiesValue )
             {
                 connectionRequestQry = connectionRequestQry
                     .Where( cr =>
@@ -269,11 +304,24 @@ namespace Rock.Blocks.Connection
                 .Select( g => new
                 {
                     ConnectionOpportunityId = g.Key,
-                    ActiveRequestCount = g.Count( r => r.ConnectionState == ConnectionState.Active ),
-                    OverdueRequestCount = g.Count( r => r.DueDate.HasValue && DbFunctions.TruncateTime( r.DueDate.Value ) < today ),
-                    DueSoonRequestCount = g.Count( r => r.DueSoonDate.HasValue && DbFunctions.TruncateTime( r.DueSoonDate.Value ) >= today ),
+                    ActiveRequestCount = g.Count(), // They're all active because of the filter above.
+                    DueSoonRequestCount = g.Count( r =>
+                        r.DueSoonDate.HasValue
+                        && DbFunctions.TruncateTime( r.DueSoonDate.Value ) <= today
+                        && !(
+                            r.DueDate.HasValue
+                            && DbFunctions.TruncateTime( r.DueDate.Value ) < today
+                        )
+                    ),
+                    OverdueRequestCount = g.Count( r =>
+                        r.DueDate.HasValue
+                        && DbFunctions.TruncateTime( r.DueDate.Value ) < today
+                    ),
                     UnassignedRequestCount = g.Count( r => !r.ConnectorPersonAliasId.HasValue ),
-                    AssignedToYouRequestCount = g.Count( r => r.ConnectorPersonAliasId.HasValue && r.ConnectorPersonAlias.PersonId == personId )
+                    AssignedToYouRequestCount = g.Count( r =>
+                        r.ConnectorPersonAliasId.HasValue
+                        && r.ConnectorPersonAlias.PersonId == personId
+                    )
                 } );
 
             var summaries = connectionOpportunityQry
@@ -297,8 +345,8 @@ namespace Rock.Blocks.Connection
                         Summary = x.ConnectionOpportunity.Summary,
                         Order = x.ConnectionOpportunity.Order,
                         ActiveRequestCount = counts == null ? 0 : counts.ActiveRequestCount,
-                        OverdueRequestCount = counts == null ? 0 : counts.OverdueRequestCount,
                         DueSoonRequestCount = counts == null ? 0 : counts.DueSoonRequestCount,
+                        OverdueRequestCount = counts == null ? 0 : counts.OverdueRequestCount,
                         UnassignedRequestCount = counts == null ? 0 : counts.UnassignedRequestCount,
                         AssignedToYouRequestCount = counts == null ? 0 : counts.AssignedToYouRequestCount
                     }
@@ -310,6 +358,104 @@ namespace Rock.Blocks.Connection
             summaries.ForEach( s => s.TranslateIdToIdKey() );
 
             return summaries;
+        }
+
+        /// <summary>
+        /// Loads the counts of <see cref="ConnectionRequest"/>s per day for the past 30 days.
+        /// </summary>
+        /// <param name="connectionTypeId">
+        /// The identifier of the <see cref="ConnectionType"/> for which to load request counts.
+        /// </param>
+        /// <returns>Counts of <see cref="ConnectionRequest"/>s per day.</returns>
+        private ConnectionRequestCountsPerDayBag LoadRequestsCountsPerDay( int connectionTypeId )
+        {
+            var startDate = RockDateTime.Today.AddDays( -29 ); // 30 days including today.
+            var endDate = RockDateTime.Today.AddDays( 1 );
+
+            var connectionRequestQry = new ConnectionRequestService( RockContext )
+                .Queryable()
+                .Where( cr =>
+                    cr.ConnectionOpportunity.ConnectionTypeId == connectionTypeId
+                );
+
+            if ( OpportunityVisibilityPreference == OpportunityVisibility.MyOpportunitiesValue )
+            {
+                var personId = GetCurrentPerson()?.Id ?? 0;
+                connectionRequestQry = connectionRequestQry
+                    .Where( cr =>
+                        cr.ConnectorPersonAliasId.HasValue
+                        && cr.ConnectorPersonAlias.PersonId == personId
+                    );
+            }
+
+            var createdRequestCountsQry = connectionRequestQry
+                .Where( cr =>
+                    cr.CreatedDateTime >= startDate
+                    && cr.CreatedDateTime < endDate
+                )
+                .GroupBy( cr => DbFunctions.TruncateTime( cr.CreatedDateTime ) )
+                .Select( g => new
+                {
+                    Date = g.Key.Value,
+                    NewCount = g.Count(),
+                    ConnectedCount = 0
+                } );
+
+            var connectedRequestCountsQry = connectionRequestQry
+                .Where( cr =>
+                    cr.ConnectedDateTime >= startDate
+                    && cr.ConnectedDateTime < endDate
+                )
+                .GroupBy( cr => DbFunctions.TruncateTime( cr.ConnectedDateTime ) )
+                .Select( g => new
+                {
+                    Date = g.Key.Value,
+                    NewCount = 0,
+                    ConnectedCount = g.Count()
+                } );
+
+            var requestCountsByDate = createdRequestCountsQry
+                .Concat( connectedRequestCountsQry ) // Union all.
+                .GroupBy( x => x.Date )
+                .Select( g => new
+                {
+                    Date = g.Key,
+                    NewCount = g.Sum( x => x.NewCount ),
+                    ConnectedCount = g.Sum( x => x.ConnectedCount )
+                } )
+                .ToList()
+                .ToDictionary(
+                    c => c.Date.Date,
+                    c => new { c.NewCount, c.ConnectedCount }
+                );
+
+            var requestCountsPerDay = new ConnectionRequestCountsPerDayBag
+            {
+                StartDate = startDate,
+                NewRequestCounts = new List<int>(),
+                CompletedRequestCounts = new List<int>()
+            };
+
+            var currentDate = startDate;
+
+            while ( currentDate < endDate )
+            {
+                var newCount = 0;
+                var completedCount = 0;
+
+                if ( requestCountsByDate.TryGetValue( currentDate.Date, out var counts ) )
+                {
+                    newCount = counts.NewCount;
+                    completedCount = counts.ConnectedCount;
+                }
+
+                requestCountsPerDay.NewRequestCounts.Add( newCount );
+                requestCountsPerDay.CompletedRequestCounts.Add( completedCount );
+
+                currentDate = currentDate.AddDays( 1 );
+            }
+
+            return requestCountsPerDay;
         }
 
         /// <summary>
@@ -339,5 +485,24 @@ namespace Rock.Blocks.Connection
         }
 
         #endregion Private Methods
+
+        #region Supporting Members
+
+        /// <summary>
+        /// A POCO to represent available opportunity visibility options.
+        /// </summary>
+        private class OpportunityVisibility
+        {
+            public const string AllOpportunitiesValue = "all-opportunities";
+            public const string MyOpportunitiesValue = "my-opportunities";
+
+            private static readonly ListItemBag _allOpportunities = new ListItemBag { Text = "All Opportunities", Value = AllOpportunitiesValue };
+            public static ListItemBag AllOpportunites => _allOpportunities;
+
+            private static readonly ListItemBag _myOpportunities = new ListItemBag { Text = "My Opportunities", Value = MyOpportunitiesValue };
+            public static ListItemBag MyOpportunities => _myOpportunities;
+        }
+
+        #endregion Supporting Members
     }
 }

@@ -57,14 +57,14 @@ namespace Rock.ViewModels.Blocks.Connection.ConnectionTypeNavigation
         public int ActiveRequestCount { get; set; }
 
         /// <summary>
-        /// Gets or sets the count of overdue connection requests for all connection opportunities of this type.
-        /// </summary>
-        public int OverdueRequestCount { get; set; }
-
-        /// <summary>
         /// Gets or sets the count of "due soon" connection requests for all connection opportunities of this type.
         /// </summary>
         public int DueSoonRequestCount { get; set; }
+
+        /// <summary>
+        /// Gets or sets the count of overdue connection requests for all connection opportunities of this type.
+        /// </summary>
+        public int OverdueRequestCount { get; set; }
 
         /// <summary>
         /// Gets or sets the count of unassigned connection requests for all connection opportunities of this type.

@@ -145,11 +145,9 @@
     // #region Functions
 
     /**
-     * Gets the primary actions for a given connection type summary.
-     *
-     * @param summary The connection type summary for which to get
-     * the primary actions.
-     * @returns An array of primary menu actions.
+     * Generates the primary actions for a given connection type summary.
+     * @param summary The connection type summary for which to generate actions.
+     * @returns An array of menu actions relevant to the provided summary.
      */
     function getPrimaryActions(summary: ConnectionTypeSummaryBag): MenuAction[] {
         const actions: MenuAction[] = [];

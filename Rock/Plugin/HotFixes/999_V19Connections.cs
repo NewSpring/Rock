@@ -36,7 +36,7 @@ namespace Rock.Plugin.HotFixes
 
         /// <summary>
         /// Operations to be performed during the downgrade process.
-        /// </summary>S
+        /// </summary>
         public override void Down()
         {
             JMH_AddConnectionOperationalSnapshotBlock_Down();
@@ -292,6 +292,26 @@ namespace Rock.Plugin.HotFixes
             /*   Attribute Value: 3421fd03-018f-457d-a0b6-9326c5d5a5f4,75077c7c-79ad-4041-a460-b4bff9afc8cf */
             //   Skip If Already Exists: true
             RockMigrationHelper.AddBlockAttributeValue( false, "D5130BD5-92A1-4904-ACEB-5CC6D9E8CDA5", "63EBC197-9519-4A39-9ABB-DBB1DC9A67B8", $"{Rock.SystemGuid.Page.CONNECTIONS_OPERATIONAL_SNAPSHOT},75077c7c-79ad-4041-a460-b4bff9afc8cf" );
+
+            // ----------------------------------
+            // Update the preexisting Legacy ConnectionOpportunitySelect block type and any instances to reflect the new ConnectionTypeNavigation block type.
+            // If they've changed the name of any instances from the previous default, leave their names as-is.
+
+            Sql( @"
+DECLARE @BlockTypeId INT = (SELECT TOP 1 [Id] FROM [BlockType] WHERE [Guid] = '23438CBC-105B-4ADB-8B9A-D5DDDCDD7643');
+
+IF @BlockTypeId IS NOT NULL
+BEGIN
+    UPDATE [BlockType]
+    SET [Name] = 'Connection Type Navigation'
+        , [Description] = 'Displays connection types that the user is authorized to view and provides easy navigation into each type''s connection opportunities and requests.'
+    WHERE [Id] = @BlockTypeId;
+
+    UPDATE [Block]
+    SET [Name] = 'Connection Type Navigation'
+    WHERE [BlockTypeId] = @BlockTypeId
+        AND [Name] = 'Connection Opportunity Select';
+END" );
         }
 
         /// <summary>
@@ -366,7 +386,23 @@ namespace Rock.Plugin.HotFixes
             RockMigrationHelper.DeleteEntityType( "E8C57557-31B7-4846-8F63-36BDDBB88719" );
 
             // -----
-            // Re-add the Legacy attributes that were removed in the up migration:
+            // Re-add the Legacy block type name, description and attributes that were removed in the up migration:
+
+            Sql( @"
+DECLARE @BlockTypeId INT = (SELECT TOP 1 [Id] FROM [BlockType] WHERE [Guid] = '23438CBC-105B-4ADB-8B9A-D5DDDCDD7643');
+
+IF @BlockTypeId IS NOT NULL
+BEGIN
+    UPDATE [BlockType]
+    SET [Name] = 'Connection Opportunity Select'
+        , [Description] = 'Block to display the connection opportunities that the user is authorized to view.'
+    WHERE [Id] = @BlockTypeId;
+
+    UPDATE [Block]
+    SET [Name] = 'Connection Opportunity Select'
+    WHERE [BlockTypeId] = @BlockTypeId
+        AND [Name] = 'Connection Type Navigation';
+END" );
 
             // Attribute for BlockType: Connection Opportunity Select:Configuration Page
             RockMigrationHelper.AddOrUpdateBlockTypeAttribute( "23438CBC-105B-4ADB-8B9A-D5DDDCDD7643", "BD53F9C9-EBA9-4D3F-82EA-DE5DD34A8108", "Configuration Page", "ConfigurationPage", "Configuration Page", @"Page used to modify and create connection opportunities.", 1, @"9CC19684-7AD2-4D4E-A7C4-10DAE56E7FA6", "C170AC54-47B3-4B25-A149-742627D254CE" );
@@ -401,7 +437,7 @@ namespace Rock.Plugin.HotFixes
 
         /// <summary>
         /// JPH: Add the connections pages - down.
-        /// </summary>S
+        /// </summary>
         private void JPH_AddConnectionsPages_Down()
         {
             // Delete Page 

@@ -22,13 +22,11 @@
 //
 
 import { EnabledViewFlags } from "@Obsidian/Enums/Connection/enabledViewFlags";
-import { ConnectionOpportunityAnalyticsAndSummariesBag } from "@Obsidian/ViewModels/Blocks/Connection/ConnectionOpportunityNavigation/connectionOpportunityAnalyticsAndSummariesBag";
+import { ConnectionOpportunityNavigationDetailsBag } from "@Obsidian/ViewModels/Blocks/Connection/ConnectionOpportunityNavigation/connectionOpportunityNavigationDetailsBag";
+import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
 
 /** The box that contains all the initialization information for the connection opportunity navigation block. */
 export type ConnectionOpportunityNavigationInitializationBox = {
-    /** Gets or sets the connection opportunity analytics and summaries. */
-    analyticsAndSummaries?: ConnectionOpportunityAnalyticsAndSummariesBag | null;
-
     /** Gets or sets the enabled views for the parent connection type. */
     enabledViews: EnabledViewFlags;
 
@@ -56,8 +54,14 @@ export type ConnectionOpportunityNavigationInitializationBox = {
     /** Gets or sets the name for the parent connection type. */
     name?: string | null;
 
+    /** Gets or sets the connection opportunity metrics and summaries. */
+    navigationDetails?: ConnectionOpportunityNavigationDetailsBag | null;
+
     /** Gets or sets the navigation urls. */
     navigationUrls?: Record<string, string> | null;
+
+    /** Gets or sets the list of opportunity visibility items the individual may select. */
+    opportunityVisibilityItems?: ListItemBag[] | null;
 
     /** Gets or sets the security grant token. */
     securityGrantToken?: string | null;

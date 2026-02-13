@@ -22,15 +22,28 @@
 //
 
 import { ConnectionOpportunitySummaryBag } from "@Obsidian/ViewModels/Blocks/Connection/ConnectionOpportunityNavigation/connectionOpportunitySummaryBag";
+import { ConnectionRequestCountsPerDayBag } from "@Obsidian/ViewModels/Blocks/Connection/ConnectionOpportunityNavigation/connectionRequestCountsPerDayBag";
 
 /**
- * A bag that contains information about connection opportunity analytics and summaries for the Connection
+ * A bag that contains information about connection opportunity metrics and summaries for the Connection
  * Opportunity Navigation block.
  */
-export type ConnectionOpportunityAnalyticsAndSummariesBag = {
-    /** Gets or sets the list of connection opportunity summaries to display. */
+export type ConnectionOpportunityNavigationDetailsBag = {
+    /** Gets or sets the list of filtered connection opportunity summaries to display. */
     connectionOpportunitySummaries?: ConnectionOpportunitySummaryBag[] | null;
 
-    /** Gets the total count of active connection requests for all Rock.ViewModels.Blocks.Connection.ConnectionOpportunityNavigation.ConnectionOpportunityAnalyticsAndSummariesBag.ConnectionOpportunitySummaries. */
+    /** Gets or sets the connection request counts per day for all filtered connection opportunities. */
+    requestCountsPerDay?: ConnectionRequestCountsPerDayBag | null;
+
+    /** Gets the total count of active connection requests for all filtered connection opportunities. */
     totalActiveRequestsCount: number;
+
+    /** Gets the total count of connection requests that are due soon for all filtered connection opportunities. */
+    totalDueSoonRequestsCount: number;
+
+    /** Gets the total count of connection requests that are on track (not due soon and not overdue) for all filtered connection opportunities. */
+    totalOnTrackRequestsCount: number;
+
+    /** Gets the total count of connection requests that are overdue for all filtered connection opportunities. */
+    totalOverdueRequestsCount: number;
 };

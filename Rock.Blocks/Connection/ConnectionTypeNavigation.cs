@@ -211,22 +211,32 @@ namespace Rock.Blocks.Connection
             var requestCountsQry = new ConnectionRequestService( RockContext )
                 .Queryable()
                 .Where( cr =>
-                    authorizedConnectionTypeIds.Contains( cr.ConnectionOpportunity.ConnectionTypeId )
+                    cr.ConnectionState == ConnectionState.Active
                     && ( !campusId.HasValue || cr.CampusId == campusId.Value )
-                    && (
-                        cr.ConnectionState == ConnectionState.Active
-                        || cr.ConnectionState == ConnectionState.FutureFollowUp
-                    )
+                    && authorizedConnectionTypeIds.Contains( cr.ConnectionOpportunity.ConnectionTypeId )
                 )
                 .GroupBy( cr => cr.ConnectionOpportunity.ConnectionTypeId )
                 .Select( g => new
                 {
                     ConnectionTypeId = g.Key,
-                    ActiveRequestCount = g.Count( r => r.ConnectionState == ConnectionState.Active ),
-                    OverdueRequestCount = g.Count( r => r.DueDate.HasValue && DbFunctions.TruncateTime( r.DueDate.Value ) < today ),
-                    DueSoonRequestCount = g.Count( r => r.DueSoonDate.HasValue && DbFunctions.TruncateTime( r.DueSoonDate.Value ) >= today ),
+                    ActiveRequestCount = g.Count(), // They're all active because of the filter above.
+                    DueSoonRequestCount = g.Count( r =>
+                        r.DueSoonDate.HasValue
+                        && DbFunctions.TruncateTime( r.DueSoonDate.Value ) <= today
+                        && !(
+                            r.DueDate.HasValue
+                            && DbFunctions.TruncateTime( r.DueDate.Value ) < today
+                        )
+                    ),
+                    OverdueRequestCount = g.Count( r =>
+                        r.DueDate.HasValue
+                        && DbFunctions.TruncateTime( r.DueDate.Value ) < today
+                    ),
                     UnassignedRequestCount = g.Count( r => !r.ConnectorPersonAliasId.HasValue ),
-                    AssignedToYouRequestCount = g.Count( r => r.ConnectorPersonAliasId.HasValue && r.ConnectorPersonAlias.PersonId == personId )
+                    AssignedToYouRequestCount = g.Count( r =>
+                        r.ConnectorPersonAliasId.HasValue
+                        && r.ConnectorPersonAlias.PersonId == personId
+                    )
                 } );
 
             var summaries = new ConnectionTypeService( RockContext )
@@ -252,8 +262,8 @@ namespace Rock.Blocks.Connection
                         Description = x.ConnectionType.Description,
                         Order = x.ConnectionType.Order,
                         ActiveRequestCount = counts == null ? 0 : counts.ActiveRequestCount,
-                        OverdueRequestCount = counts == null ? 0 : counts.OverdueRequestCount,
                         DueSoonRequestCount = counts == null ? 0 : counts.DueSoonRequestCount,
+                        OverdueRequestCount = counts == null ? 0 : counts.OverdueRequestCount,
                         UnassignedRequestCount = counts == null ? 0 : counts.UnassignedRequestCount,
                         AssignedToYouRequestCount = counts == null ? 0 : counts.AssignedToYouRequestCount,
                         EnabledViews = x.ConnectionType.EnabledViews
