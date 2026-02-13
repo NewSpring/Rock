@@ -1,32 +1,73 @@
 <template>
     <GalleryAndResult :importCode="importCode" :exampleCode="exampleCode">
-
-        <div class="row">
-            <div class="col-md-12">
-                <LinearGaugeChart :series="values"
-                                  :hideLegend="hideLegend"
-                                  :title="title"
-                                  :sectionStyle="sectionStyle"
-                                  :width="width" />
-            </div>
-        </div>
+        <LinearGaugeChart :series="series"
+                          :height="height || 'auto'"
+                          :hideLegend="isLegendHidden"
+                          :legendAlign="legendAlign"
+                          :sectionStyle="sectionStyle"
+                          :title="title"
+                          :titleAlign="titleAlign"
+                          :width="width" />
 
         <template #settings>
             <div class="settings">
-                <div class="row">
-                    <div class="col-md-3">
-                        <TextBox v-model="width" label="Width" />
-                    </div>
-                    <div class="col-md-3">
-                        <DropDownList v-model="sectionStyle" :items="sectionStyleItems" label="Section Style" :showBlankItem="false" />
-                    </div>
-                    <div class="col-md-3">
-                        <TextBox v-model="title" label="Title" />
-                    </div>
-                    <div class="col-md-3">
-                        <Switch v-model="hideLegend" label="Hide Legend?" />
-                    </div>
-                </div>
+                <ContentSection title="Settings">
+                    <ContentStack title="General">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <TextBox :modelValue="title ?? ''"
+                                         label="Title"
+                                         @update:modelValue="title = $event" />
+                            </div>
+
+                            <div class="col-md-6">
+                                <DropDownList :modelValue="titleAlign ?? ''"
+                                              :items="titleAlignItems"
+                                              label="Title Alignment"
+                                              @update:modelValue="titleAlign = <TitleAlign>$event" />
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <TextBox :modelValue="height ?? ''"
+                                         label="Height"
+                                         help="CSS size value (e.g., '300px' or '50%')."
+                                         @update:modelValue="height = $event" />
+                            </div>
+
+                            <div class="col-md-6">
+                                <TextBox :modelValue="width ?? ''"
+                                         label="Width"
+                                         help="CSS size value (e.g., '300px' or '50%')."
+                                         @update:modelValue="width = $event" />
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <DropDownList v-model="sectionStyle"
+                                              :items="sectionStyleItems"
+                                              label="Section Style"
+                                              :showBlankItem="false" />
+                            </div>
+                        </div>
+
+                    </ContentStack>
+
+                    <ContentStack title="Legend">
+                        <div class="autolayout">
+                            <DropDownList :modelValue="legendAlign ?? ''"
+                                          :items="legendAlignItems"
+                                          label="Alignment"
+                                          @update:modelValue="legendAlign = <LegendAlign>$event" />
+
+                            <Switch :modelValue="isLegendHidden ?? false"
+                                    label="Hide"
+                                    @update:modelValue="isLegendHidden = $event" />
+                        </div>
+                    </ContentStack>
+                </ContentSection>
             </div>
         </template>
     </GalleryAndResult>
@@ -37,47 +78,100 @@
     max-height: 350px;
     overflow: auto;
 }
+
+.autolayout {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    column-gap: var(--spacing-small);
+}
 </style>
 
 <script setup lang="ts">
-    import { ref } from "vue";
+    import { computed, ref } from "vue";
     import GalleryAndResult from "./common/galleryAndResult.partial.obs";
     import { getSfcControlImportPath } from "./common/utils.partial";
+    import ContentSection from "@Obsidian/Controls/contentSection.obs";
+    import ContentStack from "@Obsidian/Controls/contentStack.obs";
     import DropDownList from "@Obsidian/Controls/dropDownList.obs";
     import LinearGaugeChart from "@Obsidian/Controls/linearGaugeChart.obs";
     import Switch from "@Obsidian/Controls/switch.obs";
     import TextBox from "@Obsidian/Controls/textBox.obs";
-    import { LinearGaugeSectionStyle, LinearGaugeSeries } from "@Obsidian/Core/Controls/chart";
-    import { Enumerable } from "@Obsidian/Utility/linq";
-    import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
-    import { toTitleCase } from "@Obsidian/Utility/stringUtils";
+    import {
+        LegendAlign,
+        LegendAlignDescription,
+        LinearGaugeSectionStyle,
+        LinearGaugeSectionStyleDescription,
+        LinearGaugeSeries,
+        TitleAlign,
+        TitleAlignDescription
+    } from "@Obsidian/Core/Controls/chart";
+    import { isNullish } from "@Obsidian/Utility/util";
 
     const importCode = getSfcControlImportPath("linearGaugeChart");
-    const exampleCode = `<LinearGaugeChart :modelValue="values" :hideLegend="false" title="Connection Requests" lineStyle="segmented" width="400px" />`;
 
-    const sectionStyles: LinearGaugeSectionStyle[] = ["segmented", "continuous"];
-
-    const sectionStyleItems = Enumerable
-        .from(sectionStyles)
-        .select<ListItemBag>(ls => {
-            return {
-                text: toTitleCase(ls),
-                value: ls
-            };
-        })
-        .toArray();
+    const legendAlignItems = [
+        { text: LegendAlignDescription[LegendAlign.Start], value: LegendAlign.Start },
+        { text: LegendAlignDescription[LegendAlign.Center], value: LegendAlign.Center },
+        { text: LegendAlignDescription[LegendAlign.End], value: LegendAlign.End }
+    ];
+    const sectionStyleItems = [
+        { text: LinearGaugeSectionStyleDescription[LinearGaugeSectionStyle.Segmented], value: LinearGaugeSectionStyle.Segmented },
+        { text: LinearGaugeSectionStyleDescription[LinearGaugeSectionStyle.Continuous], value: LinearGaugeSectionStyle.Continuous }
+    ];
+    const titleAlignItems = [
+        { text: TitleAlignDescription[TitleAlign.Start], value: TitleAlign.Start },
+        { text: TitleAlignDescription[TitleAlign.Center], value: TitleAlign.Center },
+        { text: TitleAlignDescription[TitleAlign.End], value: TitleAlign.End }
+    ];
 
     // #region Values
 
-    const values: LinearGaugeSeries[] = [
+    const height = ref<string | undefined>();
+    const isLegendHidden = ref<boolean>(false);
+    const legendAlign = ref<LegendAlign | undefined>();
+    const sectionStyle = ref<LinearGaugeSectionStyle>(LinearGaugeSectionStyle.Segmented);
+    const series: LinearGaugeSeries[] = [
         { label: "Completed", data: [70], color: "var(--color-success-strong)" },
         { label: "In Progress", data: [20], color: "#F59E0B" },
         { label: "Not Started", data: [10], color: "#EF4444" }
     ];
-    const width = ref<string>("auto");
-    const sectionStyle = ref<LinearGaugeSectionStyle>("segmented");
-    const hideLegend = ref<boolean>(false);
     const title = ref<string>("Connection Requests");
+    const titleAlign = ref<TitleAlign | undefined>();
+    const width = ref<string | undefined>();
 
     // #endregion Values
+
+    // #region Computed Values
+
+    const exampleCode = computed<string>(() => {
+        let linearGaugeChartProps: string[] = [
+            `:labels="labels"`,
+            `:series="series"`
+        ];
+
+        if (!isNullish(height.value)) {
+            linearGaugeChartProps.push(`height="${height.value}"`);
+        }
+        if (!isNullish(isLegendHidden.value)) {
+            linearGaugeChartProps.push(`:hideLegend="${isLegendHidden.value}"`);
+        }
+        if (!isNullish(legendAlign.value)) {
+            linearGaugeChartProps.push(`legendAlign="${legendAlign.value}"`);
+        }
+        if (title.value) {
+            linearGaugeChartProps.push(`title="${title.value}"`);
+        }
+        if (!isNullish(titleAlign.value)) {
+            linearGaugeChartProps.push(`titleAlign="${titleAlign.value}"`);
+        }
+        if (!isNullish(width.value)) {
+            linearGaugeChartProps.push(`width="${width.value}"`);
+        }
+
+        const prefix = "<LinearGaugeChart ";
+        const spaces = " ".repeat(prefix.length);
+        return `${prefix}${linearGaugeChartProps.join(`\n${spaces}`)} />`;
+    });
+
+    // #endregion Computed Values
 </script>

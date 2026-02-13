@@ -1,6 +1,8 @@
 <template>
-    <div class="linear-gauge-chart" :style="{ width: width }">
-        <div class="linear-gauge-chart-label">{{ title }}</div>
+    <div class="chart-container linear-gauge-chart" :style="{ height: height || '100%', width: width || '100%' }">
+        <div v-if="title"
+             class="linear-gauge-chart-label"
+             :class="titleAlign">{{ title }}</div>
 
         <div ref="chartContentRef"
              class="linear-gauge-chart-content">
@@ -19,22 +21,23 @@
                          :style="{ backgroundColor: segment.color, width: segment.width + 'px' }" />
                 </div>
             </div>
+        </div>
 
-            <div v-if="!hideLegend"
-                 class="linear-gauge-chart-legend">
-                <div v-for="(item, i) of series"
-                     :key="i"
-                     class="linear-gauge-chart-legend-item"
-                     :class="{ 'legend-item-hidden': hiddenSeries[item.label] }"
-                     @click="toggleSeries(item.label)">
-                    <span class="linear-gauge-chart-legend-item-icon"
-                          :style="{ color: item.color }">
-                        <i class="ti ti-circle-filled"></i>
-                    </span>
-                    <span class="linear-gauge-chart-legend-item-label">
-                        {{ item.label }}
-                    </span>
-                </div>
+        <div v-if="!hideLegend"
+             class="linear-gauge-chart-legend"
+             :class="legendAlign">
+            <div v-for="(item, i) of series"
+                 :key="i"
+                 class="linear-gauge-chart-legend-item"
+                 :class="{ 'legend-item-hidden': hiddenSeries[item.label] }"
+                 @click="toggleSeries(item.label)">
+                <span class="linear-gauge-chart-legend-item-icon"
+                      :style="{ color: item.color }">
+                    <i class="ti ti-circle-filled"></i>
+                </span>
+                <span class="linear-gauge-chart-legend-item-label">
+                    {{ item.label }}
+                </span>
             </div>
         </div>
     </div>
@@ -44,17 +47,30 @@
 .linear-gauge-chart {
     display: flex;
     flex-direction: column;
-    padding: var(--spacing-medium);
     gap: var(--spacing-large);
-    border-radius: var(--rounded-medium);
-    border: 1px solid var(--color-interface-soft);
-    background: var(--color-interface-softer);
+    flex: 1;
+    /* Allow the chart to grow and fill available space if in a flex box */
+    justify-content: space-between;
+    /* Distribute space between the label, content, and legend */
 }
 
 .linear-gauge-chart-label {
     font-weight: var(--font-weight-semibold);
     font-size: var(--font-size-small);
     color: var(--color-interface-strong);
+    text-align: center;
+}
+
+.linear-gauge-chart-label.start {
+    text-align: left;
+}
+
+.linear-gauge-chart-label.center {
+    text-align: center;
+}
+
+.linear-gauge-chart-label.end {
+    text-align: right;
 }
 
 .linear-gauge-chart-content {
@@ -106,6 +122,19 @@
     flex-wrap: wrap;
     gap: var(--spacing-small);
     row-gap: var(--spacing-tiny);
+    justify-content: center;
+}
+
+.linear-gauge-chart-legend.start {
+    justify-content: flex-start;
+}
+
+.linear-gauge-chart-legend.center {
+    justify-content: center;
+}
+
+.linear-gauge-chart-legend.end {
+    justify-content: flex-end;
 }
 
 .linear-gauge-chart-legend-item {
@@ -138,7 +167,14 @@
      * - Segmented: A rendering style that visually divides sections into smaller pieces.
      */
     import { computed, onMounted, onUnmounted, PropType, ref, watch } from "vue";
-    import { LinearGaugeSectionStyle, LinearGaugeSeries, TooltipCallback, TooltipContext } from "@Obsidian/Core/Controls/chart";
+    import {
+        LegendAlign,
+        LinearGaugeSectionStyle,
+        LinearGaugeSeries,
+        TitleAlign,
+        TooltipCallback,
+        TooltipContext
+    } from "@Obsidian/Core/Controls/chart";
     import { isElement } from "@Obsidian/Utility/dom";
     import { Enumerable } from "@Obsidian/Utility/linq";
     import { tooltip } from "@Obsidian/Utility/tooltip";
@@ -166,6 +202,51 @@
     };
 
     const props = defineProps({
+        /**
+         * The CSS style string to set the height of the doughnut chart component.
+         * - Accepts any valid CSS height value (e.g., "400px", "50vh") or undefined.
+         * - Value defaults to "100%" if undefined.
+         */
+        height: {
+            type: String as PropType<string | undefined>,
+            default: "100%"
+        },
+
+        /**
+         * Whether the legend is hidden.
+         */
+        hideLegend: {
+            type: Boolean as PropType<boolean | undefined>
+        },
+
+        /**
+         * The labels to display to the left of each linear gauge.
+         *
+         * Each label corresponds by index to a rendered gauge. For example,
+         * `labels[i]` describes the i-th linear gauge formed from the series data.
+         */
+        labels: {
+            type: Array as PropType<string[] | undefined>,
+            required: false
+        },
+
+        /**
+         * The alignment of the legend in the chart.
+         */
+        legendAlign: {
+            type: Object as PropType<LegendAlign | null | undefined>
+        },
+
+        /**
+         * The line style used to render each section of the linear gauge.
+         *
+         * A segmented style renders sections as a series of discrete visual pieces,
+         * while a continuous style renders each section as a single uninterrupted shape.
+         */
+        sectionStyle: {
+            type: String as PropType<LinearGaugeSectionStyle>,
+            default: "segmented"
+        },
         /**
          * The series used to render the linear gauge.
          *
@@ -201,25 +282,7 @@
         },
 
         /**
-         * The labels to display to the left of each linear gauge.
-         *
-         * Each label corresponds by index to a rendered gauge. For example,
-         * `labels[i]` describes the i-th linear gauge formed from the series data.
-         */
-        labels: {
-            type: Array as PropType<string[] | undefined>,
-            required: false
-        },
-
-        /**
-         * Whether the legend is hidden.
-         */
-        hideLegend: {
-            type: Boolean as PropType<boolean | undefined>
-        },
-
-        /**
-         * The label for the entire chart.
+         * The title of the chart.
          */
         title: {
             type: String,
@@ -227,14 +290,10 @@
         },
 
         /**
-         * The line style used to render each section of the linear gauge.
-         *
-         * A segmented style renders sections as a series of discrete visual pieces,
-         * while a continuous style renders each section as a single uninterrupted shape.
+         * The alignment of the chart title.
          */
-        sectionStyle: {
-            type: String as PropType<LinearGaugeSectionStyle>,
-            default: "segmented"
+        titleAlign: {
+            type: String as PropType<TitleAlign | undefined>
         },
 
         /**
@@ -256,12 +315,14 @@
         },
 
         /**
-         * The width of the chart.
+         * The CSS style string to set the width of the doughnut chart component.
+         * - Accepts any valid CSS width value (e.g., "600px", "100%") or undefined.
+         * - Value defaults to "100%" if undefined.
          */
         width: {
-            type: String,
-            default: "auto"
-        }
+            type: String as PropType<string | undefined>,
+            default: "100%"
+        },
     });
 
     const segmentWidth = 8;

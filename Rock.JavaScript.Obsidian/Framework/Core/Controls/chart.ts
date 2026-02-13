@@ -63,6 +63,20 @@ export type Legend = {
     align?: LegendAlign | undefined;
 };
 
+export const TitleAlign = {
+    Start: "start",
+    Center: "center",
+    End: "end"
+} as const;
+
+export const TitleAlignDescription: Record<string, string> = {
+    "start": "Start",
+    "center": "Center",
+    "end": "End"
+};
+
+export type TitleAlign = typeof TitleAlign[keyof typeof TitleAlign];
+
 export type TimeInput = string | number | RockDateTime;
 
 export type XYPoint = {
@@ -267,7 +281,20 @@ export type LinearGaugeSeries = {
 /**
  * Defines the visual style of each section in a linear gauge.
  */
-export type LinearGaugeSectionStyle = "segmented" | "continuous";
+export const LinearGaugeSectionStyle = {
+    Segmented: "segmented",
+    Continuous: "continuous"
+} as const;
+
+export const LinearGaugeSectionStyleDescription: Record<string, string> = {
+    "segmented": "Segmented",
+    "continuous": "Continuous"
+};
+
+/**
+ * Defines the visual style of each section in a linear gauge.
+ */
+export type LinearGaugeSectionStyle = typeof LinearGaugeSectionStyle[keyof typeof LinearGaugeSectionStyle];
 
 // #endregion Linear Gauge Chart
 

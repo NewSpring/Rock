@@ -39,10 +39,12 @@
                                 </div>
                             </div>
 
-                            <LinearGaugeChart :series="linearGaugeChartData"
-                                              title="Request Health Overview"
-                                              :tooltip="formatRequestHealthOverviewTooltip"
-                                              tooltipTitle="Current Status" />
+                            <ChartPanel label="Request Health Overview">
+                                <LinearGaugeChart legendAlign="start"
+                                                  :series="linearGaugeChartData"
+                                                  :tooltip="formatRequestHealthOverviewTooltip"
+                                                  tooltipTitle="Current Status" />
+                            </ChartPanel>
 
                             <ChartPanel label="Upcoming Future Follow-Ups">
                                 <BarChart hideLegend

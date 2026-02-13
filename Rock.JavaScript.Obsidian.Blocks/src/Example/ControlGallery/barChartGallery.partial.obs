@@ -1,68 +1,84 @@
 <template>
     <GalleryAndResult :value="{ series: series, labels: labels }" hasMultipleValues :importCode="importCode" :exampleCode="exampleCode">
-
-        <div style="height: 300px">
-            <BarChart :appearance="appearance"
-                      :labels="labels"
-                      :series="series"
-                      :barLabels="barLabels"
-                      :categoryLabel="categoryLabel"
-                      :categoryHideAxisLabels="categoryHideAxisLabels"
-                      :categoryHideAxisLine="categoryHideAxisLine"
-                      :categoryMaxTickCount="categoryMaxTickCount"
-                      :categoryShowAllTicks="categoryShowAllTicks"
-                      :categoryShowGridLines="categoryShowGridLines"
-                      :hideLegend="isLegendHidden"
-                      :horizontal="isHorizontal"
-                      :labelDateFormat="labelDateFormat"
-                      :legendAlign="legendAlign"
-                      :legendPosition="legendPosition"
-                      :overlap="isOverlapped"
-                      :stack="isStacked"
-                      :title="title"
-                      :tooltip="tooltip"
-                      :tooltipTitle="tooltipTitle"
-                      :type="isPercent ? 'percent' : isPercent === false ? 'number' : undefined"
-                      :unfilled="isUnfilled"
-                      :valueHideGridLines="valueHideGridLines"
-                      :valueHideAxisLabels="valueHideAxisLabels"
-                      :valueHideAxisLine="valueHideAxisLine"
-                      :valueLabel="valueLabel"
-                      :valueMaxTickCount="valueMaxTickCount"
-                      :valuePrecision="valuePrecision"
-                      :valueSuggestedMax="valueSuggestedMax"
-                      :valueSuggestedMin="valueSuggestedMin"
-                      :valueTickCount="valueTickCount"
-                      @click="onBarChartClicked" />
-        </div>
+        <BarChart :appearance="appearance"
+                  :labels="labels"
+                  :series="series"
+                  :barLabels="barLabels"
+                  :categoryLabel="categoryLabel"
+                  :categoryHideAxisLabels="categoryHideAxisLabels"
+                  :categoryHideAxisLine="categoryHideAxisLine"
+                  :categoryMaxTickCount="categoryMaxTickCount"
+                  :categoryShowAllTicks="categoryShowAllTicks"
+                  :categoryShowGridLines="categoryShowGridLines"
+                  :height="height || '300px'"
+                  :hideLegend="isLegendHidden"
+                  :horizontal="isHorizontal"
+                  :labelDateFormat="labelDateFormat"
+                  :legendAlign="legendAlign"
+                  :legendPosition="legendPosition"
+                  :overlap="isOverlapped"
+                  :stack="isStacked"
+                  :title="title"
+                  :titleAlign="titleAlign"
+                  :tooltip="tooltip"
+                  :tooltipTitle="tooltipTitle"
+                  :type="isPercent ? 'percent' : isPercent === false ? 'number' : undefined"
+                  :unfilled="isUnfilled"
+                  :valueHideGridLines="valueHideGridLines"
+                  :valueHideAxisLabels="valueHideAxisLabels"
+                  :valueHideAxisLine="valueHideAxisLine"
+                  :valueLabel="valueLabel"
+                  :valueMaxTickCount="valueMaxTickCount"
+                  :valuePrecision="valuePrecision"
+                  :valueSuggestedMax="valueSuggestedMax"
+                  :valueSuggestedMin="valueSuggestedMin"
+                  :valueTickCount="valueTickCount"
+                  :width="width"
+                  @click="onBarChartClicked" />
 
         <template #settings>
             <div class="settings">
                 <ContentSection title="Settings">
                     <ContentStack title="General">
                         <div class="row">
-                            <div class="col-md-8">
+                            <div class="col-md-6">
                                 <TextBox :modelValue="title ?? ''"
-                                         label="Chart Title"
+                                         label="Title"
                                          @update:modelValue="title = $event" />
                             </div>
-                            <div class="col-md-4">
+
+                            <div class="col-md-6">
+                                <DropDownList :modelValue="titleAlign ?? ''"
+                                              :items="titleAlignItems"
+                                              label="Title Alignment"
+                                              @update:modelValue="titleAlign = <TitleAlign>$event" />
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <TextBox :modelValue="height ?? ''"
+                                         label="Height"
+                                         help="CSS size value (e.g., '300px' or '50%')."
+                                         @update:modelValue="height = $event" />
+                            </div>
+
+                            <div class="col-md-6">
+                                <TextBox :modelValue="width ?? ''"
+                                         label="Width"
+                                         help="CSS size value (e.g., '300px' or '50%')."
+                                         @update:modelValue="width = $event" />
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
                                 <DropDownList v-model="appearance"
                                               :items="appearanceItems"
                                               help="Applies predefined visual styling such as stacking, axis visibility, and grid display. All presets can be further customized with the other settings on this page."
                                               label="Appearance"
                                               :showBlankItem="false" />
                             </div>
-                        </div>
-                        <div class="autolayout">
-                            <TextBox :modelValue="height ?? ''"
-                                     label="Chart Container Height"
-                                     help="CSS size value (e.g., '300px' or '50%')."
-                                     @update:modelValue="height = $event" />
-                            <TextBox :modelValue="width ?? ''"
-                                     label="Chart Container Width"
-                                     help="CSS size value (e.g., '300px' or '50%')."
-                                     @update:modelValue="width = $event" />
                         </div>
                     </ContentStack>
 
@@ -252,16 +268,18 @@
     import TextBox from "@Obsidian/Controls/textBox.obs";
     import {
         BarChartAppearanceType,
-        BarSeries,
-        LabelDateFormat,
-        LegendAlign,
-        LegendPosition,
-        LabelDateFormatDescription,
-        LegendAlignDescription,
-        LegendPositionDescription,
         BarChartClickEvent,
         BarLabelContext,
         BarLabelsConfig,
+        BarSeries,
+        LabelDateFormat,
+        LabelDateFormatDescription,
+        LegendAlign,
+        LegendAlignDescription,
+        LegendPosition,
+        LegendPositionDescription,
+        TitleAlign,
+        TitleAlignDescription,
         TooltipCallback
     } from "@Obsidian/Core/Controls/chart";
     import { Enumerable } from "@Obsidian/Utility/linq";
@@ -280,6 +298,11 @@
         { text: LegendAlignDescription[LegendAlign.Start], value: LegendAlign.Start },
         { text: LegendAlignDescription[LegendAlign.Center], value: LegendAlign.Center },
         { text: LegendAlignDescription[LegendAlign.End], value: LegendAlign.End }
+    ];
+    const titleAlignItems = [
+        { text: TitleAlignDescription[TitleAlign.Start], value: TitleAlign.Start },
+        { text: TitleAlignDescription[TitleAlign.Center], value: TitleAlign.Center },
+        { text: TitleAlignDescription[TitleAlign.End], value: TitleAlign.End }
     ];
     const labelDateFormatItems = [
         { text: LabelDateFormatDescription[LabelDateFormat.Auto], value: LabelDateFormat.Auto },
@@ -329,8 +352,8 @@
     const isOverlapped = ref<boolean | undefined>();
     const isStacked = ref<boolean | undefined>();
     const seriesCount = ref<number>(series.value.length);
-    const legendPosition = ref<LegendPosition | undefined>();
     const legendAlign = ref<LegendAlign | undefined>();
+    const legendPosition = ref<LegendPosition | undefined>();
     const isLegendHidden = ref<boolean | undefined>();
     const isHorizontal = ref<boolean | undefined>();
     const labelDateFormat = ref<LabelDateFormat | undefined>(LabelDateFormat.Auto);
@@ -339,6 +362,7 @@
     const categoryLabel = ref<string | undefined>("Category Label");
     const valueLabel = ref<string | undefined>("Value Label");
     const title = ref<string | undefined>("Chart Title");
+    const titleAlign = ref<TitleAlign | undefined>();
     const valuePrecision = ref<number | undefined>();
     const valueSuggestedMin = ref<number | undefined>();
     const valueSuggestedMax = ref<number | undefined>();
@@ -378,10 +402,10 @@
         if (!isNullish(categoryShowGridLines.value)) {
             barChartProps.push(`:categoryShowGridLines="${categoryShowGridLines.value}"`);
         }
-        if (!isNullish(height.value)) {
+        if (height.value) {
             barChartProps.push(`height="${height.value}"`);
         }
-        if (!isNullish(width.value)) {
+        if (width.value) {
             barChartProps.push(`width="${width.value}"`);
         }
         if (!isNullish(isLegendHidden.value)) {
@@ -407,6 +431,9 @@
         }
         if (title.value) {
             barChartProps.push(`title="${title.value}"`);
+        }
+        if (!isNullish(titleAlign.value)) {
+            barChartProps.push(`titleAlign="${titleAlign.value}"`);
         }
         if (!isNullish(isPercent.value)) {
             if (isPercent.value) {
