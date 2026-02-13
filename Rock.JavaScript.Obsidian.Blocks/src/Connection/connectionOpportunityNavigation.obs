@@ -114,6 +114,10 @@
     display: flex;
     gap: var(--spacing-small);
 }
+
+:deep(.displaycard-heading-icon .label-default) {
+    color: var(--color-interface-medium);
+}
 </style>
 
 <script setup lang="ts">

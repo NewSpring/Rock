@@ -792,11 +792,11 @@
 
     const requestToggleItems = <ListItemBag[]>[
         {
-            text: "My Opportunities",
+            text: "My Requests",
             value: "true"
         },
         {
-            text: "All Opportunities",
+            text: "All Requests",
             value: "false"
         }
     ];
@@ -1546,6 +1546,11 @@
 
     function onStatusClick(key: string | null | undefined, status: ConnectionStatusBag | null | undefined, state: ConnectionState | null | undefined, event: MouseEvent): void {
         if (!status || !key || state === null || state === undefined || typeof status !== "object" || typeof key !== "string" || typeof state !== "number") {
+            return;
+        }
+
+        if (isFlyoutOpen.value) {
+            isFlyoutOpen.value = false;
             return;
         }
 
