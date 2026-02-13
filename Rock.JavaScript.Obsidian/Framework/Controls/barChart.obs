@@ -61,18 +61,6 @@
         valueHideGridLines?: boolean;
     };
 
-    const presetMap: Record<BarChartAppearanceType, BarChartPreset> = {
-        default: {},
-        stylized: {
-            stack: true,
-            categoryHideAxisLabels: true,
-            categoryHideAxisLine: true,
-            valueHideAxisLabels: true,
-            valueHideAxisLine: true,
-            valueHideGridLines: true
-        }
-    };
-
     const props = defineProps({
         /**
          * The visual style of the chart, which may apply preset styling to the chart such as colors, fonts, etc.
@@ -278,6 +266,7 @@
          * Whether the chart has unfilled areas.
          *
          * The per series property, `props.data[n].isUnfilled`, overrides this setting.
+         * Has no effect if the chart is stacked since unfilled bars cannot be stacked on top of each other currently.
          */
         unfilled: {
             type: Boolean as PropType<boolean | undefined>
@@ -371,6 +360,18 @@
     const emit = defineEmits<{
         (event: "click", value: BarChartClickEvent): void;
     }>();
+
+    const presetMap: Record<BarChartAppearanceType, BarChartPreset> = {
+        default: {},
+        stylized: {
+            stack: true,
+            categoryHideAxisLabels: true,
+            categoryHideAxisLine: true,
+            valueHideAxisLabels: true,
+            valueHideAxisLine: true,
+            valueHideGridLines: true
+        }
+    };
 
     // #region Values
 
@@ -658,7 +659,7 @@
                 const isOverlapped = props.overlap === true;
                 const isStacked = effectiveStack.value === true;
 
-                const isUnfilled = (series.isUnfilled ?? props.unfilled) === true;
+                const isUnfilled = effectiveUnfilledPerSeriesIndex.value[index];
                 const barLabels = series.barLabels ?? props.barLabels;
                 const labels = barLabels ? toLabelOptions(barLabels!, !!isStacked) : undefined;
 
@@ -1164,7 +1165,72 @@
     });
 
     const effectiveStack = computed<boolean>(() => {
-        return props.stack ?? presetMap[props.appearance].stack ?? false;
+        if (!isNullish(props.stack)) {
+            // Stack wins over overlap.
+            // This was a conscious decision to give one mode priority
+            // over the other in the case where both `stack` and `overlap` are set.
+            // Allowing this to return `true` or `false` allows
+            // the caller to explicitly enable/disable stacking
+            // after choosing a preset that has a default stacking behavior.
+            return props.stack;
+        }
+
+        if (props.overlap) {
+            // Stacked is not defined and overlap overrides appearance.
+            return false;
+        }
+
+        if (presetMap[props.appearance].stack) {
+            return true;
+        }
+
+        return false;
+    });
+
+    const effectiveUnfilledGlobally = computed<boolean>(() => {
+        if (props.stack) {
+            // When stacked, bars need to be filled to use the border to simulate gaps between bars,
+            // so stacking overrides unfilled.
+            return false;
+        }
+
+        if (props.overlap) {
+            if (!isNullish(props.unfilled)) {
+                // If `unfilled` is explicitly set, use it.
+                // This allows the caller to explicitly enable/disable unfilled bars
+                // after choosing a preset that has a default unfilled behavior.
+                return props.unfilled;
+            }
+
+            // When overlapping, bars should be unfilled to allow visibility of bars
+            // behind them, so overlap overrides appearance.
+            // Explicit `stack` overrides this, but this overrides implicit stacking from the preset.
+            return true;
+        }
+
+        if (effectiveStack.value) {
+            // When implicitly stacked via the preset,
+            // bars need to be filled to use the border to simulate gaps
+            // between bars, so stacking overrides unfilled.
+            return false;
+        }
+
+        if (!isNullish(props.unfilled)) {
+            return props.unfilled;
+        }
+
+        return false;
+    });
+
+    const effectiveUnfilledPerSeriesIndex = computed<boolean[]>(() => {
+        const isUnfilledGlobally = effectiveUnfilledGlobally.value;
+
+        return Enumerable
+            .from(props.series)
+            .select<boolean>(series => {
+                return isUnfilledGlobally || !!series.isUnfilled;
+            })
+            .toArray();
     });
 
     // #endregion Computed Values
@@ -1436,15 +1502,6 @@
         // to ensure stack takes precedence instead of leaving it up to the charting library.
         if (overlap && stack) {
             console.warn("[BarChart] Both `stack` and `overlap` are true. Applying `stack` and ignoring `overlap`.");
-        }
-    }, {
-        immediate: true
-    });
-
-    watch([() => props.overlap, () => props.unfilled], ([overlap, unfilled]) => {
-        // Warn if using both `overlap` and `unfilled: false` options.
-        if (overlap && unfilled === false) {
-            console.warn("[BarChart] `overlap` is being used with `unfilled: false` which may hide some data points.");
         }
     }, {
         immediate: true

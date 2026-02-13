@@ -90,17 +90,17 @@
                                     @update:modelValue="isPercent = $event" />
 
                             <Switch :modelValue="isStacked ?? false"
-                                    help="Stack bars from different series on top of each other instead of side-by-side or overlapping."
+                                    help="Stack bars from different series on top of each other instead of side-by-side or overlapping.<br>Stacked bars cannot be unfilled."
                                     label="Stack"
                                     @update:modelValue="isStacked = $event" />
 
                             <Switch :modelValue="isOverlapped ?? false"
-                                    help="Show bars from different series over each other instead of side-by-side or stacked. The 'unfilled' option is recommended to ensure visibility of overlapping data points."
+                                    help="Show bars from different series over each other instead of side-by-side or stacked.<br>This will automatically use unfilled bars so that overlapping data points remain visible."
                                     label="Overlap"
                                     @update:modelValue="isOverlapped = $event" />
 
                             <Switch :modelValue="isUnfilled ?? false"
-                                    help="Unfilled bars are not filled with color, which could be useful to ensure visibility of overlapping data points when using 'overlap'."
+                                    help="Unfilled bars are not filled with color.<br>Not applicable when stacking is enabled. When overlap is enabled, bars will be unfilled automatically to ensure all data points remain visible, but this setting can be used to disable unfilled bars if that is desired, although it is recommended to sort the series in that case so that smaller data points are not hidden behind larger data points."
                                     label="Unfilled"
                                     @update:modelValue="isUnfilled = $event" />
 
@@ -288,11 +288,6 @@
         { text: LabelDateFormatDescription[LabelDateFormat.Month], value: LabelDateFormat.Month },
         { text: LabelDateFormatDescription[LabelDateFormat.Year], value: LabelDateFormat.Year }
     ];
-    const labels = [
-        "2024-12-01T00:00:00",
-        "2025-01-01T00:00:00",
-        "2025-02-01T00:00:00"
-    ];
 
     const appearanceItems: ListItemBag[] = [
         { text: "Default", value: "default" },
@@ -301,6 +296,11 @@
 
     // #region Values
 
+    const labels = ref<string[]>([
+        "2024-12-01T00:00:00",
+        "2025-01-01T00:00:00",
+        "2025-02-01T00:00:00"
+    ]);
     const series = ref<BarSeries[]>([
         {
             label: "Small Group",
@@ -417,7 +417,7 @@
             }
         }
         if (!isNullish(isUnfilled.value)) {
-            barChartProps.push(`":unfilled="${isUnfilled.value}"`);
+            barChartProps.push(`:unfilled="${isUnfilled.value}"`);
         }
         if (!isNullish(valueHideAxisLine.value)) {
             barChartProps.push(`:valueHideAxisLine="${valueHideAxisLine.value}"`);
@@ -487,7 +487,7 @@
     function generateOneSeries(i: number): BarSeries {
         const min = Math.min(minValue.value, maxValue.value);
         const max = Math.max(minValue.value, maxValue.value);
-        let data = generateRandomBarData(labels.length, min, max, true);
+        let data = generateRandomBarData(labels.value.length, min, max, true);
 
         if (isPercent.value) {
             data = Enumerable.from(data).select(n => typeof n === "number" ? n / 100 : n).toArray();
@@ -555,7 +555,7 @@
 
     function onRandomizeOpacityClicked(): void {
         opacity.value = Enumerable
-            .from(labels)
+            .from(labels.value)
             .withIndex()
             .select(([_label, _index]) => (Math.random() > 0.5 ? 0.25 : 1))
             .toArray();
@@ -574,7 +574,7 @@
             .toArray();
 
         const newOpacity = Enumerable
-            .from(labels)
+            .from(labels.value)
             .withIndex()
             .select<number>(([_label, index]) => {
                 if (clickedLabelIndexes.includes(index)) {
@@ -600,7 +600,7 @@
 
                     if (targetsWithThisSeries.length) {
                         const opacities = Enumerable
-                            .from(labels)
+                            .from(labels.value)
                             .withIndex()
                             .select<number>(([_label, labelIndex]) => {
                                 if (Enumerable.from(targetsWithThisSeries).any(t => t.labelIndex === labelIndex)) {
@@ -660,7 +660,7 @@
             .select(s => {
                 return {
                     ...s,
-                    data: generateRandomBarData(labels.length, min, max, true)
+                    data: generateRandomBarData(labels.value.length, min, max, true)
                 };
             })
             .toArray();
@@ -703,6 +703,21 @@
                 })
                 .toArray();
         }
+    });
+
+    watch(appearance, () => {
+        // When appearance changes,
+        // reset all settings that are affected by the appearance presets to undefined so that they will fall back to the preset values. This allows the user to see the difference
+        // in presets and then customize from there if they choose.
+        if (!categoryShowGridLines.value) categoryShowGridLines.value = undefined;
+        if (!categoryHideAxisLabels.value) categoryHideAxisLabels.value = undefined;
+        if (!categoryHideAxisLine.value) categoryHideAxisLine.value = undefined;
+        if (!valueHideAxisLine.value) valueHideAxisLine.value = undefined;
+        if (!valueHideAxisLabels.value) valueHideAxisLabels.value = undefined;
+        if (!valueHideGridLines.value) valueHideGridLines.value = undefined;
+        if (!isStacked.value) isStacked.value = undefined;
+        if (!isOverlapped.value) isOverlapped.value = undefined;
+        if (!isUnfilled.value) isUnfilled.value = undefined;
     });
 
     // #endregion Watchers
