@@ -377,6 +377,11 @@
     );
 
     const resizeObserver = new ResizeObserver(() => {
+        if (props.legendPosition === "left" || props.legendPosition === "right") {
+            // Clear the gauges when the legend is on the left or right
+            // to prevent rendering issues during resize when the legend may be taking up horizontal space.
+            gauges.value = [];
+        }
         requestAnimationFrame(calculateSegments);
     });
 
@@ -548,8 +553,10 @@
 
     watch(() => props.legendPosition, () => {
         // Clear the gauges to make way for the legend.
-        gauges.value = [];
-
+        if (props.legendPosition === "left" || props.legendPosition === "right") {
+            gauges.value = [];
+        }
+        
         // Let the legend position update in the DOM before recalculating segments to ensure the resize observer has accurate container width
         requestAnimationFrame(calculateSegments);
     });
