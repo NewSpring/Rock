@@ -376,10 +376,7 @@
     // #region Computed Values
 
     const exampleCode = computed<string>(() => {
-        let barChartProps: string[] = [
-            `:labels="labels"`,
-            `:series="series"`
-        ];
+        const barChartProps: string[] = [];
 
         if (appearance.value && appearance.value !== "default") {
             barChartProps.push(`appearance="${appearance.value}"`);
@@ -405,34 +402,33 @@
         if (height.value) {
             barChartProps.push(`height="${height.value}"`);
         }
-        if (width.value) {
-            barChartProps.push(`width="${width.value}"`);
-        }
         if (!isNullish(isLegendHidden.value)) {
             barChartProps.push(`:hideLegend="${isLegendHidden.value}"`);
         }
         if (!isNullish(isHorizontal.value)) {
             barChartProps.push(`:horizontal="${isHorizontal.value}"`);
         }
-        if (!isNullish(labelDateFormat.value)) {
+        if (labelDateFormat.value) {
             barChartProps.push(`labelDateFormat="${labelDateFormat.value}"`);
         }
-        if (!isNullish(legendAlign.value)) {
+        barChartProps.push(`:labels="labels"`);
+        if (legendAlign.value) {
             barChartProps.push(`legendAlign="${legendAlign.value}"`);
         }
-        if (!isNullish(legendPosition.value)) {
+        if (legendPosition.value) {
             barChartProps.push(`legendPosition="${legendPosition.value}"`);
         }
         if (!isNullish(isOverlapped.value)) {
             barChartProps.push(`:overlap="${isOverlapped.value}"`);
         }
+        barChartProps.push(`:series="series"`);
         if (!isNullish(isStacked.value)) {
             barChartProps.push(`:stack="${isStacked.value}"`);
         }
         if (title.value) {
             barChartProps.push(`title="${title.value}"`);
         }
-        if (!isNullish(titleAlign.value)) {
+        if (titleAlign.value) {
             barChartProps.push(`titleAlign="${titleAlign.value}"`);
         }
         if (!isNullish(isPercent.value)) {
@@ -446,11 +442,11 @@
         if (!isNullish(isUnfilled.value)) {
             barChartProps.push(`:unfilled="${isUnfilled.value}"`);
         }
-        if (!isNullish(valueHideAxisLine.value)) {
-            barChartProps.push(`:valueHideAxisLine="${valueHideAxisLine.value}"`);
-        }
         if (!isNullish(valueHideAxisLabels.value)) {
             barChartProps.push(`:valueHideAxisLabels="${valueHideAxisLabels.value}"`);
+        }
+        if (!isNullish(valueHideAxisLine.value)) {
+            barChartProps.push(`:valueHideAxisLine="${valueHideAxisLine.value}"`);
         }
         if (!isNullish(valueHideGridLines.value)) {
             barChartProps.push(`:valueHideGridLines="${valueHideGridLines.value}"`);
@@ -472,6 +468,9 @@
         }
         if (!isNullish(valueTickCount.value)) {
             barChartProps.push(`:valueTickCount="${valueTickCount.value}"`);
+        }
+        if (width.value) {
+            barChartProps.push(`width="${width.value}"`);
         }
 
         const prefix = "<BarChart ";

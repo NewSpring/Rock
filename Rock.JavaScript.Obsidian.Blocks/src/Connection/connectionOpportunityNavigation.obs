@@ -52,21 +52,13 @@
 
                     <div class="connection-opportunity-navigation-metric connection-opportunity-navigation-metric-new-vs-completed">
                         <div class="connection-opportunity-navigation-metric-card">
-                            <BarChart title="New vs. Completed Requests per Day"
-                                      appearance="stylized"
-                                      :labels="requestsPerDayLabels"
-                                      :series="requestsPerDaySeries"
-                                      :stack="true"
-                                      titleAlign="start"
+                            <BarChart appearance="stylized"
                                       labelDateFormat="auto"
-                                      :hideLegend="false"
+                                      :labels="requestsPerDayLabels"
                                       legendAlign="start"
-                                      legendPosition="bottom"
-                                      :categoryHideAxisLabels="true"
-                                      :categoryHideAxisLine="true"
-                                      :valueHideAxisLine="true"
-                                      :valueHideAxisLabels="true"
-                                      :valueHideGridLines="true"
+                                      :series="requestsPerDaySeries"
+                                      title="New vs. Completed Requests per Day"
+                                      titleAlign="start"
                                       :tooltip="requestsPerDayTooltip"
                                       :valueSuggestedMax="requestsPerDayValueSuggestedMax" />
                         </div>

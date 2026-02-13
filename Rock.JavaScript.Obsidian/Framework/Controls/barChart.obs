@@ -73,14 +73,16 @@
 
         /** The configuration for the bar labels for all series. */
         barLabels: {
-            type: Object as PropType<BarLabelsConfig | undefined>
+            type: Object as PropType<BarLabelsConfig | undefined>,
+            default: undefined
         },
 
         /**
          * Whether to hide the category axis labels. Shown by default.
          */
         categoryHideAxisLabels: {
-            type: Boolean as PropType<boolean | undefined>
+            type: Boolean as PropType<boolean | undefined>,
+            default: undefined
         },
 
         /**
@@ -89,35 +91,40 @@
          * Note: This will not have an affect if `valueHideGridLines` is false since the value axis grid lines include the category axis line.
          */
         categoryHideAxisLine: {
-            type: Boolean as PropType<boolean | undefined>
+            type: Boolean as PropType<boolean | undefined>,
+            default: undefined
         },
 
         /**
          * The category axis label.
          */
         categoryLabel: {
-            type: String as PropType<string | undefined>
+            type: String as PropType<string | undefined>,
+            default: undefined
         },
 
         /**
          * The maximum number of ticks to show on the category axis.
          */
         categoryMaxTickCount: {
-            type: Number as PropType<number | undefined>
+            type: Number as PropType<number | undefined>,
+            default: undefined
         },
 
         /**
          * Whether to show the category axis grid lines. Hidden by default.
          */
         categoryShowGridLines: {
-            type: Boolean as PropType<boolean | undefined>
+            type: Boolean as PropType<boolean | undefined>,
+            default: undefined
         },
 
         /**
          * Whether to show all ticks on the category axis.
          */
         categoryShowAllTicks: {
-            type: Boolean as PropType<boolean | undefined>
+            type: Boolean as PropType<boolean | undefined>,
+            default: undefined
         },
 
         /**
@@ -134,14 +141,16 @@
          * Whether the legend is hidden.
          */
         hideLegend: {
-            type: Boolean as PropType<boolean | undefined>
+            type: Boolean as PropType<boolean | undefined>,
+            default: undefined
         },
 
         /**
          * Whether to display horizontal bars instead of vertical bars.
          */
         horizontal: {
-            type: Boolean as PropType<boolean | undefined>
+            type: Boolean as PropType<boolean | undefined>,
+            default: undefined
         },
 
         /**
@@ -150,7 +159,8 @@
          * When set, `labels` is treated as an array of ISO date strings.
          */
         labelDateFormat: {
-            type: String as PropType<LabelDateFormat | undefined>
+            type: String as PropType<LabelDateFormat | undefined>,
+            default: undefined
         },
 
         /**
@@ -165,14 +175,16 @@
          * The alignment of the legend in the chart.
          */
         legendAlign: {
-            type: Object as PropType<LegendAlign | null | undefined>
+            type: Object as PropType<LegendAlign | null | undefined>,
+            default: undefined
         },
 
         /**
          * The position of the legend in the chart.
          */
         legendPosition: {
-            type: Object as PropType<LegendPosition | undefined>
+            type: Object as PropType<LegendPosition | undefined>,
+            default: undefined
         },
 
         /**
@@ -197,7 +209,8 @@
          * share the same baseline and x-position.
          */
         overlap: {
-            type: Boolean as PropType<boolean | undefined>
+            type: Boolean as PropType<boolean | undefined>,
+            default: undefined
         },
 
         /**
@@ -229,35 +242,40 @@
          * within a category but alters absolute comparisons across categories.
          */
         stack: {
-            type: Boolean as PropType<boolean | undefined>
+            type: Boolean as PropType<boolean | undefined>,
+            default: undefined
         },
 
         /**
          * The title of the chart.
          */
         title: {
-            type: String as PropType<string | undefined>
+            type: String as PropType<string | undefined>,
+            default: undefined
         },
 
         /**
          * The alignment of the chart title.
          */
         titleAlign: {
-            type: String as PropType<TitleAlign | undefined>
+            type: String as PropType<TitleAlign | undefined>,
+            default: undefined
         },
 
         /**
          * The tooltip formatter function.
          */
         tooltip: {
-            type: Function as PropType<TooltipCallback | undefined>
+            type: Function as PropType<TooltipCallback | undefined>,
+            default: undefined
         },
 
         /**
          * The tooltip title formatter function.
          */
         tooltipTitle: {
-            type: Function as PropType<TooltipCallback | undefined>
+            type: Function as PropType<TooltipCallback | undefined>,
+            default: undefined
         },
 
         /**
@@ -277,14 +295,16 @@
          * Has no effect if the chart is stacked since unfilled bars cannot be stacked on top of each other currently.
          */
         unfilled: {
-            type: Boolean as PropType<boolean | undefined>
+            type: Boolean as PropType<boolean | undefined>,
+            default: undefined
         },
 
         /**
          * Whether to hide the value axis labels. Shown by default.
          */
         valueHideAxisLabels: {
-            type: Boolean as PropType<boolean | undefined>
+            type: Boolean as PropType<boolean | undefined>,
+            default: undefined
         },
 
         /**
@@ -293,28 +313,32 @@
          * Note: This will not have an affect if `valueHideGridLines` is false since the value axis grid lines include the category axis line.
          */
         valueHideAxisLine: {
-            type: Boolean as PropType<boolean | undefined>
+            type: Boolean as PropType<boolean | undefined>,
+            default: undefined
         },
 
         /**
          * Whether to hide the value axis grid lines. Shown by default.
          */
         valueHideGridLines: {
-            type: Boolean as PropType<boolean | undefined>
+            type: Boolean as PropType<boolean | undefined>,
+            default: undefined
         },
 
         /**
          * The value axis label.
          */
         valueLabel: {
-            type: String as PropType<string | undefined>
+            type: String as PropType<string | undefined>,
+            default: undefined
         },
 
         /**
          * The maximum number of ticks to show on the value axis.
          */
         valueMaxTickCount: {
-            type: Number as PropType<number | undefined>
+            type: Number as PropType<number | undefined>,
+            default: undefined
         },
 
         /**
@@ -322,7 +346,8 @@
          * Applies to both axis tick labels and tooltips.
          */
         valuePrecision: {
-            type: Number as PropType<number | undefined>
+            type: Number as PropType<number | undefined>,
+            default: undefined
         },
 
         /**
@@ -332,7 +357,8 @@
          * The actual minimum value will be used if there is a lower value present.
          */
         valueSuggestedMin: {
-            type: Number as PropType<number | undefined>
+            type: Number as PropType<number | undefined>,
+            default: undefined
         },
 
         /**
@@ -342,7 +368,8 @@
          * The actual maximum value will be used if there is a higher value present.
          */
         valueSuggestedMax: {
-            type: Number as PropType<number | undefined>
+            type: Number as PropType<number | undefined>,
+            default: undefined
         },
 
         /**
@@ -351,7 +378,8 @@
          * This overrides `valueMaxTickCount`.
          */
         valueTickCount: {
-            type: Number as PropType<number | undefined>
+            type: Number as PropType<number | undefined>,
+            default: undefined
         },
 
         /**
