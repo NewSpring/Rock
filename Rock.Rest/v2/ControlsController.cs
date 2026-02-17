@@ -803,7 +803,11 @@ namespace Rock.Rest.v2
                 foreach ( var folder in options.ExpandedFolders )
                 {
                     var parsedAsset = ParseAssetKey( folder );
-                    expandedFolders.Add( $"{parsedAsset.ProviderId},{parsedAsset.FullPath}" );
+                    // Only try to add the folder if it parsed OK
+                    if ( parsedAsset != null )
+                    {
+                        expandedFolders.Add( $"{parsedAsset.ProviderId},{parsedAsset.FullPath}" );
+                    }
                 }
             }
 
@@ -874,7 +878,7 @@ namespace Rock.Rest.v2
 
             var parsedAsset = ParseAssetKey( options.AssetFolderId );
 
-            if ( parsedAsset.ProviderId == null || parsedAsset.FullPath == null )
+            if ( parsedAsset == null || parsedAsset.ProviderId == null || parsedAsset.FullPath == null )
             {
                 return Ok( new List<AssetManagerTreeItemBag>() );
             }
@@ -917,7 +921,7 @@ namespace Rock.Rest.v2
 
             var asset = ParseAssetKey( options.AssetFolderId );
 
-            if ( asset.ProviderId == null || asset.FullPath == null )
+            if ( asset == null || asset.ProviderId == null || asset.FullPath == null )
             {
                 return BadRequest();
             }
@@ -976,7 +980,7 @@ namespace Rock.Rest.v2
 
             var asset = ParseAssetKey( options.AssetFolderId );
 
-            if ( asset.ProviderId == null || asset.FullPath == null )
+            if ( asset == null || asset.ProviderId == null || asset.FullPath == null )
             {
                 return BadRequest();
             }
@@ -1574,7 +1578,7 @@ namespace Rock.Rest.v2
             var rootAssetKey = $"0,{encryptedRootFolder},,True";
             var parsedAsset = ParseAssetKey( rootAssetKey );
 
-            if ( parsedAsset.Root.IsNullOrWhiteSpace() )
+            if ( parsedAsset == null || parsedAsset.Root.IsNullOrWhiteSpace() )
             {
                 return (null, null);
             }
@@ -1716,7 +1720,7 @@ namespace Rock.Rest.v2
                         UnencryptedRoot = asset.Root
                     };
 
-                    if ( hasChildren && expandedFolders.Contains( $"0,{subDirAsset.FullDirectoryPath}" ) )
+                    if ( hasChildren && subDirAsset != null && expandedFolders.Contains( $"0,{subDirAsset.FullDirectoryPath}" ) )
                     {
                         updatedExpandedFolders.Add( subDirKey );
 
