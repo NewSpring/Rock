@@ -20,9 +20,9 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
-using System.Web.Hosting;
 
 using Rock.Attribute;
+using Rock.Configuration;
 using Rock.Constants;
 using Rock.Data;
 using Rock.Model;
@@ -336,7 +336,9 @@ namespace Rock.Blocks.Cms
             }
 
             var bag = GetCommonEntityBag( entity );
+#if NET472_OR_GREATER
             bag.AllowsCompile = new Rock.Web.UI.RockTheme( entity.Theme ).AllowsCompile;
+#endif
             bag.LoadAttributesAndValuesForPublicView( entity, RequestContext.CurrentPerson, enforceSecurity: true );
 
             return bag;
@@ -804,7 +806,7 @@ namespace Rock.Blocks.Cms
                 var pageService = new PageService( RockContext );
 
                 // Create the layouts for the site, and find the first one
-                string applicationRootPath = HostingEnvironment.MapPath( "~" );
+                string applicationRootPath = RockApp.Current.MapPath( "~" );
                 LayoutService.RegisterLayouts( applicationRootPath, siteCache );
 
                 var layoutService = new LayoutService( RockContext );
@@ -955,6 +957,7 @@ namespace Rock.Blocks.Cms
             return ActionOk( new { editableAttribute, reservedKeyNames, modalTitle } );
         }
 
+#if NET472_OR_GREATER
         /// <summary>
         /// Handles the Click event of the CompileTheme button.
         /// </summary>
@@ -983,6 +986,7 @@ namespace Rock.Blocks.Cms
                 return ActionBadRequest( string.Format( "An error occurred compiling the theme {0}. Message: {1}.", site.Theme, messages ) );
             }
         }
+#endif
 
         #endregion
     }

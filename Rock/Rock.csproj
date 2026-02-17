@@ -8,10 +8,6 @@
     <CopyToRockWeb>True</CopyToRockWeb>
   </PropertyGroup>
 
-  <PropertyGroup>
-    <DefineConstants>$(DefineConstants);WEBFORMS</DefineConstants>
-  </PropertyGroup>
-
   <ItemGroup>
     <Compile Include="..\Rock.Version\AssemblySharedInfo.cs">
       <Link>Properties\AssemblySharedInfo.cs</Link>

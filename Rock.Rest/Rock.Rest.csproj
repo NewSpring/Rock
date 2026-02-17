@@ -8,10 +8,6 @@
     <CopyToRockWeb>True</CopyToRockWeb>
   </PropertyGroup>
 
-  <PropertyGroup>
-    <DefineConstants>$(DefineConstants);WEBFORMS</DefineConstants>
-  </PropertyGroup>
-
   <ItemGroup>
     <None Remove="Swagger\CustomAssets\index.html" />
     <None Remove="Swagger\CustomAssets\screen.css" />
