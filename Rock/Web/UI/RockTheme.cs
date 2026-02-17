@@ -269,8 +269,7 @@ namespace Rock.Web.UI
         /// <returns></returns>
         public static bool CompileAll( out string messages )
         {
-            CancellationToken cancellationToken;
-            return CompileAll( out messages, cancellationToken );
+            return CompileAll( out messages, CancellationToken.None );
         }
 
         /// <summary>
