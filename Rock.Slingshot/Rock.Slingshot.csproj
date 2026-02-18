@@ -23,7 +23,7 @@
 
   <ItemGroup>
     <Reference Include="Slingshot.Core">
-      <HintPath>..\libs\Slingshot\Slingshot.Core.dll</HintPath>
+      <HintPath>..\libs\Slingshot\net472\Slingshot.Core.dll</HintPath>
     </Reference>
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="System.IO.Compression" />
