@@ -416,7 +416,16 @@ namespace Rock.CheckIn.v2
                 groupTypeIds = new GroupTypeService( RockContext ).GetAllCheckinAreaPaths().Select( a => a.GroupTypeId ).ToList();
             }
 
-            attendanceQry = attendanceQry.Where( a => groupTypeIds.Contains( a.Occurrence.Group.GroupTypeId ) );
+            // If we have less than 250 group type ids, use the pattern that will
+            // allow EF to cache the query plan. This number was chosen arbitrarily.
+            if ( groupTypeIds.Count <= 250 )
+            {
+                attendanceQry = CheckInDirector.WhereContains( attendanceQry, groupTypeIds, a => a.Occurrence.Group.GroupTypeId );
+            }
+            else
+            {
+                attendanceQry = attendanceQry.Where( a => groupTypeIds.Contains( a.Occurrence.Group.GroupTypeId ) );
+            }
 
             // Limit to Groups that are configured for the selected location.
             var groupLocationQry = new GroupLocationService( RockContext ).Queryable()
