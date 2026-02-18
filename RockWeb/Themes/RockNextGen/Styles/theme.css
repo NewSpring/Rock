@@ -9023,13 +9023,6 @@ hr {
   border-radius: var(--rounded-small);
   word-break: break-word;
 }
-.tooltip-inner > * {
-  color: inherit;
-}
-
-.tooltip-wide .tooltip-inner {
-  max-width: 360px;
-}
 
 .tooltip-arrow {
   position: absolute;
@@ -20862,6 +20855,14 @@ table tbody tr td .required-indicator::after {
 
 .tip-html::after {
   content: "< HTML />";
+}
+
+.tooltip-wide .tooltip-inner {
+  max-width: 360px;
+}
+
+.tooltip-inner > * {
+  color: inherit;
 }
 
 /* ===================== BLOCK =================== */
