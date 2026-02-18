@@ -7717,15 +7717,6 @@ hr {
   cursor: pointer;
 }
 
-ul, ol {
-  margin-top: 0;
-  margin-bottom: 12px;
-}
-
-ul ul, ol ul, ul ol, ol ol {
-  margin-bottom: 0;
-}
-
 .panel {
   margin-bottom: var(--spacing-large);
   background-color: var(--color-interface-softest);
@@ -33541,7 +33532,7 @@ a .bg-danger:hover, a .bg-danger:focus {
 ul,
 ol {
   margin-top: 0;
-  margin-bottom: 0;
+  margin-bottom: var(--spacing-medium);
 }
 ul ul,
 ul ol,
