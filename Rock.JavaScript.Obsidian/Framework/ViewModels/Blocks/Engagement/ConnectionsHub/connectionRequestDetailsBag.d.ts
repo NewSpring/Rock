@@ -21,11 +21,54 @@
 // </copyright>
 //
 
+import { ConnectionState } from "@Obsidian/Enums/Connection/connectionState";
+import { DueStatus } from "@Obsidian/Enums/Connection/dueStatus";
 import { AdditionalRequestBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/additionalRequestBag";
+import { PlacementGroupDetailsBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/placementGroupDetailsBag";
 import { RequesterPersonBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/requesterPersonBag";
+import { PersonFieldBag } from "@Obsidian/ViewModels/Core/Grid/personFieldBag";
+import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
+import { PublicAttributeBag } from "@Obsidian/ViewModels/Utility/publicAttributeBag";
 
 export type ConnectionRequestDetailsBag = {
+    actionItems?: ListItemBag[] | null;
+
     additionalRequests?: AdditionalRequestBag[] | null;
+
+    /** The attributes for the selected Connection Request. */
+    attributes?: Record<string, PublicAttributeBag> | null;
+
+    /** The attribute values for the selected Connection Request. */
+    attributeValues?: Record<string, string> | null;
+
+    /** The selected Campus on the Connection Request */
+    campus?: string | null;
+
+    comments?: string | null;
+
+    connectionOpportunityIcon?: string | null;
+
+    connectionOpportunityName?: string | null;
+
+    connectionRequestIdKey?: string | null;
+
+    connectionState: ConnectionState;
+
+    connectionTypeSource?: string | null;
+
+    connectorItems?: PersonFieldBag[] | null;
+
+    connectorPerson?: string | null;
+
+    createdDateTime?: string | null;
+
+    dueDate?: string | null;
+
+    dueStatus: DueStatus;
+
+    followUpDate?: string | null;
+
+    placementGroup?: PlacementGroupDetailsBag | null;
 
     requesterPerson?: RequesterPersonBag | null;
 };

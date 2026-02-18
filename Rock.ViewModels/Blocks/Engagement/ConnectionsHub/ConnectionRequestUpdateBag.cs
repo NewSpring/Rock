@@ -17,9 +17,7 @@
 
 using System;
 
-using Rock.Enums.Connection;
-using Rock.ViewModels.Core.Grid;
-using Rock.ViewModels.Utility;
+using Rock.Model;
 
 namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
 {

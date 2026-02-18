@@ -18,8 +18,8 @@
 using System;
 
 using Rock.Enums.Connection;
+using Rock.Model;
 using Rock.ViewModels.Core.Grid;
-using Rock.ViewModels.Utility;
 
 namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
 {

@@ -17,11 +17,12 @@
 
 using System.ComponentModel;
 
-namespace Rock.Enums.Connection
+namespace Rock.Model
 {
     /// <summary>
     /// Type of connection state
     /// </summary>
+    [Enums.EnumDomain( "Connection" )]
     public enum ConnectionState
     {
         /// <summary>

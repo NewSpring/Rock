@@ -53,7 +53,13 @@
 
         <div class="row">
             <div class="col-md-6">
-                <DropDownList v-model="connectionStatusGuid"
+                <div v-if="options?.isSequentialStatusMode"
+                     class="form-group">
+                    <RockLabel class="text-interface-medium">Status</RockLabel>
+                    <div class="text-interface-stronger">{{ connectionStatusText }}</div>
+                </div>
+                <DropDownList v-else
+                              v-model="connectionStatusGuid"
                               :items="connectionStatusItems"
                               label="Status"
                               :showBlankItem="false" />
@@ -159,6 +165,7 @@
     import { setPropertiesBoxValue } from "@Obsidian/Utility/block";
     import { GroupMemberStatus } from "@Obsidian/Enums/Group/groupMemberStatus";
     import DatePicker from "@Obsidian/Controls/datePicker.obs";
+    import RockLabel from "@Obsidian/Controls/rockLabel.obs";
 
     const props = defineProps({
         modelValue: {
@@ -209,7 +216,7 @@
     const connectorPersonAliasGuid = propertyRef(props.modelValue.bag?.connectorPersonAliasGuid ?? "", "ConnectorPersonAliasGuid");
     const connectionState = propertyRef(props.modelValue.bag?.connectionState?.toString() ?? ConnectionState.Active.toString(), "ConnectionState");
     const followUpDate = propertyRef(props.modelValue.bag?.followUpDate ?? "", "FollowUpDate");
-    const connectionStatusGuid = propertyRef(props.modelValue.bag?.connectionStatusGuid ?? "", "ConnectionStatusGuid");
+    const connectionStatusGuid = propertyRef(isNullOrWhiteSpace(props.modelValue.bag?.connectionStatusGuid) ? (props.options?.connectionStatuses ? props.options.connectionStatuses[0].guid : "") : (props.modelValue.bag?.connectionStatusGuid ?? ""), "ConnectionStatusGuid");
     const placementGroupGuid = propertyRef(props.modelValue.bag?.placementGroupGuid ?? "", "PlacementGroupGuid");
     const groupMemberRoleGuid = propertyRef(props.modelValue.bag?.groupMemberRoleGuid ?? "", "GroupMemberRoleGuid");
     const groupMemberStatus = propertyRef(props.modelValue.bag?.groupMemberStatus?.toString() ?? "", "GroupMemberStatus");
@@ -278,7 +285,7 @@
         );
     });
 
-
+    const connectionStatusText = computed<string>(() => connectionStatusItems.value.find(s => s.value === connectionStatusGuid.value)?.text ?? "");
 
     function onSave(): void {
         errorMessage.value = "";

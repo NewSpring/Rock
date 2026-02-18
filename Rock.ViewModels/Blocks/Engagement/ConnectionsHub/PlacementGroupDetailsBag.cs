@@ -30,6 +30,12 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
 
         public Dictionary<string, List<ListItemBag>> GroupMemberStatuses { get; set; }
 
+        public string Name { get; set; }
+
+        public string IconCssClass { get; set; }
+
+        // TODO - Group Requirements
+
         /// <summary>
         /// Gets or sets the group member attributes for the selected placement group.
         /// </summary>
@@ -37,5 +43,10 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
         /// The attributes.
         /// </value>
         public Dictionary<string, PublicAttributeBag> Attributes { get; set; }
+
+        /// <summary>
+        /// The attribute values for the placement group.
+        /// </summary>
+        public Dictionary<string, string> AttributeValues { get; set; }
     }
 }

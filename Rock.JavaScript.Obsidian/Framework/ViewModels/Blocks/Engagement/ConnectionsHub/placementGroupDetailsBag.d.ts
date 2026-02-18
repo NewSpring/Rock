@@ -28,7 +28,14 @@ export type PlacementGroupDetailsBag = {
     /** Gets or sets the group member attributes for the selected placement group. */
     attributes?: Record<string, PublicAttributeBag> | null;
 
+    /** The attribute values for the placement group. */
+    attributeValues?: Record<string, string> | null;
+
     groupMemberRoles?: ListItemBag[] | null;
 
     groupMemberStatuses?: Record<string, ListItemBag[]> | null;
+
+    iconCssClass?: string | null;
+
+    name?: string | null;
 };

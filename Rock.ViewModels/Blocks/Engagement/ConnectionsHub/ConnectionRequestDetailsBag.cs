@@ -31,8 +31,51 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
     /// </summary>
     public class ConnectionRequestDetailsBag
     {
+        public string ConnectionRequestIdKey { get; set; }
+
         public RequesterPersonBag RequesterPerson { get; set; }
 
         public List<AdditionalRequestBag> AdditionalRequests { get; set; }
+
+        public ConnectionState ConnectionState { get; set; }
+
+        public DateTimeOffset? FollowUpDate { get; set; }
+
+        public string ConnectionOpportunityName { get; set; }
+
+        public string ConnectionOpportunityIcon { get; set; }
+
+        /// <summary>
+        /// The selected Campus on the Connection Request
+        /// </summary>
+        public string Campus { get; set; }
+
+        public string ConnectorPerson { get; set; }
+
+        public List<PersonFieldBag> ConnectorItems { get; set; }
+
+        public DateTimeOffset? CreatedDateTime { get; set; }
+
+        public DateTimeOffset? DueDate { get; set; }
+
+        public DueStatus DueStatus { get; set; }
+
+        public List<ListItemBag> ActionItems { get; set; }
+
+        public string Comments { get; set; }
+
+        public string ConnectionTypeSource { get; set; }
+
+        public PlacementGroupDetailsBag PlacementGroup { get; set; }
+
+        /// <summary>
+        /// The attributes for the selected Connection Request.
+        /// </summary>
+        public Dictionary<string, PublicAttributeBag> Attributes { get; set; }
+
+        /// <summary>
+        /// The attribute values for the selected Connection Request.
+        /// </summary>
+        public Dictionary<string, string> AttributeValues { get; set; }
     }
 }

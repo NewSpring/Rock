@@ -144,11 +144,11 @@ namespace Rock.Blocks.Engagement
             options.ConnectionTypeIdKey = connectionTypeIdKey;
             options.IsSequentialStatusMode = connectionType.IsSequentialStatusEnforced;
 
-            List<Rock.Enums.Connection.ConnectionState> ignoredConnectionStates = new List<Rock.Enums.Connection.ConnectionState>();
+            List<ConnectionState> ignoredConnectionStates = new List<ConnectionState>();
 
             if ( !connectionType.EnableFutureFollowup )
             {
-                ignoredConnectionStates.Add( Rock.Enums.Connection.ConnectionState.FutureFollowUp );
+                ignoredConnectionStates.Add( ConnectionState.FutureFollowUp );
             }
 
             var connectors = connectionType.ConnectionOpportunities
@@ -177,8 +177,8 @@ namespace Rock.Blocks.Engagement
 
             options.AllPossibleConnectors = connectors;
             options.ConnectionOpportunities = connectionType.ConnectionOpportunities.Where( o => o.IsActive ).ToListItemBagList();
-            options.ConnectionStates = typeof( Rock.Enums.Connection.ConnectionState ).ToEnumListItemBag()
-                .Where( i => !ignoredConnectionStates.Contains( ( Rock.Enums.Connection.ConnectionState ) i.Value.AsInteger() ) )
+            options.ConnectionStates = typeof( ConnectionState ).ToEnumListItemBag()
+                .Where( i => !ignoredConnectionStates.Contains( ( ConnectionState ) i.Value.AsInteger() ) )
                 .ToList();
             options.RequestSourceItems = connectionType.ConnectionTypeSources.ToListItemBagList();
             options.IsFutureFollowUpEnabled = connectionType.EnableFutureFollowup;
@@ -529,9 +529,9 @@ namespace Rock.Blocks.Engagement
 
             box.IfValidProperty( nameof( box.Bag.ConnectionState ), () =>
             {
-                var state = box.Bag.ConnectionState ?? Rock.Enums.Connection.ConnectionState.Active;
+                var state = box.Bag.ConnectionState ?? ConnectionState.Active;
 
-                entity.ConnectionState = ( ConnectionState ) ( int ) state;
+                entity.ConnectionState = state;
             } );
 
             if ( entity.ConnectionState == ConnectionState.FutureFollowUp )
@@ -774,6 +774,43 @@ namespace Rock.Blocks.Engagement
 
             return connectionType;
         }
+
+        private bool IsEligibleForWorkflow( ConnectionWorkflow cw, ConnectionRequest request, List<int> includeIds, List<int> excludeIds )
+        {
+            if ( cw.ManualTriggerFilterConnectionStatusId.HasValue && cw.ManualTriggerFilterConnectionStatusId != request.ConnectionStatusId )
+            {
+                return false;
+            }
+
+            var person = request.PersonAlias?.Person;
+            if ( person == null )
+            {
+                return false;
+            }
+
+            if ( cw.AppliesToAgeClassification == AppliesToAgeClassification.Adults && person.AgeClassification != AgeClassification.Adult )
+            {
+                return false;
+            }
+
+            if ( cw.AppliesToAgeClassification == AppliesToAgeClassification.Children && person.AgeClassification != AgeClassification.Child )
+            {
+                return false;
+            }
+
+            if ( includeIds != null && !includeIds.Contains( person.Id ) )
+            {
+                return false;
+            }
+
+            if ( excludeIds != null && excludeIds.Contains( person.Id ) )
+            {
+                return false;
+            }
+
+            return true;
+        }
+
 
         #endregion Methods
 
@@ -1105,6 +1142,7 @@ namespace Rock.Blocks.Engagement
                 return ActionBadRequest( "Invalid data." );
             }
 
+            // TODO - Fix this to use a campus picker
             // If there is a campus filter then set the new Connection Request to that campus.
             var campusContext = RequestContext.GetContextEntity<Campus>();
             if ( campusContext != null )
@@ -1230,7 +1268,7 @@ namespace Rock.Blocks.Engagement
                             Order = ( int ) request.ConnectionState
                         },
                         StatusGrouping = GetGroupingFieldBag( currentStatus.Id, "text", currentStatus.Name, currentStatus.Order ),
-                        ConnectionState = ( Rock.Enums.Connection.ConnectionState ) request.ConnectionState,
+                        ConnectionState = request.ConnectionState,
                         ConnectionStatusBag = new ConnectionStatusBag
                         {
                             Guid = currentStatus.Guid,
@@ -1276,7 +1314,7 @@ namespace Rock.Blocks.Engagement
                         Order = ( int ) request.ConnectionState
                     },
                     StatusGrouping = GetGroupingFieldBag( newStatus.Id, "text", newStatus.Name, newStatus.Order ),
-                    ConnectionState = ( Rock.Enums.Connection.ConnectionState ) request.ConnectionState,
+                    ConnectionState = request.ConnectionState,
                     ConnectionStatusBag = new ConnectionStatusBag
                     {
                         Guid = newStatus.Guid,
@@ -1373,7 +1411,7 @@ namespace Rock.Blocks.Engagement
                 return actionError;
             }
 
-            if ( bag.ConnectionState == Enums.Connection.ConnectionState.FutureFollowUp && !bag.FollowUpDate.HasValue )
+            if ( bag.ConnectionState == ConnectionState.FutureFollowUp && !bag.FollowUpDate.HasValue )
             {
                 return ActionBadRequest( "A Follow-Up Date is required." );
             }
@@ -1382,12 +1420,12 @@ namespace Rock.Blocks.Engagement
 
             foreach ( var request in connectionRequests )
             {
-                if ( bag.ConnectionState == Enums.Connection.ConnectionState.FutureFollowUp )
+                if ( bag.ConnectionState == ConnectionState.FutureFollowUp )
                 {
                     request.FollowupDate = bag.FollowUpDate?.DateTime;
                 }
 
-                request.ConnectionState = ( ConnectionState ) ( bag.ConnectionState );
+                request.ConnectionState = bag.ConnectionState;
 
                 gridUpdateBags.Add( new ConnectionListGridUpdateBag
                 {
@@ -1400,7 +1438,7 @@ namespace Rock.Blocks.Engagement
                         IconCssClass = GetStateIconCssClass( request.ConnectionState ),
                         Order = ( int ) request.ConnectionState
                     },
-                    ConnectionState = ( Rock.Enums.Connection.ConnectionState ) request.ConnectionState,
+                    ConnectionState = request.ConnectionState,
                     FollowUpDate = request.FollowupDate
                 } );
             }
@@ -1586,10 +1624,10 @@ namespace Rock.Blocks.Engagement
             }
 
             var workflowService = new WorkflowService( RockContext );
+            var connectionRequestWorkflowService = new ConnectionRequestWorkflowService( RockContext );
             List<string> workflowErrors;
             List<int> includedDataViewValues = null;
             List<int> excludedDataViewValues = null;
-            var connectionRequestWorkflowService = new ConnectionRequestWorkflowService( RockContext );
 
             if ( connectionWorkflow.IncludeDataViewId.HasValue )
             {
@@ -1613,36 +1651,7 @@ namespace Rock.Blocks.Engagement
 
             foreach ( var request in connectionRequests )
             {
-                // If the manual workflow is not configured for this request status then skip it.
-                if ( connectionWorkflow.ManualTriggerFilterConnectionStatusId.HasValue && connectionWorkflow.ManualTriggerFilterConnectionStatusId != request.ConnectionStatusId )
-                {
-                    continue;
-                }
-
-                var person = request.PersonAlias.Person;
-
-                // If the manual workflow's configuration for age classification does not apply to the person on the connection request then skip it.
-                if ( connectionWorkflow.AppliesToAgeClassification != AppliesToAgeClassification.All )
-                {
-                    if ( connectionWorkflow.AppliesToAgeClassification == AppliesToAgeClassification.Adults && person.AgeClassification != AgeClassification.Adult )
-                    {
-                        continue;
-                    }
-
-                    if ( connectionWorkflow.AppliesToAgeClassification == AppliesToAgeClassification.Children && person.AgeClassification != AgeClassification.Child )
-                    {
-                        continue;
-                    }
-                }
-
-                // If the manual workflow's "Include Data View" configuration values do not contain the request person then skip it.
-                if ( connectionWorkflow.IncludeDataViewId.HasValue && !includedDataViewValues.Contains( person.Id ) )
-                {
-                    continue;
-                }
-
-                // If the manual workflow's "Include Data View" configuration values contain the request person then skip it.
-                if ( connectionWorkflow.ExcludeDataViewId.HasValue && excludedDataViewValues.Contains( person.Id ) )
+                if ( !IsEligibleForWorkflow( connectionWorkflow, request, includedDataViewValues, excludedDataViewValues ) )
                 {
                     continue;
                 }
@@ -1790,7 +1799,136 @@ namespace Rock.Blocks.Engagement
                 return ActionBadRequest( "You are not authorized to view this Connection Request." );
             }
 
-            var bag = new ConnectionRequestDetailsBag();
+
+            // TODO - This is doing more work than we need it to by loading the entire entity. We should create a projection that only pulls the data we need for the details view.
+            var bag = new ConnectionRequestDetailsBag
+            {
+                ConnectionRequestIdKey = connectionRequest.IdKey,
+                ConnectionState = connectionRequest.ConnectionState,
+                FollowUpDate = connectionRequest.FollowupDate?.ToRockDateTimeOffset(),
+                ConnectionOpportunityName = connectionRequest.ConnectionOpportunity.Name,
+                ConnectionOpportunityIcon = connectionRequest.ConnectionOpportunity.IconCssClass,
+                Campus = connectionRequest.Campus?.Name,
+                ConnectorPerson = connectionRequest.ConnectorPersonAlias?.Person?.IdKey ?? "unassigned",
+                ConnectorItems = connectionRequest.ConnectionOpportunity.ConnectionOpportunityConnectorGroups
+                    .SelectMany( cg => cg.ConnectorGroup.Members )
+                    .Select( gm => gm.Person )
+                    .Distinct()
+                    .Select( p => new PersonFieldBag
+                    {
+                        IdKey = p.IdKey,
+                        NickName = p.NickName,
+                        LastName = p.LastName,
+                        PhotoUrl = p.PhotoUrl
+                    } ).ToList(),
+                CreatedDateTime = connectionRequest.CreatedDateTime?.ToRockDateTimeOffset(),
+                DueDate = connectionRequest.DueDate?.ToRockDateTimeOffset(),
+                DueStatus = GetDueStatus( connectionRequest.DueDate, connectionRequest.DueSoonDate ),
+                Comments = connectionRequest.Comments,
+                ConnectionTypeSource = connectionRequest.ConnectionTypeSource?.Name,
+                ActionItems = new List<ListItemBag>(),
+                Attributes = connectionRequest.GetPublicAttributesForView( RequestContext.CurrentPerson ),
+                AttributeValues = connectionRequest.GetPublicAttributeValuesForView( RequestContext.CurrentPerson )
+            };
+
+            // Add Unassigned Connector
+            bag.ConnectorItems.Add( new PersonFieldBag
+            {
+                IdKey = "unassigned",
+                NickName = "Unassigned",
+                PhotoUrl = Rock.Model.Person.GetPersonNoPictureUrl( new Rock.Model.Person() )
+            } );
+
+            // If the current connector (from the request) isn't in the connector list, add it.
+            if ( bag.ConnectorPerson != "unassigned" && !bag.ConnectorItems.Any( c => c.IdKey == bag.ConnectorPerson ) )
+            {
+                // Get the Connector Person
+                var connectorPerson = connectionRequest.ConnectorPersonAlias?.Person;
+
+                if ( connectorPerson != null )
+                {
+                    bag.ConnectorItems.Add( new PersonFieldBag
+                    {
+                        IdKey = connectorPerson.IdKey,
+                        NickName = connectorPerson.NickName,
+                        LastName = connectorPerson.LastName,
+                        PhotoUrl = connectorPerson.PhotoUrl
+                    } );
+                }
+            }
+
+            // If the connector list does not include the current person, add them.
+            if ( !bag.ConnectorItems.Any( c => c.IdKey == RequestContext.CurrentPerson.IdKey ) )
+            {
+                var person = RequestContext.CurrentPerson;
+
+                bag.ConnectorItems.Add( new PersonFieldBag
+                {
+                    IdKey = person.IdKey,
+                    NickName = person.NickName,
+                    LastName = person.LastName,
+                    PhotoUrl = person.PhotoUrl
+                } );
+            }
+
+            if ( connectionRequest.AssignedGroup != null )
+            {
+                var placementGroup = connectionRequest.AssignedGroup;
+                bag.PlacementGroup = new PlacementGroupDetailsBag
+                {
+                    Name = placementGroup.Name,
+                    IconCssClass = placementGroup.GroupType.IconCssClass ?? "ti ti-users",
+                    Attributes = placementGroup.GetPublicAttributesForView( RequestContext.CurrentPerson ),
+                    AttributeValues = placementGroup.GetPublicAttributeValuesForView( RequestContext.CurrentPerson )
+                };
+            }
+
+            var connectionWorkflows = connectionRequest.ConnectionOpportunity.ConnectionWorkflows.Union( connectionRequest.ConnectionOpportunity.ConnectionType.ConnectionWorkflows );
+            var manualWorkflows = connectionWorkflows
+                .Where( w =>
+                    w.TriggerType == ConnectionWorkflowTriggerType.Manual &&
+                    w.WorkflowType != null &&
+                    ( w.ManualTriggerFilterConnectionStatusId == null || w.ManualTriggerFilterConnectionStatusId == connectionRequest.ConnectionStatusId ) )
+                .Distinct();
+
+            var workflowTypeOrder = connectionRequest.ConnectionOpportunity.GetAdditionalSettingsOrNull<List<int>>( "WorkflowTypeOrder" ) ?? new List<int>();
+
+            var orderedManualWorkflows = manualWorkflows
+                .OrderBy( w =>
+                {
+                    var index = workflowTypeOrder.IndexOf( w.WorkflowTypeId ?? -1 );
+                    return index == -1 ? int.MaxValue : index;
+                } )
+                .ThenBy( w => w.WorkflowType.Name );
+
+            foreach ( var workflow in orderedManualWorkflows )
+            {
+                if ( !( workflow.WorkflowType.IsActive ?? true ) || !workflow.WorkflowType.IsAuthorized( Authorization.VIEW, RequestContext.CurrentPerson ) )
+                {
+                    continue;
+                }
+
+                List<int> includedDataViewValues = null;
+                List<int> excludedDataViewValues = null;
+
+                if ( workflow.IncludeDataViewId.HasValue )
+                {
+                    includedDataViewValues = GetDataViewValues( workflow.IncludeDataViewId.Value );
+                }
+                if ( workflow.ExcludeDataViewId.HasValue )
+                {
+                    excludedDataViewValues = GetDataViewValues( workflow.ExcludeDataViewId.Value );
+                }
+
+                if ( IsEligibleForWorkflow( workflow, connectionRequest, includedDataViewValues, excludedDataViewValues ) )
+                {
+                    bag.ActionItems.Add( new ListItemBag
+                    {
+                        Text = workflow.WorkflowType?.Name,
+                        Value = workflow.Guid.ToString()
+                    } );
+                }
+            }
 
             var requesterPerson = connectionRequest.PersonAlias.Person;
             string connectionStatus = null;
