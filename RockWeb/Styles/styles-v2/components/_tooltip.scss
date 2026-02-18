@@ -117,6 +117,17 @@
   background-color: var(--color-interface-stronger);
   border-radius:    var(--rounded-small);
   word-break:       break-word;
+
+  > * {
+    color: inherit;
+  }
+
+}
+
+.tooltip-wide {
+  .tooltip-inner {
+    max-width: $tooltip-max-width * 1.5;
+  }
 }
 
 // Arrows

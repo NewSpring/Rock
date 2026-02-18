@@ -9023,6 +9023,13 @@ hr {
   border-radius: var(--rounded-small);
   word-break: break-word;
 }
+.tooltip-inner > * {
+  color: inherit;
+}
+
+.tooltip-wide .tooltip-inner {
+  max-width: 360px;
+}
 
 .tooltip-arrow {
   position: absolute;
