@@ -68,6 +68,10 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
 
         public PlacementGroupDetailsBag PlacementGroup { get; set; }
 
+        public string LavaHeadingTemplate { get; set; }
+
+        public string LavaBadgeBar { get; set; }
+
         /// <summary>
         /// The attributes for the selected Connection Request.
         /// </summary>

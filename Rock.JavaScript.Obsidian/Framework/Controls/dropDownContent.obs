@@ -16,6 +16,17 @@
     </div>
 </template>
 
+<style>
+/* Global styles that can be used on any implementation of the Control. */
+.dropdown-content-item {
+    cursor: pointer;
+}
+
+.dropdown-content-item:hover {
+    background-color: var(--color-interface-softer);
+}
+</style>
+
 <style scoped>
 .floating-dropdown {
     z-index: 3;
@@ -44,7 +55,7 @@
 </style>
 
 <script setup lang="ts">
-    import { arrow, autoUpdate, shift, useFloating } from "@Obsidian/Libs/floating-ui";
+    import { arrow, autoUpdate, flip, shift, useFloating } from "@Obsidian/Libs/floating-ui";
     import { useVModelPassthrough } from "@Obsidian/Utility/component";
     import { PropType, ref, watch } from "vue";
 
@@ -68,6 +79,11 @@
 
         preventOverflowClipping: {
             type: Boolean as PropType<boolean>,
+            default: false
+        },
+
+        enableFlip: {
+            type: Boolean,
             default: false
         }
     });
@@ -93,6 +109,7 @@
                 // then the scroll bar vanishes and we adjust position again.
                 padding: 1
             }),
+            ...(props.enableFlip ? [flip()] : []),
             arrow({
                 element: arrowElement
             })

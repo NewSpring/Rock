@@ -25,6 +25,7 @@ using Rock.Tasks;
 using Rock.ClientService.Core.Note;
 using System.Data.Entity.Core.Metadata.Edm;
 using Slingshot.Core;
+using Rock.Web.UI.Controls;
 
 namespace Rock.Blocks.Engagement
 {
@@ -59,9 +60,23 @@ namespace Rock.Blocks.Engagement
         "Badges",
         Description = "The badges to display in this block.",
         IsRequired = false,
-        Order = 10,
+        Order = 5,
         Key = AttributeKey.Badges )]
+    [CodeEditorField(
+        "Lava Heading Template",
+        IsRequired = false,
+        Key = AttributeKey.LavaHeadingTemplate,
+        EditorMode = CodeEditorMode.Lava,
+        Description = "The HTML Content to render above the person’s name. Includes merge fields ConnectionRequest and Person. <span class='tip tip-lava'></span>",
+        Order = 6 )]
 
+    [CodeEditorField(
+        "Lava Badge Bar",
+        IsRequired = false,
+        Key = AttributeKey.LavaBadgeBar,
+        EditorMode = CodeEditorMode.Lava,
+        Description = "The HTML Content intended to be used as a kind of custom badge bar for the connection request. Includes merge fields ConnectionRequest and Person. <span class='tip tip-lava'></span>",
+        Order = 7 )]
     #endregion
 
     [Rock.SystemGuid.EntityTypeGuid( "CEE15B88-3B23-4378-9CB1-E59A97A94D1B" )]
@@ -75,6 +90,8 @@ namespace Rock.Blocks.Engagement
             public const string WorkflowDetailPage = "WorkflowDetailPage";
             public const string WorkflowEntryPage = "WorkflowEntryPage";
             public const string Badges = "Badges";
+            public const string LavaHeadingTemplate = "LavaHeadingTemplate";
+            public const string LavaBadgeBar = "LavaBadgeBar";
         }
 
         private static class PageParameterKey
@@ -1799,6 +1816,7 @@ namespace Rock.Blocks.Engagement
                 return ActionBadRequest( "You are not authorized to view this Connection Request." );
             }
 
+            connectionRequest.LoadAttributes();
 
             // TODO - This is doing more work than we need it to by loading the entire entity. We should create a projection that only pulls the data we need for the details view.
             var bag = new ConnectionRequestDetailsBag
@@ -1874,6 +1892,7 @@ namespace Rock.Blocks.Engagement
             if ( connectionRequest.AssignedGroup != null )
             {
                 var placementGroup = connectionRequest.AssignedGroup;
+                // TODO - update this to be group member attributes
                 bag.PlacementGroup = new PlacementGroupDetailsBag
                 {
                     Name = placementGroup.Name,
@@ -1990,6 +2009,54 @@ namespace Rock.Blocks.Engagement
                 RequestCreatedDateTime = r.RequestCreatedDateTime?.ToRockDateTimeOffset(),
                 Requester = r.RequesterNickName + " " + r.RequesterLastName
             } ).ToList();
+
+            // Add the lava header
+            // Resolve the text field merge fields
+            var mergeFields = this.RequestContext.GetCommonMergeFields();
+            mergeFields.Add( "ConnectionRequest", connectionRequest );
+            mergeFields.Add( "Person", requesterPerson );
+
+            bag.LavaHeadingTemplate = GetAttributeValue( AttributeKey.LavaHeadingTemplate ).ResolveMergeFields( mergeFields );
+            bag.LavaBadgeBar = GetAttributeValue( AttributeKey.LavaBadgeBar ).ResolveMergeFields( mergeFields );
+
+            // Filters out Connection Request Activities that do not have a created by person alias id or created date time.
+            //var validActivities = connectionRequest.ConnectionRequestActivities.Where( a => a.CreatedByPersonAliasId.HasValue && a.CreatedDateTime.HasValue ).ToList();
+            //var validConnectionStatusHistories = connectionRequest.ConnectionRequestStatusHistories.Where( h => h.CreatedByPersonAliasId.HasValue && h.CreatedDateTime.HasValue ).ToList();
+
+            //var entries = new List<ActivityEntryBag>();
+
+            //entries.AddRange( validActivities.Select( a => new ActivityEntryBag
+            //{
+            //    EntryType = ActivityEntryType.Activity,
+            //    EntryDateTime = a.CreatedDateTime.Value.ToRockDateTimeOffset(),
+            //    CreatedBy = new PersonFieldBag
+            //    {
+            //        IdKey = a.CreatedByPersonAlias?.Person?.IdKey,
+            //        NickName = a.CreatedByPersonAlias?.Person?.NickName,
+            //        LastName = a.CreatedByPersonAlias?.Person?.LastName,
+            //        PhotoUrl = a.CreatedByPersonAlias?.Person?.PhotoUrl
+            //    },
+            //    CardEntry = new CardEntryBag
+            //    {
+            //        Title = string.Format( "Activity: {0}", a.ConnectionActivityType.Name ),
+            //        Content = a.Note,
+            //    }
+            //} ) );
+
+            //entries.AddRange( validConnectionStatusHistories.Select( h => new ActivityEntryBag
+            //{
+            //    EntryType = ActivityEntryType.SystemUpdate,
+            //    EntryDateTime = h.CreatedDateTime.Value.ToRockDateTimeOffset(),
+            //    CreatedBy = new PersonFieldBag
+            //    {
+            //        IdKey = h.CreatedByPersonAlias?.Person?.IdKey,
+            //        NickName = h.CreatedByPersonAlias?.Person?.NickName,
+            //        LastName = h.CreatedByPersonAlias?.Person?.LastName,
+            //        PhotoUrl = h.CreatedByPersonAlias?.Person?.PhotoUrl
+            //    },
+            //} ) );
+
+            //bag.ActivityEntries = new List<ActivityEntryBag>( entries.OrderByDescending( e => e.EntryDateTime ) );
 
             return ActionOk( bag );
         }

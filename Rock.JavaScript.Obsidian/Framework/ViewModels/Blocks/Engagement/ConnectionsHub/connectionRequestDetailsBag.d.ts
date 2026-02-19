@@ -68,6 +68,10 @@ export type ConnectionRequestDetailsBag = {
 
     followUpDate?: string | null;
 
+    lavaBadgeBar?: string | null;
+
+    lavaHeadingTemplate?: string | null;
+
     placementGroup?: PlacementGroupDetailsBag | null;
 
     requesterPerson?: RequesterPersonBag | null;

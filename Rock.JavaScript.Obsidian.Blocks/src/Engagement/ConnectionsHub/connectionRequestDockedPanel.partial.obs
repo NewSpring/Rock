@@ -66,7 +66,7 @@
         <template #default>
             <div v-if="!areRequestDetailsLoading" class="px-spacing-md pb-spacing-lg d-flex flex-column gap-md">
                 <!-- TODO - AI Summary -->
-                <!-- TODO - Custom Lava Header -->
+                <div v-if="!isNullOrWhiteSpace(requestDetails?.lavaHeadingTemplate)" v-html="requestDetails?.lavaHeadingTemplate"></div>
                 <div class="border rounded p-spacing-sm">
                     <div class="d-flex align-items-center gap-tiny text-interface-strong">
                         <i class="ti ti-plug-connected header-icon"></i>
@@ -74,6 +74,7 @@
                         <div class="text-small text-semibold">Additional Requests</div>
                     </div>
                     <div class="d-flex flex-column gap-tiny">
+                        <!-- TODO - remove this slice -->
                         <p v-for="additionalRequest in requestDetails?.additionalRequests?.slice(0, 5)" class="mb-0" :class="{ 'additional-request': dockedPanelWidthNumber < 350 }">
                             <span class="text-link text-small pr-spacing-sm">{{ additionalRequest.connectionOpportunityName }} </span>
                             <span class="text-interface-medium text-xs">{{ getRequestMeta(additionalRequest) }}</span>
@@ -85,28 +86,38 @@
                                 icon="ti ti-mail"
                                 :disableCollapse="true">
                     <template #headerActions>
-                        <div class="d-flex gap-md">
+                        <div class="d-flex align-items-center gap-md">
+                            <div v-if="requestDetails?.connectionState === ConnectionState.FutureFollowUp" class="text-semibold text-info-strong">
+                                {{ ConnectionStateDescription[ConnectionState.FutureFollowUp] }} - {{ asLocaleString(requestDetails.followUpDate) }}
+                            </div>
+                            <div v-else-if="requestDetails?.connectionState === ConnectionState.Inactive" class="text-semibold text-slate">
+                                {{ ConnectionStateDescription[ConnectionState.Inactive] }}
+                            </div>
+                            <div v-else-if="requestDetails?.connectionState === ConnectionState.Connected" class="text-semibold text-emerald">
+                                {{ ConnectionStateDescription[ConnectionState.Connected] }}
+                            </div>
                             <i v-if="options?.areCelebrationsEnabled" class="ti ti-confetti"></i>
                             <i v-if="options?.areRemindersEnabled" class="ti ti-bell"></i>
                         </div>
                     </template>
-                    <template #preBody>
+                    <template #preBody v-if="!isNullOrWhiteSpace(requestDetails?.lavaBadgeBar)">
                         <div class="border-top border-bottom px-spacing-md py-spacing-xs">
-                            Badge Bar
+                            <div v-html="requestDetails?.lavaBadgeBar"></div>
                         </div>
                     </template>
                     <ContentStack>
                         <div class="d-flex flex-column gap-md">
                             <div>
                                 <RockLabel class="mb-spacing-xs text-interface-stronger">Request Detail</RockLabel>
-                                <DisplayCard :iconCssClass="requestDetails?.placementGroup?.iconCssClass"
+                                <DisplayCard :iconCssClass="requestDetails?.connectionOpportunityIcon"
                                              iconLabelType="info"
                                              :title="requestDetails?.connectionOpportunityName"
                                              :description="requestDetails?.campus">
                                     <template #middleSection>
                                         <div class="d-flex flex-column">
                                             <RockLabel class="text-interface-medium text-regular">Connector</RockLabel>
-                                            <DropDownContent v-model="isConnectorDropdownOpen">
+                                            <DropDownContent v-model="isConnectorDropdownOpen"
+                                                             enableFlip>
                                                 <template #anchor>
                                                     <div class="d-flex align-items-center gap-xs cursor-pointer">
                                                         <PersonAvatar :photoUrl="selectedConnectorBag?.photoUrl ?? ''"
@@ -115,15 +126,17 @@
                                                         <div class="d-flex align-items-center gap-tiny">
                                                             <!-- TODO: Is there a blank space here when unassigned? -->
                                                             <div class="text-small text-interface-strong text-semibold">{{ selectedConnectorBag?.nickName }} {{ selectedConnectorBag?.lastName }}</div>
-                                                            <i v-if="isConnectorDropdownOpen" class="ti ti-chevron-up"></i>
-                                                            <i v-else class="ti ti-chevron-down"></i>
+                                                            <i class="ti ti-chevron-down"></i>
                                                         </div>
                                                     </div>
                                                 </template>
                                                 <template #default>
                                                     <div class="d-flex flex-column person-dropdown">
                                                         <template v-for="connectorItem in connectorItems">
-                                                            <div v-if="connectorItem" class="d-flex align-items-center gap-xs cursor-pointer person-dropdown-item" :class="{ 'selected': connectorItem.idKey === selectedConnector }" @click="updateConnector(connectorItem.idKey)">
+                                                            <div v-if="connectorItem"
+                                                                 class="d-flex align-items-center gap-xs dropdown-content-item text-regular py-spacing-sm px-spacing-md bg-interface-softest"
+                                                                 :class="{ 'selected': connectorItem.idKey === selectedConnector }"
+                                                                 @click="updateConnector(connectorItem.idKey)">
                                                                 <PersonAvatar :photoUrl="connectorItem.photoUrl ?? ''"
                                                                               :photoSize="30"
                                                                               marginRight="0" />
@@ -163,6 +176,50 @@
                             </div>
                         </div>
                     </ContentStack>
+                    <ContentStack v-if="requestDetails?.placementGroup">
+                        <RockLabel class="text-interface-stronger mb-spacing-xs">Placement Group Details</RockLabel>
+                        <div class="d-flex flex-column gap-md">
+                            <div class="d-flex flex-column gap-xs">
+                                <RockLabel class="text-interface-medium text-regular">Group</RockLabel>
+                                <HighlightLabel :iconCssClass="requestDetails.placementGroup?.iconCssClass ?? 'ti ti-users'"
+                                                labelType="custom"
+                                                customClass="label label-info w-fit">
+                                    {{ requestDetails.placementGroup?.name }}
+                                </HighlightLabel>
+                            </div>
+                            <AttributeValuesContainer :modelValue="requestDetails.placementGroup.attributeValues ?? {}"
+                                                      :attributes="requestDetails.placementGroup.attributes ?? {}" />
+                        </div>
+                    </ContentStack>
+                    <ContentStack v-if="hasNonEmptyRequestAttributeValue">
+                        <AttributeValuesContainer :modelValue="requestDetails?.attributeValues ?? {}"
+                                                  :attributes="requestDetails?.attributes ?? {}"
+                                                  :numberOfColumns="2"
+                                                  displayAsCategoryDropdown
+                                                  globalCategoryNameOverride="General Attributes" />
+                    </ContentStack>
+                </ContentSection>
+                <ContentSection title="Activity Feed"
+                                icon="ti ti-activity"
+                                :disableCollapse="true">
+                    <template #headerActions>
+                        <DropDownContent v-model="isActivityFilterDropdownOpen"
+                                         enableFlip>
+                            <template #anchor>
+                                <div class="d-flex align-items-center gap-tiny text-primary cursor-pointer">
+                                    Show {{ selectedActivityFilter }}
+                                    <i class="ti ti-chevron-down"></i>
+                                </div>
+                            </template>
+                            <template #default>
+                                <div v-for="activityFilter in activityFilterOptions"
+                                     class="dropdown-content-item py-spacing-sm px-spacing-md bg-interface-softest"
+                                     @click.stop="updateActivityFilter(activityFilter)">
+                                    {{ activityFilter }}
+                                </div>
+                            </template>
+                        </DropDownContent>
+                    </template>
                 </ContentSection>
             </div>
         </template>
@@ -191,31 +248,31 @@
 
 .person-dropdown {
     min-width: 200px;
+    max-height: 40vh;
+    overflow-y: auto;
+}
+
+.dropdown-content-item.selected {
+    color: var(--color-interface-strong);
+    font-weight: var(--font-weight-semibold);
+    background-color: var(--color-info-soft);
 }
 
 .text-regular {
     font-weight: var(--font-weight-regular);
 }
 
-.person-dropdown-item {
-    font-weight: var(--font-weight-regular);
-    padding: 10px var(--spacing-medium);
-    background-color: var(--color-interface-softest);
-}
-
-.person-dropdown-item:hover {
-    background-color: var(--color-interface-softer);
-}
-
-.person-dropdown-item.selected {
-    color: var(--color-interface-strong);
-    font-weight: var(--font-weight-semibold);
-    background-color: var(--color-info-soft);
-}
-
-/* text-sm is incorrectly return xsmall at the moment in develop */
+/* text-sm is incorrectly returning xsmall at the moment in develop */
 .text-small {
     font-size: var(--font-size-small);
+}
+
+.text-slate {
+    color: #64748B;
+}
+
+.text-emerald {
+    color: #10B981;
 }
 
 .gap-tiny {
@@ -236,6 +293,10 @@
 
 .gap-lg {
     gap: var(--spacing-large);
+}
+
+.w-fit {
+    width: fit-content;
 }
 </style>
 
@@ -263,6 +324,14 @@
     import { DueStatus } from "@Obsidian/Enums/Connection/dueStatus";
     import { PersonFieldBag } from "@Obsidian/ViewModels/Core/Grid/personFieldBag";
     import ActionItems from "./actionItems.partial.obs";
+    import HighlightLabel from "@Obsidian/Controls/highlightLabel.obs";
+    import AttributeValuesContainer from "@Obsidian/Controls/attributeValuesContainer.obs";
+    import { PublicAttributeBag } from "@Obsidian/ViewModels/Utility/publicAttributeBag";
+    import { toGuidOrNull } from "@Obsidian/Utility/guid";
+    import { FieldType } from "@Obsidian/SystemGuids/fieldType";
+    import { getFieldType } from "@Obsidian/Utility/fieldTypes";
+    import { ConnectionState, ConnectionStateDescription } from "@Obsidian/Enums/Connection/connectionState";
+
 
     const props = defineProps({
         modelValue: {
@@ -301,6 +370,8 @@
 
     const defaultDockedPanelWidth = "700px";
 
+    const activityFilterOptions = ["All", "Activities", "Request Notes", "System Updates"];
+
     const isFullWidth = ref(false);
     const dockedPanelWidth = ref(defaultDockedPanelWidth);
     const areNotesVisible = ref(false);
@@ -308,6 +379,9 @@
 
     const selectedConnector = ref(props.requestDetails?.connectorPerson ?? "");
     const connectorItems = ref<PersonFieldBag[]>(props.requestDetails?.connectorItems ?? []);
+
+    const isActivityFilterDropdownOpen = ref(false);
+    const selectedActivityFilter = ref("All");
 
     const areRequestDetailsLoading = ref(true);
 
@@ -379,6 +453,47 @@
 
     const selectedConnectorBag = computed(() => connectorItems.value.find(c => c.idKey === selectedConnector.value));
 
+    const hasNonEmptyRequestAttributeValue = computed(() => {
+        if (!props.requestDetails?.attributes || !props.requestDetails?.attributeValues) {
+            return false;
+        }
+
+        for (const [key, attribute] of Object.entries(props.requestDetails?.attributes)) {
+            // Skip if attribute name is empty
+            if (isNullOrWhiteSpace(attribute.name)) {
+                continue;
+            }
+
+            const rawValue = props.requestDetails?.attributeValues[key];
+
+            // Skip if the raw value is empty
+            if (isNullOrWhiteSpace(rawValue)) {
+                continue;
+            }
+
+            const formatted = getAttributeValueText(props.requestDetails?.attributeValues, attribute, key);
+
+            // Skip if formatted value is empty too
+            if (isNullOrWhiteSpace(formatted)) {
+                continue;
+            }
+
+            return true;
+        }
+
+        return false;
+    });
+
+    function getAttributeValueText(attributeValues: Record<string, string> | null, attribute: PublicAttributeBag, key: string): string {
+        const fieldTypeGuid = toGuidOrNull(attribute.fieldTypeGuid);
+        const fieldType = getFieldType(fieldTypeGuid ?? FieldType.Text);
+
+        const rawValue = attributeValues?.[key] ?? "";
+        const configValues = attribute.configurationValues ?? {};
+
+        return fieldType?.getTextValue?.(rawValue, configValues) ?? rawValue;
+    }
+
     function setFullWidth(value: boolean): void {
         isFullWidth.value = value;
     }
@@ -447,6 +562,21 @@
 
         selectedConnector.value = connectorKey!;
         isConnectorDropdownOpen.value = false;
+    }
+
+    function updateActivityFilter(activityFilter: string): void {
+        selectedActivityFilter.value = activityFilter;
+        isActivityFilterDropdownOpen.value = false;
+    }
+
+    function asLocaleString(dateTime: string | null | undefined): string {
+        let date = RockDateTime.parseISO(dateTime ?? "");
+
+        if (!date) {
+            return "";
+        }
+
+        return date.toLocaleString({ year: "numeric", month: "numeric", day: "numeric" });
     }
 
     watch(isFullWidth, () => {

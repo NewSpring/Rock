@@ -24,6 +24,39 @@
                 </template>
             </TabbedContent>
 
+            <template v-else-if="displayAsCategoryDropdown">
+                <div class="d-flex justify-content-between pb-spacing-xs">
+                    <div class="font-size-h6 text-interface-stronger text-semibold">Attributes</div>
+                    <DropDownContent v-model="isCategoryDropdownOpen"
+                                     enableFlip>
+                        <template #anchor>
+                            <div class="d-flex align-items-center gap-tiny text-primary cursor-pointer">
+                                <i class="ti ti-eye"></i>
+                                {{ selectedCategory }}
+                                <i class="ti ti-chevron-down"></i>
+                            </div>
+                        </template>
+                        <template #default>
+                            <div v-for="categoryName in attributeCategoryNames"
+                                 class="dropdown-content-item py-spacing-sm px-spacing-md bg-interface-softest"
+                                 @click.stop="updateSelectedCategory(categoryName)">
+                                {{ categoryName }}
+                            </div>
+                        </template>
+                    </DropDownContent>
+                </div>
+                <div :class="{ 'attributevaluescontainer-category-content': true, 'row': numberOfColumns > 1 }">
+                    <div v-for="a in getCategoryAttributes(selectedCategory)" :key="a.attributeGuid" :class="columnClass">
+                        <RockField :isEditMode="isEditMode"
+                                   :attribute="a"
+                                   :modelValue="values[a.key!]"
+                                   @update:modelValue="onUpdateValue(a.key!, $event)"
+                                   :showEmptyValue="showEmptyValues"
+                                   :showAbbreviatedName="showAbbreviatedName" />
+                    </div>
+                </div>
+            </template>
+
             <template v-else>
                 <div class="attributevaluescontainer">
                     <div v-for="cat in attributeCategories" key="cat.guid" class="attributevaluescontainer-category">
@@ -34,21 +67,21 @@
                             <ItemsWithPreAndPostHtml :items="prePostHtmlItems[cat.guid]" v-if="isEditMode && showPrePostHtml">
                                 <template v-slot:[a.attributeGuid] v-for="a in cat.attributes" :key="a.attributeGuid">
                                     <RockField :isEditMode="isEditMode"
-                                            :attribute="a"
-                                            :modelValue="values[a.key!]"
-                                            @update:modelValue="onUpdateValue(a.key!, $event)"
-                                            :showEmptyValue="showEmptyValues"
-                                            :showAbbreviatedName="showAbbreviatedName" />
+                                               :attribute="a"
+                                               :modelValue="values[a.key!]"
+                                               @update:modelValue="onUpdateValue(a.key!, $event)"
+                                               :showEmptyValue="showEmptyValues"
+                                               :showAbbreviatedName="showAbbreviatedName" />
                                 </template>
                             </ItemsWithPreAndPostHtml>
 
                             <div v-else :class="columnClass" v-for="a in cat.attributes" :key="a.attributeGuid!">
                                 <RockField :isEditMode="isEditMode"
-                                        :attribute="a"
-                                        :modelValue="values[a.key!]"
-                                        @update:modelValue="onUpdateValue(a.key!, $event)"
-                                        :showEmptyValue="showEmptyValues"
-                                        :showAbbreviatedName="showAbbreviatedName" />
+                                           :attribute="a"
+                                           :modelValue="values[a.key!]"
+                                           @update:modelValue="onUpdateValue(a.key!, $event)"
+                                           :showEmptyValue="showEmptyValues"
+                                           :showAbbreviatedName="showAbbreviatedName" />
                             </div>
                         </div>
                     </div>
@@ -60,6 +93,12 @@
         </template>
     </RockSuspense>
 </template>
+
+<style scoped>
+.gap-tiny {
+    gap: var(--spacing-tiny);
+}
+</style>
 
 <script setup lang="ts">
     import { computed, PropType, ref, watch } from "vue";
@@ -74,6 +113,7 @@
     import ItemsWithPreAndPostHtml from "./itemsWithPreAndPostHtml.obs";
     import { ItemWithPreAndPostHtml } from "@Obsidian/Types/Controls/itemsWithPreAndPostHtml";
     import { Guid } from "@Obsidian/Types";
+    import DropDownContent from "./dropDownContent.obs";
 
     type CategorizedAttributes = PublicAttributeCategoryBag & {
         attributes: PublicAttributeBag[]
@@ -113,6 +153,10 @@
             type: Boolean,
             default: false
         },
+        displayAsCategoryDropdown: {
+            type: Boolean,
+            default: false
+        },
         showCategoryLabel: {
             type: Boolean,
             default: true
@@ -146,6 +190,10 @@
         columnBreakpoint: {
             type: String as PropType<"xs" | "sm" | "md" | "lg">,
             default: "md"
+        },
+
+        globalCategoryNameOverride: {
+            type: String as PropType<string | null | undefined>,
         }
     });
 
@@ -161,11 +209,14 @@
 
     const values = ref({ ...props.modelValue });
 
+    const selectedCategory = ref();
+    const isCategoryDropdownOpen = ref(false);
+
     const attributeCategories = computed(() => {
         // Initialize the category list with a "default" category
         const categoryList: CategorizedAttributes[] = [{
             guid: emptyGuid,
-            name: "Attributes",
+            name: props.globalCategoryNameOverride ?? "Attributes",
             order: 0,
             attributes: []
         }];
@@ -289,7 +340,40 @@
         return items;
     });
 
+    function updateSelectedCategory(categoryName: string): void {
+        selectedCategory.value = categoryName;
+        isCategoryDropdownOpen.value = false;
+    }
+
     watch(() => props.modelValue, () => {
         values.value = { ...props.modelValue };
     });
+
+    watch([() => props.displayAsCategoryDropdown, () => attributeCategories.value],
+        ([isDropdown, categories]) => {
+            if (!isDropdown) {
+                return;
+            }
+
+            if (!categories?.length) {
+                selectedCategory.value = "";
+                return;
+            }
+
+            const globalCategoryName = categories.find(c => c.guid === emptyGuid)?.name;
+
+            if (!globalCategoryName) {
+                selectedCategory.value = "";
+                return;
+            }
+
+            const isSelectedValid = categories.some(c => c.name === selectedCategory.value);
+
+            // Pick global category as default.
+            if (!selectedCategory.value || !isSelectedValid) {
+                selectedCategory.value = globalCategoryName;
+            }
+        },
+        { immediate: true }
+    );
 </script>
