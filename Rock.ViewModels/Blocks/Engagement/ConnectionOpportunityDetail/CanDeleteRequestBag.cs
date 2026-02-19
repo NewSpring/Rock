@@ -15,30 +15,23 @@
 // </copyright>
 //
 
-using Rock.Model;
-using Rock.ViewModels.Utility;
+using System;
 
 namespace Rock.ViewModels.Blocks.Engagement.ConnectionOpportunityDetail
 {
     /// <summary>
-    /// Minimal bag describing an inherited Connection Workflow for a Connection Opportunity,
-    /// which would be set on the associated Connection Type.
+    /// Request bag used to send an identifier for a specific entity to verify if it can be deleted.
     /// </summary>
-    public class InheritedConnectionWorkflowBag
+    public class CanDeleteRequestBag
     {
         /// <summary>
-        /// Gets or sets the unique identifier.
+        /// Gets or sets the entity key identifying the type of entity to check.
         /// </summary>
-        public System.Guid Guid { get; set; }
+        public string EntityKey { get; set; }
 
         /// <summary>
-        /// Gets or sets the workflow type as a ListItemBag.
+        /// Gets or sets the entity unique identifier.
         /// </summary>
-        public ListItemBag WorkflowType { get; set; }
-
-        /// <summary>
-        /// Gets or sets the trigger type.
-        /// </summary>
-        public ConnectionWorkflowTriggerType TriggerType { get; set; }
+        public Guid EntityGuid { get; set; }
     }
 }

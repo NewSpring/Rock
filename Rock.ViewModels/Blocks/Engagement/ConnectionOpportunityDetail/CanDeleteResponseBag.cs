@@ -1,4 +1,4 @@
-// <copyright>
+﻿// <copyright>
 // Copyright by the Spark Development Network
 //
 // Licensed under the Rock Community License (the "License");
@@ -15,30 +15,22 @@
 // </copyright>
 //
 
-using Rock.Model;
-using Rock.ViewModels.Utility;
-
 namespace Rock.ViewModels.Blocks.Engagement.ConnectionOpportunityDetail
 {
     /// <summary>
-    /// Minimal bag describing an inherited Connection Workflow for a Connection Opportunity,
-    /// which would be set on the associated Connection Type.
+    /// Response bag used to indicate whether a specific entity can be deleted,
+    /// along with an optional explanation when deletion is not allowed.
     /// </summary>
-    public class InheritedConnectionWorkflowBag
+    public class CanDeleteResponseBag
     {
         /// <summary>
-        /// Gets or sets the unique identifier.
+        /// Gets or sets a value indicating whether the entity can be deleted.
         /// </summary>
-        public System.Guid Guid { get; set; }
+        public bool CanDelete { get; set; }
 
         /// <summary>
-        /// Gets or sets the workflow type as a ListItemBag.
+        /// Gets or sets the error message explaining why the entity cannot be deleted.
         /// </summary>
-        public ListItemBag WorkflowType { get; set; }
-
-        /// <summary>
-        /// Gets or sets the trigger type.
-        /// </summary>
-        public ConnectionWorkflowTriggerType TriggerType { get; set; }
+        public string ErrorMessage { get; set; }
     }
 }

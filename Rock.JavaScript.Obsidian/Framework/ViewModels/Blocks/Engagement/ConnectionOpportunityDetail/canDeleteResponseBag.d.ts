@@ -21,19 +21,17 @@
 // </copyright>
 //
 
-import { DueDateCalculationMode } from "@Obsidian/Enums/Connection/dueDateCalculationMode";
+/**
+ * Response bag used to indicate whether a specific entity can be deleted,
+ * along with an optional explanation when deletion is not allowed.
+ */
+export type CanDeleteResponseBag = {
+    /** Gets or sets a value indicating whether the entity can be deleted. */
+    canDelete: boolean;
 
-/** The additional configuration options for the Connection Opportunity Detail block. */
-export type ConnectionOpportunityDetailOptionsBag = {
-    /** Gets or sets the Due Date Calculation Mode that is set on the associated Connection Type. */
-    dueDateCalculationMode?: DueDateCalculationMode | null;
-
-    /** Gets or sets a value indicating whether Future Follow-Up is enabled on the associated Connection Type. */
-    isFutureFollowupEnabled: boolean;
-
-    /** Gets or sets a value indicating whether Group Placement is enabled on the associated Connection Type. */
-    isGroupPlacementEnabled: boolean;
-
-    /** Gets or sets a value indicating whether the reorder column should be visible. */
-    isReOrderColumnVisible?: boolean | null;
+    /**
+     * Gets or sets the error message explaining why the entity cannot be deleted.
+     * This value should be null or empty when Rock.ViewModels.Blocks.Engagement.ConnectionOpportunityDetail.CanDeleteResponseBag.CanDelete is true.
+     */
+    errorMessage?: string | null;
 };

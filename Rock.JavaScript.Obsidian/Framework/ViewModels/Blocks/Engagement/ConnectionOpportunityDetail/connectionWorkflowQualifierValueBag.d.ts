@@ -21,19 +21,11 @@
 // </copyright>
 //
 
-import { DueDateCalculationMode } from "@Obsidian/Enums/Connection/dueDateCalculationMode";
+/** Represents the workflow qualifier values. */
+export type ConnectionWorkflowQualifierValueBag = {
+    /** Gets or sets the primary qualifier. */
+    primaryQualifier?: string | null;
 
-/** The additional configuration options for the Connection Opportunity Detail block. */
-export type ConnectionOpportunityDetailOptionsBag = {
-    /** Gets or sets the Due Date Calculation Mode that is set on the associated Connection Type. */
-    dueDateCalculationMode?: DueDateCalculationMode | null;
-
-    /** Gets or sets a value indicating whether Future Follow-Up is enabled on the associated Connection Type. */
-    isFutureFollowupEnabled: boolean;
-
-    /** Gets or sets a value indicating whether Group Placement is enabled on the associated Connection Type. */
-    isGroupPlacementEnabled: boolean;
-
-    /** Gets or sets a value indicating whether the reorder column should be visible. */
-    isReOrderColumnVisible?: boolean | null;
+    /** Gets or sets the secondary qualifier. */
+    secondaryQualifier?: string | null;
 };

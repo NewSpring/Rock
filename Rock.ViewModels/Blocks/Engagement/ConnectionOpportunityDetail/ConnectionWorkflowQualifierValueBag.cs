@@ -15,30 +15,21 @@
 // </copyright>
 //
 
-using Rock.Model;
-using Rock.ViewModels.Utility;
-
 namespace Rock.ViewModels.Blocks.Engagement.ConnectionOpportunityDetail
 {
     /// <summary>
-    /// Minimal bag describing an inherited Connection Workflow for a Connection Opportunity,
-    /// which would be set on the associated Connection Type.
+    /// Represents the workflow qualifier values.
     /// </summary>
-    public class InheritedConnectionWorkflowBag
+    public class ConnectionWorkflowQualifierValueBag
     {
         /// <summary>
-        /// Gets or sets the unique identifier.
+        /// Gets or sets the primary qualifier.
         /// </summary>
-        public System.Guid Guid { get; set; }
+        public string PrimaryQualifier { get; set; }
 
         /// <summary>
-        /// Gets or sets the workflow type as a ListItemBag.
+        /// Gets or sets the secondary qualifier.
         /// </summary>
-        public ListItemBag WorkflowType { get; set; }
-
-        /// <summary>
-        /// Gets or sets the trigger type.
-        /// </summary>
-        public ConnectionWorkflowTriggerType TriggerType { get; set; }
+        public string SecondaryQualifier { get; set; }
     }
 }

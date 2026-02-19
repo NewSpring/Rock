@@ -21,19 +21,13 @@
 // </copyright>
 //
 
-import { DueDateCalculationMode } from "@Obsidian/Enums/Connection/dueDateCalculationMode";
+import { Guid } from "@Obsidian/Types";
 
-/** The additional configuration options for the Connection Opportunity Detail block. */
-export type ConnectionOpportunityDetailOptionsBag = {
-    /** Gets or sets the Due Date Calculation Mode that is set on the associated Connection Type. */
-    dueDateCalculationMode?: DueDateCalculationMode | null;
+/** Request bag used to send an identifier for a specific entity to verify if it can be deleted. */
+export type CanDeleteRequestBag = {
+    /** Gets or sets the entity unique identifier. */
+    entityGuid: Guid;
 
-    /** Gets or sets a value indicating whether Future Follow-Up is enabled on the associated Connection Type. */
-    isFutureFollowupEnabled: boolean;
-
-    /** Gets or sets a value indicating whether Group Placement is enabled on the associated Connection Type. */
-    isGroupPlacementEnabled: boolean;
-
-    /** Gets or sets a value indicating whether the reorder column should be visible. */
-    isReOrderColumnVisible?: boolean | null;
+    /** Gets or sets the entity key identifying the type of entity to check. */
+    entityKey?: string | null;
 };
