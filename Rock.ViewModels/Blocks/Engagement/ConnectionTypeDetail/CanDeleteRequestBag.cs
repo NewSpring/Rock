@@ -1,4 +1,4 @@
-﻿// <copyright>
+// <copyright>
 // Copyright by the Spark Development Network
 //
 // Licensed under the Rock Community License (the "License");
@@ -15,28 +15,23 @@
 // </copyright>
 //
 
-/// <summary>
-/// Type of connection state
-/// </summary>
-public enum ConnectionState
+using System;
+
+namespace Rock.ViewModels.Blocks.Engagement.ConnectionTypeDetail
 {
     /// <summary>
-    /// Active
+    /// Request bag used to send an identifier for a specific entity to verify if it can be deleted.
     /// </summary>
-    Active = 0,
+    public class CanDeleteRequestBag
+    {
+        /// <summary>
+        /// Gets or sets the entity key identifying the type of entity to check.
+        /// </summary>
+        public string EntityKey { get; set; }
 
-    /// <summary>
-    /// Inactive
-    /// </summary>
-    Inactive = 1,
-
-    /// <summary>
-    /// Future Follow-up
-    /// </summary>
-    FutureFollowUp = 2,
-
-    /// <summary>
-    /// Connected
-    /// </summary>
-    Connected = 3,
+        /// <summary>
+        /// Gets or sets the entity unique identifier.
+        /// </summary>
+        public Guid EntityGuid { get; set; }
+    }
 }
