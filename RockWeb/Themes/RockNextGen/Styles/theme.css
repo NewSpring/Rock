@@ -11921,16 +11921,16 @@ hr {
   border-top-right-radius: var(--rounded-medium);
 }
 
-.inherited-attributes .grid-light .grid-content-container .grid-body .grid-row {
+.grid-light.inherited-attributes .grid-content-container .grid-body .grid-row {
   border-top: 1px solid var(--color-interface-soft);
   border-right: 1px solid var(--color-interface-soft);
   border-left: 1px solid var(--color-interface-soft);
   border-bottom: none;
 }
-.inherited-attributes .grid-light .grid-content-container .grid-body .grid-row:last-child {
+.grid-light.inherited-attributes .grid-content-container .grid-body .grid-row:last-child {
   border-bottom: 1px solid var(--color-interface-soft);
 }
-.inherited-attributes .grid-light .grid-content-container .grid-body .grid-row .grid-cell {
+.grid-light.inherited-attributes .grid-content-container .grid-body .grid-row .grid-cell {
   background-color: var(--color-interface-softer);
   border-bottom: none;
 }
