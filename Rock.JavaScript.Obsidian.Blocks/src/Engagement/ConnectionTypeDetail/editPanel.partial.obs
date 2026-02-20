@@ -30,7 +30,7 @@
                               help="Choose which features are available in the Connections Hub and request detail view for this connection type. NOTE: currently, Reminders and Connection Celebrations are only available on the List View." />
             </ContentStack>
 
-            <ContentStack title="Request Type Configuration"
+            <ContentStack title="Request Configuration"
                           description="Configure how requests of this type are managed, including security, activity visibility, and completion requirements.">
                 <div class="row">
                     <div class="col-md-6">
@@ -48,8 +48,7 @@
 
                 <div class="form-group">
                     <InlineCheckBox label="Show Full Activity List" v-model="enableFullActivityList"
-                                    help="Displays activities from other connection requests made by the same individual."
-                                    trailblazerField />
+                                    help="Displays activities from other connection requests made by the same individual." />
                 </div>
 
                 <div class="form-group">
@@ -77,12 +76,12 @@
             </ContentStack>
         </ContentSection>
 
-        <ContentSection title="Connection Type Attributes" icon="ti ti-binary-tree-2">
+        <ContentSection v-if="store.state.trailblazerMode" title="Type Attributes" icon="ti ti-binary-tree-2">
             <ConnectionTypeAttributes v-model:connectionTypeAttributes="connectionTypeAttributes"
                                       v-model:attributeValues="attributeValues" :attributesForAttributeValueContainer="attributes" />
         </ContentSection>
 
-        <ContentSection title="Connection Request Attributes" icon="ti ti-binary-tree-2">
+        <ContentSection title="Request Attributes" icon="ti ti-binary-tree-2">
             <ConnectionRequestAttributes v-model:connectionRequestAttributes="connectionRequestAttributes" />
         </ContentSection>
 
@@ -98,7 +97,7 @@
             <StatusesSection v-model:statuses="statuses" :workflows="workflows" :dueDateCalculationMode="dueDateCalculationMode" :isFutureFollowupEnabled="enableFutureFollowup" />
         </ContentSection>
 
-        <ContentSection title="Workflows" icon="ti ti-settings-automation">
+        <ContentSection v-if="store.state.trailblazerMode" title="Workflows" icon="ti ti-settings-cog">
             <WorkflowsSection v-model:workflows="workflows" :isFutureFollowupEnabled="enableFutureFollowup" :statusOptions="statusOptions" :activityTypeOptions="activityTypeOptions" />
         </ContentSection>
 
@@ -113,6 +112,7 @@
 
 <script setup lang="ts">
     import { computed, PropType, ref, watch } from "vue";
+    import { useStore } from "@Obsidian/PageState";
     import CheckBox from "@Obsidian/Controls/checkBox.obs";
     import TextBox from "@Obsidian/Controls/textBox.obs";
     import { ValidationResult, ValidationRuleFunction } from "@Obsidian/ValidationRules";
@@ -167,6 +167,7 @@
 
     const enabledViewFlags = [EnabledViewFlags.List, EnabledViewFlags.Board, EnabledViewFlags.Grid, EnabledViewFlags.Snapshot]; // 'Analytics' will be added later
     const enabledFeatureFlags = [EnabledFeatureFlags.Reminder, EnabledFeatureFlags.Celebration, EnabledFeatureFlags.GroupPlacement];
+    const store = useStore();
 
     const attributes = ref(props.modelValue.bag?.attributes ?? {});
     const attributeValues = ref(props.modelValue.bag?.attributeValues ?? {});
