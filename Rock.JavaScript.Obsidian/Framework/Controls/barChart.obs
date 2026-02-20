@@ -42,7 +42,7 @@
     import { Enumerable } from "@Obsidian/Utility/linq";
     import { RockDateTime } from "@Obsidian/Utility/rockDateTime";
     import { isNullish } from "@Obsidian/Utility/util";
-    import { toNumberOrNull } from "@Obsidian/Utility/numberUtils";
+    import { toNumber, toNumberOrNull } from "@Obsidian/Utility/numberUtils";
 
     const defaultLegendIsHidden = false;
     const defaultLegendPosition = LegendPosition.Bottom;
@@ -738,11 +738,72 @@
 
             elements: {
                 bar: {
-                    borderRadius: parseInt(getCssVar("--rounded-small")) || undefined,
+                    borderRadius: (ctx) => {
+                        const chart = ctx.chart;
+                        const datasetIndex = ctx.datasetIndex;
+                        const currentDataset = chart.data.datasets[datasetIndex];
+
+                        if (effectiveStack.value) {
+                            const visibleIndexes = Enumerable
+                                .from(chart.getSortedVisibleDatasetMetas())
+                                .select(m => m.index)
+                                .toArray();
+
+                            const sameStackVisible = Enumerable
+                                .from(visibleIndexes)
+                                .where(visibleIndex => chart.data.datasets[visibleIndex].stack === currentDataset.stack)
+                                .toArray();
+
+                            const isFirstVisibleInStack =
+                                sameStackVisible.length > 0 &&
+                                sameStackVisible[0] === datasetIndex;
+
+                            // For stacked bars, all bars are rounded except for the first visible bar,
+                            // which only has end-rounded corners (flat at the base).
+                            if (isFirstVisibleInStack) {
+                                if (props.horizontal) {
+                                    return {
+                                        bottomLeft: 0,
+                                        bottomRight: parseInt(getCssVar("--rounded-small")) ?? 0,
+                                        topLeft: 0,
+                                        topRight: parseInt(getCssVar("--rounded-small")) ?? 0
+                                    };
+                                }
+                                else {
+                                    return {
+                                        bottomLeft: 0,
+                                        bottomRight: 0,
+                                        topLeft: parseInt(getCssVar("--rounded-small")) ?? 0,
+                                        topRight: parseInt(getCssVar("--rounded-small")) ?? 0
+                                    };
+                                }
+                            }
+                            else {
+                                return parseInt(getCssVar("--rounded-small")) ?? 0;
+                            }
+                        }
+                        else {
+                            // For non-stacked bars, all bars only have end-rounded corners.
+                            if (props.horizontal) {
+                                return {
+                                    bottomLeft: 0,
+                                    bottomRight: parseInt(getCssVar("--rounded-small")) ?? 0,
+                                    topLeft: 0,
+                                    topRight: parseInt(getCssVar("--rounded-small")) ?? 0
+                                };
+                            }
+                            else {
+                                return {
+                                    bottomLeft: 0,
+                                    bottomRight: 0,
+                                    topLeft: parseInt(getCssVar("--rounded-small")) ?? 0,
+                                    topRight: parseInt(getCssVar("--rounded-small")) ?? 0
+                                };
+                            }
+                        }
+                    },
                     borderSkipped: false
-                },
-
-
+                }
             },
 
             onClick: (_event, elements, _chart) => {
