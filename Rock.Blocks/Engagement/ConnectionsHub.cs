@@ -26,6 +26,7 @@ using Rock.ClientService.Core.Note;
 using System.Data.Entity.Core.Metadata.Edm;
 using Slingshot.Core;
 using Rock.Web.UI.Controls;
+using AngleSharp.Browser.Dom;
 
 namespace Rock.Blocks.Engagement
 {
@@ -2020,43 +2021,43 @@ namespace Rock.Blocks.Engagement
             bag.LavaBadgeBar = GetAttributeValue( AttributeKey.LavaBadgeBar ).ResolveMergeFields( mergeFields );
 
             // Filters out Connection Request Activities that do not have a created by person alias id or created date time.
-            //var validActivities = connectionRequest.ConnectionRequestActivities.Where( a => a.CreatedByPersonAliasId.HasValue && a.CreatedDateTime.HasValue ).ToList();
-            //var validConnectionStatusHistories = connectionRequest.ConnectionRequestStatusHistories.Where( h => h.CreatedByPersonAliasId.HasValue && h.CreatedDateTime.HasValue ).ToList();
+            var validActivities = connectionRequest.ConnectionRequestActivities.Where( a => a.CreatedByPersonAliasId.HasValue && a.CreatedDateTime.HasValue ).ToList();
+            var validConnectionStatusHistories = connectionRequest.ConnectionRequestStatusHistories.OrderBy( h => h.EndDateTime ).ToList();
 
-            //var entries = new List<ActivityEntryBag>();
+            var entries = new List<ActivityEntryBag>();
 
-            //entries.AddRange( validActivities.Select( a => new ActivityEntryBag
-            //{
-            //    EntryType = ActivityEntryType.Activity,
-            //    EntryDateTime = a.CreatedDateTime.Value.ToRockDateTimeOffset(),
-            //    CreatedBy = new PersonFieldBag
-            //    {
-            //        IdKey = a.CreatedByPersonAlias?.Person?.IdKey,
-            //        NickName = a.CreatedByPersonAlias?.Person?.NickName,
-            //        LastName = a.CreatedByPersonAlias?.Person?.LastName,
-            //        PhotoUrl = a.CreatedByPersonAlias?.Person?.PhotoUrl
-            //    },
-            //    CardEntry = new CardEntryBag
-            //    {
-            //        Title = string.Format( "Activity: {0}", a.ConnectionActivityType.Name ),
-            //        Content = a.Note,
-            //    }
-            //} ) );
+            entries.AddRange( validActivities.Select( a => new ActivityEntryBag
+            {
+                EntryType = ActivityEntryType.Activity,
+                EntryDateTime = a.CreatedDateTime.Value.ToRockDateTimeOffset(),
+                CreatedBy = a.CreatedByPersonAlias?.Person?.FullName,
+                Icon = "ti ti-activity",
+                CardEntry = new CardEntryBag
+                {
+                    Title = string.Format( "Activity: {0}", a.ConnectionActivityType.Name ),
+                    Content = a.Note,
+                    PhotoUrl = a.CreatedByPersonAlias?.Person?.PhotoUrl
+                }
+            } ) );
 
-            //entries.AddRange( validConnectionStatusHistories.Select( h => new ActivityEntryBag
-            //{
-            //    EntryType = ActivityEntryType.SystemUpdate,
-            //    EntryDateTime = h.CreatedDateTime.Value.ToRockDateTimeOffset(),
-            //    CreatedBy = new PersonFieldBag
-            //    {
-            //        IdKey = h.CreatedByPersonAlias?.Person?.IdKey,
-            //        NickName = h.CreatedByPersonAlias?.Person?.NickName,
-            //        LastName = h.CreatedByPersonAlias?.Person?.LastName,
-            //        PhotoUrl = h.CreatedByPersonAlias?.Person?.PhotoUrl
-            //    },
-            //} ) );
+            entries.AddRange( validConnectionStatusHistories.Select( (h, i) => new ActivityEntryBag
+            {
+                EntryType = ActivityEntryType.SystemUpdate,
+                EntryDateTime = h.EndDateTime.ToRockDateTimeOffset(),
+                CreatedBy = h.CreatedByPersonAlias?.Person?.FullName,
+                Icon = "ti ti-arrows-left-right",
+                MessageEntry = new MessageEntryBag
+                {
+                    PreviousValue = h.ConnectionStatus.Name,
+                    // "NewValue" is the status the request transitioned to at this point in the timeline.
+                    // For most history rows, that is simply the next history row's status (i.e., the status that followed).
+                    // For the final history row, there is no "next" history record, so we fall back to the request's current status.
+                    NewValue = ( i + 1 < validConnectionStatusHistories.Count ) ? validConnectionStatusHistories[i + 1].ConnectionStatus.Name : connectionRequest.ConnectionStatus.Name
+                },
 
-            //bag.ActivityEntries = new List<ActivityEntryBag>( entries.OrderByDescending( e => e.EntryDateTime ) );
+            } ) );
+
+            bag.ActivityEntries = new List<ActivityEntryBag>( entries.OrderByDescending( e => e.EntryDateTime ) );
 
             return ActionOk( bag );
         }

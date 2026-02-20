@@ -1,0 +1,122 @@
+<!-- Copyright by the Spark Development Network; Licensed under the Rock Community License -->
+<template>
+    <div class="d-flex flex-column gap-xs border rounded bg-interface-softest p-spacing-sm">
+        <div class="d-flex justify-content-between">
+            <div class="d-flex">
+                <PersonAvatar v-if="activityEntry.cardEntry?.photoUrl"
+                              :photoUrl="activityEntry.cardEntry.photoUrl"
+                              :photoSize="24"
+                              marginRight="2" />
+                <div class="d-flex flex-column">
+                    <div class="text-interface-strong"><span class="text-semibold">{{ activityEntry.createdBy }}</span> {{ actionText }} <span class="text-semibold">{{ activityEntry.cardEntry?.title }}</span></div>
+                    <div class="text-interface-medium">{{ entryDateTimeElapsed }}</div>
+                </div>
+            </div>
+            <div class="d-flex gap-md  h-fit">
+                <DropDownContent v-model="isSecondaryActionDropdownOpen"
+                                 enableFlip>
+                    <template #default>
+                        <div class="dropdown-content bg-interface-softest">
+                            <div class="dropdown-content-item py-spacing-sm px-spacing-md"
+                                 @click.stop="onEdit">
+                                Edit
+                            </div>
+                            <div class="dropdown-content-item py-spacing-sm px-spacing-md text-danger"
+                                 @click.stop="onDelete">
+                                Delete
+                            </div>
+                        </div>
+                    </template>
+                </DropDownContent>
+                <Badge :isCircle="true" :class="badgeClasses" class="d-flex justify-content-center">
+                    <i :class="activityEntry.icon"></i>
+                </Badge>
+            </div>
+        </div>
+
+        <div v-if="!isNullOrWhiteSpace(activityEntry.cardEntry?.content)"
+             class="text-interface-strong">
+            {{ activityEntry.cardEntry?.content }}
+        </div>
+    </div>
+</template>
+
+<style scoped>
+.gap-xs {
+    gap: var(--spacing-xsmall);
+}
+
+.gap-md {
+    gap: var(--spacing-medium);
+}
+
+.dropdown-content {
+    min-width: 200px;
+}
+
+.h-fit {
+    height: fit-content;
+}
+</style>
+
+<script setup lang="ts">
+    import { ref, PropType, watch, computed, onBeforeUnmount, onMounted, nextTick } from "vue";
+    import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
+    import TransitionVerticalCollapse from "@Obsidian/Controls/transitionVerticalCollapse.obs";
+    import RockButton from "@Obsidian/Controls/rockButton.obs";
+    import { ActivityEntryBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/activityEntryBag";
+    import PersonAvatar from "@Obsidian/Controls/personAvatar.obs";
+    import { ActivityEntryType } from "@Obsidian/Enums/Connection/activityEntryType";
+    import { isNullOrWhiteSpace } from "@Obsidian/Utility/stringUtils";
+    import { RockDateTime } from "@Obsidian/Utility/rockDateTime";
+    import DropDownContent from "@Obsidian/Controls/dropDownContent.obs";
+    import Badge from "@Obsidian/Controls/badge.obs";
+
+    const props = defineProps({
+        activityEntry: {
+            type: Object as PropType<ActivityEntryBag>,
+            default: {}
+        }
+    });
+
+    const isSecondaryActionDropdownOpen = ref(false);
+
+    const actionText = computed(() => {
+        switch (props.activityEntry.entryType) {
+            case ActivityEntryType.Activity:
+                return "created an";
+            case ActivityEntryType.RequestNote:
+                return "added a";
+            case ActivityEntryType.Communication:
+                return "sent an";
+        }
+    });
+
+    const entryDateTimeElapsed = computed(() => {
+        if (isNullOrWhiteSpace(props.activityEntry?.entryDateTime)) {
+            return;
+        }
+
+        return RockDateTime.parseISO(props.activityEntry!.entryDateTime!)?.toElapsedString();
+    });
+
+    const badgeClasses = computed(() => {
+        switch (props.activityEntry.entryType) {
+            case ActivityEntryType.Activity:
+                return "bg-interface-softer text-interface-strong";
+            case ActivityEntryType.RequestNote:
+                return "bg-warning-soft text-warning-strong";
+            case ActivityEntryType.Communication:
+                return "bg-info-soft text-info-strong";
+        }
+    });
+
+    function onEdit(): void {
+        // emit edit
+    }
+
+    function onDelete(): void {
+        // emit delete
+    }
+
+</script>

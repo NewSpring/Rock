@@ -207,18 +207,23 @@
                                          enableFlip>
                             <template #anchor>
                                 <div class="d-flex align-items-center gap-tiny text-primary cursor-pointer">
-                                    Show {{ selectedActivityFilter }}
+                                    Show {{ selectedActivityFilter.text }}
                                     <i class="ti ti-chevron-down"></i>
                                 </div>
                             </template>
                             <template #default>
-                                <div v-for="activityFilter in activityFilterOptions"
-                                     class="dropdown-content-item py-spacing-sm px-spacing-md bg-interface-softest"
-                                     @click.stop="updateActivityFilter(activityFilter)">
-                                    {{ activityFilter }}
+                                <div class="bg-interface-softest">
+                                    <div v-for="activityFilter in activityFilterOptions"
+                                         class="dropdown-content-item py-spacing-sm px-spacing-md"
+                                         @click.stop="updateActivityFilter(activityFilter)">
+                                        {{ activityFilter.text }}
+                                    </div>
                                 </div>
                             </template>
                         </DropDownContent>
+                    </template>
+                    <template #default>
+                        <ActivityCard v-for="activityEntry in filteredActivityEntries" :activityEntry="activityEntry" />
                     </template>
                 </ContentSection>
             </div>
@@ -331,7 +336,10 @@
     import { FieldType } from "@Obsidian/SystemGuids/fieldType";
     import { getFieldType } from "@Obsidian/Utility/fieldTypes";
     import { ConnectionState, ConnectionStateDescription } from "@Obsidian/Enums/Connection/connectionState";
-
+    import ActivityCard from "./activityCard.partial.obs";
+    import { ActivityEntryType, ActivityEntryTypeDescription } from "@Obsidian/Enums/Connection/activityEntryType";
+    import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
+    import { toNumber } from "@Obsidian/Utility/numberUtils";
 
     const props = defineProps({
         modelValue: {
@@ -370,7 +378,24 @@
 
     const defaultDockedPanelWidth = "700px";
 
-    const activityFilterOptions = ["All", "Activities", "Request Notes", "System Updates"];
+    const activityFilterOptions = <ListItemBag[]>[
+        {
+            text: "All",
+            value: "all"
+        },
+        {
+            text: pluralize(ActivityEntryTypeDescription[ActivityEntryType.Activity]),
+            value: ActivityEntryType.Activity.toString()
+        },
+        {
+            text: pluralize(ActivityEntryTypeDescription[ActivityEntryType.RequestNote]),
+            value: ActivityEntryType.RequestNote.toString()
+        },
+        {
+            text: pluralize(ActivityEntryTypeDescription[ActivityEntryType.SystemUpdate]),
+            value: ActivityEntryType.SystemUpdate.toString()
+        }
+    ];
 
     const isFullWidth = ref(false);
     const dockedPanelWidth = ref(defaultDockedPanelWidth);
@@ -381,7 +406,7 @@
     const connectorItems = ref<PersonFieldBag[]>(props.requestDetails?.connectorItems ?? []);
 
     const isActivityFilterDropdownOpen = ref(false);
-    const selectedActivityFilter = ref("All");
+    const selectedActivityFilter = ref<ListItemBag>({ text: "All", value: "all" });
 
     const areRequestDetailsLoading = ref(true);
 
@@ -484,6 +509,23 @@
         return false;
     });
 
+    const filteredActivityEntries = computed(() => {
+        const entries = props.requestDetails?.activityEntries ?? [];
+        const filter = selectedActivityFilter.value.value;
+
+        if (filter === "all") {
+            return entries;
+        }
+
+        const entryType = toNumber(filter);
+        if (Number.isNaN(entryType)) {
+            return entries;
+        }
+
+        return entries.filter(e => e.entryType === entryType);
+    });
+
+
     function getAttributeValueText(attributeValues: Record<string, string> | null, attribute: PublicAttributeBag, key: string): string {
         const fieldTypeGuid = toGuidOrNull(attribute.fieldTypeGuid);
         const fieldType = getFieldType(fieldTypeGuid ?? FieldType.Text);
@@ -564,7 +606,7 @@
         isConnectorDropdownOpen.value = false;
     }
 
-    function updateActivityFilter(activityFilter: string): void {
+    function updateActivityFilter(activityFilter: ListItemBag): void {
         selectedActivityFilter.value = activityFilter;
         isActivityFilterDropdownOpen.value = false;
     }

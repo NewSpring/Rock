@@ -21,31 +21,20 @@
 // </copyright>
 //
 
-/** Due Status */
-export const DueStatus = {
-    /** The request is not due yet. */
-    DueLater: 0,
+import { ActivityEntryType } from "@Obsidian/Enums/Connection/activityEntryType";
+import { CardEntryBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/cardEntryBag";
+import { MessageEntryBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/messageEntryBag";
 
-    /** The request is due soon. */
-    DueSoon: 1,
+export type ActivityEntryBag = {
+    cardEntry?: CardEntryBag | null;
 
-    /** The request is overdue. */
-    Overdue: 2
-} as const;
+    createdBy?: string | null;
 
-/** Due Status */
-export const DueStatusDescription: Record<number, string> = {
-    0: "Due Later",
+    entryDateTime?: string | null;
 
-    1: "Due Soon",
+    entryType: ActivityEntryType;
 
-    2: "Overdue"
+    icon?: string | null;
+
+    messageEntry?: MessageEntryBag | null;
 };
-
-// Add the __order property hidden so it doesn't get enumerated.
-Object.defineProperty(DueStatusDescription, "__order", {
-    value: [2, 1, 0],
-});
-
-/** Due Status */
-export type DueStatus = typeof DueStatus[keyof typeof DueStatus];

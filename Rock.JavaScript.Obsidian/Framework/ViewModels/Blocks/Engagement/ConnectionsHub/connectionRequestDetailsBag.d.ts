@@ -23,6 +23,7 @@
 
 import { ConnectionState } from "@Obsidian/Enums/Connection/connectionState";
 import { DueStatus } from "@Obsidian/Enums/Connection/dueStatus";
+import { ActivityEntryBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/activityEntryBag";
 import { AdditionalRequestBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/additionalRequestBag";
 import { PlacementGroupDetailsBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/placementGroupDetailsBag";
 import { RequesterPersonBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/requesterPersonBag";
@@ -32,6 +33,8 @@ import { PublicAttributeBag } from "@Obsidian/ViewModels/Utility/publicAttribute
 
 export type ConnectionRequestDetailsBag = {
     actionItems?: ListItemBag[] | null;
+
+    activityEntries?: ActivityEntryBag[] | null;
 
     additionalRequests?: AdditionalRequestBag[] | null;
 

@@ -21,31 +21,30 @@
 // </copyright>
 //
 
-/** Due Status */
-export const DueStatus = {
-    /** The request is not due yet. */
-    DueLater: 0,
+/** Activity Entry Types */
+export const ActivityEntryType = {
+    /** Activity type. */
+    Activity: 0,
 
-    /** The request is due soon. */
-    DueSoon: 1,
+    /** Request Note type */
+    RequestNote: 1,
 
-    /** The request is overdue. */
-    Overdue: 2
+    /** System Update type. */
+    SystemUpdate: 2,
+
+    Communication: 3
 } as const;
 
-/** Due Status */
-export const DueStatusDescription: Record<number, string> = {
-    0: "Due Later",
+/** Activity Entry Types */
+export const ActivityEntryTypeDescription: Record<number, string> = {
+    0: "Activity",
 
-    1: "Due Soon",
+    1: "Request Note",
 
-    2: "Overdue"
+    2: "System Update",
+
+    3: "Communication"
 };
 
-// Add the __order property hidden so it doesn't get enumerated.
-Object.defineProperty(DueStatusDescription, "__order", {
-    value: [2, 1, 0],
-});
-
-/** Due Status */
-export type DueStatus = typeof DueStatus[keyof typeof DueStatus];
+/** Activity Entry Types */
+export type ActivityEntryType = typeof ActivityEntryType[keyof typeof ActivityEntryType];

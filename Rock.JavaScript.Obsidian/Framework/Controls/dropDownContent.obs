@@ -2,7 +2,7 @@
 <template>
     <span ref="anchorElement" @click.prevent="onAnchorClick">
         <slot name="anchor">
-            <i class="ti ti-dots-vertical"></i>
+            <i class="ti ti-dots-vertical cursor-pointer"></i>
         </slot>
     </span>
 

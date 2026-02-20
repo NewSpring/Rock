@@ -72,6 +72,8 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
 
         public string LavaBadgeBar { get; set; }
 
+        public List<ActivityEntryBag> ActivityEntries { get; set; }
+
         /// <summary>
         /// The attributes for the selected Connection Request.
         /// </summary>

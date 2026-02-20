@@ -160,29 +160,32 @@ namespace Rock.Model
 
                                 if ( originalConnectionStatusId.HasValue )
                                 {
-                                    var connectionRequestStatusHistoryService = new ConnectionRequestStatusHistoryService( rockContext );
+                                    var historyService = new ConnectionRequestStatusHistoryService( rockContext );
 
-                                    // Determine the start time for this status history entry by using the most recent
-                                    // matching status history record. If none exists, fall back to the connection
-                                    // request's created date; if that is unavailable, use the current date and time.
-                                    DateTime statusHistoryStartTime = connectionRequestStatusHistoryService.Queryable()
-                                        .Where( h => h.ConnectionRequestId == this.Entity.Id && h.ConnectionStatusId == this.Entity.ConnectionStatusId )
+                                    // previous history row for this request (if any)
+                                    var prevHistory = historyService.Queryable()
+                                        .Where( h => h.ConnectionRequestId == this.Entity.Id )
                                         .OrderByDescending( h => h.EndDateTime )
-                                        .Select( h => ( DateTime? ) h.StartDateTime )
-                                        .FirstOrDefault()
+                                        .Select( h => new { h.EndDateTime, h.ConnectionStatusId } )
+                                        .FirstOrDefault();
+
+                                    // start is previous history end, else created, else now
+                                    var start = prevHistory?.EndDateTime
                                         ?? this.Entity.CreatedDateTime
                                         ?? currentDateTime;
 
-                                    connectionRequestStatusHistoryService.Add( new ConnectionRequestStatusHistory
+                                    historyService.Add( new ConnectionRequestStatusHistory
                                     {
                                         ConnectionRequestId = this.Entity.Id,
-                                        ConnectionStatusId = this.Entity.ConnectionStatusId,
-                                        StartDateTime = statusHistoryStartTime,
+                                        // log the status that ended (which is the original status, not the new status)
+                                        ConnectionStatusId = originalConnectionStatusId.Value,
+                                        StartDateTime = start,
                                         EndDateTime = currentDateTime,
                                         CompletedByPersonAliasId = rockContext.GetCurrentPersonAliasId(),
                                         WasCompletedOnTime = currentDateTime < this.Entity.DueDate,
                                         Note = this.Entity.ConnectionStatusHistoryNote,
-                                        //PreviousConnectionStatusId = originalConnectionStatusId.Value TODO - Add this when the property exists.
+                                        // chain to the previously-ended status (null for first entry)
+                                        PreviousConnectionStatusId = prevHistory?.ConnectionStatusId
                                     } );
                                 }
                             }
