@@ -16,21 +16,17 @@
 //
 namespace Rock.Migrations
 {
-    using System;
-    using System.Data.Entity.Migrations;
-    
     /// <summary>
     ///
     /// </summary>
-    public partial class Definedtype_EnableSecurityOnValues : Rock.Migrations.RockMigration
+    public partial class DeleteSMSPhoneNumberDefinedType : Rock.Migrations.RockMigration
     {
         /// <summary>
         /// Operations to be performed during the upgrade process.
         /// </summary>
         public override void Up()
         {
-            AddColumn("dbo.DefinedType", "EnableSecurityOnValues", c => c.Boolean(nullable: false));
-            Sql( $"UPDATE [DefinedType] SET [EnableSecurityOnValues] = 1 WHERE [Guid] = '611BDE1F-7405-4D16-8626-CCFEDB0E62BE'" );
+            RockMigrationHelper.DeleteDefinedType( "611BDE1F-7405-4D16-8626-CCFEDB0E62BE" );
         }
         
         /// <summary>
@@ -38,7 +34,7 @@ namespace Rock.Migrations
         /// </summary>
         public override void Down()
         {
-            DropColumn("dbo.DefinedType", "EnableSecurityOnValues");
+            //
         }
     }
 }
