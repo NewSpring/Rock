@@ -43,7 +43,6 @@
     import { RockDateTime } from "@Obsidian/Utility/rockDateTime";
     import { isNullish } from "@Obsidian/Utility/util";
     import { toNumberOrNull } from "@Obsidian/Utility/numberUtils";
-    import { cachedDataVersionTag } from "v8";
 
     const defaultLegendIsHidden = false;
     const defaultLegendPosition = LegendPosition.Bottom;
@@ -744,71 +743,112 @@
                         const chart = ctx.chart;
                         const datasetIndex = ctx.datasetIndex;
                         const currentDataset = chart.data.datasets[datasetIndex];
+                        const rounded = parseInt(getCssVar("--rounded-small")) ?? 0;
+                        const allRounded = {
+                            topLeft: rounded,
+                            topRight: rounded,
+                            bottomLeft: rounded,
+                            bottomRight: rounded
+                        };
+                        const positiveEndRounded = props.horizontal ? {
+                            bottomLeft: 0,
+                            bottomRight: rounded,
+                            topLeft: 0,
+                            topRight: rounded
+                        } : {
+                            bottomLeft: 0,
+                            bottomRight: 0,
+                            topLeft: rounded,
+                            topRight: rounded
+                        };
+                        const negativeEndRounded = props.horizontal ? {
+                            bottomLeft: rounded,
+                            bottomRight: 0,
+                            topLeft: rounded,
+                            topRight: 0
+                        } : {
+                            bottomLeft: rounded,
+                            bottomRight: rounded,
+                            topLeft: 0,
+                            topRight: 0
+                        };
 
                         if (effectiveStack.value) {
                             // Find the first visible dataset in the stack
                             // that actually has a value at this dataIndex.
                             const dataIndex = ctx.dataIndex;
-                            const bottomDatasetIndex = Enumerable
+
+                            const visibleInStack = Enumerable
                                 .from(chart.getSortedVisibleDatasetMetas())
-                                .select(visibleDataset => visibleDataset.index)
-                                .where(visibleIndex => chart.data.datasets[visibleIndex].stack === currentDataset.stack)
-                                .where(visibleIndex => {
-                                    const value = chart.data.datasets[visibleIndex].data?.[dataIndex];
+                                .select(m => m.index)
+                                .where(i => chart.data.datasets[i].stack === currentDataset.stack)
+                                .toArray();
 
-                                    const hasValue = !isNullish(value)
-                                        && !(Array.isArray(value) && value[0] === value[1]);
+                            let bottomPositiveIndex: number | undefined;
+                            let topNegativeIndex: number | undefined;
 
-                                    return hasValue;
-                                })
-                                .firstOrDefault();
+                            for (const visibleIndex of visibleInStack) {
+                                const value = chart.data.datasets[visibleIndex].data?.[dataIndex];
 
-                            const isBottomWithData = bottomDatasetIndex === datasetIndex;
+                                if (isNullish(value)) continue;
+
+                                const numericValue =
+                                    Array.isArray(value) ? value[1] - value[0]
+                                        : typeof value === "number" ? value
+                                            : props.horizontal ? value.x : value.y;
+
+                                if (!isNullish(numericValue) && numericValue > 0 && bottomPositiveIndex === undefined) {
+                                    bottomPositiveIndex = visibleIndex;
+                                }
+
+                                if (!isNullish(numericValue) && numericValue < 0 && topNegativeIndex === undefined) {
+                                    topNegativeIndex = visibleIndex;
+                                }
+                            }
+
+                            const currentValue = chart.data.datasets[datasetIndex].data?.[dataIndex];
+                            const currentNumeric = Array.isArray(currentValue)
+                                ? currentValue[1] - currentValue[0]
+                                : typeof currentValue === "number" ? currentValue
+                                    : props.horizontal ? currentValue?.x : currentValue?.y;
+
+                            const isPositiveBase = !isNullish(currentNumeric) && currentNumeric > 0 && datasetIndex === bottomPositiveIndex;
+                            const isNegativeBase = !isNullish(currentNumeric) && currentNumeric < 0 && datasetIndex === topNegativeIndex;
+
+                            const isBase = isPositiveBase || isNegativeBase;
 
                             // For stacked bars, all bars are rounded except for the first visible bar,
                             // which only has end-rounded corners (flat at the base).
-                            if (isBottomWithData) {
-                                if (props.horizontal) {
-                                    return {
-                                        bottomLeft: 0,
-                                        bottomRight: parseInt(getCssVar("--rounded-small")) ?? 0,
-                                        topLeft: 0,
-                                        topRight: parseInt(getCssVar("--rounded-small")) ?? 0
-                                    };
+                            if (isBase) {
+                                if (isPositiveBase) {
+                                    return positiveEndRounded;
                                 }
                                 else {
-                                    return {
-                                        bottomLeft: 0,
-                                        bottomRight: 0,
-                                        topLeft: parseInt(getCssVar("--rounded-small")) ?? 0,
-                                        topRight: parseInt(getCssVar("--rounded-small")) ?? 0
-                                    };
+                                    return negativeEndRounded;
                                 }
                             }
                             else {
-                                return parseInt(getCssVar("--rounded-small")) ?? 0;
+                                return allRounded;
                             }
                         }
                         else {
                             // For non-stacked bars, all bars only have end-rounded corners.
-                            if (props.horizontal) {
-                                return {
-                                    bottomLeft: 0,
-                                    bottomRight: parseInt(getCssVar("--rounded-small")) ?? 0,
-                                    topLeft: 0,
-                                    topRight: parseInt(getCssVar("--rounded-small")) ?? 0
-                                };
+                            const dataIndex = ctx.dataIndex;
+                            const value = chart.data.datasets[datasetIndex].data?.[dataIndex];
+
+                            const numericValue =
+                                Array.isArray(value) ? value[1] - value[0]
+                                    : typeof value === "number" ? value
+                                        : props.horizontal ? value?.x : value?.y;
+
+                            if (!isNullish(numericValue) && numericValue < 0) {
+                                return negativeEndRounded;
                             }
-                            else {
-                                return {
-                                    bottomLeft: 0,
-                                    bottomRight: 0,
-                                    topLeft: parseInt(getCssVar("--rounded-small")) ?? 0,
-                                    topRight: parseInt(getCssVar("--rounded-small")) ?? 0
-                                };
-                            }
+
+                            return positiveEndRounded;
                         }
                     },
+                    
                     borderSkipped: false
                 }
             },
