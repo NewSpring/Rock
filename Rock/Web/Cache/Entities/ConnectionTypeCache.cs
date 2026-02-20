@@ -22,7 +22,6 @@ using System.Runtime.Serialization;
 using Rock.Data;
 using Rock.Enums.Connection;
 using Rock.Model;
-using Rock.Enums.Connection;
 
 namespace Rock.Web.Cache
 {
@@ -195,15 +194,6 @@ namespace Rock.Web.Cache
         public int Order { get; private set; }
 
         /// <summary>
-        /// Gets or sets the due date calculation mode.
-        /// </summary>
-        /// <value>
-        /// The due date calculation mode.
-        /// </value>
-        [DataMember]
-        public DueDateCalculationMode DueDateCalculationMode { get; private set; }
-
-        /// <summary>
         /// Gets or sets the request due date offset in days.
         /// </summary>
         /// <value>
@@ -291,7 +281,6 @@ namespace Rock.Web.Cache
             RequestHeaderLava = sourceModel.RequestHeaderLava;
             RequestBadgeLava = sourceModel.RequestBadgeLava;
             Order = sourceModel.Order;
-            DueDateCalculationMode = sourceModel.DueDateCalculationMode;
             RequestDueDateOffsetInDays = sourceModel.RequestDueDateOffsetInDays;
             RequestDueSoonOffsetInDays = sourceModel.RequestDueSoonOffsetInDays;
             EnabledViews = sourceModel.EnabledViews;
