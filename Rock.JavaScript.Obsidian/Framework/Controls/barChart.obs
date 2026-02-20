@@ -36,13 +36,14 @@
         TooltipItem,
         TooltipLabelStyle,
         ChartDataLabels,
-        ChartDataLabelOptions
+        ChartDataLabelOptions,
     } from "@Obsidian/Libs/chart";
     import { getCssVariableValue } from "@Obsidian/Utility/cssUtils";
     import { Enumerable } from "@Obsidian/Utility/linq";
     import { RockDateTime } from "@Obsidian/Utility/rockDateTime";
     import { isNullish } from "@Obsidian/Utility/util";
-    import { toNumber, toNumberOrNull } from "@Obsidian/Utility/numberUtils";
+    import { toNumberOrNull } from "@Obsidian/Utility/numberUtils";
+    import { cachedDataVersionTag } from "v8";
 
     const defaultLegendIsHidden = false;
     const defaultLegendPosition = LegendPosition.Bottom;
@@ -408,6 +409,7 @@
             valueHideGridLines: true
         }
     };
+
 
     // #region Values
 
@@ -835,6 +837,7 @@
                 legend: {
                     align: props.legendAlign ?? defaultLegendAlign,
                     display: !((props.hideLegend ?? defaultLegendIsHidden) === true),
+
                     labels: {
                         font: {
                             family: getCssVar("--font-family-segoe") || getCssVar("--font-family-sans"),
@@ -878,6 +881,41 @@
                         // `generateLabels` callback.
                         usePointStyle: true
                     },
+
+                    onClick: (e, legendItem, legend) => {
+                        const chart = legend.chart;
+                        const index = legendItem.datasetIndex;
+                        if (index == null) {
+                            return;
+                        }
+
+                        const wasVisible = chart.isDatasetVisible(index);
+                        const isStacked = effectiveStack.value === true;
+
+                        // Toggle visibility the supported way
+                        chart.setDatasetVisibility(index, !wasVisible);
+
+                        // Recompute positions for the remaining visible datasets
+                        if (isStacked) {
+                            rebuildFloatingStackInPlace(chart);
+                        }
+
+                        // Force the fade animation path
+                        chart.update(ctx => {
+                            if (ctx.datasetIndex === index) {
+                                if (wasVisible) {
+                                    return "hide";
+                                }
+                                else {
+                                    return isStacked ? "reset" : "default";
+                                }
+                            }
+                            else {
+                                return "default";
+                            }
+                        });
+                    },
+
                     position: props.legendPosition ?? defaultLegendPosition
                 },
 
@@ -1595,6 +1633,32 @@
                 ...s,
                 data: newData
             };
+        });
+    }
+
+    function rebuildFloatingStackInPlace(chart: ChartJs): void {
+        if (!effectiveStack.value) return;
+
+        const visibility = chart.data.datasets.map((_, i) =>
+            chart.isDatasetVisible(i)
+        );
+
+        const visibleSeries = props.series.filter((_, i) => visibility[i]);
+        const rebuilt = buildFloatingStackData(visibleSeries);
+
+        let visiblePointer = 0;
+
+        chart.data.datasets.forEach((dataset, i) => {
+            if (!visibility[i]) return;
+
+            const newData = rebuilt[visiblePointer++].data;
+            const target = dataset.data;
+
+            target.length = newData.length;
+
+            for (let j = 0; j < newData.length; j++) {
+                target[j] = newData[j];
+            }
         });
     }
 
