@@ -124,77 +124,76 @@
                 </div>
 
                 <div class="col-md-7">
-                    <Panel title="Connectors" titleIconCssClass="ti ti-user-circle">
-                        <Grid comfy
-                              :definition="config.gridDefinition ?? undefined"
-                              :data="gridDataSource"
-                              :entityTypeGuid="EntityType.PersonAlias"
-                              itemTerm="Connector"
-                              :keyField="getGridRowPropertyName('idKey')"
-                              :onSelectItem="onConnectorRowClicked">
-                            <Column name="overdue-indicator"
-                                    width="8px"
-                                    disableSort
-                                    headerClass="indicator-column"
-                                    itemClass="indicator-column">
-                                <template #format="{ row }">
-                                    <div v-if="(row as ConnectorBag).overdueRequestCount > 0"
-                                         class="overdue-indicator">
-                                    </div>
-                                </template>
-                            </Column>
+                    <Grid comfy
+                          :definition="config.gridDefinition ?? undefined"
+                          :data="gridDataSource"
+                          :entityTypeGuid="EntityType.PersonAlias"
+                          itemTerm="Connector"
+                          :keyField="getGridRowPropertyName('idKey')"
+                          :onSelectItem="onConnectorRowClicked"
+                          title="Connectors">
+                        <Column name="overdue-indicator"
+                                width="8px"
+                                disableSort
+                                headerClass="indicator-column"
+                                itemClass="indicator-column">
+                            <template #format="{ row }">
+                                <div v-if="(row as ConnectorBag).overdueRequestCount > 0"
+                                     class="overdue-indicator">
+                                </div>
+                            </template>
+                        </Column>
 
-                            <PersonColumn :field="getGridRowPropertyName('person')"
-                                          :name="getGridRowPropertyName('person')"
-                                          title="Name"
-                                          :filter="pickExistingValueFilter"
-                                          :filterValue="getPersonTextValue"
-                                          :quickFilterValue="getPersonTextValue"><template #></template></PersonColumn>
+                        <PersonColumn :field="getGridRowPropertyName('person')"
+                                      :name="getGridRowPropertyName('person')"
+                                      title="Name"
+                                      :filter="pickExistingValueFilter"
+                                      :filterValue="getPersonTextValue"
+                                      :quickFilterValue="getPersonTextValue"><template #></template></PersonColumn>
 
-                            <NumberColumn :field="getGridRowPropertyName('activeRequestCount')"
-                                          :name="getGridRowPropertyName('activeRequestCount')"
-                                          title="Active"
-                                          :filterable="true"
-                                          :filterFunction="numberValueFilter"
-                                          :sortField="getGridRowPropertyName('activeRequestCount')"
-                                          width="100px" />
+                        <NumberColumn :field="getGridRowPropertyName('activeRequestCount')"
+                                      :name="getGridRowPropertyName('activeRequestCount')"
+                                      title="Active"
+                                      :filterable="true"
+                                      :filterFunction="numberValueFilter"
+                                      :sortField="getGridRowPropertyName('activeRequestCount')"
+                                      width="100px" />
 
-                            <Column :name="getGridRowPropertyName('overdueRequestCount')"
-                                    title="Overdue"
-                                    :filterable="true"
-                                    columnType="number"
-                                    :filterFunction="numberValueFilter"
-                                    :sortField="getGridRowPropertyName('overdueRequestCount')"
-                                    width="100px">
-                                <template #format="{ row }">
-                                    <div class="overdue-column-data" :class="{ 'has-value': (row as ConnectorBag).overdueRequestCount > 0 }">
-                                        {{ (row as ConnectorBag).overdueRequestCount }}
-                                    </div>
-                                </template>
-                            </Column>
+                        <Column :name="getGridRowPropertyName('overdueRequestCount')"
+                                title="Overdue"
+                                :filterable="true"
+                                columnType="number"
+                                :filterFunction="numberValueFilter"
+                                :sortField="getGridRowPropertyName('overdueRequestCount')"
+                                width="100px">
+                            <template #format="{ row }">
+                                <div class="overdue-column-data" :class="{ 'has-value': (row as ConnectorBag).overdueRequestCount > 0 }">
+                                    {{ (row as ConnectorBag).overdueRequestCount }}
+                                </div>
+                            </template>
+                        </Column>
 
-                            <Column name="performance"
-                                    title="Performance (Last 28d)"
-                                    disableSort
-                                    width="180px">
-                                <template #format="{ row }">
-                                    <div class="performance-column-data">
-                                        <div v-ellipsis-tooltip><i class="ti ti-circle-check"></i> Completed: {{ (row as ConnectorBag).completedRequestCount }}</div>
-                                        <div v-ellipsis-tooltip><i class="ti ti-calendar-check"></i> Avg Time: {{ (row as ConnectorBag).averageCompletionDays.toLocaleString(undefined, { maximumFractionDigits: 1 }) }}d</div>
-                                    </div>
-                                </template>
-                            </Column>
+                        <Column name="performance"
+                                title="Performance (Last 28d)"
+                                disableSort
+                                width="180px">
+                            <template #format="{ row }">
+                                <div class="performance-column-data">
+                                    <div v-ellipsis-tooltip><i class="ti ti-circle-check"></i> Completed: {{ (row as ConnectorBag).completedRequestCount }}</div>
+                                    <div v-ellipsis-tooltip><i class="ti ti-calendar-check"></i> Avg Time: {{ (row as ConnectorBag).averageCompletionDays.toLocaleString(undefined, { maximumFractionDigits: 1 }) }}d</div>
+                                </div>
+                            </template>
+                        </Column>
 
-                            <Column name="navigate"
-                                    title=""
-                                    disableSort
-                                    width="54px">
-                                <template #format>
-                                    <i class="ti ti-chevron-right"></i>
-                                </template>
-                            </Column>
-                        </Grid>
-                    </Panel>
+                        <Column name="navigate"
+                                title=""
+                                disableSort
+                                width="54px">
+                            <template #format>
+                                <i class="ti ti-chevron-right"></i>
+                            </template>
+                        </Column>
+                    </Grid>
                 </div>
             </div>
         </div>
