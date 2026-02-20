@@ -746,23 +746,28 @@
                         const currentDataset = chart.data.datasets[datasetIndex];
 
                         if (effectiveStack.value) {
-                            const visibleIndexes = Enumerable
+                            // Find the first visible dataset in the stack
+                            // that actually has a value at this dataIndex.
+                            const dataIndex = ctx.dataIndex;
+                            const bottomDatasetIndex = Enumerable
                                 .from(chart.getSortedVisibleDatasetMetas())
-                                .select(m => m.index)
-                                .toArray();
-
-                            const sameStackVisible = Enumerable
-                                .from(visibleIndexes)
+                                .select(visibleDataset => visibleDataset.index)
                                 .where(visibleIndex => chart.data.datasets[visibleIndex].stack === currentDataset.stack)
-                                .toArray();
+                                .where(visibleIndex => {
+                                    const value = chart.data.datasets[visibleIndex].data?.[dataIndex];
 
-                            const isFirstVisibleInStack =
-                                sameStackVisible.length > 0 &&
-                                sameStackVisible[0] === datasetIndex;
+                                    const hasValue = !isNullish(value)
+                                        && !(Array.isArray(value) && value[0] === value[1]);
+
+                                    return hasValue;
+                                })
+                                .firstOrDefault();
+
+                            const isBottomWithData = bottomDatasetIndex === datasetIndex;
 
                             // For stacked bars, all bars are rounded except for the first visible bar,
                             // which only has end-rounded corners (flat at the base).
-                            if (isFirstVisibleInStack) {
+                            if (isBottomWithData) {
                                 if (props.horizontal) {
                                     return {
                                         bottomLeft: 0,
