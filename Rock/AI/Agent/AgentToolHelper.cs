@@ -52,13 +52,6 @@ namespace Rock.AI.Agent
         /// </summary>
         private const int DefaultPageSize = 25;
 
-        /// <summary>
-        /// The maximum number of attempts that will be made to fill a page of
-        /// results with cursor pagination. This is used to prevent an infinite
-        /// loop in cases where there are no items the person has access to.
-        /// </summary>
-        private const int MaxCursorFillAttempts = 20;
-
         #endregion
 
         #region Fields
@@ -207,19 +200,55 @@ namespace Rock.AI.Agent
         /// </para>
         /// </summary>
         /// <typeparam name="T">The type of object to be paginated.</typeparam>
-        /// <param name="pagedItems">The items to be included in the results.</param>
+        /// <param name="page">The items to be included in the results.</param>
+        /// <param name="sanitizeForSecurity">If <c>true</c> and <typeparamref name="T"/> is of type <see cref="EntityResultBase"/>, then each item will be sanitized by calling <see cref="EntityResultBase.Sanitize(AgentRequestContext)"/>.</param>
         /// <returns>A <see cref="RockToolResult"/> that contains the result data and any standard metadata.</returns>
-        public RockToolResult GetPaginatedResult<T>( IReadOnlyCollection<T> pagedItems )
+        public RockToolResult GetPaginatedResult<T>( PaginatedResult<T> page, bool sanitizeForSecurity = true )
+        {
+            return GetPaginatedResult<T, object>( page, null, sanitizeForSecurity );
+        }
+
+        /// <summary>
+        /// <para>
+        /// Handles the common logic of constructing a paginated result from a
+        /// set of paged items.
+        /// </para>
+        /// <para>
+        /// Any errors that have been reported until now are ignored, so you must
+        /// check for errors yourself before calling. This method will also
+        /// include any instructions and metadata that have been added to the
+        /// helper.
+        /// </para>
+        /// <para>
+        /// The returned <see cref="RockToolResult"/> object will be configured
+        /// to not have any history content.
+        /// </para>
+        /// </summary>
+        /// <typeparam name="T">The type of object to be paginated.</typeparam>
+        /// <typeparam name="THistory">The type of object to be used in the history.</typeparam>
+        /// <param name="page">The items to be included in the results.</param>
+        /// <param name="historyPage">The page result to use for the history content.</param>
+        /// <param name="sanitizeForSecurity">If <c>true</c> and <typeparamref name="T"/> is of type <see cref="EntityResultBase"/>, then each item will be sanitized by calling <see cref="EntityResultBase.Sanitize(AgentRequestContext)"/>.</param>
+        /// <returns>A <see cref="RockToolResult"/> that contains the result data and any standard metadata.</returns>
+        public RockToolResult GetPaginatedResult<T, THistory>( PaginatedResult<T> page, PaginatedResult<THistory> historyPage, bool sanitizeForSecurity = true )
         {
             RockToolResult result;
 
-            if ( !pagedItems.Any() )
+            if ( sanitizeForSecurity == true && typeof( EntityResultBase ).IsAssignableFrom( typeof( T ) ) )
+            {
+                foreach ( var item in page.Items.Cast<EntityResultBase>() )
+                {
+                    item.Sanitize( _agentRequestContext );
+                }
+            }
+
+            if ( !page.Items.Any() )
             {
                 result = RockToolResult.NoData();
             }
             else
             {
-                result = RockToolResult.Success( pagedItems );
+                result = RockToolResult.Success( page );
             }
 
             foreach ( var instruction in _instructions )
@@ -232,7 +261,12 @@ namespace Rock.AI.Agent
                 result.WithMetadata( kvp.Key, kvp.Value );
             }
 
-            return result.WithoutHistoryContent();
+            if ( historyPage == null )
+            {
+                return result.WithHistoryContent( page.WithItems( Array.Empty<object>() ) );
+            }
+
+            return result.WithHistoryContent( historyPage );
         }
 
         #endregion
@@ -284,67 +318,25 @@ namespace Rock.AI.Agent
         /// </summary>
         /// <typeparam name="T">The type of object to be paginated.</typeparam>
         /// <param name="queryable">The queryable that represents the data to be paginated from the database.</param>
+        /// <param name="paginator">The cursor paginator instance that will handle the core pagination logic.</param>
         /// <param name="cursor">The cursor that indicates the start of the page to retrieve or <c>null</c> to retrieve the first page.</param>
         /// <param name="pageSize">The size of each page. If <c>null</c> then a default page size will be applied.</param>
-        /// <param name="enforceSecurity">If <c>true</c> and <typeparamref name="T"/> is of type <see cref="ISecured"/>, then each item will be checked to see if the current person has View access before it is included in the results.</param>
         /// <returns>A collection of items for the specified page.</returns>
-        public List<T> GetCursorPaginatedItems<T>( IQueryable<T> queryable, string cursor = null, int? pageSize = null, bool enforceSecurity = true )
-            where T : IEntity
+        public PaginatedResult<T> GetCursorPaginatedItems<T>( IQueryable<T> queryable, CursorPaginator<T> paginator, string cursor = null, int? pageSize = null )
+            where T : class, IEntity
         {
             pageSize = pageSize ?? DefaultPageSize;
 
-            var lastId = IdHasher.Instance.GetId( cursor ) ?? 0;
-            var pagedItems = new List<T>();
+            var page = paginator.GetNextPage( queryable, cursor, pageSize.Value, true );
 
-            for ( int loops = 0; loops < MaxCursorFillAttempts && pagedItems.Count < pageSize.Value + 1; loops++ )
+            return new PaginatedResult<T>
             {
-                // Always load at least 5 at a time so we don't end up in a
-                // situation where we're only loading one item at a time.
-                var count = Math.Max( pageSize.Value - pagedItems.Count, 5 );
-
-                var items = queryable
-                    .Where( a => a.Id > lastId )
-                    // N+1 so we can compute hasMore later.
-                    .Take( count + 1 )
-                    .ToList();
-
-                foreach ( var item in items )
-                {
-                    if ( enforceSecurity && item is ISecured securedItem )
-                    {
-                        if ( !securedItem.IsAuthorized( Authorization.VIEW, _agentRequestContext.RockRequestContext.CurrentPerson ) )
-                        {
-                            continue;
-                        }
-                    }
-
-                    pagedItems.Add( item );
-                }
-
-                if ( items.Count == 0 )
-                {
-                    break;
-                }
-
-                lastId = items.Last().Id;
-            }
-
-            var hasMore = pagedItems.Count > pageSize;
-
-            // Drop the lookahead row if we have it.
-            while ( pagedItems.Count > pageSize )
-            {
-                pagedItems.RemoveAt( pagedItems.Count - 1 );
-            }
-
-            lastId = pagedItems.Count > 0 ? pagedItems.Last().Id : 0;
-
-            AddMetadata( "nextCursor", lastId.AsIdKey() );
-            AddMetadata( "pageSize", pageSize );
-            AddMetadata( "returnedItemCount", pagedItems.Count );
-            AddMetadata( "hasMore", hasMore );
-
-            return pagedItems;
+                Items = page.Items,
+                NextCursor = page.NextCursor,
+                PageSize = pageSize,
+                ReturnedItemCount = page.Items.Count,
+                HasMoreItems = page.HasMore,
+            };
         }
 
         /// <summary>
@@ -356,9 +348,8 @@ namespace Rock.AI.Agent
         /// <param name="queryable">The queryable that represents the data to be paginated from the database.</param>
         /// <param name="pageNumber">The page number that was requested.</param>
         /// <param name="pageSize">The size of each page. If <c>null</c> then a default page size will be applied.</param>
-        /// <param name="sanitizeForSecurity">If <c>true</c> and <typeparamref name="T"/> is of type <see cref="EntityResultBase"/>, then each item will be sanitized by calling <see cref="EntityResultBase.Sanitize(AgentRequestContext)"/>.</param>
         /// <returns>A collection of items for the specified page.</returns>
-        public List<T> GetPaginatedItems<T>( IQueryable<T> queryable, int pageNumber, int? pageSize = null, bool sanitizeForSecurity = true )
+        public PaginatedResult<T> GetPaginatedItems<T>( IQueryable<T> queryable, int pageNumber, int? pageSize = null )
         {
             pageSize = pageSize ?? DefaultPageSize;
 
@@ -376,20 +367,14 @@ namespace Rock.AI.Agent
                 pagedItems.RemoveAt( pagedItems.Count - 1 );
             }
 
-            AddMetadata( "pageNumber", pageNumber );
-            AddMetadata( "pageSize", pageSize );
-            AddMetadata( "returnedItemCount", pagedItems.Count );
-            AddMetadata( "hasMore", hasMore );
-
-            if ( sanitizeForSecurity == true && typeof( EntityResultBase ).IsAssignableFrom( typeof( T ) ) )
+            return new PaginatedResult<T>
             {
-                foreach ( EntityResultBase item in pagedItems.Cast<EntityResultBase>() )
-                {
-                    item.Sanitize( _agentRequestContext );
-                }
-            }
-
-            return pagedItems;
+                Items = pagedItems,
+                PageNumber = pageNumber,
+                PageSize = pageSize,
+                ReturnedItemCount = pagedItems.Count,
+                HasMoreItems = hasMore,
+            };
         }
 
         /// <summary>
@@ -401,11 +386,10 @@ namespace Rock.AI.Agent
         /// <param name="items">The in-memory items to be paginated.</param>
         /// <param name="pageNumber">The page number that was requested.</param>
         /// <param name="pageSize">The size of each page. If <c>null</c> then a default page size will be applied.</param>
-        /// <param name="sanitizeForSecurity">If <c>true</c> and <typeparamref name="T"/> is of type <see cref="EntityResultBase"/>, then each item will be sanitized by calling <see cref="EntityResultBase.Sanitize(AgentRequestContext)"/>.</param>
         /// <returns>A collection of items for the specified page.</returns>
-        public List<T> GetPaginatedItems<T>( IEnumerable<T> items, int pageNumber, int? pageSize = null, bool sanitizeForSecurity = true )
+        public PaginatedResult<T> GetPaginatedItems<T>( IEnumerable<T> items, int pageNumber, int? pageSize = null )
         {
-            return GetPaginatedItems( items.AsQueryable(), pageNumber, pageSize, sanitizeForSecurity );
+            return GetPaginatedItems( items.AsQueryable(), pageNumber, pageSize );
         }
 
         #endregion
@@ -1086,7 +1070,7 @@ namespace Rock.AI.Agent
             }
 
             var navigationProperty = ExtractProperty( propertyExpression );
-            var navigationIdProperty =  entity.GetType().GetProperty( $"{navigationProperty.Name}Id" )
+            var navigationIdProperty = entity.GetType().GetProperty( $"{navigationProperty.Name}Id" )
                 ?? throw new Exception( $"Defined value property {navigationProperty.Name} is not valid." );
 
             if ( navigationIdProperty.PropertyType != typeof( int ) && navigationIdProperty.PropertyType != typeof( int? ) )
@@ -1507,6 +1491,177 @@ namespace Rock.AI.Agent
             }
 
             SaveChanges();
+        }
+
+        #endregion
+
+        #region Summary Methods
+
+        /// <summary>
+        /// Builds the dimension for a summary result. This handles building
+        /// the first dimension if <paramref name="parentGroups"/> is <c>null</c>
+        /// or building a child dimension for each of the
+        /// <paramref name="parentGroups"/> if not <c>null</c>.
+        /// </summary>
+        /// <typeparam name="T">The type of object that will be grouped and contains the counts.</typeparam>
+        /// <param name="parentGroups">The parent <see cref="SummaryGroupResult"/> objects to build a child dimension for or <c>null</c> to build a root dimension.</param>
+        /// <param name="rootSource">The full list of source counts if a root dimension is built. Must not be <c>null</c> if <paramref name="parentGroups"/> is also <c>null</c>.</param>
+        /// <param name="keySelector">The selector that will be used to group the <typeparamref name="T"/> objects.</param>
+        /// <param name="nameLookup">The lookup table that will be used for value to name mapping.</param>
+        /// <returns>A list of all <see cref="SummaryGroupResult"/> objects created for this dimension.</returns>
+        public List<SummaryGroupResult> BuildDimension<T>( IEnumerable<SummaryGroupResult> parentGroups, IEnumerable<T> rootSource, Func<T, int> keySelector, Dictionary<int, string> nameLookup )
+            where T : ISummaryGroupCount
+        {
+            return BuildDimension( parentGroups, rootSource, c => ( int? ) keySelector( c ), nameLookup );
+        }
+
+        /// <summary>
+        /// Builds the dimension for a summary result. This handles building
+        /// the first dimension if <paramref name="parentGroups"/> is <c>null</c>
+        /// or building a child dimension for each of the
+        /// <paramref name="parentGroups"/> if not <c>null</c>.
+        /// </summary>
+        /// <typeparam name="T">The type of object that will be grouped and contains the counts.</typeparam>
+        /// <param name="parentGroups">The parent <see cref="SummaryGroupResult"/> objects to build a child dimension for or <c>null</c> to build a root dimension.</param>
+        /// <param name="rootSource">The full list of source counts if a root dimension is built. Must not be <c>null</c> if <paramref name="parentGroups"/> is also <c>null</c>.</param>
+        /// <param name="keySelector">The selector that will be used to group the <typeparamref name="T"/> objects.</param>
+        /// <param name="nameLookup">The lookup table that will be used for value to name mapping.</param>
+        /// <returns>A list of all <see cref="SummaryGroupResult"/> objects created for this dimension.</returns>
+        public List<SummaryGroupResult> BuildDimension<T>( IEnumerable<SummaryGroupResult> parentGroups, IEnumerable<T> rootSource, Func<T, int?> keySelector, Dictionary<int, string> nameLookup )
+            where T : ISummaryGroupCount
+        {
+            return parentGroups == null
+                ? BuildDimension( rootSource, keySelector, nameLookup )
+                : parentGroups
+                    .SelectMany( g =>
+                    {
+                        var newGroups = BuildDimension( ( IEnumerable<T> ) g.Source, keySelector, nameLookup );
+
+                        g.Groups = newGroups;
+
+                        return newGroups;
+                    } )
+                    .ToList();
+        }
+
+        /// <summary>
+        /// Builds the dimension for a set of source objects.
+        /// </summary>
+        /// <typeparam name="T">The type of object that will be grouped and contains the counts.</typeparam>
+        /// <param name="source">The set of source counts to build this dimension from.</param>
+        /// <param name="keySelector">The selector that will be used to group the <typeparamref name="T"/> objects.</param>
+        /// <param name="nameLookup">The lookup table that will be used for value to name mapping.</param>
+        /// <returns>A list of all <see cref="SummaryGroupResult"/> objects created for this dimension.</returns>
+        private List<SummaryGroupResult> BuildDimension<T>( IEnumerable<T> source, Func<T, int?> keySelector, Dictionary<int, string> nameLookup )
+            where T : ISummaryGroupCount
+        {
+            return source.GroupBy( keySelector )
+                .Select( g =>
+                {
+                    return new SummaryGroupResult
+                    {
+                        Id = g.Key,
+                        Name = g.Key.HasValue ? nameLookup[g.Key.Value] : null,
+                        Total = g.Sum( fc => fc.Count ),
+                        Source = g,
+                    };
+                } )
+                .ToList();
+        }
+
+        /// <summary>
+        /// Configures the primary dimension for a set of dimensions. This moves
+        /// that dimension to the front of the list. If the dimension was not
+        /// found then an error is reported.
+        /// </summary>
+        /// <param name="primaryDimension">The dimension that should be made primary in the result set.</param>
+        /// <param name="dimensions">The set of valid dimensions and the order they will be processed in.</param>
+        public void SetPrimaryDimension( string primaryDimension, List<string> dimensions )
+        {
+            if ( primaryDimension.IsNullOrWhiteSpace() )
+            {
+                return;
+            }
+
+            var operationIndex = dimensions.FindIndex( o =>
+                o.Equals( primaryDimension, StringComparison.OrdinalIgnoreCase ) );
+
+            if ( operationIndex >= 0 )
+            {
+                // Move the specified grouping to the front of the list so
+                // it will be the primary grouping.
+                var operation = dimensions[operationIndex];
+
+                dimensions.RemoveAt( operationIndex );
+                dimensions.Insert( 0, operation );
+            }
+            else
+            {
+                AddError( $"The specified primary grouping '{primaryDimension}' is not valid. Valid options are: {string.Join( ", ", dimensions )}." );
+            }
+        }
+
+        /// <summary>
+        /// Removes the specified <paramref name="dimensionsToRemove"/> from
+        /// <paramref name="dimensions"/> if <paramref name="filterValue"/> is
+        /// not null or empty.
+        /// </summary>
+        /// <param name="filterValue">The value used as an optional filter.</param>
+        /// <param name="dimensions">The set of dimensions that will be updated.</param>
+        /// <param name="dimensionsToRemove">The dimensions to remove if the filter condition is satisfied.</param>
+        public void RemoveSatisfiedDimensions( string filterValue, List<string> dimensions, IEnumerable<string> dimensionsToRemove )
+        {
+            if ( filterValue.IsNullOrWhiteSpace() )
+            {
+                return;
+            }
+
+            foreach ( var dimension in dimensionsToRemove )
+            {
+                dimensions.Remove( dimension );
+            }
+        }
+
+        /// <summary>
+        /// Removes the specified <paramref name="dimensionsToRemove"/> from
+        /// <paramref name="dimensions"/> if <paramref name="filterValue"/> is
+        /// not null.
+        /// </summary>
+        /// <param name="filterValue">The value used as an optional filter.</param>
+        /// <param name="dimensions">The set of dimensions that will be updated.</param>
+        /// <param name="dimensionsToRemove">The dimensions to remove if the filter condition is satisfied.</param>
+        public void RemoveSatisfiedDimensions( int? filterValue, List<string> dimensions, IEnumerable<string> dimensionsToRemove )
+        {
+            if ( !filterValue.HasValue )
+            {
+                return;
+            }
+
+            foreach ( var dimension in dimensionsToRemove )
+            {
+                dimensions.Remove( dimension );
+            }
+        }
+
+        /// <summary>
+        /// Removes the specified <paramref name="dimensionsToRemove"/> from
+        /// <paramref name="dimensions"/> if <paramref name="filterValue"/> is
+        /// not null.
+        /// </summary>
+        /// <param name="filterValue">The value used as an optional filter.</param>
+        /// <param name="dimensions">The set of dimensions that will be updated.</param>
+        /// <param name="dimensionsToRemove">The dimensions to remove if the filter condition is satisfied.</param>
+        public void RemoveSatisfiedDimensions( bool? filterValue, List<string> dimensions, IEnumerable<string> dimensionsToRemove )
+        {
+            if ( !filterValue.HasValue )
+            {
+                return;
+            }
+
+            foreach ( var dimension in dimensionsToRemove )
+            {
+                dimensions.Remove( dimension );
+            }
         }
 
         #endregion

@@ -250,7 +250,7 @@ namespace Rock.Model
         #region IHasAdditionalSettings Models
 
         /// <summary>
-        /// Conversion Goal Settings
+        /// Additional settings stored for a Connection Type.
         /// </summary>
         /// <remarks>
         ///     <para>
@@ -261,25 +261,100 @@ namespace Rock.Model
         ///     </para>
         /// </remarks>
         [RockInternal( "19.0" )]
-        public class CommunicationSettings
+        public class ConnectionTypeAdditionalSettings
         {
             /// <summary>
-            /// Gets or sets the category used to filter communication templates when sending communications
-            /// to connection requestors for this Connection Type.
-            /// <para>
-            /// If <see langword="null"/>, communication templates are not filtered by category.
-            /// </para>
+            /// Gets or sets the additional request filter rows used to show extra requests on
+            /// the request detail view so the connector can see whether the individual (or their
+            /// family members) has requested to connect in other opportunities or connection types.
             /// </summary>
-            public Guid? CommunicationTemplateCategoryGuid { get; set; }
+            public List<AdditionalRequestToShowSettings> AdditionalRequestsToShow { get; set; } = new List<AdditionalRequestToShowSettings>();
 
             /// <summary>
-            /// Gets or sets the category used to filter SMS snippets when sending SMS communications
-            /// to connection requestors for this Connection Type.
-            /// <para>
-            /// If <see langword="null"/>, no snippet filtering is applied.
-            /// </para>
+            /// Gets or sets the communication settings for this connection type.
             /// </summary>
-            public Guid? SmsSnippetCategoryGuid { get; set; }
+            public CommunicationSettingsInfo CommunicationSettings { get; set; } = new CommunicationSettingsInfo();
+
+            /// <summary>
+            /// Gets or sets the AI prompt used to generate communication insights.
+            /// </summary>
+            public string AIInsightsPrompt { get; set; }
+
+            /// <summary>
+            /// Defines a single "Additional Requests to Show" filter row.
+            /// </summary>
+            /// <remarks>
+            ///     <para>
+            ///         <strong>This is an internal API</strong> that supports the Rock
+            ///         infrastructure and not subject to the same compatibility standards
+            ///         as public APIs. It may be changed or removed without notice in any
+            ///         release and should therefore not be directly used in any plug-ins.
+            ///     </para>
+            /// </remarks>
+            [RockInternal( "19.0" )]
+            public class AdditionalRequestToShowSettings
+            {
+                /// <summary>
+                /// Gets or sets the unique identifier for this filter row.
+                /// </summary>
+                public Guid Key { get; set; }
+
+                /// <summary>
+                /// Gets or sets the <see cref="ConnectionType"/> Guid to pull additional requests from.
+                /// </summary>
+                public Guid ConnectionTypeGuid { get; set; }
+
+                /// <summary>
+                /// Gets or sets the request states to include for this filter.
+                /// </summary>
+                public List<ConnectionState> StatesToShow { get; set; } = new List<ConnectionState>();
+
+                /// <summary>
+                /// Gets or sets the maximum age of requests, in days, to include for this filter.
+                /// <para>
+                /// If <see langword="null"/>, no age limit is applied.
+                /// </para>
+                /// </summary>
+                public int? LimitToRecentRequestsDays { get; set; }
+
+                /// <summary>
+                /// Gets or sets a value indicating whether family member requests should be included.
+                /// </summary>
+                public bool IncludeFamilyMemberRequests { get; set; }
+            }
+
+            /// <summary>
+            /// Communication-related settings stored in Additional Settings JSON.
+            /// </summary>
+            /// /// <remarks>
+            ///     <para>
+            ///         <strong>This is an internal API</strong> that supports the Rock
+            ///         infrastructure and not subject to the same compatibility standards
+            ///         as public APIs. It may be changed or removed without notice in any
+            ///         release and should therefore not be directly used in any plug-ins.
+            ///     </para>
+            /// </remarks>
+            [RockInternal( "19.0" )]
+            public class CommunicationSettingsInfo
+            {
+                /// <summary>
+                /// Gets or sets the category used to filter communication templates when sending communications
+                /// to connection requestors for this Connection Type.
+                /// <para>
+                /// If <see langword="null"/>, communication templates are not filtered by category.
+                /// </para>
+                /// </summary>
+                public Guid? CommunicationTemplateCategoryGuid { get; set; }
+
+                /// <summary>
+                /// Gets or sets the category used to filter SMS snippets when sending SMS communications
+                /// to connection requestors for this Connection Type.
+                /// <para>
+                /// If <see langword="null"/>, no snippet filtering is applied.
+                /// </para>
+                /// </summary>
+                public Guid? SmsSnippetCategoryGuid { get; set; }
+            }
         }
 
         #endregion IHasAdditionalSettings Models

@@ -30,17 +30,17 @@ namespace Rock.Model
         #region Methods
         
         /// <summary>
-        /// Gets the Communication Settings for this Connection Type.
+        /// Gets the additional settings for this Connection Type.
         /// </summary>
-        internal CommunicationSettings GetCommunicationSettings()
+        internal ConnectionTypeAdditionalSettings GetConnectionTypeAdditionalSettings()
         {
-            return this.GetAdditionalSettingsOrNull<CommunicationSettings>();
+            return this.GetAdditionalSettingsOrNull<ConnectionTypeAdditionalSettings>();
         }
 
         /// <summary>
-        /// Sets the Communication Settings for this Connection Type.
+        /// Sets the additional settings for this Connection Type.
         /// </summary>
-        internal void SetCommunicationSettings( CommunicationSettings settings )
+        internal void SetConnectionTypeAdditionalSettings( ConnectionTypeAdditionalSettings settings )
         {
             this.SetAdditionalSettings( settings );
         }

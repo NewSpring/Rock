@@ -2149,7 +2149,7 @@ namespace Rock.Blocks.Engagement
                 .Select( st => ( int? ) st.Id )
                 .FirstOrDefault();
 
-            var smsSnippetCategoryGuid = connectionType.GetCommunicationSettings()?.SmsSnippetCategoryGuid;
+            var smsSnippetCategoryGuid = connectionType.GetConnectionTypeAdditionalSettings()?.CommunicationSettings?.SmsSnippetCategoryGuid;
             var snippetCategoryId = smsSnippetCategoryGuid.HasValue
                     ? CategoryCache.GetId( smsSnippetCategoryGuid.Value )
                     : ( int? ) null;
@@ -2241,7 +2241,7 @@ namespace Rock.Blocks.Engagement
 
             var currentPerson = GetCurrentPerson();
             var mergeFields = this.RequestContext.GetCommonMergeFields();
-            var communicationTemplateGuid = connectionType.GetCommunicationSettings()?.CommunicationTemplateCategoryGuid;
+            var communicationTemplateGuid = connectionType.GetConnectionTypeAdditionalSettings()?.CommunicationSettings?.CommunicationTemplateCategoryGuid;
             var communicationTemplates = new CommunicationTemplateService( RockContext )
                 .Queryable()
                 .AsNoTracking()

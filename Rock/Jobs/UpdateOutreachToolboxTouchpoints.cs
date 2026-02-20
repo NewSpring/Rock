@@ -21,12 +21,14 @@ using System.Data.Entity;
 using System.Linq;
 
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 using Rock.Attribute;
 using Rock.Communication;
 using Rock.Configuration;
 using Rock.Data;
 using Rock.Enums.Cms;
+using Rock.Enums.Core;
 using Rock.Enums.Engagement;
 using Rock.Mobile;
 using Rock.Model;
@@ -109,6 +111,17 @@ namespace Rock.Jobs
             "on today’s lineup. One message can make a difference.",
             "waiting for a touchpoint today.",
             "on your list today. Keep the connection going."
+        };
+
+        /// <summary>
+        /// The number of days inactive that a reminder notification will be
+        /// sent to an individual. We only notify for up to a year, but we
+        /// include additional backoff values in case there is a desire to
+        /// increase the frequency by a configuration value.
+        /// </summary>
+        private static readonly int[] InactiveNotificationBackoffInterval = new[]
+        {
+            1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384,
         };
 
         #endregion
@@ -287,6 +300,16 @@ namespace Rock.Jobs
                     ProcessPulseTouchpoints( rockContext, runContext );
                 }
             }
+
+            if ( runContext.InactivePeople.Any() )
+            {
+                UpdateLastStatusMessage( $"Processing inactive people..." );
+
+                using ( var rockContext = CreateRockContext() )
+                {
+                    ProcessInactivePeople( runContext, rockContext );
+                }
+            }
         }
 
         /// <summary>
@@ -421,9 +444,36 @@ namespace Rock.Jobs
         private int ProcessPersonForGeneralTouchpoints( Person person, List<Contact> contacts, GeneralProcessingContext processingContext )
         {
             var numberOfTouchpointDays = person.OutreachTouchpointSchedule.AsDayOfWeekList().Count;
-            var count = ContactTouchpointService.GetDailyTouchpointCount( contacts, processingContext.Type, numberOfTouchpointDays );
+            var maxCount = ContactTouchpointService.GetDailyTouchpointCount( contacts, processingContext.Type, numberOfTouchpointDays );
 
-            var newTouchpoints = GetNextGeneralTouchpoints( person.Id, contacts, processingContext, count );
+            // This helps smooth out cases where we end up with 0-touchpoint days
+            // by alternating between rounding up and rounding down on fractional
+            // counts.
+            var count = ( ( ( int ) ( processingContext.Run.ProcessingDateTime - DateTime.MinValue ).TotalDays ) & 0x01 ) == 0x01
+                ? ( int ) Math.Ceiling( maxCount )
+                : ( int ) Math.Floor( maxCount );
+
+            if ( processingContext.ActiveTouchpointCounts.TryGetValue( person.Id, out var existingCount ) )
+            {
+                // Special case. If they are full, then that means they haven't
+                // done anything with their existing touchpoints. In that case,
+                // drop them in a bucket to receive a reminder to catch up.
+                if ( existingCount >= count )
+                {
+                    processingContext.Run.InactivePeople.Add( person );
+
+                    return 0;
+                }
+
+                count -= existingCount;
+            }
+
+            if ( count <= 0 )
+            {
+                return 0;
+            }
+
+            var newTouchpoints = GetNextGeneralTouchpoints( contacts, processingContext, count );
 
             if ( newTouchpoints.Count > 0 )
             {
@@ -449,30 +499,12 @@ namespace Rock.Jobs
         /// Gets the new set of general touchpoints (prayer and connection) that
         /// need to be created for the set of contacts.
         /// </summary>
-        /// <param name="personId">The identifier of the person being processed.</param>
         /// <param name="contacts">The set of contacts that are being processed for a person.</param>
         /// <param name="processingContext">The context for the current processing run.</param>
-        /// <param name="maxCount">The maximum number of touchpoints the person should have.</param>
+        /// <param name="count">The number of touchpoints that should be created.</param>
         /// <returns>A set of touchpoints that need to be saved to the database.</returns>
-        private ICollection<ContactTouchpoint> GetNextGeneralTouchpoints( int personId, List<Contact> contacts, GeneralProcessingContext processingContext, double maxCount )
+        private ICollection<ContactTouchpoint> GetNextGeneralTouchpoints( List<Contact> contacts, GeneralProcessingContext processingContext, int count )
         {
-            // This helps smooth out cases where we end up with 0-touchpoint days
-            // by alternating between rounding up and rounding down on fractional
-            // counts.
-            var count = ( ( ( int ) ( processingContext.Run.ProcessingDateTime - DateTime.MinValue ).TotalDays ) & 0x01 ) == 0x01
-                ? ( int ) Math.Ceiling( maxCount )
-                : ( int ) Math.Floor( maxCount );
-
-            if ( processingContext.ActiveTouchpointCounts.TryGetValue( personId, out var existingCount ) )
-            {
-                count -= existingCount;
-            }
-
-            if ( maxCount <= 0 )
-            {
-                return Array.Empty<ContactTouchpoint>();
-            }
-
             var contactsNeedingTouchpoints = contacts
                 .Where( c => c.PrayerCadence != OutreachCadence.Paused )
                 .Select( c =>
@@ -918,6 +950,98 @@ namespace Rock.Jobs
 
         #endregion
 
+        #region Inactive Person Processing
+
+        /// <summary>
+        /// Processes inactive people. These are individuals that have not
+        /// completed their existing touchpoints and are now blocked from
+        /// receiving new touchpoints.
+        /// </summary>
+        /// <param name="runContext">The context describing the current run.</param>
+        /// <param name="rockContext">The context to use when reading from the database.</param>
+        private void ProcessInactivePeople( RunContext runContext, RockContext rockContext )
+        {
+            var today = RockDateTime.Today;
+            var personEntityType = EntityTypeCache.Get<Person>( true, rockContext );
+            var distinctPeople = runContext.InactivePeople
+                .Where( p => p.OutreachEnableDailyNotification
+                    && p.OutreachTouchpointGenerationEnabled
+                    && !runContext.Notifications.ContainsKey( p.Id ) )
+                .DistinctBy( p => p.Id )
+                .ToList();
+
+            foreach ( var batch in distinctPeople.Chunk( _batchSize ) )
+            {
+                var personIds = batch.Select( p => p.Id ).ToList();
+                var lastActivityDates = new ContactTouchpointService( rockContext )
+                    .Queryable()
+                    .Where( ct => personIds.Contains( ct.Contact.OwnerPersonAlias.PersonId )
+                        && ( ct.Type == TouchpointType.Prayer || ct.Type == TouchpointType.Connection ) )
+                    .Select( ct => new
+                    {
+                        ct.Contact.OwnerPersonAlias.PersonId,
+                        LastDateTime = ct.CompletedDateTime ?? ct.ScheduledDateTime,
+                    } )
+                    .GroupBy( a => a.PersonId )
+                    .ToDictionary( grp => grp.Key, grp => grp.Max( ct => ct.LastDateTime ) );
+
+                foreach ( var person in batch )
+                {
+                    // This shouldn't happen, but just in case skip the person.
+                    if ( !lastActivityDates.TryGetValue( person.Id, out var lastActivityDate ) )
+                    {
+                        continue;
+                    }
+
+                    lastActivityDate = lastActivityDate.Date;
+
+                    // If it has been more than a year, just give up.
+                    if ( lastActivityDate < today.AddYears( -1 ) )
+                    {
+                        continue;
+                    }
+
+                    var daysInactive = CalculateDaysInactive( lastActivityDate, today, person.OutreachTouchpointSchedule );
+
+                    if ( InactiveNotificationBackoffInterval.Contains( daysInactive ) )
+                    {
+                        runContext.Notifications.AddInactiveNotification( person.Id );
+                    }
+                }
+            }
+
+            runContext.Success( $"{distinctPeople.Count:N0} Inactive People Processed" );
+        }
+
+        /// <summary>
+        /// Calculate the number of days a person has been inactive based on the
+        /// last activity date and their scheduled days. Meaning, if it has been
+        /// a full two weeks they have been inactive, but they are only scheduled
+        /// for Monday, Wednesday and Friday, then this would return 6.
+        /// </summary>
+        /// <param name="lastActivityDate">The date they were last active.</param>
+        /// <param name="today">Today's date.</param>
+        /// <param name="scheduledDays">The days of the week they are scheduled to process touchpoints.</param>
+        /// <returns>The number of inactive days.</returns>
+        private static int CalculateDaysInactive( DateTime lastActivityDate, DateTime today, DaysOfWeekFlags scheduledDays )
+        {
+            int numberOfDays = 0;
+
+            for ( var date = lastActivityDate; date < today; date = date.AddDays( 1 ) )
+            {
+                var dayOfWeekFlag = date.DayOfWeek.AsFlags();
+
+                if ( scheduledDays.HasFlag( dayOfWeekFlag ) )
+                {
+                    numberOfDays++;
+                }
+            }
+
+            return numberOfDays;
+        }
+
+        #endregion
+
         #region Notification Processing
 
         /// <summary>
@@ -1096,6 +1220,13 @@ namespace Rock.Jobs
                 sentCount += 1;
             }
 
+            if ( notifications.SendInactiveNotification )
+            {
+                SendInactiveNotification( recipient, notificationPage );
+
+                sentCount += 1;
+            }
+
             return sentCount;
         }
 
@@ -1155,13 +1286,39 @@ namespace Rock.Jobs
                 prefix = $"{contacts[0].FirstName}, {contacts[1].FirstName}, and {contacts.Count - 2} others are";
             }
 
-
             var messageIndex = _random.Next( 0, DailyNotificationMessages.Length );
 
             var pushMessage = new RockPushMessage
             {
                 Title = "Keep the connection going!",
                 Message = $"{prefix} {DailyNotificationMessages[messageIndex]}",
+                Data = new PushData()
+            };
+
+            if ( notificationPage != null )
+            {
+                pushMessage.OpenAction = Utility.PushOpenAction.LinkToMobilePage;
+                pushMessage.Data = new PushData
+                {
+                    MobilePageId = notificationPage.Id,
+                };
+            }
+
+            pushMessage.AddRecipient( recipient );
+            pushMessage.Send();
+        }
+
+        /// <summary>
+        /// Sends the push notification for the people who have become inactive.
+        /// </summary>
+        /// <param name="recipient">The person who will receive the push notification.</param>
+        /// <param name="notificationPage">The page to open when the notification is tapped.</param>
+        private void SendInactiveNotification( RockPushMessageRecipient recipient, PageCache notificationPage )
+        {
+            var pushMessage = new RockPushMessage
+            {
+                Title = "Don't fall behind!",
+                Message = $"You have people that are waiting to connect with you.",
                 Data = new PushData()
             };
 
@@ -1263,6 +1420,14 @@ namespace Rock.Jobs
             /// The messages to display in the job history.
             /// </summary>
             public List<string> Messages { get; } = new List<string>();
+
+            /// <summary>
+            /// The list of people that have not completed a touchpoint
+            /// recently. This is determined by trying to create touchpoints
+            /// for them but having no remaining capacity to do so because
+            /// of existing touchpoints.
+            /// </summary>
+            public List<Person> InactivePeople { get; } = new List<Person>();
 
             /// <summary>
             /// Errors that occurred and will be reported after the job finishes.
@@ -1432,6 +1597,12 @@ namespace Rock.Jobs
             /// <see cref="Person.OutreachEnableSpecialEventsNotification"/>.
             /// </summary>
             public List<ContactTouchpoint> AnnualTouchpoints { get; } = new List<ContactTouchpoint>();
+
+            /// <summary>
+            /// Determines if the "you have been inactive" notification should
+            /// be sent for the person.
+            /// </summary>
+            public bool SendInactiveNotification { get; set; }
         }
 
         /// <summary>
@@ -1484,6 +1655,17 @@ namespace Rock.Jobs
                 var notifications = GetOrAddPerson( personId );
 
                 notifications.AnnualTouchpoints.Add( touchpoint );
+            }
+
+            /// <summary>
+            /// Adds a notification about the person being inactive.
+            /// </summary>
+            /// <param name="personId">The identifier of the person that will receive the notification.</param>
+            public void AddInactiveNotification( int personId )
+            {
+                var notifications = GetOrAddPerson( personId );
+
+                notifications.SendInactiveNotification = true;
             }
         }
 
