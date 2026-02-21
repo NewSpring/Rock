@@ -33,15 +33,13 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
     {
         public ActivityEntryType EntryType { get; set; }
 
-        public DateTimeOffset EntryDateTime { get; set; }
+        public DateTimeOffset? EntryDateTime { get; set; }
 
         public string CreatedBy { get; set; }
 
-        public string Icon { get; set; }
-
         public CardEntryBag CardEntry { get; set; }
 
-        public MessageEntryBag MessageEntry { get; set; }
+        public SystemUpdateBag SystemUpdate { get; set; }
     }
 
     public class CardEntryBag
@@ -55,8 +53,10 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
         // TODO - Attachments?
     }
 
-    public class MessageEntryBag
+    public class SystemUpdateBag
     {
+        public SystemUpdateType SystemUpdateType { get; set; }
+
         public string PreviousValue { get; set; }
 
         public string NewValue { get; set; }

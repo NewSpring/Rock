@@ -22,6 +22,8 @@
 //
 
 export type MessageEntryBag = {
+    messageAction?: string | null;
+
     newValue?: string | null;
 
     previousValue?: string | null;

@@ -21,31 +21,12 @@
 // </copyright>
 //
 
-/** Activity Entry Types */
-export const ActivityEntryType = {
-    /** Activity type. */
-    Activity: 0,
+import { SystemUpdateType } from "@Obsidian/Enums/Connection/systemUpdateType";
 
-    /** Request Note type */
-    RequestNote: 1,
+export type SystemUpdateBag = {
+    newValue?: string | null;
 
-    /** System Update type. */
-    SystemUpdate: 2,
+    previousValue?: string | null;
 
-    /** Communication type. */
-    Communication: 3
-} as const;
-
-/** Activity Entry Types */
-export const ActivityEntryTypeDescription: Record<number, string> = {
-    0: "Activity",
-
-    1: "Request Note",
-
-    2: "System Update",
-
-    3: "Communication"
+    systemUpdateType: SystemUpdateType;
 };
-
-/** Activity Entry Types */
-export type ActivityEntryType = typeof ActivityEntryType[keyof typeof ActivityEntryType];

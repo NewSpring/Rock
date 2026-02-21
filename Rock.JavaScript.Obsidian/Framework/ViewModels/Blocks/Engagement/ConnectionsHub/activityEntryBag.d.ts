@@ -23,7 +23,7 @@
 
 import { ActivityEntryType } from "@Obsidian/Enums/Connection/activityEntryType";
 import { CardEntryBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/cardEntryBag";
-import { MessageEntryBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/messageEntryBag";
+import { SystemUpdateBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/systemUpdateBag";
 
 export type ActivityEntryBag = {
     cardEntry?: CardEntryBag | null;
@@ -34,7 +34,5 @@ export type ActivityEntryBag = {
 
     entryType: ActivityEntryType;
 
-    icon?: string | null;
-
-    messageEntry?: MessageEntryBag | null;
+    systemUpdate?: SystemUpdateBag | null;
 };

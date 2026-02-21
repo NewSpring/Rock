@@ -223,7 +223,18 @@
                         </DropDownContent>
                     </template>
                     <template #default>
-                        <ActivityCard v-for="activityEntry in filteredActivityEntries" :activityEntry="activityEntry" />
+                        <template v-for="activityEntry in filteredActivityEntries">
+                            <div v-if="activityEntry.entryType === ActivityEntryType.SystemUpdate && activityEntry.systemUpdate" class="d-flex gap-xs text-interface-medium text-small">
+                                <Badge :isCircle="true" class="d-flex justify-content-center bg-interface-softest text-interface-medium h-fit">
+                                    <i :class="systemUpdateIconClass(activityEntry.systemUpdate.systemUpdateType)"></i>
+                                </Badge>
+                                <div>
+                                    <span v-html="systemUpdateMessage(activityEntry)"></span>
+                                    <span> • {{ getElapsedDate(activityEntry.entryDateTime) }}</span>
+                                </div>
+                            </div>
+                            <ActivityCard v-else :activityEntry="activityEntry" />
+                        </template>
                     </template>
                 </ContentSection>
             </div>
@@ -303,6 +314,10 @@
 .w-fit {
     width: fit-content;
 }
+
+.h-fit {
+    height: fit-content;
+}
 </style>
 
 <script setup lang="ts">
@@ -340,6 +355,10 @@
     import { ActivityEntryType, ActivityEntryTypeDescription } from "@Obsidian/Enums/Connection/activityEntryType";
     import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
     import { toNumber } from "@Obsidian/Utility/numberUtils";
+    import Badge from "@Obsidian/Controls/badge.obs";
+    import { SystemUpdateBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/systemUpdateBag";
+    import { SystemUpdateType } from "@Obsidian/Enums/Connection/systemUpdateType";
+    import { ActivityEntryBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/activityEntryBag";
 
     const props = defineProps({
         modelValue: {
@@ -525,6 +544,106 @@
         return entries.filter(e => e.entryType === entryType);
     });
 
+    const systemUpdateIconClass = (systemUpdateType: SystemUpdateType): string => {
+        switch (systemUpdateType) {
+            case SystemUpdateType.Creation:
+                return "ti ti-plus";
+            case SystemUpdateType.StatusSet:
+            case SystemUpdateType.StatusUpdated:
+            case SystemUpdateType.StatusCleared:
+                return "ti ti-arrows-left-right";
+            case SystemUpdateType.StateChange:
+                return "ti ti-bolt";
+            case SystemUpdateType.Assignment:
+            case SystemUpdateType.Reassignment:
+            case SystemUpdateType.Unassignment:
+                return "ti ti-user-bolt";
+            case SystemUpdateType.Transfer:
+                return "ti ti-arrows-shuffle";
+            case SystemUpdateType.DueDateChange:
+            case SystemUpdateType.DueSoonDateChange:
+                return "ti ti-calendar-due";
+            case SystemUpdateType.Completion:
+                return "ti ti-circle-check-filled text-success";
+            default:
+                return "";
+        }
+    };
+
+    const systemUpdateMessage = (entry: ActivityEntryBag): string => {
+        const isCreatedByPopulated = isNullOrWhiteSpace(entry.createdBy) ? false : true;
+        if (!entry.systemUpdate) {
+            return "";
+        }
+
+        switch (entry.systemUpdate.systemUpdateType) {
+            case SystemUpdateType.Creation:
+                if (isCreatedByPopulated) {
+                    return `<span class="text-semibold">${entry.createdBy}</span> submitted this connection request for ${props.requestDetails?.connectionOpportunityName}.`;
+                }
+                return `This connection request was submitted for ${props.requestDetails?.connectionOpportunityName}.`;
+            case SystemUpdateType.StatusSet:
+                if (isCreatedByPopulated) {
+                    return `<span class="text-semibold">${entry.createdBy}</span> set the connection request status to <span class="text-semibold">${entry.systemUpdate.newValue}</span>.`;
+                }
+                return `The connection request status was set to <span class="text-semibold">${entry.systemUpdate.newValue}</span>.`;
+            case SystemUpdateType.StatusUpdated:
+                if (isCreatedByPopulated) {
+                    return `<span class="text-semibold">${entry.createdBy}</span> changed the connection request status from ${entry.systemUpdate.previousValue} to <span class="text-semibold">${entry.systemUpdate.newValue}</span>.`;
+                }
+                return `The connection request status changed from ${entry.systemUpdate.previousValue} to <span class="text-semibold">${entry.systemUpdate.newValue}</span>.`;
+            case SystemUpdateType.StatusCleared:
+                if (isCreatedByPopulated) {
+                    return `<span class="text-semibold">${entry.createdBy}</span> cleared the connection request status (was <span class="text-semibold">${entry.systemUpdate.previousValue}</span>).`;
+                }
+                return `The connection request status was cleared (was <span class="text-semibold">${entry.systemUpdate.previousValue}</span>).`;
+            case SystemUpdateType.StateChange: {
+                const hasPrevious = !isNullOrWhiteSpace(entry.systemUpdate.previousValue);
+
+                if (isCreatedByPopulated) {
+                    return hasPrevious
+                        ? `<span class="text-semibold">${entry.createdBy}</span> changed the connection request state from ${entry.systemUpdate.previousValue} to <span class="text-semibold">${entry.systemUpdate.newValue}</span>.`
+                        : `<span class="text-semibold">${entry.createdBy}</span> set the connection request state to <span class="text-semibold">${entry.systemUpdate.newValue}</span>.`;
+                }
+                return hasPrevious
+                    ? `The connection request state changed from ${entry.systemUpdate.previousValue} to <span class="text-semibold">${entry.systemUpdate.newValue}</span>.`
+                    : `The connection request state was set to <span class="text-semibold">${entry.systemUpdate.newValue}</span>.`;
+            }
+            case SystemUpdateType.Assignment:
+                if (isCreatedByPopulated) {
+                    return `<span class="text-semibold">${entry.createdBy}</span> assigned <span class="text-semibold">${entry.systemUpdate.newValue}</span> to the connection request.`;
+                }
+                return `The connection request was assigned to <span class="text-semibold">${entry.systemUpdate.newValue}</span>.`;
+            case SystemUpdateType.Unassignment:
+                if (isCreatedByPopulated) {
+                    return `<span class="text-semibold">${entry.createdBy}</span> unassigned <span class="text-semibold">${entry.systemUpdate.previousValue}</span> from the connection request.`;
+                }
+                return `The connection request was unassigned from <span class="text-semibold">${entry.systemUpdate.previousValue}</span>.`;
+            case SystemUpdateType.Reassignment:
+                if (isCreatedByPopulated) {
+                    return `<span class="text-semibold">${entry.createdBy}</span> reassigned the connection request from ${entry.systemUpdate.previousValue} to <span class="text-semibold">${entry.systemUpdate.newValue}</span>.`;
+                }
+                return `The connection request was reassigned from ${entry.systemUpdate.previousValue} to <span class="text-semibold">${entry.systemUpdate.newValue}</span>.`;
+            case SystemUpdateType.Transfer:
+                if (isCreatedByPopulated) {
+                    return `<span class="text-semibold">${entry.createdBy}</span> transferred the connection request from ${entry.systemUpdate.previousValue} to <span class="text-semibold">${entry.systemUpdate.newValue}</span>.`;
+                }
+                return `The connection request was transferred from ${entry.systemUpdate.previousValue} to <span class="text-semibold">${entry.systemUpdate.newValue}</span>.`;
+            case SystemUpdateType.DueDateChange:
+            case SystemUpdateType.DueSoonDateChange: {
+                const dateType = entry.systemUpdate.systemUpdateType === SystemUpdateType.DueDateChange ? "Due Date" : "Due Soon Date";
+                // TODO - humanize the dates
+                return `Status change auto-updated <span class="text-semibold">${dateType}</span> for the request from ${entry.systemUpdate.previousValue} to <span class="text-semibold">${entry.systemUpdate.newValue}</span>.`;
+            }
+            case SystemUpdateType.Completion:
+                if (isCreatedByPopulated) {
+                    return `<span class="text-semibold">${entry.createdBy}</span> completed this connection request.`;
+                }
+                return `This connection request was completed.`;
+            default:
+                return "";
+        }
+    };
 
     function getAttributeValueText(attributeValues: Record<string, string> | null, attribute: PublicAttributeBag, key: string): string {
         const fieldTypeGuid = toGuidOrNull(attribute.fieldTypeGuid);
@@ -564,7 +683,7 @@
         }
 
         if (request.requestCreatedDateTime) {
-            parts.push(`Requested ${geElapsedDate(request.requestCreatedDateTime)}`);
+            parts.push(`Requested ${getElapsedDate(request.requestCreatedDateTime)}`);
         }
 
         if (request.requester) {
@@ -574,9 +693,9 @@
         return parts.join(" • ");
     }
 
-    function geElapsedDate(dateTime: string | null | undefined): string | undefined {
-        const requestDateTime = RockDateTime.parseISO(dateTime ?? "");
-        return requestDateTime?.toElapsedString();
+    function getElapsedDate(dateTime: string | null | undefined): string | undefined {
+        const rockDateTime = RockDateTime.parseISO(dateTime ?? "");
+        return rockDateTime?.toElapsedString();
     }
 
     function getDueDateColor(dueStatus: DueStatus | null | undefined): string {

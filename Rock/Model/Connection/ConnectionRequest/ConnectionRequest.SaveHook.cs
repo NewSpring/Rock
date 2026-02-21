@@ -190,6 +190,12 @@ namespace Rock.Model
                                 }
                             }
 
+                            DateTime? originalDueDate = Entry.OriginalValues[nameof( ConnectionRequest.DueDate )].ToStringSafe().AsDateTime();
+                            History.EvaluateChange( HistoryChangeList, "DueDate", originalDueDate, connectionRequest.DueDate );
+
+                            DateTime? originalDueSoonDate = Entry.OriginalValues[nameof( ConnectionRequest.DueSoonDate )].ToStringSafe().AsDateTime();
+                            History.EvaluateChange( HistoryChangeList, "DueSoonDate", originalDueSoonDate, connectionRequest.DueSoonDate );
+
                             var originalConnectionState = Entry.OriginalValues[nameof( ConnectionRequest.ConnectionState )].ToStringSafe().ConvertToEnum<ConnectionState>();
                             History.EvaluateChange( HistoryChangeList, "ConnectionState", Entry.OriginalValues[nameof( ConnectionRequest.ConnectionState )].ToStringSafe().ConvertToEnum<ConnectionState>(), connectionRequest.ConnectionState );
                             if ( connectionRequest.ConnectionState != originalConnectionState )

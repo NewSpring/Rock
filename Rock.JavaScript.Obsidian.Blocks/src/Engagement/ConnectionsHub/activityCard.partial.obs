@@ -29,7 +29,7 @@
                     </template>
                 </DropDownContent>
                 <Badge :isCircle="true" :class="badgeClasses" class="d-flex justify-content-center">
-                    <i :class="activityEntry.icon"></i>
+                    <i :class="iconClass"></i>
                 </Badge>
             </div>
         </div>
@@ -80,6 +80,9 @@
     });
 
     const isSecondaryActionDropdownOpen = ref(false);
+    const badgeClasses = ref();
+    const iconClass = ref();
+
 
     const actionText = computed(() => {
         switch (props.activityEntry.entryType) {
@@ -100,17 +103,6 @@
         return RockDateTime.parseISO(props.activityEntry!.entryDateTime!)?.toElapsedString();
     });
 
-    const badgeClasses = computed(() => {
-        switch (props.activityEntry.entryType) {
-            case ActivityEntryType.Activity:
-                return "bg-interface-softer text-interface-strong";
-            case ActivityEntryType.RequestNote:
-                return "bg-warning-soft text-warning-strong";
-            case ActivityEntryType.Communication:
-                return "bg-info-soft text-info-strong";
-        }
-    });
-
     function onEdit(): void {
         // emit edit
     }
@@ -119,4 +111,21 @@
         // emit delete
     }
 
+    watch(() => props.activityEntry, () => {
+        switch (props.activityEntry.entryType) {
+            case ActivityEntryType.Activity:
+                badgeClasses.value = "bg-interface-softer text-interface-strong";
+                iconClass.value = "ti ti-activity";
+                break;
+            case ActivityEntryType.RequestNote:
+                badgeClasses.value = "bg-warning-soft text-warning-strong";
+                iconClass.value = "ti ti-note";
+                break;
+            case ActivityEntryType.Communication:
+                badgeClasses.value = "bg-info-soft text-info-strong";
+                iconClass.value = "ti ti-mail";
+                // TODO - Add SMS Icon
+                break;
+        }
+    }, { immediate: true });
 </script>

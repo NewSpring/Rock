@@ -27,6 +27,10 @@ using System.Data.Entity.Core.Metadata.Edm;
 using Slingshot.Core;
 using Rock.Web.UI.Controls;
 using AngleSharp.Browser.Dom;
+using System.Data.SqlClient;
+using Grpc.Core;
+using Fluid.Values;
+using System.Text.RegularExpressions;
 
 namespace Rock.Blocks.Engagement
 {
@@ -108,6 +112,13 @@ namespace Rock.Blocks.Engagement
             public const string ConnectionmOpportunityFilterConnectionTypeIdKey = "ConnectionOpportunityFilter_ConnectionTypeIdKey_{0}";
             public const string SelectedGroupByMode = "SelectedGroupByMode";
             public const string AreOnlyMyRequestsVisible = "AreOnlyMyRequestsVisible";
+        }
+
+        private static class SqlParamKey
+        {
+            public const string ConnectionRequestEntityTypeId = "@ConnectionRequestEntityTypeId";
+            public const string RequestId = "@RequestId";
+            public const string CategoryId = "@CategoryId";
         }
 
         #endregion Keys
@@ -829,6 +840,12 @@ namespace Rock.Blocks.Engagement
             return true;
         }
 
+        public string StripBracketId( string value )
+        {
+            return value.IsNullOrWhiteSpace()
+                ? null
+                : Regex.Replace( value, @"\s*\[\d+\]\s*$", "" );
+        }
 
         #endregion Methods
 
@@ -2022,7 +2039,8 @@ namespace Rock.Blocks.Engagement
 
             // Filters out Connection Request Activities that do not have a created by person alias id or created date time.
             var validActivities = connectionRequest.ConnectionRequestActivities.Where( a => a.CreatedByPersonAliasId.HasValue && a.CreatedDateTime.HasValue ).ToList();
-            var validConnectionStatusHistories = connectionRequest.ConnectionRequestStatusHistories.OrderBy( h => h.EndDateTime ).ToList();
+            //var validConnectionStatusHistories = connectionRequest.ConnectionRequestStatusHistories.OrderBy( h => h.EndDateTime ).ToList();
+
 
             var entries = new List<ActivityEntryBag>();
 
@@ -2031,7 +2049,6 @@ namespace Rock.Blocks.Engagement
                 EntryType = ActivityEntryType.Activity,
                 EntryDateTime = a.CreatedDateTime.Value.ToRockDateTimeOffset(),
                 CreatedBy = a.CreatedByPersonAlias?.Person?.FullName,
-                Icon = "ti ti-activity",
                 CardEntry = new CardEntryBag
                 {
                     Title = string.Format( "Activity: {0}", a.ConnectionActivityType.Name ),
@@ -2040,21 +2057,131 @@ namespace Rock.Blocks.Engagement
                 }
             } ) );
 
-            entries.AddRange( validConnectionStatusHistories.Select( (h, i) => new ActivityEntryBag
-            {
-                EntryType = ActivityEntryType.SystemUpdate,
-                EntryDateTime = h.EndDateTime.ToRockDateTimeOffset(),
-                CreatedBy = h.CreatedByPersonAlias?.Person?.FullName,
-                Icon = "ti ti-arrows-left-right",
-                MessageEntry = new MessageEntryBag
-                {
-                    PreviousValue = h.ConnectionStatus.Name,
-                    // "NewValue" is the status the request transitioned to at this point in the timeline.
-                    // For most history rows, that is simply the next history row's status (i.e., the status that followed).
-                    // For the final history row, there is no "next" history record, so we fall back to the request's current status.
-                    NewValue = ( i + 1 < validConnectionStatusHistories.Count ) ? validConnectionStatusHistories[i + 1].ConnectionStatus.Name : connectionRequest.ConnectionStatus.Name
-                },
+            //entries.AddRange( validConnectionStatusHistories.Select( (h, i) => new ActivityEntryBag
+            //{
+            //    EntryType = ActivityEntryType.SystemUpdate,
+            //    EntryDateTime = h.EndDateTime.ToRockDateTimeOffset(),
+            //    CreatedBy = h.CreatedByPersonAlias?.Person?.FullName,
+            //    SystemUpdate = new SystemUpdateBag
+            //    {
+            //        SystemUpdateType = SystemUpdateType.StatusChange,
+            //        PreviousValue = h.ConnectionStatus.Name,
+            //        // "NewValue" is the status the request transitioned to at this point in the timeline.
+            //        // For most history rows, that is simply the next history row's status (i.e., the status that followed).
+            //        // For the final history row, there is no "next" history record, so we fall back to the request's current status.
+            //        NewValue = ( i + 1 < validConnectionStatusHistories.Count ) ? validConnectionStatusHistories[i + 1].ConnectionStatus.Name : connectionRequest.ConnectionStatus.Name
+            //    },
+            //} ) );
 
+            var categoryId = CategoryCache.Get( Rock.SystemGuid.Category.HISTORY_CONNECTION_REQUEST.AsGuid() ).Id;
+            var connectionRequestEntityTypeId = EntityTypeCache.Get( SystemGuid.EntityType.CONNECTION_REQUEST.AsGuid() ).Id;
+
+            //var connectionRequestHistoryEntries = new HistoryService( RockContext ).Queryable()
+            //    .Where( h => h.CategoryId == categoryId && h.EntityTypeId == connectionRequestEntityTypeId && h.EntityId == connectionRequest.Id )
+            //    .ToList();
+
+            var historySQL = @"
+SELECT
+    LTRIM(RTRIM(CONCAT(COALESCE(p.NickName, ''), ' ', COALESCE(p.LastName, '')))) AS CreatedBy,
+    h.CreatedDateTime,
+    h.Verb,
+    h.ValueName,
+    h.NewValue,
+    h.OldValue
+FROM History h
+LEFT JOIN PersonAlias pa
+    ON pa.Id = h.CreatedByPersonAliasId
+LEFT JOIN Person p
+    ON p.Id = pa.PersonId
+WHERE h.CategoryId = @CategoryId
+  AND h.EntityTypeId = @ConnectionRequestEntityTypeId
+  AND h.EntityId = @RequestId;
+";
+            var sqlParams = new List<SqlParameter>
+            {
+                new SqlParameter( SqlParamKey.ConnectionRequestEntityTypeId, connectionRequestEntityTypeId ),
+                new SqlParameter( SqlParamKey.RequestId, connectionRequest.Id ),
+                new SqlParameter( SqlParamKey.CategoryId, categoryId ),
+            };
+
+            var historyRows = RockContext.Database
+                .SqlQuery<HistoryRow>( historySQL, sqlParams.ToArray() )
+                .ToList();
+
+            entries.AddRange( historyRows.Select( r => 
+            {
+                SystemUpdateType systemUpdateType = SystemUpdateType.Creation;
+                var createdBy = r.CreatedBy;
+                var previousValue = StripBracketId( r.OldValue );
+                var newValue = StripBracketId( r.NewValue );
+
+                if ( r.Verb == "Add" )
+                {
+                    systemUpdateType = SystemUpdateType.Creation;
+                }
+                else
+                {
+                    switch ( r.ValueName )
+                    {
+                        case "Connector":
+                            if ( r.NewValue.IsNotNullOrWhiteSpace() && r.OldValue.IsNotNullOrWhiteSpace() )
+                            {
+                                systemUpdateType = SystemUpdateType.Reassignment;                                
+                            }
+                            else if ( r.OldValue.IsNotNullOrWhiteSpace() )
+                            {
+                                systemUpdateType = SystemUpdateType.Unassignment;
+                            }
+                            else
+                            {
+                                systemUpdateType = SystemUpdateType.Assignment;
+                            }
+                            break;
+                        case "ConnectionStatus":
+                            if ( r.NewValue.IsNotNullOrWhiteSpace() && r.OldValue.IsNotNullOrWhiteSpace() )
+                            {
+                                systemUpdateType = SystemUpdateType.StatusUpdated;
+                            }
+                            else if ( r.OldValue.IsNotNullOrWhiteSpace() )
+                            {
+                                systemUpdateType = SystemUpdateType.StatusCleared;
+                            }
+                            else
+                            {
+                                systemUpdateType = SystemUpdateType.StatusSet;
+                            }
+                            break;
+                        case "ConnectionState":
+                            if ( newValue == ConnectionState.Connected.ToString() )
+                            {
+                                systemUpdateType = SystemUpdateType.Completion;
+                            }
+                            else
+                            {
+                                systemUpdateType = SystemUpdateType.StateChange;
+                            }
+                            break;
+                        case "DueDate":
+                            systemUpdateType = SystemUpdateType.DueDateChange;
+                            break;
+                        case "DueSoonDate":
+                            systemUpdateType = SystemUpdateType.DueSoonDateChange;
+                            break;
+                    }
+                }
+
+                return new ActivityEntryBag
+                {
+                    EntryType = ActivityEntryType.SystemUpdate,
+                    EntryDateTime = r.CreatedDateTime?.ToRockDateTimeOffset(),
+                    CreatedBy = createdBy,
+                    SystemUpdate = new SystemUpdateBag
+                    {
+                        SystemUpdateType = systemUpdateType,
+                        PreviousValue = previousValue,
+                        NewValue = newValue
+                    }
+                };
             } ) );
 
             bag.ActivityEntries = new List<ActivityEntryBag>( entries.OrderByDescending( e => e.EntryDateTime ) );
@@ -2632,6 +2759,21 @@ namespace Rock.Blocks.Engagement
             public int? ConnectionStatusValueId { get; set; }
 
             public int? Id { get; set; }
+        }
+
+        public class HistoryRow
+        {
+            public string CreatedBy { get; set; }
+
+            public DateTime? CreatedDateTime { get; set; }
+
+            public string Verb { get; set; }
+
+            public string ValueName { get; set; }
+
+            public string NewValue { get; set; }
+
+            public string OldValue { get; set; }
         }
 
         #endregion Supporting Classes
