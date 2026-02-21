@@ -104,5 +104,10 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
         /// The email preference for this recipient.
         /// </value>
         public EmailPreference EmailPreference { get; set; }
+
+        /// <summary>
+        /// Gets or sets the unique identifier associated with this connection request.
+        /// </summary>
+        public Guid ConnectionRequestGuid { get; set; }
     }
 }

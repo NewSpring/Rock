@@ -2351,10 +2351,12 @@ WHERE h.CategoryId = @CategoryId
                 {
                     PersonAliasGuid = cr.PersonAlias.Guid,
                     cr.PersonAlias.Person,
+                    cr.Guid
                 } )
                 .ToList() // materialize query before projecting because some properties require the full Person entity.
                 .Select( cr => new CommunicationRecipientBag
                 {
+                    ConnectionRequestGuid = cr.Guid,
                     Email = cr.Person.Email,
                     EmailPreference = cr.Person.EmailPreference,
                     IsEmailAllowed = cr.Person.CanReceiveEmail( isBulk: false ),
@@ -2408,8 +2410,6 @@ WHERE h.CategoryId = @CategoryId
         [BlockAction]
         public BlockActionResult SendCommunication( CommunicationBag bag )
         {
-            // TODO JMH Add validation.
-
             var communication = CreateCommunication( bag );
 
             var msg = new ProcessSendCommunication.Message
@@ -2571,6 +2571,31 @@ WHERE h.CategoryId = @CategoryId
                 }
 
                 RockContext.BulkInsert( communicationRecipients );
+
+                // Create RelatedEntity records to link the Communication to the Connection Requests.
+                // This allows us to show the communication in the timeline of the related Connection Request.
+                var connectionRequestEntityTypeId = EntityTypeCache.GetId<ConnectionRequest>();
+                var communicationEntityTypeId = EntityTypeCache.GetId<Model.Communication>();
+                if ( connectionRequestEntityTypeId.HasValue && communicationEntityTypeId.HasValue )
+                {
+                    // This WHERE IN query is expected to be efficient because ConnectionRequest.Guid is indexed
+                    // and we are only querying for a small number of Connection Requests that match the communication recipients.
+                    var connectionRequestGuids = bag.CommunicationRecipients.Select( cr => cr.ConnectionRequestGuid ).ToHashSet();
+                    var relatedEntities = new ConnectionRequestService( RockContext ).Queryable()
+                        .Where( cr => connectionRequestGuids.Contains( cr.Guid ) )
+                        .Select( cr => cr.Id )
+                        .ToList()
+                        .Select( crId => new RelatedEntity
+                        {
+                            SourceEntityTypeId = connectionRequestEntityTypeId.Value,
+                            SourceEntityId = crId,
+                            TargetEntityTypeId = communicationEntityTypeId.Value,
+                            TargetEntityId = communication.Id,
+                        } )
+                        .ToList();
+
+                    RockContext.BulkInsert( relatedEntities );
+                }
             }
 
             return communication;

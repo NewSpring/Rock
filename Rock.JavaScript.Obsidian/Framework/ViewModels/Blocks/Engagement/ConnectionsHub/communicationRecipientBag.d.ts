@@ -26,6 +26,9 @@ import { Guid } from "@Obsidian/Types";
 
 /** Bag used to maintain state of recipients. */
 export type CommunicationRecipientBag = {
+    /** Gets or sets the unique identifier associated with this connection request. */
+    connectionRequestGuid: Guid;
+
     /** Gets or sets email of this recipient. */
     email?: string | null;
 
