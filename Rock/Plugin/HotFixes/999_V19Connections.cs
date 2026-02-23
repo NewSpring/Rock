@@ -64,12 +64,12 @@ namespace Rock.Plugin.HotFixes
             // Add Page 
             //  Internal Name: Operational Snapshot
             //  Site: Rock RMS
-            RockMigrationHelper.AddPage( true, Rock.SystemGuid.Page.CONNECTION_TYPES, "D65F783D-87A9-4CC9-8110-E83466A0EADB", "Operational Snapshot", "", Rock.SystemGuid.Page.CONNECTIONS_OPERATIONAL_SNAPSHOT, "" );
+            RockMigrationHelper.AddPage( true, Rock.SystemGuid.Page.CONNECTION_OPPORTUNITY_SELECT, "D65F783D-87A9-4CC9-8110-E83466A0EADB", "Operational Snapshot", "", Rock.SystemGuid.Page.CONNECTIONS_OPERATIONAL_SNAPSHOT, "" );
 
             // Add Page Route
             //   Page:Operational Snapshot
-            //   Route:people/connections/types/snapshot
-            RockMigrationHelper.AddOrUpdatePageRoute( Rock.SystemGuid.Page.CONNECTIONS_OPERATIONAL_SNAPSHOT, "people/connections/types/snapshot", "75077C7C-79AD-4041-A460-B4BFF9AFC8CF" );
+            //   Route:people/connections/snapshot
+            RockMigrationHelper.AddOrUpdatePageRoute( Rock.SystemGuid.Page.CONNECTIONS_OPERATIONAL_SNAPSHOT, "people/connections/snapshot", "75077C7C-79AD-4041-A460-B4BFF9AFC8CF" );
 
             // ----------------------------------
 
