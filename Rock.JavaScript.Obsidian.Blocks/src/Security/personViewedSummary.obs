@@ -55,7 +55,7 @@
     import { EntityType } from "@Obsidian/SystemGuids/entityType";
     import Grid, { DateTimeColumn, textValueFilter, numberValueFilter, NumberColumn, TextColumn, dateValueFilter } from "@Obsidian/Controls/grid";
     import { ListBlockBox } from "@Obsidian/ViewModels/Blocks/listBlockBox";
-    import { PersonViewedSummaryOptionsBag } from "@Obsidian/ViewModels/Blocks/Security/PersonViewedSummary/personViewedSummaryOptions";
+    import { PersonViewedSummaryOptionsBag } from "@Obsidian/ViewModels/Blocks/Security/PersonViewedSummary/personViewedSummaryOptionsBag";
     import { GridDataBag } from "@Obsidian/ViewModels/Core/Grid/gridDataBag";
     import { NavigationUrlKey } from "./PersonViewedSummary/types.partial";
     import { reactive, ref } from "vue";

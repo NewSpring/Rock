@@ -23,5 +23,5 @@
 
 /** The additional configuration options for the Person Viewed List block. */
 export type PersonViewedSummaryOptionsBag = {
-    seeProfilesViewed: boolean
+    seeProfilesViewed: boolean;
 };
