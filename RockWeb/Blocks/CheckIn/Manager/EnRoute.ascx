@@ -19,8 +19,8 @@
                 <Rock:RockTextBox ID="tbSearch" runat="server" CssClass="js-search" Label="Search by Name" PrependText="<i class='ti ti-search'></i>" spellcheck="false" onkeydown="javascript:return handleSearchBoxKeyPress(this, event.keyCode);" />
 
                 <div class="actions margin-t-md">
-                    <asp:LinkButton ID="btnApplyFilter" runat="server" CssClass="filter btn btn-default btn-xs" Text="Apply Filter" OnClick="btnApplyFilter_Click" ValidationGroup="vgFilterCriteria" CausesValidation="true" />
-                    <asp:LinkButton ID="btnClearFilter" runat="server" CssClass="filter-clear btn btn-minimal btn-xs" Text="Clear Filter" OnClick="btnClearFilter_Click" CausesValidation="false" />
+                    <asp:LinkButton ID="btnApplyFilter" runat="server" CssClass="filter btn btn-outline-primary btn-xs" Text="Apply Filter" OnClick="btnApplyFilter_Click" ValidationGroup="vgFilterCriteria" CausesValidation="true" />
+                    <asp:LinkButton ID="btnClearFilter" runat="server" CssClass="filter-clear btn btn-default btn-xs" Text="Clear Filter" OnClick="btnClearFilter_Click" CausesValidation="false" />
                 </div>
             </div>
             <div class="panel-body en-route-list">
