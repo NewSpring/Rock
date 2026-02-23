@@ -144,14 +144,17 @@ html {
 }
 
 
-// 2. TOP HEADER BAR
+// 2. NAVBAR & TOP HEADER BAR
 // =============================================
+
+
 
 #fixed-header {
   display: flex;
   justify-content: flex-start;
   align-items: center;
   min-width: 0;
+  height: var(--navbar-height);
 
   @media (max-width: $screen-small) {
 
@@ -190,6 +193,10 @@ html {
   margin-bottom: 0;
   color: var(--base-interface-softest);
   border: 0;
+
+  &:not(:has(.navbar-toggle)) {
+    padding-left: var(--spacing-medium);
+  }
 
   @media (max-width: $screen-small) {
     position: relative;
@@ -253,6 +260,21 @@ html {
     animation-timing-function: cubic-bezier(.1, .9, .2, 1);
     -webkit-animation-fill-mode: both;
     animation-fill-mode: both;
+
+    .picker-actions {
+
+      .btn-primary {
+        background: var(--color-primary);
+
+        &:hover {
+          color: var(--color-interface-softest);
+        }
+      }
+
+      .btn-link {
+        color: var(--color-interface-strong);
+      }
+    }
   }
 
   @-webkit-keyframes picker-transition {
@@ -319,6 +341,17 @@ html {
           display: none;
         }
 
+        .picker-label {
+          border: 1px solid var(--base-interface-softest);
+          color: var(--base-interface-softest);
+
+          &:hover {
+            color: var(--color-primary);
+            background-color: var(--color-interface-softer);
+          }
+
+        }
+
       }
 
       .dropdown-menu {
@@ -328,17 +361,23 @@ html {
         border-top-right-radius: var(--rounded-small);
         border-top-left-radius: var(--rounded-small);
 
-          &::after {
-            // Hide mis-aligned arrow in popup.
-            display: none;
-          }
+        // Increase font size for easier tablet target
+        li.dropdown a,
+        .rocktree-name {
+          font-size: var(--font-size-regular);
+        }
 
-          @media (max-width: $screen-small) {
-            position: absolute;
-            background-color: var(--color-interface-softest);
-            box-shadow: var(--popup-box-shadow);
+        &::after {
+          // Hide mis-aligned arrow in popup.
+          display: none;
+        }
 
-          }
+        @media (max-width: $screen-small) {
+          position: absolute;
+          background-color: var(--color-interface-softest);
+          box-shadow: var(--popup-box-shadow);
+
+        }
 
       }
 

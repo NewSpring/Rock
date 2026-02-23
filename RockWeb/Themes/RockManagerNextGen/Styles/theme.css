@@ -35232,6 +35232,7 @@ html {
   justify-content: flex-start;
   align-items: center;
   min-width: 0;
+  height: var(--navbar-height);
 }
 @media (max-width: 768px) {
   #fixed-header .btn-back {
@@ -35267,6 +35268,9 @@ html {
   margin-bottom: 0;
   color: var(--base-interface-softest);
   border: 0;
+}
+.rock-top-header:not(:has(.navbar-toggle)) {
+  padding-left: var(--spacing-medium);
 }
 @media (max-width: 768px) {
   .rock-top-header {
@@ -35325,6 +35329,18 @@ html {
   -webkit-animation-fill-mode: both;
   animation-fill-mode: both;
 }
+.rock-top-header .picker-menu .picker-actions .btn-primary,
+.rock-top-header .dropdown-menu .picker-actions .btn-primary {
+  background: var(--color-primary);
+}
+.rock-top-header .picker-menu .picker-actions .btn-primary:hover,
+.rock-top-header .dropdown-menu .picker-actions .btn-primary:hover {
+  color: var(--color-interface-softest);
+}
+.rock-top-header .picker-menu .picker-actions .btn-link,
+.rock-top-header .dropdown-menu .picker-actions .btn-link {
+  color: var(--color-interface-strong);
+}
 @-webkit-keyframes picker-transition {
   0% {
     opacity: 0;
@@ -35373,11 +35389,23 @@ html {
 .rock-top-header .context-setters-container .contextsetter .picker .picker-select-none {
   display: none;
 }
+.rock-top-header .context-setters-container .contextsetter .picker .picker-label {
+  border: 1px solid var(--base-interface-softest);
+  color: var(--base-interface-softest);
+}
+.rock-top-header .context-setters-container .contextsetter .picker .picker-label:hover {
+  color: var(--color-primary);
+  background-color: var(--color-interface-softer);
+}
 .rock-top-header .context-setters-container .contextsetter .dropdown-menu {
   right: 0;
   left: auto;
   border-top-right-radius: var(--rounded-small);
   border-top-left-radius: var(--rounded-small);
+}
+.rock-top-header .context-setters-container .contextsetter .dropdown-menu li.dropdown a,
+.rock-top-header .context-setters-container .contextsetter .dropdown-menu .rocktree-name {
+  font-size: var(--font-size-regular);
 }
 .rock-top-header .context-setters-container .contextsetter .dropdown-menu::after {
   display: none;
