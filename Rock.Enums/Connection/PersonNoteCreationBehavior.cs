@@ -15,7 +15,7 @@
 // </copyright>
 //
 
-namespace Rock.Model
+namespace Rock.Enums.Connection
 {
     /// <summary>
     /// Person Note Creation Behavior

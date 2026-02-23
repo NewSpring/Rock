@@ -47,6 +47,7 @@ namespace Rock.Blocks.Crm
 
     // was [Rock.SystemGuid.BlockTypeGuid( "B734D303-E116-497D-9A03-E641DCF193C3" )]
     [Rock.SystemGuid.BlockTypeGuid( "D6224911-2590-427F-9DCE-6D14E79806BA" )]
+    [Rock.SystemGuid.EntityTypeGuid( "4C55C927-8364-4026-8019-6B85EF28AE03")]
     public class PersonalDeviceInteractions : RockListBlockType<PersonalDeviceInteractions.PersonalDeviceInteractionRow>
     {
         #region Keys
@@ -71,6 +72,8 @@ namespace Rock.Blocks.Crm
         #endregion Keys
 
         #region Properties
+
+        private PersonalDevice _personalDevice;
 
         private PersonPreferenceCollection BlockPersonPreferences => this.GetBlockPersonPreferences();
 
@@ -142,14 +145,10 @@ namespace Rock.Blocks.Crm
         /// <inheritdoc/>
         protected override IQueryable<PersonalDeviceInteractionRow> GetListQueryable( RockContext rockContext )
         {
-            rockContext.SqlLogging( true );
             var interactionService = new InteractionService( rockContext );
             var baseQuery = interactionService.Queryable()
                 .AsNoTracking()
-				.Where( i => i.PersonalDeviceId != null )
-				.Include( i => i.PersonalDevice.PersonalDeviceType )
-				.Include( i => i.PersonalDevice.Platform )
-				.Include( i => i.PersonAlias.Person );
+                .Where( i => i.PersonalDeviceId != null );
 
             var personalDevice = GetPersonalDevice();
 
@@ -159,12 +158,27 @@ namespace Rock.Blocks.Crm
                 baseQuery = baseQuery.Where( i => i.PersonalDeviceId == deviceId );
             }
 
+            // Filter by date range
+            baseQuery = FilterByDateRange( baseQuery );
+
+            // If "Show Unassigned Devices" is selected, filter to only unassigned devices.
+            if ( FilterShowUnassignedDevices )
+            {
+                baseQuery = baseQuery.Where( i => i.PersonAliasId == null );
+            }
+
+            // Filter by present devices, which corresponds with the "Currently Present Interval" block attribute.
+            if ( FilterPresentDevices )
+            {
+                var startDateTime = RockDateTime.Now.AddMinutes( -GetAttributeValue( AttributeKey.CurrentlyPresentInterval ).AsInteger() );
+                baseQuery = baseQuery.Where( i => i.InteractionEndDateTime.HasValue && i.InteractionEndDateTime.Value >= startDateTime );
+            }
+
             var queryable = baseQuery.Select( i => new PersonalDeviceInteractionRow
             {
                 Id = i.Id.ToString(),
                 PersonalDeviceId = i.PersonalDeviceId.Value.ToString(),
                 InteractionDateTime = i.InteractionDateTime,
-                InteractionEndDateTime = i.InteractionEndDateTime,
                 Details = i.InteractionSummary,
                 AssignedIndividual = i.PersonAlias != null ? i.PersonAlias.Person : null,
                 DeviceTypeValueId = i.PersonalDevice.PersonalDeviceTypeValueId,
@@ -173,21 +187,6 @@ namespace Rock.Blocks.Crm
                     : null,
                 Version = i.PersonalDevice.DeviceVersion
             } );
-
-            queryable = FilterByDateRange( queryable );
-
-            if ( FilterShowUnassignedDevices )
-            {
-                queryable = queryable.Where( r => r.AssignedIndividual == null );
-            }
-
-            if ( FilterPresentDevices )
-            {
-                var startDateTime = RockDateTime.Now.AddMinutes( -GetAttributeValue( AttributeKey.CurrentlyPresentInterval ).AsInteger() );
-                queryable = queryable.Where( r => r.InteractionEndDateTime.HasValue && r.InteractionEndDateTime.Value >= startDateTime );
-            }
-
-            rockContext.SqlLogging( false );
 
             return queryable;
         }
@@ -241,23 +240,30 @@ namespace Rock.Blocks.Crm
                 return null;
             }
 
-			var personalDeviceService = new PersonalDeviceService( RockContext );
-			var personalDevice = personalDeviceService
-				.GetQueryableByKey( key )
-				.AsNoTracking()
-				.Include( pd => pd.Platform )
-				.Include( pd => pd.PersonAlias.Person )
-				.FirstOrDefault();
+            if ( _personalDevice != null )
+            {
+                return _personalDevice;
+            }
 
-			return personalDevice;
+            var personalDeviceService = new PersonalDeviceService( RockContext );
+            var personalDevice = personalDeviceService
+                .GetQueryableByKey( key )
+                .AsNoTracking()
+                .Include( pd => pd.Platform )
+                .Include( pd => pd.PersonAlias.Person )
+                .FirstOrDefault();
+
+            _personalDevice = personalDevice;
+
+            return personalDevice;
         }
 
         /// <summary>
         /// Filters the queryable by the selected date range.
         /// </summary>
-        /// <param name="queryable">The <see cref="PersonalDeviceInteractionRow"/> queryable</param>
+        /// <param name="queryable">The <see cref="Interaction"/> queryable</param>
         /// <returns></returns>
-        private IQueryable<PersonalDeviceInteractionRow> FilterByDateRange( IQueryable<PersonalDeviceInteractionRow> queryable )
+        private IQueryable<Interaction> FilterByDateRange( IQueryable<Interaction> queryable )
         {
             // Default to the last 6 months if a null/invalid range was selected.
             var defaultSlidingDateRange = new SlidingDateRangeBag
@@ -270,11 +276,13 @@ namespace Rock.Blocks.Crm
             var dateRange = FilterDateRange.Validate( defaultSlidingDateRange ).ActualDateRange;
             var dateTimeStart = dateRange.Start;
             var dateTimeEnd = dateRange.End;
+            var dateKeyStart = dateTimeStart.HasValue ? dateTimeStart.Value.ToString( "yyyyMMdd" ).AsInteger() : 0;
+            var dateKeyEnd = dateTimeEnd.HasValue ? dateTimeEnd.Value.ToString( "yyyyMMdd" ).AsInteger() : RockDateTime.Now.ToString( "yyyyMMdd" ).AsInteger();
 
             queryable = queryable
                 .Where( i =>
-                    i.InteractionDateTime >= dateTimeStart &&
-                    i.InteractionDateTime <= dateTimeEnd );
+                    i.InteractionDateKey >= dateKeyStart &&
+                    i.InteractionDateKey <= dateKeyEnd );
 
             return queryable;
         }
@@ -293,8 +301,6 @@ namespace Rock.Blocks.Crm
             public string PersonalDeviceId { get; set; }
 
             public DateTime InteractionDateTime { get; set; }
-
-            public DateTime? InteractionEndDateTime { get; set; }
 
             public string Details { get; set; }
 

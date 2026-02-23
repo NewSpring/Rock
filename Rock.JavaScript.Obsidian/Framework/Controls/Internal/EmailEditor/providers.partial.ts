@@ -35,29 +35,21 @@ import {
     ValueProvider,
     ValueProviderHooks,
     WeakPair,
-    ComponentStructure,
-    ComponentTypeName,
-    HorizontalAlignment
+    ComponentStructure
 } from "./types.partial";
 import {
     addRuleset,
     borderStyleConverter,
     createDomWatcher,
     createElements,
-    DefaultBodyAlignment,
-    DefaultBodyColor,
-    DefaultBodyWidth,
     DefaultEmailBackgroundColor,
     findElements,
     getBorderWrapperCellSelector,
-    getBorderWrapperTableSelector,
     getComponentTypeName,
     getMarginWrapperCellSelector,
     getPaddingWrapperCellSelector,
     getPaddingWrapperTableSelector,
     GlobalStylesCssSelectors,
-    numberToStringConverter,
-    percentageConverter,
     pixelConverter,
     RockStylesCssClass,
     stringConverter
@@ -65,7 +57,7 @@ import {
 import { RockColor } from "@Obsidian/Core/Utilities/rockColor";
 import { toGuidOrNull } from "@Obsidian/Utility/guid";
 import { Enumerable } from "@Obsidian/Utility/linq";
-import { isNotNullish, isNullish } from "@Obsidian/Utility/util";
+import { isNullish } from "@Obsidian/Utility/util";
 import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
 import { isHTMLElement } from "@Obsidian/Utility/dom";
 
@@ -1247,7 +1239,7 @@ export function createBackgroundSizeProvider(
                     }
                 })
                 .where(property => property?.property === "background" || property?.property === "background-size")
-                .ofType(isNotNullish)
+                .ofType((property): property is PropertyAndValue => !isNullish(property))
                 .toArray();
 
             const backgroundSize = Enumerable.from(properties).lastOrDefault(property => property.property === "background-size");
@@ -1759,154 +1751,6 @@ export function createSetterOnlyShorthandProvider<T>(
     };
 }
 
-const globalBodyWidthProviderCache = new WeakPair<Document, ValueProvider<number | null | undefined>>();
-
-export function createGlobalBodyWidthProvider(
-    document: Document
-): ValueProvider<number | null | undefined> {
-    if (globalBodyWidthProviderCache.has(document)) {
-        throw new ProviderAlreadyExistsError("GlobalBodyWidthProvider");
-    }
-
-    // When `max-width` is changed, it should also update `width` attributes on matching elements.
-    // Watch for body inner table elements.
-    const widthAttributeProvider = createDomWatcherProvider(
-        document.body,
-        `${GlobalStylesCssSelectors.bodyWidth}:not([data-component-body-width="true"])`,
-        (el) => {
-            const descendantTds = [...el.querySelectorAll(":scope")] as HTMLTableCellElement[];
-
-            const provider = attributeProvider(
-                el,
-                "width",
-                numberToStringConverter,
-                undefined,
-                {
-                    onTargetValueUpdated(targetValue) {
-                        descendantTds.forEach(td => {
-                            if (targetValue) {
-                                td.style.maxWidth = targetValue;
-                            }
-                            else {
-                                td.style.removeProperty("max-width");
-                            }
-                        });
-                    },
-                });
-
-            return provider;
-        },
-        undefined
-    );
-
-    // When `max-width` is changed and has a value, the `width` style should also be set to 100%.
-    // There should already be an inline style `width: 100%` on the inner table but add this as a fallback.
-    const widthStyleSheetProvider = styleSheetProvider(
-        document.body,
-        RockStylesCssClass,
-        GlobalStylesCssSelectors.bodyWidth,
-        "width",
-        stringConverter
-    );
-
-    // This provider copies the max width to the td elements to hide
-    // overflow of child components whose widths are greater than the body width.
-    const maxWidthTdStyleSheetProvider = styleSheetProvider(
-        document.body,
-        RockStylesCssClass,
-        `${GlobalStylesCssSelectors.bodyWidth}:not([data-component-body-width="true"]) > tbody > tr > td`,
-        "max-width",
-        pixelConverter
-    );
-
-    // The returned provider is primarily based on this provider's value.
-    // Hooks are used to update the side-effect provider values.
-    const maxWidthStyleSheetProvider = styleSheetProvider(
-        document.body,
-        RockStylesCssClass,
-        GlobalStylesCssSelectors.bodyWidth,
-        "max-width",
-        pixelConverter, {
-        onSourceValueUpdated(newWidth: number | null | undefined): void {
-            widthAttributeProvider.value = newWidth;
-            if (!isNullish(newWidth)) {
-                widthStyleSheetProvider.value = "100%";
-            }
-            maxWidthTdStyleSheetProvider.value = newWidth;
-        }
-    });
-
-    const provider = createDefaultValueProvider(
-        {
-            get value(): number | null | undefined {
-                return maxWidthStyleSheetProvider.value;
-            },
-
-            set value(newValue: number | null | undefined) {
-                maxWidthStyleSheetProvider.value = newValue;
-            },
-
-            dispose(): void {
-                maxWidthStyleSheetProvider.dispose();
-                maxWidthTdStyleSheetProvider.dispose();
-                widthStyleSheetProvider.dispose();
-                widthAttributeProvider.dispose();
-                globalBodyWidthProviderCache.delete(document);
-            }
-        },
-        DefaultBodyWidth
-    );
-
-    // There should only ever be one global provider. Overwrite it here.
-    globalBodyWidthProviderCache.set(document, provider);
-
-    return provider;
-}
-
-export function getGlobalBodyWidthProvider(
-    document: Document
-): ValueProvider<number | null | undefined> {
-    if (!globalBodyWidthProviderCache.has(document)) {
-        throw new ProviderNotCreatedError("GlobalBodyWidthProvider");
-    }
-
-    return globalBodyWidthProviderCache.get(document)!;
-}
-
-const globalBodyAlignmentProviderCache = new WeakPair<Document, ValueProvider<string | null | undefined>>();
-
-export function createGlobalBodyAlignmentProvider(
-    document: Document
-): ValueProvider<string | null | undefined> {
-    if (globalBodyAlignmentProviderCache.has(document)) {
-        throw new ProviderAlreadyExistsError("GlobalBodyAlignmentProvider");
-    }
-
-    const provider = createDefaultValueProvider(
-        createDomWatcherProvider(
-            document.body,
-            GlobalStylesCssSelectors.bodyAlignment,
-            (el) => attributeProvider(el, "align", stringConverter),
-            undefined
-        ),
-        DefaultBodyAlignment
-    );
-
-    globalBodyAlignmentProviderCache.set(document, provider);
-
-    return provider;
-}
-
-export function getGlobalBodyAlignmentProvider(
-    document: Document
-): ValueProvider<string | null | undefined> {
-    if (!globalBodyAlignmentProviderCache.has(document)) {
-        throw new ProviderNotCreatedError("GlobalBodyAlignmentProvider");
-    }
-
-    return globalBodyAlignmentProviderCache.get(document)!;
-}
-
 function createDefaultValueProvider<T>(
     valueProvider: ValueProvider<T>,
     defaultValue: T,
@@ -1918,8 +1762,6 @@ function createDefaultValueProvider<T>(
 
     return valueProvider;
 }
-
-const globalBodyBackgroundColorProviderCache = new WeakPair<Document, ValueProvider<string | null | undefined>>();
 
 function getComponentClass(componentElement: Element): string {
     return Enumerable
@@ -2066,64 +1908,6 @@ export function createComponentBackgroundColorProvider(
     };
 }
 
-function createGlobalComponentBackgroundColorProvider(
-    document: Document,
-    componentTypeName: ComponentTypeName,
-    providerName: string,
-    cache: WeakPair<Document, ValueProvider<string | null | undefined>>
-): ValueProvider<string | null | undefined> {
-    if (cache.has(document)) {
-        throw new ProviderAlreadyExistsError(providerName);
-    }
-
-    const head = document.body;
-    const body = document.body;
-
-    const bgcolorAttributeProvider = createDomWatcherProvider(
-        body,
-        `.component:not([data-component-background-color="true"]) ${componentTypeName === "button" ? getBorderWrapperCellSelector(componentTypeName) : getPaddingWrapperTableSelector(componentTypeName)}`,
-        (el) => {
-            return attributeProvider(el, "bgcolor", bgcolorConverter);
-        },
-        undefined
-    );
-
-    const backgroundColorStyleSheetProvider = styleSheetProvider(
-        head,
-        RockStylesCssClass,
-        `.component:not([data-component-background-color="true"]) ${componentTypeName === "button" ? getBorderWrapperCellSelector(componentTypeName) : getPaddingWrapperCellSelector(componentTypeName)}`,
-        "background-color",
-        stringConverter
-    );
-
-    const value = ref<string | null | undefined>(backgroundColorStyleSheetProvider.value);
-
-    const watcher = watch(value, (newValue) => {
-        backgroundColorStyleSheetProvider.value = newValue;
-        bgcolorAttributeProvider.value = newValue;
-    });
-
-    const provider: ValueProvider<string | null | undefined> = {
-        get value(): string | null | undefined {
-            return value.value;
-        },
-
-        set value(newValue: string | null | undefined) {
-            value.value = newValue;
-        },
-
-        dispose() {
-            watcher();
-            backgroundColorStyleSheetProvider.dispose();
-            bgcolorAttributeProvider.dispose();
-        }
-    };
-
-    cache.set(document, provider);
-
-    return provider;
-}
-
 export function createComponentOuterBackgroundColorProvider(
     componentElement: Element
 ): ValueProvider<string | null | undefined> {
@@ -2190,34 +1974,6 @@ export function createComponentOuterBackgroundColorProvider(
             backgroundColorInlineStyleProvider.dispose();
         }
     };
-}
-
-export function createGlobalBodyBackgroundColorProvider(
-    document: Document
-): ValueProvider<string | null | undefined> {
-    const provider = createGlobalComponentBackgroundColorProvider(
-        document,
-        "row",
-        "GlobalBodyBackgroundColorProvider",
-        globalBodyBackgroundColorProviderCache
-    );
-
-    if (isNullish(provider.value)) {
-        provider.value = DefaultBodyColor;
-    }
-
-    return provider;
-}
-
-export function getGlobalBodyBackgroundColorProvider(
-    document: Document
-): ValueProvider<string | null | undefined> {
-
-    if (!globalBodyBackgroundColorProviderCache.has(document)) {
-        throw new ProviderNotCreatedError("GlobalBodyBackgroundColorProvider");
-    }
-
-    return globalBodyBackgroundColorProviderCache.get(document)!;
 }
 
 const globalBackgroundColorProviderCache = new WeakPair<Document, ValueProvider<string | null | undefined>>();
@@ -2332,34 +2088,6 @@ export function getGlobalBackgroundColorProvider(
     return globalBackgroundColorProviderCache.get(document)!;
 }
 
-function findOrCreateStyleElement(parent: Element, styleCssClass: string): HTMLStyleElement {
-    const doc = parent.ownerDocument;
-
-    // Try to find an existing <style> tag with the given class inside the parent element
-    let styleElement = Array.from(parent.getElementsByTagName("style")).find(
-        (s) => s.classList.contains(styleCssClass)
-    ) as HTMLStyleElement | undefined;
-
-    // If no <style> tag exists, create one and append it inside the parent element
-    if (!styleElement) {
-        styleElement = doc.createElement("style");
-        styleElement.classList.add(styleCssClass);
-        parent.appendChild(styleElement);
-    }
-
-    return styleElement;
-}
-
-function addMediaRule(styleElement: HTMLStyleElement, mediaQueryConditionText: string, cssRule: string): void {
-    const targetSheet = styleElement.sheet as CSSStyleSheet;
-
-    const rule = `@media ${mediaQueryConditionText} { ${cssRule} }`;
-    targetSheet.insertRule(rule, targetSheet.cssRules.length);
-
-    // Sync <style> tag content
-    updateStyleElementTextContent(styleElement, targetSheet);
-}
-
 function updateStyleElementTextContent(styleElement: HTMLStyleElement, sheet: CSSStyleSheet): void {
     let cssText = "";
     for (const rule of Array.from(sheet.cssRules)) {
@@ -2368,364 +2096,6 @@ function updateStyleElementTextContent(styleElement: HTMLStyleElement, sheet: CS
 
     // Reflect changes in the <style> tag.
     styleElement.textContent = cssText;
-}
-
-function removeMediaRule(styleElement: HTMLStyleElement, mediaQueryConditionText: string): void {
-    const doc = styleElement.ownerDocument;
-    const win = doc.defaultView;
-    if (!win) return;
-
-    // eslint-disable-next-line @typescript-eslint/naming-convention
-    const CSSMediaRuleType = win.CSSMediaRule;
-    const targetSheet = styleElement.sheet as CSSStyleSheet;
-
-    for (let i = 0; i < targetSheet.cssRules.length; i++) {
-        const rule = targetSheet.cssRules[i];
-        if (rule instanceof CSSMediaRuleType && rule.conditionText === mediaQueryConditionText) {
-            targetSheet.deleteRule(i);
-            updateStyleElementTextContent(styleElement, targetSheet);
-            return;
-        }
-    }
-}
-
-export function createMediaQueryEffect<T>(
-    element: Element,
-    styleCssClass: string,
-    cssRule: string,
-    cssStyleProperty: CssStyleDeclarationKebabKey,
-    valueProvider: ValueProvider<T>,
-    converter: ValueConverter<T, string | null>
-): Disposable {
-    // Construct the initial media query from the value provider.
-    const initialTargetValue = converter.toTarget(valueProvider.value);
-
-    let mediaQueryConditionText: string | null =
-        initialTargetValue
-            ? `screen and (${cssStyleProperty}: ${initialTargetValue})`
-            : null;
-
-    // Find or create the <style> element inside the given element.
-    const styleElement = findOrCreateStyleElement(element, styleCssClass);
-
-    // Find or create the media rule.
-    if (mediaQueryConditionText) {
-        removeMediaRule(styleElement, mediaQueryConditionText);
-        addMediaRule(styleElement, mediaQueryConditionText, cssRule);
-    }
-
-    // Watch for changes in valueProvider and update media query dynamically.
-    const watcher = watch(() => valueProvider.value, (newValue) => {
-        const targetValue = converter.toTarget(newValue);
-
-        // Remove the old media query rule.
-        if (mediaQueryConditionText) {
-            removeMediaRule(styleElement, mediaQueryConditionText);
-        }
-
-        mediaQueryConditionText =
-            targetValue
-                ? `screen and (${cssStyleProperty}: ${targetValue})`
-                : null;
-
-        // Add the new media query rule.
-        if (mediaQueryConditionText) {
-            addMediaRule(styleElement, mediaQueryConditionText, cssRule);
-        }
-    });
-
-    return {
-        [Symbol.dispose]() {
-            watcher();
-        }
-    };
-}
-
-export function createComponentBorderWidthProvider(
-    componentElement: HTMLElement
-): ShorthandValueProvider<number | null | undefined> {
-    const componentClass = getComponentClass(componentElement);
-    const componentTypeName = getComponentTypeName(componentElement);
-    if (!componentClass) {
-        throw new Error("Unable to create component border width provider. Element is not a valid component.");
-    }
-
-    return createDomWatcherShorthandProvider(
-        componentElement,
-        getBorderWrapperCellSelector(componentTypeName),
-        (el) => shorthandInlineStyleProvider(
-            el as HTMLElement,
-            "border-width",
-            {
-                top: "border-top-width",
-                bottom: "border-bottom-width",
-                right: "border-right-width",
-                left: "border-left-width",
-            },
-            pixelConverter,
-            null,
-            {
-                onStyleUpdated(_style, value) {
-                    if (!isNullish(value.shorthand)
-                        || !isNullish(value.top)
-                        || !isNullish(value.bottom)
-                        || !isNullish(value.right)
-                        || !isNullish(value.left)) {
-                        componentElement.setAttribute("data-component-border-width", "true");
-                    }
-                    else {
-                        // `delete el.dataset["key"]` doesn't always work.
-                        // Using `el.removeAttribute("data-key")` instead.
-                        componentElement.removeAttribute("data-component-border-width");
-                    }
-                }
-            }
-        ),
-        undefined,
-        {
-            includeSelf: true
-        }
-    );
-}
-
-const globalDividerWidthProviderCache = new WeakPair<Document, ValueProvider<number | null | undefined>>();
-
-export function createGlobalDividerWidthProvider(
-    document: Document
-): ValueProvider<number | null | undefined> {
-    if (globalDividerWidthProviderCache.has(document)) {
-        throw new ProviderAlreadyExistsError("GlobalDividerWidthProvider");
-    }
-
-    const widthAttributeProvider = createDomWatcherProvider(
-        document.body,
-        `.component:not([data-component-width="true"]) ${getBorderWrapperTableSelector("divider")}`,
-        (el) => attributeProvider(
-            el,
-            "width",
-            percentageConverter
-        ),
-        undefined
-    );
-
-    const widthStyleSheetProvider = styleSheetProvider(
-        document.body,
-        RockStylesCssClass,
-        `.component:not([data-component-width="true"]) ${getBorderWrapperTableSelector("divider")}`,
-        "width",
-        percentageConverter
-    );
-
-    widthStyleSheetProvider.value = widthAttributeProvider.value;
-
-    const value = ref<number | null | undefined>(widthAttributeProvider.value);
-
-    const watcher = watch(value, newValue => {
-        widthAttributeProvider.value = newValue;
-        widthStyleSheetProvider.value = newValue;
-    });
-
-    const provider: ValueProvider<number | null | undefined> = {
-        get value() {
-            return value.value;
-        },
-
-        set value(newValue) {
-            value.value = newValue;
-        },
-
-        dispose() {
-            watcher();
-            widthAttributeProvider.dispose();
-            widthStyleSheetProvider.dispose();
-        }
-    };
-
-    if (isNullish(provider.value)) {
-        // Default to 100%.
-        provider.value = 100;
-    }
-
-    globalDividerWidthProviderCache.set(document, provider);
-
-    return provider;
-}
-
-export function getGlobalDividerWidthProvider(
-    document: Document
-): ValueProvider<number | null | undefined> {
-    if (!globalDividerWidthProviderCache.has(document)) {
-        throw new ProviderNotCreatedError("GlobalDividerWidthProvider");
-    }
-
-    return globalDividerWidthProviderCache.get(document)!;
-}
-
-export function createComponentWidthProvider(
-    componentElement: Element
-): ValueProvider<number | null | undefined> {
-    const componentTypeName = getComponentTypeName(componentElement);
-
-    const widthStyleSheetProvider = createDomWatcherProvider(
-        componentElement,
-        getBorderWrapperTableSelector(componentTypeName),
-        (el) => inlineStyleProvider(
-            el as HTMLElement,
-            "width",
-            percentageConverter,
-            undefined,
-            {
-                onSourceValueUpdated(value) {
-                    if (!isNullish(value)) {
-                        // This should only be added when the component has the inline style
-                        // indicating that it has been specifically modified.
-                        componentElement.setAttribute("data-component-width", "true");
-                    }
-                    else {
-                        componentElement.removeAttribute("data-component-width");
-                    }
-                }
-            }
-        ),
-        undefined
-    );
-
-    const widthAttributeProvider = createDomWatcherProvider(
-        componentElement,
-        getBorderWrapperTableSelector(componentTypeName),
-        (el) => attributeProvider(
-            el,
-            "width",
-            percentageConverter
-        ),
-        widthStyleSheetProvider.value
-    );
-
-    // Ensure both providers have same value.
-    widthAttributeProvider.value = widthStyleSheetProvider.value;
-
-    const value = ref<number | null | undefined>(widthStyleSheetProvider.value);
-
-    const watcher = watch(value, newValue => {
-        widthAttributeProvider.value = newValue;
-        widthStyleSheetProvider.value = newValue;
-    });
-
-    return {
-        get value() {
-            return value.value;
-        },
-
-        set value(newValue) {
-            value.value = newValue;
-        },
-
-        dispose() {
-            watcher();
-            widthAttributeProvider.dispose();
-            widthStyleSheetProvider.dispose();
-        }
-    };
-}
-
-const horizontalAlignmentToAlignAttrConverter: ValueConverter<HorizontalAlignment | null | undefined, string | null> = {
-    toTarget(source: HorizontalAlignment | null | undefined): string | null {
-        if (isNullish(source)) {
-            return null;
-        }
-        else if (source === "center") {
-            return "center";
-        }
-        else if (source === "left") {
-            return "left";
-        }
-        else if (source === "right") {
-            return "right";
-        }
-        else {
-            // Unknown value.
-            return null;
-        }
-    },
-
-    toSource(target: string | null): HorizontalAlignment | null | undefined {
-        if (isNullish(target)) {
-            return null;
-        }
-        else if (target === "center") {
-            return "center";
-        }
-        else if (target === "left") {
-            return "left";
-        }
-        else if (target === "right") {
-            return "right";
-        }
-        else {
-            // Unknown value.
-            return null;
-        }
-    },
-};
-
-const globalDividerHorizontalAlignmentProviderCache = new WeakPair<Document, ValueProvider<HorizontalAlignment | null | undefined>>();
-
-export function createGlobalDividerHorizontalAlignmentProvider(
-    document: Document
-): ValueProvider<HorizontalAlignment | null | undefined> {
-    const alignAttributeProvider = createDomWatcherProvider(
-        document,
-        getMarginWrapperCellSelector("divider", `:not([data-component-horizontal-alignment="true"])`),
-        (el) => attributeProvider(
-            el,
-            "align",
-            horizontalAlignmentToAlignAttrConverter,
-            undefined
-        ),
-        undefined
-    );
-
-    globalDividerHorizontalAlignmentProviderCache.set(document, alignAttributeProvider);
-
-    return alignAttributeProvider;
-}
-
-export function getGlobalDividerHorizontalAlignmentProvider(
-    document: Document
-): ValueProvider<HorizontalAlignment | null | undefined> {
-    if (!globalDividerHorizontalAlignmentProviderCache.has(document)) {
-        throw new ProviderNotCreatedError("GlobalDividerHorizontalAlignmentProvider");
-    }
-
-    return globalDividerHorizontalAlignmentProviderCache.get(document)!;
-}
-
-export function createComponentOuterHorizontalAlignmentProvider(
-    componentElement: Element
-): ValueProvider<HorizontalAlignment | null | undefined> {
-    const alignAttributeProvider = createDomWatcherProvider(
-        componentElement,
-        getMarginWrapperCellSelector(getComponentTypeName(componentElement)),
-        (el) => attributeProvider(
-            el,
-            "align",
-            horizontalAlignmentToAlignAttrConverter,
-            undefined,
-            {
-                onSourceValueUpdated(value) {
-                    if (!isNullish(value)) {
-                        componentElement.setAttribute("data-component-horizontal-alignment", "true");
-                    }
-                    else {
-                        componentElement.removeAttribute("data-component-horizontal-alignment");
-                    }
-                }
-            }
-        ),
-        undefined
-    );
-
-    return alignAttributeProvider;
 }
 
 export function refValueProvider<T>(value: Ref<T>): ValueProvider<T> {

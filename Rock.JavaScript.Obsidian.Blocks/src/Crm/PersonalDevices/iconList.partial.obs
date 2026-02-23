@@ -21,16 +21,16 @@
                    :class="{ 'is-dim': isBeaconMonitoringEnabled === false }"></i>
             </span>
 
-            <!-- MAC Address for Mobile Devices: only active if NO other mobile features are enabled -->
-            <span v-if="macAddress" :title="macAddressEnabled ? macAddressTooltip : undefined" ref="macElement">
+            <!-- MAC Address for Mobile Devices: icon is only active if NO other mobile features are enabled -->
+            <span :title="macAddressTooltip" ref="macElement">
                 <i class="ti ti-access-point text-info-strong" :class="{ 'is-dim': !macAddressEnabled }"></i>
             </span>
         </template>
 
         <!-- Desktop/TV: Only show MAC Address if present -->
-        <template v-else-if="macAddress">
+        <template v-else>
             <span :title="macAddressTooltip" ref="macElement">
-                <i class="ti ti-access-point text-info-strong"></i>
+                <i class="ti ti-access-point text-info-strong" :class="{ 'is-dim': !props.macAddress }"></i>
             </span>
         </template>
     </div>
@@ -96,20 +96,23 @@
         return props.notificationsEnabled !== null &&
             props.locationPermissionStatus !== null &&
             props.isPreciseLocationEnabled !== null &&
-            props.isBeaconMonitoringEnabled !== null &&
-            props.macAddress !== null;
+            props.isBeaconMonitoringEnabled !== null;
     });
 
-    const macAddressEnabled = computed<boolean>(() => {
-        if (!allValuesPresent.value || !props.macAddress) return false;
+    const locationPermissionIsFalsy = computed<boolean>(() => {
+        return props.locationPermissionStatus === LocationPermissionStatus.NotGranted ||
+            props.locationPermissionStatus === LocationPermissionStatus.Denied;
+    });
 
-        const locationGranted = props.locationPermissionStatus === LocationPermissionStatus.Always ||
-            props.locationPermissionStatus === LocationPermissionStatus.WhenInUse;
-
+    const areAllFeaturesDisabled = computed<boolean>(() => {
         return !props.notificationsEnabled &&
             !props.isPreciseLocationEnabled &&
             !props.isBeaconMonitoringEnabled &&
-            !locationGranted;
+            locationPermissionIsFalsy.value;
+    });
+
+    const macAddressEnabled = computed<boolean>(() => {
+        return areAllFeaturesDisabled.value && !!props.macAddress;
     });
 
     const locationPermissionIconClass = computed(() => {
@@ -123,6 +126,12 @@
 
         if (props.locationPermissionStatus === LocationPermissionStatus.WhenInUse) {
             return "text-critical-strong";
+        }
+
+        // This means locationPermissionStatus is NotGranted or Denied ( falsy )
+        // We dim this icon to look the same as other disabled icons
+        if (areAllFeaturesDisabled.value) {
+            return "text-info-strong is-dim";
         }
 
         // NotGranted or Denied

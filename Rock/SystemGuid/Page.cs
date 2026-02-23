@@ -530,6 +530,12 @@ namespace Rock.SystemGuid
         public const string COMMUNICATION_SATURATION = "DA0F647C-5317-4368-9514-E408F2254E24";
 
         /// <summary>
+        /// Gets the Communication Unsubscribe Report page guid
+        /// ParentPage: Communications
+        /// </summary>
+        public const string COMMUNICATION_UNSUBSCRIBE_REPORT = "E08EC84A-2F1B-43D9-ACA5-0294C5026E5B";
+
+        /// <summary>
         /// Gets the Communication Templates page guid
         /// ParentPage: Communications
         /// </summary>
@@ -1888,12 +1894,6 @@ namespace Rock.SystemGuid
         /// ParentPage: Communications
         /// </summary>
         public const string SYSTEM_EMAIL_CATEGORIES_COMMUNICATIONS = "B55323CD-F494-43E7-97BF-4E13DAB58E0B";
-
-        /// <summary>
-        /// Gets the System Email Categories page guid
-        /// ParentPage: System Emails
-        /// </summary>
-        public const string SYSTEM_EMAIL_CATEGORIES_SYSTEM_EMAILS = "66FAF7A6-7523-475C-A88D-51C75178A785";
 
         /// <summary>
         /// Gets the System Communications page guid

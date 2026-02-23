@@ -17,7 +17,7 @@
 
 using System.ComponentModel;
 
-namespace Rock.Model
+namespace Rock.Enums.Connection
 {
     /// <summary>
     /// Due Date Calculation Mode

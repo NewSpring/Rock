@@ -3,9 +3,9 @@
     <ContentToggle v-model="isBorderShown"
                    v-bind="$attrs"
                    :label="label">
-        <BorderStylePicker v-model="borderStyle"
-                           :help="help"
-                           label="Border Style" />
+        <ShorthandBorderStylePicker v-model="borderStyle"
+                                    :help="help"
+                                    label="Border Style" />
 
         <ShorthandPixelBox v-model="borderThickness"
                            :help="help"
@@ -19,7 +19,7 @@
 
 <script setup lang="ts">
     import { PropType, ref, watch } from "vue";
-    import BorderStylePicker from "./borderStylePicker.partial.obs";
+    import ShorthandBorderStylePicker from "./shorthandBorderStylePicker.partial.obs";
     import {
         BorderModel,
         BorderStyle,

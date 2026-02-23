@@ -803,7 +803,11 @@ namespace Rock.Rest.v2
                 foreach ( var folder in options.ExpandedFolders )
                 {
                     var parsedAsset = ParseAssetKey( folder );
-                    expandedFolders.Add( $"{parsedAsset.ProviderId},{parsedAsset.FullPath}" );
+                    // Only try to add the folder if it parsed OK
+                    if ( parsedAsset != null )
+                    {
+                        expandedFolders.Add( $"{parsedAsset.ProviderId},{parsedAsset.FullPath}" );
+                    }
                 }
             }
 
@@ -874,7 +878,7 @@ namespace Rock.Rest.v2
 
             var parsedAsset = ParseAssetKey( options.AssetFolderId );
 
-            if ( parsedAsset.ProviderId == null || parsedAsset.FullPath == null )
+            if ( parsedAsset == null || parsedAsset.ProviderId == null || parsedAsset.FullPath == null )
             {
                 return Ok( new List<AssetManagerTreeItemBag>() );
             }
@@ -917,7 +921,7 @@ namespace Rock.Rest.v2
 
             var asset = ParseAssetKey( options.AssetFolderId );
 
-            if ( asset.ProviderId == null || asset.FullPath == null )
+            if ( asset == null || asset.ProviderId == null || asset.FullPath == null )
             {
                 return BadRequest();
             }
@@ -976,7 +980,7 @@ namespace Rock.Rest.v2
 
             var asset = ParseAssetKey( options.AssetFolderId );
 
-            if ( asset.ProviderId == null || asset.FullPath == null )
+            if ( asset == null || asset.ProviderId == null || asset.FullPath == null )
             {
                 return BadRequest();
             }
@@ -1388,7 +1392,7 @@ namespace Rock.Rest.v2
                 return BadRequest();
             }
 
-            var root = Rock.Security.Encryption.DecryptString( options.EncryptedRoot );
+            var root = Rock.Security.Encryption.DecryptString( options.EncryptedRoot, false );
             var fullPath = Path.Combine( root, options.FileName );
             var physicalZipFile = System.Web.HttpContext.Current.Server.MapPath( fullPath );
             var directoryPath = Path.GetDirectoryName( physicalZipFile );
@@ -1466,7 +1470,7 @@ namespace Rock.Rest.v2
 
             try
             {
-                var root = Rock.Security.Encryption.DecryptString( options.EncryptedRoot );
+                var root = Rock.Security.Encryption.DecryptString( options.EncryptedRoot, false );
 
                 if ( options.UserSpecificRoot )
                 {
@@ -1525,7 +1529,7 @@ namespace Rock.Rest.v2
                 {
                     assetStorageProviderId = assetParts[0].AsInteger();
                     var encryptedRoot = assetParts[1].Trim();
-                    var root = Rock.Security.Encryption.DecryptString( encryptedRoot );
+                    var root = Rock.Security.Encryption.DecryptString( encryptedRoot, false );
 
                     // Verify all local roots start with "~/"
                     if ( assetStorageProviderId == 0 && !root.StartsWith( "~/" ) )
@@ -1574,7 +1578,7 @@ namespace Rock.Rest.v2
             var rootAssetKey = $"0,{encryptedRootFolder},,True";
             var parsedAsset = ParseAssetKey( rootAssetKey );
 
-            if ( parsedAsset.Root.IsNullOrWhiteSpace() )
+            if ( parsedAsset == null || parsedAsset.Root.IsNullOrWhiteSpace() )
             {
                 return (null, null);
             }
@@ -1716,7 +1720,7 @@ namespace Rock.Rest.v2
                         UnencryptedRoot = asset.Root
                     };
 
-                    if ( hasChildren && expandedFolders.Contains( $"0,{subDirAsset.FullDirectoryPath}" ) )
+                    if ( hasChildren && subDirAsset != null && expandedFolders.Contains( $"0,{subDirAsset.FullDirectoryPath}" ) )
                     {
                         updatedExpandedFolders.Add( subDirKey );
 
@@ -5273,22 +5277,95 @@ namespace Rock.Rest.v2
         {
             using ( var rockContext = new RockContext() )
             {
+                var lowerValue = options.DateRangeStart.AsDateTime();
+                var upperValue = options.DateRangeEnd.AsDateTime();
+
+                // Swap the values if they are backwards
+                if ( lowerValue > upperValue )
+                {
+                    var temp = lowerValue;
+                    lowerValue = upperValue;
+                    upperValue = temp;
+                }
+
                 var eventItems = new EventCalendarItemService( rockContext ).Queryable()
                     .Include( eci => eci.EventCalendar )
-                    .Where( i => options.IncludeInactive ? true : i.EventItem.IsActive )
+                    .Where( eci => options.RootCalendar == Guid.Empty || eci.EventCalendar.Guid == options.RootCalendar )
+                    .Where( eci => options.IncludeInactive || eci.EventItem.IsActive )
                     .ToList()
                     .Where( eci => eci.EventCalendar.IsAuthorized( Authorization.VIEW, RockRequestContext.CurrentPerson ) )
-                    .Select( i => new ListItemBag
+                    .Where( eci => (!lowerValue.HasValue && !upperValue.HasValue) || eci.EventItem.GetStartTimes( lowerValue.Value, upperValue.Value ).Any() )
+                    .Select( eci => new ListItemBag
                     {
-                        Category = i.EventCalendar.Name,
-                        Value = i.EventItem.Guid.ToString(),
-                        Text = i.EventItem.Name
+                        Category = eci.EventCalendar.Name,
+                        Value = eci.EventItem.Guid.ToString(),
+                        Text = eci.EventItem.Name
                     } )
                     .OrderBy( i => i.Category )
                     .ThenBy( i => i.Text )
                     .ToList();
 
                 return Ok( eventItems );
+            }
+        }
+
+        #endregion
+
+        #region Event Item Occurrence Picker
+
+        /// <summary>
+        /// Gets the event items that can be displayed in the event item picker.
+        /// </summary>
+        /// <param name="options">The options that describe which items to load.</param>
+        /// <returns>A List of <see cref="ListItemBag"/> objects that represent the event items.</returns>
+        [HttpPost]
+        [Route( "EventItemOccurrencePickerGetEventItemOccurrences" )]
+        [Authenticate]
+        [ExcludeSecurityActions( Security.Authorization.EXECUTE_READ, Security.Authorization.EXECUTE_WRITE, Security.Authorization.EXECUTE_UNRESTRICTED_READ, Security.Authorization.EXECUTE_UNRESTRICTED_WRITE )]
+        [ProducesResponse( HttpStatusCode.OK, Type = typeof( List<ListItemBag> ) )]
+        [Rock.SystemGuid.RestActionGuid( "1E837165-A003-4CC7-B870-15D7640826EE" )]
+        public IActionResult EventItemOccurrencePickerGetEventItemOccurrences( [FromBody] EventItemOccurrencePickerGetEventItemOccurrencesOptionsBag options )
+        {
+            using ( var rockContext = new RockContext() )
+            {
+                var lowerValue = options.DateRangeStart.AsDateTime() ?? RockDateTime.Today.AddYears( -1 ).AddDays( 1 );
+                var upperValue = options.DateRangeEnd.AsDateTime() ?? RockDateTime.Today.AddYears( 1 ).AddDays( -1 );
+
+                // Swap the values if they are backwards
+                if ( lowerValue > upperValue )
+                {
+                    var temp = lowerValue;
+                    lowerValue = upperValue;
+                    upperValue = temp;
+                }
+
+                var eventItemOccurences = new EventItemOccurrenceService( rockContext )
+                    .Queryable()
+                    .Where( eio => eio.EventItem.Guid == options.EventItem )
+                    .Where( eio => options.IncludeInactive || eio.EventItem.IsActive )
+                    .ToList()
+                    .Where( eio => eio.EventItem.GetStartTimes( lowerValue, upperValue ).Any() )
+                    .Select( eio => new
+                    {
+                        eio.Guid,
+                        eio.NextStartDateTime,
+                        CampusName = eio.Campus != null ? eio.Campus.Name : "All Campuses",
+                        Order = eio.CampusId.HasValue ? 1 : 0
+                    } )
+                    .OrderBy( eio => eio.Order )
+                    .ThenBy( eio => eio.CampusName )
+                    .ThenBy( eio => eio.NextStartDateTime ?? DateTime.MinValue )
+                    .Select( eio => new ListItemBag
+                    {
+                        Text = eio.NextStartDateTime.HasValue ?
+                                string.Format( "{0} - {1}", eio.CampusName, eio.NextStartDateTime.Value.ToShortDateTimeString() ) :
+                                eio.CampusName,
+                        Value = eio.Guid.ToString()
+                    }
+                    )
+                    .ToList();
+
+                return Ok( eventItemOccurences );
             }
         }
 
@@ -5370,11 +5447,19 @@ namespace Rock.Rest.v2
             // Get the public configuration options from the internal options (values).
             var publicEditConfigurationValues = fieldType.GetPublicConfigurationValues( configurationValues, Field.ConfigurationValueUsage.Edit, options.DefaultValue );
 
+            string valueFormat = null;
+
+            if ( fieldType is Field.FieldType hintFieldType )
+            {
+                valueFormat = hintFieldType.GetFieldHints( configurationValues )?.ValueFormat;
+            }
+
             return Ok( new FieldTypeEditorUpdateAttributeConfigurationResultBag
             {
                 ConfigurationProperties = configurationProperties,
                 AdminConfigurationValues = publicAdminConfigurationValues,
                 EditConfigurationValues = publicEditConfigurationValues,
+                ValueFormat = valueFormat,
                 DefaultValue = fieldType.GetPublicEditValue( privateDefaultValue, configurationValues )
             } );
         }
@@ -6553,6 +6638,11 @@ namespace Rock.Rest.v2
                     var groupType = GroupTypeCache.Get( groupTypeGuid );
                     groupTypes.Add( groupType );
                 }
+            }
+
+            if ( options.ExcludeGroupTypes != null && options.ExcludeGroupTypes.Any() )
+            {
+                groupTypes = groupTypes.Where( gt => !options.ExcludeGroupTypes.Contains( gt.Guid ) ).ToList();
             }
 
             if ( options.OnlyGroupListItems )

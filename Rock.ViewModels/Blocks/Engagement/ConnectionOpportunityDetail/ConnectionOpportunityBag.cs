@@ -17,6 +17,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Runtime.Serialization;
 
 using Rock.ViewModels.Utility;
 
@@ -123,7 +124,7 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionOpportunityDetail
         /// <summary>
         /// Minimal list of workflow types inherited from the connection type.
         /// </summary>
-        public List<ConnectionWorkflowBag> InheritedConnectionWorkflows { get; set; }
+        public List<InheritedConnectionWorkflowBag> InheritedConnectionWorkflows { get; set; }
 
         /// <summary>
         /// List of all the campuses that this connection opportunity relates to.
@@ -134,5 +135,15 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionOpportunityDetail
         /// Gets or sets a map of ConnectionOpportunityCampus.Id to the currently assigned default connector person (by alias id).
         /// </summary>
         public Dictionary<Guid, ListItemBag> DefaultConnectors { get; set; }
+
+        /// <summary>
+        /// Gets or sets a value indicating the number of days after a connection request is made that it will be considered overdue.
+        /// </summary>
+        public int? RequestDueDateOffsetInDays { get; set; }
+
+        /// <summary>
+        /// Gets or sets a value indicating the number of days before a connection request is due that it will be considered "due soon".
+        /// </summary>
+        public int? RequestDueSoonOffsetInDays { get; set; }
     }
 }

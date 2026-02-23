@@ -17,7 +17,7 @@
 
 using System;
 
-namespace Rock.Model
+namespace Rock.Enums.Connection
 {
     /// <summary>
     /// Enabled Feature Flags

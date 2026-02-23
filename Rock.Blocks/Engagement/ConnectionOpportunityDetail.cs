@@ -26,10 +26,12 @@ using Rock.Attribute;
 using Rock.Constants;
 using Rock.Data;
 using Rock.Model;
+using Rock.Enums.Connection;
 using Rock.Security;
 using Rock.ViewModels.Blocks;
 using Rock.ViewModels.Blocks.Engagement.ConnectionOpportunityDetail;
 using Rock.ViewModels.Utility;
+using Rock.Web;
 using Rock.Web.Cache;
 
 namespace Rock.Blocks.Engagement
@@ -51,7 +53,7 @@ namespace Rock.Blocks.Engagement
     [Rock.SystemGuid.EntityTypeGuid( "B51A4229-1C36-4D62-8EC6-97BB300BCDB2" )]
     // was [Rock.SystemGuid.BlockTypeGuid( "81567935-EFF8-4B19-B140-6F14FE0B896F" )]
     [Rock.SystemGuid.BlockTypeGuid( "216E2EE6-4E2D-4D0F-AA36-AB808F565C48" )]
-    public class ConnectionOpportunityDetail : RockEntityDetailBlockType<ConnectionOpportunity, ConnectionOpportunityBag>
+    public class ConnectionOpportunityDetail : RockEntityDetailBlockType<ConnectionOpportunity, ConnectionOpportunityBag>, IBreadCrumbBlock
     {
         #region Keys
 
@@ -66,22 +68,22 @@ namespace Rock.Blocks.Engagement
             public const string ParentPage = "ParentPage";
         }
 
+        private static class EntityKey
+        {
+            public const string PlacementGroupConfig = "PlacementGroupConfig";
+            public const string PlacementGroup = "PlacementGroup";
+            public const string ConnectorGroup = "ConnectorGroup";
+            public const string ConnectionWorkflow = "ConnectionWorkflow";
+        }
+
         #endregion Keys
 
         #region Fields
 
         private bool _hasAnyDefaultConnectors;
+        private ConnectionTypeCache _connectionTypeCache;
 
         #endregion Fields
-
-        #region Attribute Keys
-
-        private static class AttributeKey
-        {
-            public const string ShowEdit = "ShowEdit";
-        }
-
-        #endregion Attribute Keys
 
         #region Methods
 
@@ -107,16 +109,36 @@ namespace Rock.Blocks.Engagement
         private ConnectionOpportunityDetailOptionsBag GetBoxOptions( bool isEditable )
         {
             var options = new ConnectionOpportunityDetailOptionsBag();
+
+            var connectionType = GetConnectionType();
+
+            options.IsFutureFollowupEnabled = connectionType?.EnableFutureFollowup ?? false;
+            options.DueDateCalculationMode = connectionType?.DueDateCalculationMode;
+            options.IsGroupPlacementEnabled = connectionType?.EnabledFeatures.HasFlag( EnabledFeatureFlags.GroupPlacement ) ?? false;
             options.IsReOrderColumnVisible = BlockCache.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson );
 
             return options;
         }
 
-		/// <summary>
-		/// Gets the connection request attributes that are scoped to the specified connection opportunity.
-		/// </summary>
-		/// <param name="connectionOpportunityId">The identifier of the connection opportunity.</param>
-		/// <returns>A list of <see cref="Model.Attribute"/> entities ordered for display.</returns>
+        /// <summary>
+        /// Gets the connection type cache based on the current page parameter.
+        /// </summary>
+        /// <returns>The connection type cache, or <c>null</c> if not found.</returns>
+        private ConnectionTypeCache GetConnectionType()
+        {
+            if ( _connectionTypeCache == null )
+            {
+                _connectionTypeCache = ConnectionTypeCache.Get( PageParameter( PageParameterKey.ConnectionTypeId ), !PageCache.Layout.Site.DisablePredictableIds );
+            }
+
+            return _connectionTypeCache;
+        }
+
+        /// <summary>
+        /// Gets the connection request attributes that are scoped to the specified connection opportunity.
+        /// </summary>
+        /// <param name="connectionOpportunityId">The identifier of the connection opportunity.</param>
+        /// <returns>A list of <see cref="Model.Attribute"/> entities ordered for display.</returns>
         private List<Model.Attribute> GetConnectionRequestAttributes( string connectionOpportunityId )
         {
             return new AttributeService( RockContext ).GetByEntityTypeId( new ConnectionRequest().TypeId, true ).AsQueryable()
@@ -138,7 +160,6 @@ namespace Rock.Blocks.Engagement
             var entityTypeId = new ConnectionRequest().TypeId;
 
             var inheritedAttributes = new AttributeService( RockContext ).GetByEntityTypeId( new ConnectionRequest().TypeId, true ).AsQueryable()
-                .AsNoTracking()
                 .Where( a =>
                     a.EntityTypeQualifierColumn.Equals( "ConnectionTypeId", StringComparison.OrdinalIgnoreCase ) &&
                     a.EntityTypeQualifierValue.Equals( connectionTypeId ) )
@@ -164,7 +185,6 @@ namespace Rock.Blocks.Engagement
         private List<ListItemBag> GetConnectionOpportunityCampuses( int connectionOpportunityId )
         {
             var campusData = new ConnectionOpportunityCampusService( RockContext ).Queryable()
-                .AsNoTracking()
                 .Include( coc => coc.Campus )
                 .Where( coc => coc.ConnectionOpportunityId == connectionOpportunityId )
                 .Select( coc => new
@@ -188,15 +208,12 @@ namespace Rock.Blocks.Engagement
 		/// <returns>A dictionary mapping campus Guid string to the default connector person alias as a <see cref="ListItemBag"/>.</returns>
         private Dictionary<Guid, ListItemBag> GetDefaultConnectors( int connectionOpportunityId )
         {
-            var connectorGroupIds = new ConnectionOpportunityConnectorGroupService( RockContext )
-                .Queryable()
-                .AsNoTracking()
+            var connectorGroupIds = new ConnectionOpportunityConnectorGroupService( RockContext ).Queryable()
                 .Where( cg => cg.ConnectionOpportunityId == connectionOpportunityId )
                 .Select( cg => cg.ConnectorGroupId )
                 .ToList();
 
             var query = new ConnectionOpportunityCampusService( RockContext ).Queryable()
-                .AsNoTracking()
                 .Include( coc => coc.Campus )
                 .Include( coc => coc.DefaultConnectorPersonAlias.Person )
                 .Where( coc =>
@@ -204,7 +221,7 @@ namespace Rock.Blocks.Engagement
                     coc.DefaultConnectorPersonAliasId.HasValue &&
                     coc.DefaultConnectorPersonAlias.Person != null )
                 .Join(
-                    new GroupMemberService( RockContext ).Queryable().AsNoTracking(),
+                    new GroupMemberService( RockContext ).Queryable(),
                     coc => coc.DefaultConnectorPersonAlias.PersonId,
                     gm => gm.PersonId,
                     ( coc, gm ) => new { coc, gm } )
@@ -238,26 +255,33 @@ namespace Rock.Blocks.Engagement
         /// <param name="entityTypeId">The entity type identifier whose attributes are being edited.</param>
         /// <param name="qualifierColumn">The attribute qualifier column.</param>
         /// <param name="qualifierValue">The qualifier value.</param>
-        /// <param name="viewStateAttributes">The attributes as edited in the UI.</param>
-        private void SaveConnectionRequestAttributes( int entityTypeId, string qualifierColumn, string qualifierValue, List<PublicEditableAttributeBag> viewStateAttributes )
+        /// <param name="connectionRequestAttributes">The attributes as edited in the UI.</param>
+        private void SaveConnectionRequestAttributes( int entityTypeId, string qualifierColumn, string qualifierValue, List<PublicEditableAttributeBag> connectionRequestAttributes )
         {
             // Get the existing attributes for this entity type and qualifier value
             var attributeService = new AttributeService( RockContext );
             var attributes = attributeService.GetByEntityTypeQualifier( entityTypeId, qualifierColumn, qualifierValue, true ).ToList();
 
             // Delete any of those attributes that were removed in the UI
-            var selectedAttributeGuids = viewStateAttributes.Select( a => a.Guid );
-            foreach ( var attr in attributes.Where( a => !selectedAttributeGuids.Contains( a.Guid ) ) )
+            var remainingAttributeGuids = connectionRequestAttributes.Select( a => a.Guid );
+            foreach ( var attr in attributes.Where( a => !remainingAttributeGuids.Contains( a.Guid ) ) )
             {
                 attributeService.Delete( attr );
                 RockContext.SaveChanges();
             }
 
-            // Update the Attributes that were assigned in the UI
-            foreach ( var attributeState in viewStateAttributes )
+            // The attributes are coming from the frontend already sorted in the correct order. 
+            int attributeOrder = 0;
+            foreach ( var attrBag in connectionRequestAttributes )
             {
-                Helper.SaveAttributeEdits( attributeState, entityTypeId, qualifierColumn, qualifierValue, RockContext );
+                var attr = Helper.SaveAttributeEdits( attrBag, entityTypeId, qualifierColumn, qualifierValue, RockContext );
+                if ( attr != null )
+                {
+                    attr.Order = attributeOrder++;
+                }
             }
+
+            RockContext.SaveChanges();
         }
 
         /// <summary>
@@ -270,6 +294,30 @@ namespace Rock.Blocks.Engagement
         private bool ValidateConnectionOpportunity( ConnectionOpportunity connectionOpportunity, out string errorMessage )
         {
             errorMessage = null;
+            var connectionType = GetConnectionType();
+
+            if ( connectionType?.DueDateCalculationMode == DueDateCalculationMode.FixedDaysFromStartOpportunityLevel )
+            {
+                if ( connectionOpportunity.RequestDueDateOffsetInDays.HasValue && connectionOpportunity.RequestDueDateOffsetInDays <= 0 )
+                {
+                    errorMessage = "The 'Request Due Duration' must be greater than 0.";
+                    return false;
+                }
+
+                if ( connectionOpportunity.RequestDueSoonOffsetInDays.HasValue && connectionOpportunity.RequestDueSoonOffsetInDays <= 0 )
+                {
+                    errorMessage = "The 'Due Soon Window' must be greater than 0.";
+                    return false;
+                }
+
+                if ( connectionOpportunity.RequestDueSoonOffsetInDays.HasValue &&
+                     connectionOpportunity.RequestDueDateOffsetInDays.HasValue &&
+                     connectionOpportunity.RequestDueSoonOffsetInDays.Value > connectionOpportunity.RequestDueDateOffsetInDays.Value )
+                {
+                    errorMessage = "The 'Due Soon Window' cannot be greater than the 'Request Due Duration'.";
+                    return false;
+                }
+            }
 
             return true;
         }
@@ -320,12 +368,10 @@ namespace Rock.Blocks.Engagement
 
                 if ( !existingByKey.TryGetValue( key, out entity ) )
                 {
-                    // Create new entity
                     entity = createNew( bag );
                     service.Add( entity );
                 }
 
-                // Entity exists, update it instead.
                 updateEntity( entity, bag );
             }
         }
@@ -348,9 +394,7 @@ namespace Rock.Blocks.Engagement
             }
 
             // Get connector group IDs for validation
-            var connectorGroupIds = new ConnectionOpportunityConnectorGroupService( RockContext )
-                .Queryable()
-                .AsNoTracking()
+            var connectorGroupIds = new ConnectionOpportunityConnectorGroupService( RockContext ).Queryable()
                 .Where( cg => cg.ConnectionOpportunityId == entity.Id )
                 .Select( cg => cg.ConnectorGroupId )
                 .ToList();
@@ -369,9 +413,7 @@ namespace Rock.Blocks.Engagement
                 {
                     // Validate that the default connector is an active member of a connector group
                     // ( Should always be true from the initial dropdown options population )
-                    var isValidConnector = new GroupMemberService( RockContext )
-                        .Queryable()
-                        .AsNoTracking()
+                    var isValidConnector = new GroupMemberService( RockContext ).Queryable()
                         .Include( gm => gm.Person )
                         .Any( gm => gm.Person.PrimaryAliasId == personAliasId
                                 && connectorGroupIds.Contains( gm.GroupId )
@@ -445,13 +487,13 @@ namespace Rock.Blocks.Engagement
                 return null;
             }
 
-            var connectionType = new ConnectionTypeService( RockContext ).Get( PageParameter( PageParameterKey.ConnectionTypeId ).AsInteger() );
+            var connectionType = GetConnectionType();
             string connectionTypeName = null;
             string connectionTypeUrl = null;
             if ( connectionType != null )
             {
                 connectionTypeName = connectionType.Name;
-                var urlTemplate = EntityTypeCache.Get( typeof( ConnectionType ) ).LinkUrlLavaTemplate;
+                var urlTemplate = EntityTypeCache.Get( typeof( ConnectionType ) )?.LinkUrlLavaTemplate;
                 if ( !string.IsNullOrWhiteSpace( urlTemplate ) )
                 {
                     connectionTypeUrl = urlTemplate.ResolveMergeFields( new Dictionary<string, object>
@@ -460,6 +502,17 @@ namespace Rock.Blocks.Engagement
                     } );
 
                     connectionTypeUrl = this.RequestContext.ResolveRockUrl( connectionTypeUrl );
+                }
+
+                // Fallback if no LinkUrl template is configured.
+                // Navigate to the parent page (Connection Type detail) in auto-edit mode.
+                if ( connectionTypeUrl.IsNullOrWhiteSpace() )
+                {
+                    connectionTypeUrl = this.GetParentPageUrl( new Dictionary<string, string>
+                    {
+                        [PageParameterKey.ConnectionTypeId] = connectionType.IdKey,
+                        ["autoEdit"] = "true"
+                    } );
                 }
             }
 
@@ -477,7 +530,9 @@ namespace Rock.Blocks.Engagement
                 ShowCampusOnTransfer = entity.ShowCampusOnTransfer,
                 ShowConnectButton = entity.ShowConnectButton,
                 ShowStatusOnTransfer = entity.ShowStatusOnTransfer,
-                Summary = entity.Summary
+                Summary = entity.Summary,
+                RequestDueDateOffsetInDays = entity.RequestDueDateOffsetInDays,
+                RequestDueSoonOffsetInDays = entity.RequestDueSoonOffsetInDays
             };
         }
 
@@ -525,7 +580,6 @@ namespace Rock.Blocks.Engagement
             bag.Campuses = GetConnectionOpportunityCampuses( entity.Id );
 
             bag.PlacementGroupConfigs = new ConnectionOpportunityGroupConfigService( RockContext ).Queryable()
-                .AsNoTracking()
                 .Where( cfg => cfg.ConnectionOpportunityId == entity.Id )
                 .OrderBy( cfg => cfg.GroupType.Name )
                 .Select( cfg => new PlacementGroupConfigBag
@@ -539,7 +593,6 @@ namespace Rock.Blocks.Engagement
                 .ToList();
 
             bag.PlacementGroups = new ConnectionOpportunityGroupService( RockContext ).Queryable()
-                .AsNoTracking()
                 .Where( pg => pg.ConnectionOpportunityId == entity.Id )
                 .OrderBy( pg => pg.Group.Name )
                 .Select( pg => new PlacementGroupBag
@@ -553,7 +606,6 @@ namespace Rock.Blocks.Engagement
                 .ToList();
 
             bag.ConnectorGroups = new ConnectionOpportunityConnectorGroupService( RockContext ).Queryable()
-                .AsNoTracking()
                 .Where( cg => cg.ConnectionOpportunityId == entity.Id )
                 .OrderBy( cg => cg.Campus.Name )
                 .ThenBy( cg => cg.ConnectorGroup.Name )
@@ -569,28 +621,21 @@ namespace Rock.Blocks.Engagement
                 ? ( GetDefaultConnectors( entity.Id ) ?? new Dictionary<Guid, ListItemBag>() )
                 : new Dictionary<Guid, ListItemBag>();
 
-            var inheritedWorkflows = new ConnectionWorkflowService( RockContext ).Queryable()
-                .AsNoTracking()
+            bag.InheritedConnectionWorkflows = new ConnectionWorkflowService( RockContext ).Queryable()
                 .Where( wf => wf.ConnectionTypeId == entity.ConnectionTypeId && wf.WorkflowTypeId.HasValue )
                 .OrderBy( wf => wf.WorkflowType.Name )
-                .Select( wf => new ConnectionWorkflowBag
+                .Select( wf => new InheritedConnectionWorkflowBag
                 {
                     Guid = wf.Guid,
                     WorkflowType = wf.WorkflowType != null ? new ListItemBag { Value = wf.WorkflowType.Guid.ToString(), Text = wf.WorkflowType.Name } : null,
-                    TriggerType = ( int ) wf.TriggerType,
-                    QualifierValue = wf.QualifierValue,
-                    ManualTriggerFilterConnectionStatusId = wf.ManualTriggerFilterConnectionStatusId,
-                    AppliesToAgeClassification = ( int ) wf.AppliesToAgeClassification,
-                    IncludeDataViewId = wf.IncludeDataView != null ? new ListItemBag { Value = wf.IncludeDataView.Guid.ToString(), Text = wf.IncludeDataView.Name } : null,
-                    ExcludeDataViewId = wf.ExcludeDataView != null ? new ListItemBag { Value = wf.ExcludeDataView.Guid.ToString(), Text = wf.ExcludeDataView.Name } : null
+                    TriggerType = wf.TriggerType,
                 } )
                 .ToList();
-
-            bag.InheritedConnectionWorkflows = inheritedWorkflows;
 
             var workflows = new ConnectionWorkflowService( RockContext ).Queryable()
                 .AsNoTracking()
                 .Where( wf => wf.ConnectionOpportunityId == entity.Id && wf.WorkflowTypeId.HasValue )
+                .ToList()
                 .Select( wf => new
                 {
                     wf.WorkflowTypeId,
@@ -598,8 +643,8 @@ namespace Rock.Blocks.Engagement
                     {
                         Guid = wf.Guid,
                         WorkflowType = wf.WorkflowType != null ? new ListItemBag { Value = wf.WorkflowType.Guid.ToString(), Text = wf.WorkflowType.Name } : null,
-                        TriggerType = ( int ) wf.TriggerType,
-                        QualifierValue = wf.QualifierValue,
+                        TriggerType = wf.TriggerType,
+                        QualifierValue = ParseQualifierValue( wf.QualifierValue ),
                         ManualTriggerFilterConnectionStatusId = wf.ManualTriggerFilterConnectionStatusId,
                         AppliesToAgeClassification = ( int ) wf.AppliesToAgeClassification,
                         IncludeDataViewId = wf.IncludeDataView != null ? new ListItemBag { Value = wf.IncludeDataView.Guid.ToString(), Text = wf.IncludeDataView.Name } : null,
@@ -632,18 +677,55 @@ namespace Rock.Blocks.Engagement
             return bag;
         }
 
+        /// <summary>
+        /// Parses the stored qualifier value ("|Primary|Secondary|") into a structured bag.
+        /// </summary>
+        /// <param name="qualifierValue">The stored qualifier value.</param>
+        /// <returns>A structured qualifier value bag.</returns>
+        private ConnectionWorkflowQualifierValueBag ParseQualifierValue( string qualifierValue )
+        {
+            if ( string.IsNullOrWhiteSpace( qualifierValue ) )
+            {
+                return new ConnectionWorkflowQualifierValueBag
+                {
+                    PrimaryQualifier = string.Empty,
+                    SecondaryQualifier = string.Empty
+                };
+            }
+
+            var parts = qualifierValue.Split( '|' );
+
+            return new ConnectionWorkflowQualifierValueBag
+            {
+                PrimaryQualifier = parts.Length > 1 ? parts[1] ?? string.Empty : string.Empty,
+                SecondaryQualifier = parts.Length > 2 ? parts[2] ?? string.Empty : string.Empty
+            };
+        }
+
+        /// <summary>
+        /// Converts a structured qualifier value into the delimited storage format ("|Primary|Secondary|").
+        /// </summary>
+        /// <param name="qualifierValue">The structured qualifier value.</param>
+        /// <returns>The delimited qualifier string.</returns>
+        private string ToDelimitedQualifierValue( ConnectionWorkflowQualifierValueBag qualifierValue )
+        {
+            if ( qualifierValue == null )
+            {
+                return string.Empty;
+            }
+
+            var primary = qualifierValue.PrimaryQualifier ?? string.Empty;
+            var secondary = qualifierValue.SecondaryQualifier ?? string.Empty;
+
+            return $"|{primary}|{secondary}|";
+        }
+
         /// <inheritdoc/>
         protected override bool UpdateEntityFromBox( ConnectionOpportunity entity, ValidPropertiesBox<ConnectionOpportunityBag> box )
         {
             if ( box.ValidProperties == null )
             {
                 return false;
-            }
-
-            var connectionTypeId = PageParameter( PageParameterKey.ConnectionTypeId ).AsInteger();
-            if ( connectionTypeId > 0 )
-            {
-                entity.ConnectionTypeId = connectionTypeId;
             }
 
             box.IfValidProperty( nameof( box.Bag.Description ),
@@ -676,6 +758,12 @@ namespace Rock.Blocks.Engagement
             box.IfValidProperty( nameof( box.Bag.Summary ),
                 () => entity.Summary = box.Bag.Summary );
 
+            box.IfValidProperty( nameof( box.Bag.RequestDueDateOffsetInDays ),
+                () => entity.RequestDueDateOffsetInDays = box.Bag.RequestDueDateOffsetInDays );
+
+            box.IfValidProperty( nameof( box.Bag.RequestDueSoonOffsetInDays ),
+                () => entity.RequestDueSoonOffsetInDays = box.Bag.RequestDueSoonOffsetInDays );
+
             box.IfValidProperty( nameof( box.Bag.AttributeValues ),
                 () =>
                 {
@@ -706,6 +794,35 @@ namespace Rock.Blocks.Engagement
         }
 
         /// <inheritdoc/>
+        public BreadCrumbResult GetBreadCrumbs( PageReference pageReference )
+        {
+            var connectionOpportunityKey = pageReference.GetPageParameter( PageParameterKey.ConnectionOpportunityId );
+            var connectionTypeKey = pageReference.GetPageParameter( PageParameterKey.ConnectionTypeId );
+            var pageParameters = new Dictionary<string, string>();
+
+            if ( connectionTypeKey.IsNotNullOrWhiteSpace() )
+            {
+                pageParameters.Add( PageParameterKey.ConnectionTypeId, connectionTypeKey );
+            }
+
+            var name = new ConnectionOpportunityService( RockContext )
+                .GetSelect( connectionOpportunityKey, co => co.Name );
+
+            if ( name.IsNotNullOrWhiteSpace() )
+            {
+                pageParameters.Add( PageParameterKey.ConnectionOpportunityId, connectionOpportunityKey );
+            }
+
+            var breadCrumbPageRef = new PageReference( pageReference.PageId, 0, pageParameters );
+            var breadCrumb = new BreadCrumbLink( name ?? "New Connection Opportunity", breadCrumbPageRef );
+
+            return new BreadCrumbResult
+            {
+                BreadCrumbs = new List<IBreadCrumb> { breadCrumb }
+            };
+        }
+
+        /// <inheritdoc/>
         protected override bool TryGetEntityForEditAction( string idKey, out ConnectionOpportunity entity, out BlockActionResult error )
         {
             var entityService = new ConnectionOpportunityService( RockContext );
@@ -730,7 +847,7 @@ namespace Rock.Blocks.Engagement
 
                 entity.Order = maxOrder.HasValue ? maxOrder.Value + 1 : 0;
 
-                var connectionTypeId = PageParameter( PageParameterKey.ConnectionTypeId ).AsInteger();
+                var connectionTypeId = GetConnectionType()?.Id ?? 0;
                 if ( connectionTypeId > 0 )
                 {
                     entity.ConnectionTypeId = connectionTypeId;
@@ -745,7 +862,7 @@ namespace Rock.Blocks.Engagement
 
             if ( !entity.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson ) )
             {
-                error = ActionBadRequest( $"Not authorized to edit ${ConnectionOpportunity.FriendlyTypeName}." );
+                error = ActionBadRequest( $"Not authorized to edit {ConnectionOpportunity.FriendlyTypeName}." );
                 return false;
             }
 
@@ -814,108 +931,192 @@ namespace Rock.Blocks.Engagement
 
             RockContext.WrapTransaction( () =>
             {
-                // Placement Group Configs
-                var configService = new ConnectionOpportunityGroupConfigService( RockContext );
-                SyncRelatedEntities(
-                    configService,
-                    configService.Queryable().Where( c => c.ConnectionOpportunityId == entity.Id ),
-                    box.Bag.PlacementGroupConfigs,
-                    existingKeySelector: cfg => cfg.Guid,
-                    incomingKeySelector: bag => bag.Guid,
-                    createNew: bag => new ConnectionOpportunityGroupConfig { Guid = bag.Guid == Guid.Empty ? Guid.NewGuid() : bag.Guid },
-                    updateEntity: ( cfg, bag ) =>
-                    {
-                        cfg.ConnectionOpportunityId = entity.Id;
-                        cfg.GroupTypeId = bag.GroupType.GetEntityId<GroupType>( RockContext ) ?? cfg.GroupTypeId;
-                        cfg.GroupMemberRoleId = bag.GroupMemberRole?.GetEntityId<GroupTypeRole>( RockContext );
-                        cfg.GroupMemberStatus = ( GroupMemberStatus ) bag.GroupMemberStatus;
-                        cfg.UseAllGroupsOfType = bag.UseAllGroupsOfType;
-                    } );
+                // Save the connection opportunity first so newly-created entities
+                // have a valid Id for related records.
+                RockContext.SaveChanges();
 
-                // Placement Groups
-                var groupService = new ConnectionOpportunityGroupService( RockContext );
-                SyncRelatedEntities(
-                    groupService,
-                    groupService.Queryable().Where( g => g.ConnectionOpportunityId == entity.Id ),
-                    box.Bag.PlacementGroups,
-                    existingKeySelector: pg => pg.Guid,
-                    incomingKeySelector: bag => bag.Guid,
-                    createNew: bag => new ConnectionOpportunityGroup { Guid = bag.Guid == Guid.Empty ? Guid.NewGuid() : bag.Guid },
-                    updateEntity: ( pg, bag ) =>
-                    {
-                        pg.ConnectionOpportunityId = entity.Id;
-                        pg.GroupId = bag.Group.GetEntityId<Rock.Model.Group>( RockContext ) ?? pg.GroupId;
-                    } );
-
-                // Connector Groups
-                var connGroupService = new ConnectionOpportunityConnectorGroupService( RockContext );
-                SyncRelatedEntities(
-                    connGroupService,
-                    connGroupService.Queryable().Where( g => g.ConnectionOpportunityId == entity.Id ),
-                    box.Bag.ConnectorGroups,
-                    existingKeySelector: cg => cg.Guid,
-                    incomingKeySelector: bag => bag.Guid,
-                    createNew: bag => new ConnectionOpportunityConnectorGroup { Guid = bag.Guid == Guid.Empty ? Guid.NewGuid() : bag.Guid },
-                    updateEntity: ( cg, bag ) =>
-                    {
-                        cg.ConnectionOpportunityId = entity.Id;
-                        cg.ConnectorGroupId = bag.ConnectorGroup.GetEntityId<Rock.Model.Group>( RockContext ) ?? cg.ConnectorGroupId;
-                        cg.CampusId = bag.Campus?.GetEntityId<Campus>( RockContext );
-                    } );
+                var connectionType = ConnectionTypeCache.Get( entity.ConnectionTypeId );
+                var isGroupPlacementEnabled = connectionType?.EnabledFeatures.HasFlag( EnabledFeatureFlags.GroupPlacement ) ?? false;
 
                 // Campuses
-                var campusService = new ConnectionOpportunityCampusService( RockContext );
-                var incomingCampusIds = ( box.Bag.Campuses ?? new List<ListItemBag>() )
-                    .Select( c => c.GetEntityId<Campus>( RockContext ) )
-                    .Where( id => id.HasValue )
-                    .Select( id => id.Value )
-                    .ToList();
+                box.IfValidProperty( nameof( box.Bag.Campuses ), () =>
+                {
+                    var connectionOpportunityCampusService = new ConnectionOpportunityCampusService( RockContext );
+                    var incomingCampusIds = ( box.Bag.Campuses ?? new List<ListItemBag>() )
+                        .Select( c => c.GetEntityId<Campus>( RockContext ) )
+                        .Where( id => id.HasValue )
+                        .Select( id => id.Value )
+                        .ToList();
 
-                SyncRelatedEntities(
-                    campusService,
-                    campusService.Queryable().Where( c => c.ConnectionOpportunityId == entity.Id ),
-                    incomingCampusIds,
-                    existingKeySelector: ec => ec.CampusId,
-                    incomingKeySelector: id => id,
-                    createNew: id => new ConnectionOpportunityCampus { CampusId = id, ConnectionOpportunityId = entity.Id },
-                    updateEntity: ( ec, id ) =>
+                    SyncRelatedEntities(
+                        connectionOpportunityCampusService,
+                        connectionOpportunityCampusService.Queryable().Where( c => c.ConnectionOpportunityId == entity.Id ),
+                        incomingCampusIds,
+                        existingKeySelector: ec => ec.CampusId,
+                        incomingKeySelector: id => id,
+                        createNew: id => new ConnectionOpportunityCampus { CampusId = id, ConnectionOpportunityId = entity.Id },
+                        updateEntity: ( ec, id ) =>
+                        {
+                            // There is nothing to update on a ConnectionOpportunityCampus record if it already exists.
+                        } );
+                } );
+
+                // Placement Group Configs
+                if ( isGroupPlacementEnabled )
+                {
+                    box.IfValidProperty( nameof( box.Bag.PlacementGroupConfigs ), () =>
                     {
-                        // There is nothing to update on a ConnectionOpportunityCampus record if it already exists.
+                        var configService = new ConnectionOpportunityGroupConfigService( RockContext );
+                        var placementGroupConfigs = ( box.Bag.PlacementGroupConfigs ?? new List<PlacementGroupConfigBag>() ).ToList();
+                        foreach ( var bag in placementGroupConfigs.Where( b => b.Guid == Guid.Empty ) )
+                        {
+                            bag.Guid = Guid.NewGuid();
+                        }
+
+                        SyncRelatedEntities(
+                            configService,
+                            configService.Queryable().Where( c => c.ConnectionOpportunityId == entity.Id ),
+                            placementGroupConfigs,
+                            existingKeySelector: cfg => cfg.Guid,
+                            incomingKeySelector: bag => bag.Guid,
+                            createNew: bag => new ConnectionOpportunityGroupConfig { Guid = bag.Guid },
+                            updateEntity: ( cfg, bag ) =>
+                            {
+                                cfg.ConnectionOpportunityId = entity.Id;
+                                cfg.GroupTypeId = bag.GroupType.GetEntityId<GroupType>( RockContext ) ?? cfg.GroupTypeId;
+                                cfg.GroupMemberRoleId = bag.GroupMemberRole?.GetEntityId<GroupTypeRole>( RockContext );
+                                cfg.GroupMemberStatus = ( GroupMemberStatus ) bag.GroupMemberStatus;
+                                cfg.UseAllGroupsOfType = bag.UseAllGroupsOfType;
+                            } );
                     } );
+                }
+
+                // Placement Groups
+                if ( isGroupPlacementEnabled )
+                {
+                    box.IfValidProperty( nameof( box.Bag.PlacementGroups ), () =>
+                    {
+                        var groupService = new ConnectionOpportunityGroupService( RockContext );
+                        var placementGroups = ( box.Bag.PlacementGroups ?? new List<PlacementGroupBag>() ).ToList();
+                        foreach ( var bag in placementGroups.Where( b => b.Guid == Guid.Empty ) )
+                        {
+                            bag.Guid = Guid.NewGuid();
+                        }
+
+                        SyncRelatedEntities(
+                            groupService,
+                            groupService.Queryable().Where( g => g.ConnectionOpportunityId == entity.Id ),
+                            placementGroups,
+                            existingKeySelector: pg => pg.Guid,
+                            incomingKeySelector: bag => bag.Guid,
+                            createNew: bag => new ConnectionOpportunityGroup { Guid = bag.Guid },
+                            updateEntity: ( pg, bag ) =>
+                            {
+                                pg.ConnectionOpportunityId = entity.Id;
+                                pg.GroupId = bag.Group.GetEntityId<Rock.Model.Group>( RockContext ) ?? pg.GroupId;
+                            } );
+                    } );
+                }
+
+                // Connector Groups
+                box.IfValidProperty( nameof( box.Bag.ConnectorGroups ), () =>
+                {
+                    var connGroupService = new ConnectionOpportunityConnectorGroupService( RockContext );
+                    var connectorGroups = ( box.Bag.ConnectorGroups ?? new List<ConnectorGroupBag>() ).ToList();
+                    foreach ( var bag in connectorGroups.Where( b => b.Guid == Guid.Empty ) )
+                    {
+                        bag.Guid = Guid.NewGuid();
+                    }
+
+                    SyncRelatedEntities(
+                        connGroupService,
+                        connGroupService.Queryable().Where( g => g.ConnectionOpportunityId == entity.Id ),
+                        connectorGroups,
+                        existingKeySelector: cg => cg.Guid,
+                        incomingKeySelector: bag => bag.Guid,
+                        createNew: bag => new ConnectionOpportunityConnectorGroup { Guid = bag.Guid },
+                        updateEntity: ( cg, bag ) =>
+                        {
+                            cg.ConnectionOpportunityId = entity.Id;
+                            cg.ConnectorGroupId = bag.ConnectorGroup.GetEntityId<Rock.Model.Group>( RockContext ) ?? cg.ConnectorGroupId;
+                            cg.CampusId = bag.Campus?.GetEntityId<Campus>( RockContext );
+                        } );
+                } );
 
                 // Default Connectors
-                var existingCampusesByCampusGuid = campusService.Queryable()
-                    .Include( c => c.Campus )
-                    .Where( c => c.ConnectionOpportunityId == entity.Id && c.Campus != null )
-                    .ToList()
-                    .ToDictionary( c => c.Campus.Guid );
+                box.IfValidProperty( nameof( box.Bag.DefaultConnectors ), () =>
+                {
+                    // Persist any ConnectionOpportunityCampus changes before loading current
+                    // campuses so deleted campuses are no longer considered.
+                    RockContext.SaveChanges();
 
-                UpdateDefaultConnectors( entity, box.Bag.DefaultConnectors, existingCampusesByCampusGuid );
+                    var connectionOpportunityCampusService = new ConnectionOpportunityCampusService( RockContext );
+                    var existingCampusesByCampusGuid = connectionOpportunityCampusService.Queryable()
+                        .AsNoTracking()
+                        .Include( c => c.Campus )
+                        .Where( c => c.ConnectionOpportunityId == entity.Id && c.Campus != null )
+                        .ToList()
+                        .ToDictionary( c => c.Campus.Guid );
+
+                    UpdateDefaultConnectors( entity, box.Bag.DefaultConnectors, existingCampusesByCampusGuid );
+                } );
 
                 // Workflows
-                var workflowService = new ConnectionWorkflowService( RockContext );
-                var incomingWorkflows = box.Bag.ConnectionWorkflows ?? new List<ConnectionWorkflowBag>();
-                SyncRelatedEntities(
-                    workflowService,
-                    workflowService.Queryable().Where( w => w.ConnectionOpportunityId == entity.Id ),
-                    incomingWorkflows,
-                    existingKeySelector: wf => wf.Guid,
-                    incomingKeySelector: bag => bag.Guid,
-                    createNew: bag => new ConnectionWorkflow { Guid = bag.Guid == Guid.Empty ? Guid.NewGuid() : bag.Guid },
-                    updateEntity: ( wf, bag ) =>
+                box.IfValidProperty( nameof( box.Bag.ConnectionWorkflows ), () =>
+                {
+                    var workflowService = new ConnectionWorkflowService( RockContext );
+                    var incomingWorkflows = box.Bag.ConnectionWorkflows ?? new List<ConnectionWorkflowBag>();
+                    foreach ( var bag in incomingWorkflows.Where( b => b.Guid == Guid.Empty ) )
                     {
-                        wf.ConnectionOpportunityId = entity.Id;
-                        wf.WorkflowTypeId = bag.WorkflowType.GetEntityId<WorkflowType>( RockContext );
-                        wf.TriggerType = ( ConnectionWorkflowTriggerType ) bag.TriggerType;
-                        wf.QualifierValue = bag.QualifierValue;
-                        wf.ManualTriggerFilterConnectionStatusId = bag.ManualTriggerFilterConnectionStatusId;
-                        wf.AppliesToAgeClassification = ( AppliesToAgeClassification ) bag.AppliesToAgeClassification;
-                        wf.IncludeDataViewId = bag.IncludeDataViewId.GetEntityId<DataView>( RockContext );
-                        wf.ExcludeDataViewId = bag.ExcludeDataViewId.GetEntityId<DataView>( RockContext );
-                    } );
+                        bag.Guid = Guid.NewGuid();
+                    }
 
-                RockContext.SaveChanges();
-                entity.SaveAttributeValues( RockContext );
+                    SyncRelatedEntities(
+                        workflowService,
+                        workflowService.Queryable().Where( wf => wf.ConnectionOpportunityId == entity.Id ),
+                        incomingWorkflows,
+                        existingKeySelector: wf => wf.Guid,
+                        incomingKeySelector: bag => bag.Guid,
+                        createNew: bag => new ConnectionWorkflow { Guid = bag.Guid },
+                        updateEntity: ( wf, bag ) =>
+                        {
+                            wf.ConnectionOpportunityId = entity.Id;
+                            wf.WorkflowTypeId = bag.WorkflowType.GetEntityId<WorkflowType>( RockContext );
+                            wf.TriggerType = bag.TriggerType;
+                            wf.QualifierValue = ToDelimitedQualifierValue( bag.QualifierValue );
+
+                            if ( bag.TriggerType != ConnectionWorkflowTriggerType.Manual )
+                            {
+                                // Clear out any filter values associated with the Manual trigger type
+                                // if the trigger type is not Manual.
+                                wf.ManualTriggerFilterConnectionStatusId = null;
+                                wf.AppliesToAgeClassification = AppliesToAgeClassification.All;
+                                wf.IncludeDataViewId = null;
+                                wf.ExcludeDataViewId = null;
+                            }
+                            else
+                            {
+                                wf.ManualTriggerFilterConnectionStatusId = bag.ManualTriggerFilterConnectionStatusId;
+                                wf.AppliesToAgeClassification = ( AppliesToAgeClassification ) bag.AppliesToAgeClassification;
+                                wf.IncludeDataViewId = bag.IncludeDataViewId.GetEntityId<DataView>( RockContext );
+                                wf.ExcludeDataViewId = bag.ExcludeDataViewId.GetEntityId<DataView>( RockContext );
+                            }
+                        } );
+
+                    /*
+                         12/19/2025 - MSE
+
+                         The order of the Connection Workflows is stored as a list of wf.WorkflowTypeId
+                         in the AdditionalSettingsJson column on the Connection Opportunity.
+
+                         The frontend already applies the correct sort order when sending the bag, so this logic
+                         preserves that order when saving the values rather than re-sorting them on the server.
+                    */
+                    if ( incomingWorkflows.Any() )
+                    {
+                        entity.SetAdditionalSettings( "WorkflowTypeOrder", incomingWorkflows.Select( wf => wf.WorkflowType.GetEntityId<WorkflowType>( RockContext ) ).ToList() );
+                    }
+                } );
 
                 // Delete orphaned previous photo if it changed.
                 if ( originalPhotoId.HasValue && originalPhotoId != entity.PhotoId )
@@ -928,10 +1129,12 @@ namespace Rock.Blocks.Engagement
                         if ( binaryFileService.CanDelete( oldPhoto, out errorMessage ) )
                         {
                             binaryFileService.Delete( oldPhoto );
-                            RockContext.SaveChanges();
                         }
                     }
                 }
+
+                RockContext.SaveChanges();
+                entity.SaveAttributeValues( RockContext );
             } );
 
             ConnectionWorkflowService.RemoveCachedTriggers();
@@ -991,105 +1194,80 @@ namespace Rock.Blocks.Engagement
         }
 
         /// <summary>
-        /// Changes the ordered position of a single step type attribute.
+        /// Determines whether a specific entity can be deleted.
         /// </summary>
-        /// <param name = "key" > The identifier of the step type attribute that will be moved.</param>
-        /// <param name = "beforeKey" > The identifier of the step type attribute it will be placed before.</param>
-        /// <returns>An empty result that indicates if the operation succeeded.</returns>
+        /// <param name="request">The request bag containing the entity key and unique identifier.</param>
+        /// <returns>A dictionary containing the deletion status and any error messages.</returns>
         [BlockAction]
-        public BlockActionResult ReorderConnectionRequestAttribute( string key, string beforeKey )
+        public BlockActionResult CanDeleteEntity( CanDeleteRequestBag request )
         {
-            var connectionOpportunity = new ConnectionOpportunityService( RockContext ).Get( PageParameter( PageParameterKey.ConnectionOpportunityId ), !PageCache.Layout.Site.DisablePredictableIds );
-            if ( connectionOpportunity == null )
+            if ( request == null || request.EntityGuid == Guid.Empty || request.EntityKey.IsNullOrWhiteSpace() )
             {
-                return ActionBadRequest( "Connection opportunity not found." );
+                return ActionBadRequest( "Invalid entity." );
             }
 
-            var items = GetConnectionRequestAttributes( connectionOpportunity.Id.ToString() );
+            var entityKey = request.EntityKey;
+            string errorMessage;
+            bool canDelete;
 
-            if ( !items.ReorderEntity( key, beforeKey ) )
+            if ( entityKey == EntityKey.PlacementGroupConfig )
             {
-                return ActionBadRequest( "Invalid reorder attempt." );
-            }
+                var service = new ConnectionOpportunityGroupConfigService( RockContext );
+                var entity = service.Get( request.EntityGuid );
 
-            RockContext.SaveChanges();
-            return ActionOk();
-        }
-
-        [BlockAction]
-		/// <summary>
-		/// Reorders a workflow relative to another workflow for the current connection opportunity.
-		/// </summary>
-		/// <param name="key">The identifier (Guid string) of the workflow being moved.</param>
-		/// <param name="beforeKey">The identifier (Guid string) of the workflow it should be placed before, or <c>null</c> to move to end.</param>
-		/// <returns>An empty result indicating if the operation succeeded.</returns>
-        public BlockActionResult ReorderConnectionWorkflow( string key, string beforeKey )
-        {
-            var connectionOpportunity = new ConnectionOpportunityService( RockContext ).Get( PageParameter( PageParameterKey.ConnectionOpportunityId ), !PageCache.Layout.Site.DisablePredictableIds );
-            if ( connectionOpportunity == null )
-            {
-                return ActionBadRequest( "Connection opportunity not found." );
-            }
-
-            if ( !Guid.TryParse( key, out var movedGuid ) )
-            {
-                return ActionBadRequest( "Invalid workflow key." );
-            }
-
-            Guid? beforeGuid = beforeKey.IsNotNullOrWhiteSpace() && Guid.TryParse( beforeKey, out var parsed ) ? parsed : ( Guid? ) null;
-            if ( beforeKey.IsNotNullOrWhiteSpace() && !beforeGuid.HasValue )
-            {
-                return ActionBadRequest( "Invalid before key." );
-            }
-
-            var workflows = new ConnectionWorkflowService( RockContext ).Queryable()
-                .AsNoTracking()
-                .Where( wf => wf.ConnectionOpportunityId == connectionOpportunity.Id )
-                .Select( wf => new { wf.Guid, wf.WorkflowTypeId } )
-                .ToList();
-
-            var moved = workflows.FirstOrDefault( wf => wf.Guid == movedGuid );
-            if ( moved == null || !moved.WorkflowTypeId.HasValue )
-            {
-                return ActionBadRequest( "Workflow not found." );
-            }
-
-            var savedOrder = connectionOpportunity.GetAdditionalSettingsOrNull<List<int>>( "WorkflowTypeOrder" ) ?? new List<int>();
-            var orderedIds = workflows
-                .Where( w => w.WorkflowTypeId.HasValue )
-                .Select( w => w.WorkflowTypeId.Value )
-                .OrderBy( id =>
+                if ( entity == null )
                 {
-                    var idx = savedOrder.IndexOf( id );
-                    return idx == -1 ? int.MaxValue : idx;
-                } )
-                .ToList();
-
-            // Move the requested workflow before the target, or to the end.
-            var movedId = moved.WorkflowTypeId.Value;
-            orderedIds.Remove( movedId );
-            if ( beforeGuid.HasValue )
-            {
-                var before = workflows.FirstOrDefault( wf => wf.Guid == beforeGuid.Value );
-                var insertIndex = before?.WorkflowTypeId.HasValue == true ? orderedIds.IndexOf( before.WorkflowTypeId.Value ) : -1;
-                if ( insertIndex >= 0 )
-                {
-                    orderedIds.Insert( insertIndex, movedId );
+                    return ActionOk( new CanDeleteResponseBag { CanDelete = true } );
                 }
-                else
+
+                canDelete = service.CanDelete( entity, out errorMessage );
+            }
+            else if ( entityKey == EntityKey.PlacementGroup )
+            {
+                var service = new ConnectionOpportunityGroupService( RockContext );
+                var entity = service.Get( request.EntityGuid );
+
+                if ( entity == null )
                 {
-                    orderedIds.Add( movedId );
+                    return ActionOk( new CanDeleteResponseBag { CanDelete = true } );
                 }
+
+                canDelete = service.CanDelete( entity, out errorMessage );
+            }
+            else if ( entityKey == EntityKey.ConnectorGroup )
+            {
+                var service = new ConnectionOpportunityConnectorGroupService( RockContext );
+                var entity = service.Get( request.EntityGuid );
+
+                if ( entity == null )
+                {
+                    return ActionOk( new CanDeleteResponseBag { CanDelete = true } );
+                }
+
+                canDelete = service.CanDelete( entity, out errorMessage );
+            }
+            else if ( entityKey == EntityKey.ConnectionWorkflow )
+            {
+                var service = new ConnectionWorkflowService( RockContext );
+                var entity = service.Get( request.EntityGuid );
+
+                if ( entity == null )
+                {
+                    return ActionOk( new CanDeleteResponseBag { CanDelete = true } );
+                }
+
+                canDelete = service.CanDelete( entity, out errorMessage );
             }
             else
             {
-                orderedIds.Add( movedId );
+                return ActionBadRequest( $"Unknown entity: {entityKey}" );
             }
 
-            connectionOpportunity.SetAdditionalSettings( "WorkflowTypeOrder", orderedIds );
-
-            RockContext.SaveChanges();
-            return ActionOk();
+            return ActionOk( new CanDeleteResponseBag
+            {
+                CanDelete = canDelete,
+                ErrorMessage = errorMessage
+            } );
         }
 
         /// <summary>
@@ -1121,47 +1299,43 @@ namespace Rock.Blocks.Engagement
 		/// <summary>
 		/// Gets the qualifier options for the specified workflow trigger type, scoped to the current connection type.
 		/// </summary>
-		/// <param name="triggerType">The trigger type as an integer value of <see cref="ConnectionWorkflowTriggerType"/>.</param>
+		/// <param name="triggerType">The trigger type.</param>
 		/// <returns>A result containing a list of qualifier options as <see cref="ListItemBag"/> values.</returns>
-        public BlockActionResult GetConnectionWorkflowQualifierOptions( int triggerType )
+        public BlockActionResult GetConnectionWorkflowQualifierOptions( ConnectionWorkflowTriggerType triggerType )
         {
-            var connectionTypeId = PageParameter( PageParameterKey.ConnectionTypeId ).AsInteger();
+            var connectionTypeId = GetConnectionType()?.Id;
             var qualifierOptions = new List<ListItemBag>();
 
-            var theTriggerType = ( ConnectionWorkflowTriggerType ) triggerType;
-
-            switch ( theTriggerType )
+            switch ( triggerType )
             {
                 case ConnectionWorkflowTriggerType.StatusChanged:
+                case ConnectionWorkflowTriggerType.StatusBecomesDue:
+                case ConnectionWorkflowTriggerType.StatusBecomesDueSoon:
+                case ConnectionWorkflowTriggerType.StatusBecomesOverdue:
                 // we don't use the QualifierValue DB column for manual trigger type, but we need the connection status options
                 // to populate the dropdown for ManualTriggerFilterConnectionStatusId
                 case ConnectionWorkflowTriggerType.Manual:
-                    qualifierOptions = new ConnectionStatusService( RockContext )
-                        .Queryable()
-                        .AsNoTracking()
-                        .Where( stat => stat.ConnectionTypeId == connectionTypeId || stat.ConnectionTypeId == null )
+                    if ( !connectionTypeId.HasValue )
+                    {
+                        break;
+                    }
+
+                    qualifierOptions = new ConnectionStatusService( RockContext ).Queryable()
+                        .Where( stat => stat.ConnectionTypeId == connectionTypeId.Value || stat.ConnectionTypeId == null )
                         .OrderBy( stat => stat.Name )
-                        .Select( stat => new ListItemBag { Text = stat.Name, Value = stat.Guid.ToString() } )
+                        .Select( stat => new ListItemBag { Text = stat.Name, Value = stat.Id.ToString() } )
                         .ToList();
 
                     break;
 
-                case ConnectionWorkflowTriggerType.StateChanged:
-                    qualifierOptions = typeof( ConnectionState ).ToEnumListItemBag().ToList();
-                    var connectionType = new ConnectionTypeService( RockContext ).Get( connectionTypeId );
-                    if ( connectionType != null && !connectionType.EnableFutureFollowup )
+                case ConnectionWorkflowTriggerType.ActivityAdded:
+                    if ( !connectionTypeId.HasValue )
                     {
-                        var futureFollowUp = ( ( int ) ConnectionState.FutureFollowUp ).ToString();
-                        qualifierOptions = qualifierOptions.Where( o => o.Value != futureFollowUp ).ToList();
+                        break;
                     }
 
-                    break;
-
-                case ConnectionWorkflowTriggerType.ActivityAdded:
-                    qualifierOptions = new ConnectionActivityTypeService( RockContext )
-                        .Queryable()
-                        .AsNoTracking()
-                        .Where( a => a.ConnectionTypeId == connectionTypeId )
+                    qualifierOptions = new ConnectionActivityTypeService( RockContext ).Queryable()
+                        .Where( a => a.ConnectionTypeId == connectionTypeId.Value )
                         .OrderBy( a => a.Name )
                         .Select( a => new ListItemBag { Text = a.Name, Value = a.Guid.ToString() } )
                         .ToList();
@@ -1169,7 +1343,12 @@ namespace Rock.Blocks.Engagement
                     break;
             }
 
-            return ActionOk( new { qualifierOptions } );
+            var response = new ConnectionWorkflowQualifierOptionsResponseBag
+            {
+                QualifierOptions = qualifierOptions
+            };
+
+            return ActionOk( response );
         }
 
         [BlockAction]
@@ -1196,9 +1375,7 @@ namespace Rock.Blocks.Engagement
             }
 
             var groupService = new GroupService( RockContext );
-            var groupIds = groupService
-                .Queryable()
-                .AsNoTracking()
+            var groupIds = groupService.Queryable()
                 .Where( g => validGroupGuids.Contains( g.Guid ) && g.IsActive )
                 .Select( g => g.Id )
                 .ToList();
@@ -1210,9 +1387,7 @@ namespace Rock.Blocks.Engagement
 
             var connectionOpportunityId = PageParameter( PageParameterKey.ConnectionOpportunityId ).AsInteger();
 
-            var defaultConnectorOptions = new GroupMemberService( RockContext )
-                .Queryable()
-                .AsNoTracking()
+            var defaultConnectorOptions = new GroupMemberService( RockContext ).Queryable()
                 .Include( gm => gm.Person )
                 .Where( gm =>
                     groupIds.Contains( gm.GroupId ) &&

@@ -1,22 +1,23 @@
 <!-- Copyright by the Spark Development Network; Licensed under the Rock Community License -->
 <template>
-    <ShorthandDropDownList v-model="internalBorderStyle"
-                           v-bind="$attrs"
-                           :help="help"
-                           :label="label"
-                           :items="borderStyles" />
+    <DropDownList v-model="internalBorderStyle"
+                  v-bind="$attrs"
+                  :help="help"
+                  :label="label"
+                  :items="borderStyles" />
 </template>
 
 <script setup lang="ts">
     import { computed, PropType } from "vue";
-    import ShorthandDropDownList from "./shorthandDropDownList.partial.obs";
-    import { BorderStyle, ShorthandModel } from "./types.partial";
+    import DropDownList from "@Obsidian/Controls/dropDownList.obs";
+    import { BorderStyle } from "./types.partial";
     import { get } from "./utils.partial";
     import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
+    import { useVModelPassthrough } from "@Obsidian/Utility/component";
 
     const props = defineProps({
         modelValue: {
-            type: Object as PropType<ShorthandModel<BorderStyle | null> | null>,
+            type: Object as PropType<BorderStyle | null>,
             required: true
         },
 
@@ -32,7 +33,7 @@
     });
 
     const emit = defineEmits<{
-        (e: "update:borderStyle", value: ShorthandModel<BorderStyle | null> | null): void;
+        (e: "update:modelValue", value: BorderStyle | null): void;
     }>();
 
     // IMPORTANT! These values will be used as is in the rendered CSS Ruleset.
@@ -50,14 +51,20 @@
         }
     ];
 
+    // #region Values
+
+    const internalValue = useVModelPassthrough(props, "modelValue", emit);
+
+    // #endregion Values
+
     // #region Computed Values
 
-    const internalBorderStyle = computed<ShorthandModel<BorderStyle | null> | null>({
-        get(): ShorthandModel<BorderStyle | null> | null {
-            return props.modelValue;
+    const internalBorderStyle = computed<BorderStyle | "">({
+        get(): BorderStyle | "" {
+            return internalValue.value ?? "";
         },
-        set(value: ShorthandModel<BorderStyle | null> | null) {
-            emit("update:borderStyle", value);
+        set(value: BorderStyle | "") {
+            internalValue.value = value || null;
         }
     });
 

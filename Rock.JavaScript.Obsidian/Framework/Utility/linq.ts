@@ -1020,26 +1020,6 @@ export class Enumerable<T> {
     }
 
     /**
-     * Returns the maximum element of the sequence.
-     *
-     * @template T The type of the elements in the sequence.
-     * @param selector A function to project each element to a numeric, comparable value.
-     * @returns The maximum element or `undefined` if the sequence is empty.
-     *
-
-        let maxItem = selector(first.value);
-
-        for (let next = self.next(); !next.done; next = self.next()) {
-            const value = selector(next.value);
-            if (value > maxItem) {
-                maxItem = value;
-            }
-        }
-
-        return maxItem;
-    }
-
-    /**
      * Filters the sequence and returns only elements of the specified type.
      * @template U The target type to filter by.
      * @param typeCheck - A runtime check function to validate the type of each element.

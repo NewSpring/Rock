@@ -6,53 +6,45 @@
             <Accordion title="Body Settings">
                 <slot name="bodySettingsPrepend"></slot>
 
-                <RangeSliderProperty label="Body Width"
-                                     :min="480"
-                                     :max="900"
-                                     :showValueBar="true"
-                                     :valueProvider="getGlobalBodyWidthProvider(document)"
-                                     valueSuffix="px" />
+                <RangeSlider v-model="bodyGlobalWidthPx"
+                             label="Body Width"
+                             :min="480"
+                             :max="900"
+                             :showValueBar="true"
+                             valueSuffix="px">
+                    <template #besideLabel>
+                        <ClearStyleButton v-if="!isNullish(bodyGlobalWidthPx)" @click="bodyGlobalWidthPx = 0" />
+                    </template>
+                </RangeSlider>
 
-                <ColorPickerProperty label="Body Color"
-                                     :valueProvider="getGlobalBodyBackgroundColorProvider(document)" />
+                <ColorPicker v-model.hex="bodyGlobalBackgroundColor"
+                             label="Body Color" />
 
-                <DropDownListProperty label="Body Alignment"
-                                      :items="[
-                                          {
-                                              text: 'Left',
-                                              value: 'left'
-                                          },
-                                          {
-                                              text: 'Center',
-                                              value: 'center'
-                                          },
-                                          {
-                                              text: 'Right',
-                                              value: 'right'
-                                          }
-                                      ]"
-                                      :showBlankItem="false"
-                                      :valueProvider="getGlobalBodyAlignmentProvider(document)" />
+                <DropDownList v-model="bodyGlobalBodyAlignment"
+                              label="Body Alignment"
+                              :items="[
+                                  {
+                                      text: 'Left',
+                                      value: 'left'
+                                  },
+                                  {
+                                      text: 'Center',
+                                      value: 'center'
+                                  },
+                                  {
+                                      text: 'Right',
+                                      value: 'right'
+                                  }
+                              ]"
+                              :showBlankItem="false" />
 
-                <BorderPropertyGroup :element="document.body"
-                                     :styleSheetMode="{
-                                         styleCssClass: RockStylesCssClass,
-                                         rulesetCssSelector: GlobalStylesCssSelectors.bodyBorderStyling
-                                     }" />
+                <BorderPicker v-model="bodyGlobalBorder" />
 
-                <PaddingProperty :element="document.body"
-                                 label="Margin"
-                                 :styleSheetMode="{
-                                     styleCssClass: RockStylesCssClass,
-                                     rulesetCssSelector: GlobalStylesCssSelectors.bodyMargin
-                                 }" />
+                <ShorthandPixelBox v-model="bodyGlobalMarginPx"
+                                   label="Margin" />
 
-                <PaddingProperty :element="document.body"
-                                 label="Padding"
-                                 :styleSheetMode="{
-                                     styleCssClass: RockStylesCssClass,
-                                     rulesetCssSelector: GlobalStylesCssSelectors.bodyPadding
-                                 }" />
+                <ShorthandPixelBox v-model="bodyGlobalPaddingPx"
+                                   label="Padding" />
             </Accordion>
 
             <Accordion title="Background Settings">
@@ -250,51 +242,26 @@
             <Accordion title="Divider Styling">
                 <div class="row">
                     <div class="col-sm-6">
-                        <DividerStyleProperty :element="document.body"
-                                              label="Style"
-                                              :styleSheetMode="{
-                                                styleCssClass: RockStylesCssClass,
-                                                rulesetCssSelector: GlobalStylesCssSelectors.dividerStyle
-                                            }" />
+                        <BorderStylePicker v-model="dividerGlobalStyle" label="Style" />
                     </div>
 
                     <div class="col-sm-6 pl-0">
-                        <DividerThicknessProperty :element="document.body"
-                                                  label="Thickness"
-                                                  :styleSheetMode="{
-                                                    styleCssClass: RockStylesCssClass,
-                                                    rulesetCssSelector: GlobalStylesCssSelectors.dividerThickness
-                                                }" />
+                        <PixelBox v-model="dividerGlobalThicknessPx"
+                                  label="Thickness" />
                     </div>
                 </div>
 
                 <div class="row">
                     <div class="col-sm-8">
-                        <DividerColorProperty :element="document.body"
-                                              label="Color"
-                                              :styleSheetMode="{
-                                                styleCssClass: RockStylesCssClass,
-                                                rulesetCssSelector: GlobalStylesCssSelectors.dividerColor
-                                            }" />
+                        <ColorPicker v-model.hex="dividerGlobalColor" label="Color" />
                     </div>
                 </div>
 
-                <RangeSliderProperty label="Divider Width"
-                                     :min="5"
-                                     :max="100"
-                                     :showValueBar="true"
-                                     valueSuffix="%"
-                                     :valueProvider="getGlobalDividerWidthProvider(document)" />
+                <PercentRangeSlider v-model="dividerGlobalWidthPercent" label="Divider Width" />
 
-                <HorizontalAlignmentProperty label="Horizontal Alignment"
-                                             :valueProvider="getGlobalDividerHorizontalAlignmentProvider(document)" />
+                <HorizontalAlignmentPicker v-model="dividerGlobalHorizontalAlignment" />
 
-                <PaddingProperty :element="document.body"
-                                 label="Margin"
-                                 :styleSheetMode="{
-                                    styleCssClass: RockStylesCssClass,
-                                    rulesetCssSelector: GlobalStylesCssSelectors.dividerMargin
-                                }" />
+                <ShorthandPixelBox v-model="dividerGlobalMarginPx" label="Margin" />
             </Accordion>
         </AccordionGroup>
     </FlatPanel>
@@ -305,61 +272,87 @@
     import Accordion from "../accordion.partial.obs";
     import AccordionGroup from "../accordionGroup.partial.obs";
     import BorderPicker from "../borderPicker.partial.obs";
+    import BorderStylePicker from "../borderStylePicker.partial.obs";
     import ButtonWidthPicker from "../buttonWidthPicker.partial.obs";
+    import ClearStyleButton from "../clearStyleButton.partial.obs";
     import FlatPanel from "../flatPanel.partial.obs";
     import FontFamilyPicker from "../fontFamilyPicker.partial.obs";
+    import HorizontalAlignmentPicker from "../horizontalAlignmentPicker.partial.obs";
     import LetterCasePicker from "../letterCasePicker.partial.obs";
     import LineHeightPicker from "../lineHeightPicker2.partial.obs";
+    import PercentRangeSlider from "../percentRangeSlider.partial.obs";
     import PixelBox from "../pixelBox.partial.obs";
     import ShorthandPixelBox from "../shorthandPixelBox.partial.obs";
     import TextFormatPicker from "../textFormatPicker2.partial.obs";
     import BackgroundImagePropertyGroup from "../properties/backgroundImagePropertyGroup.partial.obs";
     import BorderPropertyGroup from "../properties/borderPropertyGroup.partial.obs";
     import ColorPickerProperty from "../properties/colorPickerProperty.partial.obs";
-    import DividerColorProperty from "../properties/dividerColorProperty.partial.obs";
-    import DividerStyleProperty from "../properties/dividerStyleProperty.partial.obs";
-    import DividerThicknessProperty from "../properties/dividerThicknessProperty.partial.obs";
-    import DropDownListProperty from "../properties/dropDownListProperty.partial.obs";
     import FontPropertyGroup from "../properties/fontPropertyGroup.partial.obs";
-    import HorizontalAlignmentProperty from "../properties/horizontalAlignmentProperty.partial.obs";
     import PaddingProperty from "../properties/paddingProperty.partial.obs";
-    import RangeSliderProperty from "../properties/rangeSliderProperty.partial.obs";
+    import DropDownList from "@Obsidian/Controls/dropDownList.obs";
+    import RangeSlider from "@Obsidian/Controls/rangeSlider.obs";
     import {
-    getGlobalBodyAlignmentProvider,
-    getGlobalBodyBackgroundColorProvider,
-    getGlobalBodyWidthProvider,
-    getGlobalBackgroundColorProvider,
-    getGlobalDividerWidthProvider,
-    getGlobalDividerHorizontalAlignmentProvider
+        getGlobalBackgroundColorProvider,
     } from "../providers.partial";
     import {
-    EmailWrapperCssClass,
-    GlobalCssClasses,
-    GlobalStylesCssSelectors,
-    RockStylesCssClass
+        EmailWrapperCssClass,
+        GlobalCssClasses,
+        RockStylesCssClass
     } from "../utils.partial";
     import ColorPicker from "@Obsidian/Controls/colorPicker.obs";
     import { isHTMLElement } from "@Obsidian/Utility/dom";
-    import { BorderModel, ButtonGlobalProps, ButtonWidthModel, LetterCase, ShorthandModel } from "../types.partial";
+    import {
+        BodyGlobalProps,
+        BorderModel,
+        BorderStyle,
+        ButtonGlobalProps,
+        ButtonWidthModel,
+        DividerGlobalProps,
+        HorizontalAlignment,
+        LetterCase,
+        ShorthandModel
+    } from "../types.partial";
+    import { isNullish } from "@Obsidian/Utility/util";
 
     const props = defineProps({
-    document: {
-    type: Object as PropType<Document>,
+        document: {
+            type: Object as PropType<Document>,
+            required: true
+        },
+
+        bodyGlobalProps: {
+            type: Object as PropType<BodyGlobalProps>,
             required: true
         },
 
         buttonGlobalProps: {
             type: Object as PropType<ButtonGlobalProps>,
             required: true
+        },
+
+        dividerGlobalProps: {
+            type: Object as PropType<DividerGlobalProps>,
+            required: true
         }
     });
 
     const emit = defineEmits<{
+        (e: "update:bodyGlobalProps", value: BodyGlobalProps): void;
         (e: "update:buttonGlobalProps", value: ButtonGlobalProps): void;
+        (e: "update:dividerGlobalProps", value: DividerGlobalProps): void;
     }>();
 
     // #region Values
 
+    // Body Styling
+    const bodyGlobalWidthPx = ref<number>(props.bodyGlobalProps.widthPx ?? 600);
+    const bodyGlobalBackgroundColor = ref<string>(props.bodyGlobalProps.backgroundColor ?? "");
+    const bodyGlobalBodyAlignment = ref<HorizontalAlignment | "">(props.bodyGlobalProps.bodyAlignment ?? "");
+    const bodyGlobalBorder = ref<BorderModel | null>(props.bodyGlobalProps.border);
+    const bodyGlobalMarginPx = ref<ShorthandModel<number | null> | null>(props.bodyGlobalProps.marginPx);
+    const bodyGlobalPaddingPx = ref<ShorthandModel<number | null> | null>(props.bodyGlobalProps.paddingPx);
+
+    // Button Styling
     const buttonGlobalBackgroundColorOrEmptyString = ref<string>(props.buttonGlobalProps.backgroundColor ?? "");
     const buttonGlobalFontFamily = ref<string | null>(props.buttonGlobalProps.fontFamily);
     const buttonGlobalFontSizePx = ref<number | null>(props.buttonGlobalProps.fontSizePx);
@@ -374,6 +367,14 @@
     const buttonGlobalWidth = ref<ButtonWidthModel | null>(props.buttonGlobalProps.width);
     const buttonGlobalMarginPx = ref<ShorthandModel<number | null> | null>(props.buttonGlobalProps.marginPx);
     const buttonGlobalPaddingPx = ref<ShorthandModel<number | null> | null>(props.buttonGlobalProps.paddingPx);
+
+    // Divider Styling
+    const dividerGlobalStyle = ref<BorderStyle | null>(props.dividerGlobalProps.style);
+    const dividerGlobalThicknessPx = ref<number | null>(props.dividerGlobalProps.thicknessPx);
+    const dividerGlobalColor = ref<string>(props.dividerGlobalProps.color ?? "");
+    const dividerGlobalWidthPercent = ref<number | null>(props.dividerGlobalProps.widthPercent);
+    const dividerGlobalHorizontalAlignment = ref<HorizontalAlignment | "">(props.dividerGlobalProps.horizontalAlignment ?? "");
+    const dividerGlobalMarginPx = ref<ShorthandModel<number | null> | null>(props.dividerGlobalProps.marginPx);
 
     // #endregion Values
 
@@ -394,7 +395,18 @@
 
     // #region Functions
 
-    function emitUpdateGlobalButtonProps(): void {
+    function emitUpdateBodyGlobalProps(): void {
+        emit("update:bodyGlobalProps", {
+            widthPx: bodyGlobalWidthPx.value || null,
+            backgroundColor: bodyGlobalBackgroundColor.value || null,
+            bodyAlignment: bodyGlobalBodyAlignment.value || null,
+            border: bodyGlobalBorder.value,
+            marginPx: bodyGlobalMarginPx.value,
+            paddingPx: bodyGlobalPaddingPx.value
+        });
+    }
+
+    function emitUpdateButtonGlobalProps(): void {
         emit("update:buttonGlobalProps", {
             backgroundColor: buttonGlobalBackgroundColorOrEmptyString.value,
             fontFamily: buttonGlobalFontFamily.value,
@@ -413,9 +425,40 @@
         });
     }
 
+    function emitUpdateDividerGlobalProps(): void {
+        emit("update:dividerGlobalProps", {
+            style: dividerGlobalStyle.value,
+            thicknessPx: dividerGlobalThicknessPx.value,
+            color: dividerGlobalColor.value || null,
+            widthPercent: dividerGlobalWidthPercent.value,
+            horizontalAlignment: dividerGlobalHorizontalAlignment.value || null,
+            marginPx: dividerGlobalMarginPx.value
+        });
+    }
+
     // #endregion Functions
 
     // #region Watchers
+
+    watch([
+        bodyGlobalWidthPx,
+        bodyGlobalBackgroundColor,
+        bodyGlobalBodyAlignment,
+        bodyGlobalBorder,
+        bodyGlobalMarginPx,
+        bodyGlobalPaddingPx
+    ], () => {
+        emitUpdateBodyGlobalProps();
+    });
+
+    watch(() => props.bodyGlobalProps, (newVal) => {
+        bodyGlobalWidthPx.value = newVal.widthPx ?? 600;
+        bodyGlobalBackgroundColor.value = newVal.backgroundColor ?? "";
+        bodyGlobalBodyAlignment.value = newVal.bodyAlignment ?? "";
+        bodyGlobalBorder.value = newVal.border;
+        bodyGlobalMarginPx.value = newVal.marginPx;
+        bodyGlobalPaddingPx.value = newVal.paddingPx;
+    });
 
     watch(buttonGlobalBackgroundColorOrEmptyString, (newVal, oldVal) => {
         // If the border color was previously the same as the background color,
@@ -437,7 +480,7 @@
             };
         }
 
-        emitUpdateGlobalButtonProps();
+        emitUpdateButtonGlobalProps();
     });
 
     watch([
@@ -456,7 +499,7 @@
         buttonGlobalMarginPx,
         buttonGlobalPaddingPx
     ], () => {
-        emitUpdateGlobalButtonProps();
+        emitUpdateButtonGlobalProps();
     });
 
     watch(() => props.buttonGlobalProps, (newVal) => {
@@ -474,6 +517,26 @@
         buttonGlobalWidth.value = newVal.width;
         buttonGlobalMarginPx.value = newVal.marginPx;
         buttonGlobalPaddingPx.value = newVal.paddingPx;
+    });
+
+    watch([
+        dividerGlobalStyle,
+        dividerGlobalThicknessPx,
+        dividerGlobalColor,
+        dividerGlobalWidthPercent,
+        dividerGlobalHorizontalAlignment,
+        dividerGlobalMarginPx
+    ], () => {
+        emitUpdateDividerGlobalProps();
+    });
+
+    watch(() => props.dividerGlobalProps, (newVal) => {
+        dividerGlobalStyle.value = newVal.style;
+        dividerGlobalThicknessPx.value = newVal.thicknessPx;
+        dividerGlobalColor.value = newVal.color ?? "";
+        dividerGlobalWidthPercent.value = newVal.widthPercent;
+        dividerGlobalHorizontalAlignment.value = newVal.horizontalAlignment ?? "";
+        dividerGlobalMarginPx.value = newVal.marginPx;
     });
 
     // #endregion Watchers

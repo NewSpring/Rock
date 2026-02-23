@@ -648,17 +648,21 @@ namespace Rock.Web.Cache
 
             var context = HttpContext.Current;
             var pageReference = LoginPageReference;
-            var parms = new Dictionary<string, string>();
 
-            // if there is a rckipid token, we don't want to include it when they go to login page since they are going there to log in as a real user
-            // this also prevents an issue where they would log in as a real user, but then get logged in with the token instead after they are redirected
-            var returnUrl = context.Request.QueryString["returnUrl"] ??
+            if ( context != null )
+            {
+                var parms = new Dictionary<string, string>();
+
+                // if there is a rckipid token, we don't want to include it when they go to login page since they are going there to log in as a real user
+                // this also prevents an issue where they would log in as a real user, but then get logged in with the token instead after they are redirected
+                var returnUrl = context.Request.QueryString["returnUrl"] ??
                 context.Server.UrlEncode( PersonToken.RemoveRockMagicToken( context.Request.RawUrl ) );
 
-            parms.Add( "returnurl", returnUrl );
-            pageReference.Parameters = parms;
-            var url = pageReference.BuildUrl();
-            return url;
+                parms.Add( "returnurl", returnUrl );
+                pageReference.Parameters = parms;
+            }
+
+            return pageReference?.BuildUrl() ?? string.Empty;
         }
 
         /// <summary>

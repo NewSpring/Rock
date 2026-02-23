@@ -19,6 +19,7 @@
                 <ComponentPropertyPanel v-if="internalSelectedComponentElement"
                                         :buttonGlobalProps="buttonGlobalProps"
                                         :componentElement="internalSelectedComponentElement"
+                                        :dividerGlobalProps="dividerGlobalProps"
                                         :imageComponentBinaryFileTypeGuid="imageComponentBinaryFileTypeGuid"
                                         :ltr="ltr"
                                         :mergeFields="mergeFields"
@@ -136,7 +137,9 @@
 
             <template v-else-if="selectedSidePanelMenuItem === 'styles'">
                 <GlobalPropertyPanel v-if="emailDocument"
+                                     v-model:bodyGlobalProps="internalBodyGlobalProps"
                                      v-model:buttonGlobalProps="internalButtonGlobalProps"
+                                     v-model:dividerGlobalProps="internalDividerGlobalProps"
                                      :document="emailDocument"
                                      :hasScrollableBody="true">
                     <template v-if="$slots.bodySettingsPrepend" #bodySettingsPrepend>
@@ -336,8 +339,8 @@
     import EmailSectionModal from "./emailSectionModal.partial.obs";
     import FlatPanel from "./flatPanel.partial.obs";
     import GlobalPropertyPanel from "./propertyPanels/globalPropertyPanel.partial.obs";
-    import { ButtonGlobalProps, CloneComponentRequest, CompleteComponentRequest, ComponentTypeDragEndRequest, ComponentTypeDragStartRequest, DeleteComponentRequest, EditorComponentTypeName, ReplaceComponentRequest } from "./types.partial";
-    import { UsageType } from "./types";
+    import { BodyGlobalProps, ButtonGlobalProps, CloneComponentRequest, CompleteComponentRequest, ComponentTypeDragEndRequest, ComponentTypeDragStartRequest, DeleteComponentRequest, DividerGlobalProps, EditorComponentTypeName, ReplaceComponentRequest } from "./types.partial";
+    import { UsageType } from "./types.partial";
     import { getComponentIconHtml, getComponentTitle } from "./utils.partial";
     import CategoryPicker from "@Obsidian/Controls/categoryPicker.obs";
     import DropDownMenu from "@Obsidian/Controls/dropDownMenu.obs";
@@ -361,22 +364,32 @@
     type SidePanelMenuItemType = "blocks" | "sections" | "styles";
 
     type SidePanelMenuItem = {
-    type: SidePanelMenuItemType;
-    iconCssClass: string;
-    title: string;
+        type: SidePanelMenuItemType;
+        iconCssClass: string;
+        title: string;
     };
 
     type ComponentTypeListItem = {
-    componentTypeName: EditorComponentTypeName;
-    iconHtml: string;
-    title: string;
+        componentTypeName: EditorComponentTypeName;
+        iconHtml: string;
+        title: string;
     };
 
     // #endregion Types
 
     const props = defineProps({
+        bodyGlobalProps: {
+            type: Object as PropType<BodyGlobalProps>,
+            required: true
+        },
+
         buttonGlobalProps: {
             type: Object as PropType<ButtonGlobalProps>,
+            required: true
+        },
+
+        dividerGlobalProps: {
+            type: Object as PropType<DividerGlobalProps>,
             required: true
         },
 
@@ -444,7 +457,9 @@
         (e: "componentTypeDragEnd", value: ComponentTypeDragEndRequest): void;
         (e: "deleteComponent", value: DeleteComponentRequest): void;
         (e: "replaceComponent", value: ReplaceComponentRequest): void;
+        (e: "update:bodyGlobalProps", value: BodyGlobalProps): void;
         (e: "update:buttonGlobalProps", value: ButtonGlobalProps): void;
+        (e: "update:dividerGlobalProps", value: DividerGlobalProps): void;
         (e: "update:selectedComponentElement", value: HTMLElement | null | undefined): void;
         (e: "update:communicationTemplateGuid", value: Guid | null | undefined): void;
     }>();
@@ -496,7 +511,9 @@
 
     const api = useApi();
 
+    const internalBodyGlobalProps = useVModelPassthrough(props, "bodyGlobalProps", emit);
     const internalButtonGlobalProps = useVModelPassthrough(props, "buttonGlobalProps", emit);
+    const internalDividerGlobalProps = useVModelPassthrough(props, "dividerGlobalProps", emit);
     const selectedSidePanelMenuItem = ref<SidePanelMenuItemType>("blocks");
     const internalSelectedComponentElement = useVModelPassthrough(props, "selectedComponentElement", emit);
     const emailSectionFilterByCategory = ref<ListItemBag | ListItemBag[] | null | undefined>({

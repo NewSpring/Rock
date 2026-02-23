@@ -20,9 +20,9 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
-using System.Web.Hosting;
 
 using Rock.Attribute;
+using Rock.Configuration;
 using Rock.Model;
 using Rock.Security;
 using Rock.ViewModels.Blocks;
@@ -55,6 +55,7 @@ namespace Rock.Blocks.Cms
 
     // was [Rock.SystemGuid.BlockTypeGuid( "327370A5-3CC0-42AD-B236-F45260F6A1EE" )]
     [Rock.SystemGuid.BlockTypeGuid( "0F1DADBC-6B12-4BAA-A828-FD1AA86AA387" )]
+    [Rock.SystemGuid.EntityTypeGuid( "EFD19035-70F5-4135-9D76-A1EE024D7D7B")]
     public partial class FileEditor : RockBlockType
     {
 
@@ -178,7 +179,7 @@ namespace Rock.Blocks.Cms
         /// <returns>A <see cref="FileEditorBag"/> containing the resolved file path and the file's contents.</returns>
         private FileEditorBag GetBoxBag()
         {
-            var filePath = HostingEnvironment.MapPath( _fileRelativePath );
+            var filePath = RockApp.Current.MapPath( _fileRelativePath );
 
             var bag = new FileEditorBag
             {
@@ -240,7 +241,7 @@ namespace Rock.Blocks.Cms
             }
 
             // Check that the file exists
-            var fileUrl = HostingEnvironment.MapPath( relativeFilePath );
+            var fileUrl = RockApp.Current.MapPath( relativeFilePath );
             if ( !File.Exists( fileUrl ) )
             {
                 errorMessage = $"Invalid relative file path.";

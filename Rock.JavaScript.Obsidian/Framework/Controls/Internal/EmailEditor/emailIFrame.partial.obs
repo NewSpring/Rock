@@ -24,16 +24,11 @@ iframe {
 <script setup lang="ts">
     import { nextTick, onBeforeUnmount, PropType, ref, watch } from "vue";
     import {
-        createGlobalBodyWidthProvider,
-        createGlobalBodyAlignmentProvider,
-        createGlobalBodyBackgroundColorProvider,
-        createGlobalBackgroundColorProvider,
-        createMediaQueryEffect,
-        createGlobalDividerWidthProvider,
-        createGlobalDividerHorizontalAlignmentProvider
+        createGlobalBackgroundColorProvider
     } from "./providers.partial";
     import {
         checkDropzoneSize,
+        bodyGlobalAdapter,
         createComponentElement,
         createComponentElementPlaceholder,
         EmptyDropzoneSvgPixelWidth,
@@ -43,9 +38,7 @@ iframe {
         getComponentHostSelector,
         getComponentTypeName,
         GlobalCssClasses,
-        GlobalStylesCssSelectors,
         LineHeights,
-        pixelConverter,
         removeTemporaryAttributes,
         removeTemporaryClasses,
         removeTemporaryElements,
@@ -74,10 +67,9 @@ iframe {
         ComponentTypeDragLeaveRequest,
         ValueProvider,
         ReplaceComponentRequest,
-        HorizontalAlignment,
         ComponentTypeName
     } from "./types.partial";
-    import { GetHtmlRequest } from "./types";
+    import { GetHtmlRequest } from "./types.partial";
     import { useVModelPassthrough } from "@Obsidian/Utility/component";
     import {
         findDirectChildContaining,
@@ -168,6 +160,10 @@ iframe {
     const draggingCssClass = `${RockRuntimeClassCssClassPrefix}-is-dragging` as const;
     const nonRowHoveredClass = `${RockRuntimeClassCssClassPrefix}-non-row-hovered` as const;
 
+    // Component types that have adapters available.
+    // Eventually, all component types should have adapters.
+    const adapterComponentTypes: ComponentTypeName[] = ["button", "rsvp", "divider", "image", "text", "video", "code", "title"];
+
     // #region Values
 
     const isResetting = ref<boolean>(false);
@@ -185,13 +181,7 @@ iframe {
     const dropzoneEmptyResizeObserver = ref<ResizeObserver | null | undefined>();
 
     // Global default providers and effects.
-    const globalBodyWidthProvider = ref<ValueProvider<number | null | undefined> | undefined>();
-    const globalBodyAlignmentProvider = ref<ValueProvider<string | null | undefined> | undefined>();
-    const globalBodyColorProvider = ref<ValueProvider<string | null | undefined> | undefined>();
     const globalBackgroundColorProvider = ref<ValueProvider<string | null | undefined> | undefined>();
-    const globalBodyWidthMediaQueryEffect = ref<Disposable | undefined>();
-    const globalDividerWidthProvider = ref<ValueProvider<number | null | undefined> | undefined>();
-    const globalDividerHorizontalAlignmentProvider = ref<ValueProvider<HorizontalAlignment | null | undefined> | undefined>();
 
     // #endregion
 
@@ -534,34 +524,104 @@ iframe {
                 throw new Error("Unable to access the iframe document.");
             }
 
-            // Build the doctype text. If none, default to HTML5.
-            const doctypeText = sourceDoc.doctype
-                ? `<!DOCTYPE ${sourceDoc.doctype.name}${sourceDoc.doctype.publicId ? ` PUBLIC "${sourceDoc.doctype.publicId}"` : ""}${sourceDoc.doctype.systemId ? ` "${sourceDoc.doctype.systemId}"` : ""}>`
+            // Build the doctype string. Default to HTML 5 if none exists.
+            const doctype = sourceDoc.doctype;
+            const doctypeText = doctype
+                ? `<!DOCTYPE ${doctype.name}`
+                + `${doctype.publicId ? ` PUBLIC "${doctype.publicId}"` : ""}`
+                + `${doctype.systemId ? ` "${doctype.systemId}"` : ""}>`
                 : "<!DOCTYPE html>";
 
-            const cloneDocument = sourceDoc.cloneNode(true) as Document;
+            // Clone before mutation so the live iframe document is untouched.
+            const clonedDoc = sourceDoc.cloneNode(true) as Document;
 
-            removeTemporaryElements(cloneDocument);
-            removeTemporaryAttributes(cloneDocument);
-            removeTemporaryWrappers(cloneDocument);
-            removeTemporaryClasses(cloneDocument);
+            removeTemporaryElements(clonedDoc);
+            removeTemporaryAttributes(clonedDoc);
+            removeTemporaryWrappers(clonedDoc);
+            removeTemporaryClasses(clonedDoc);
 
-            const finalHtmlOuterHtml = cloneDocument.documentElement.outerHTML ?? "";
-            const html = `${doctypeText}\n${finalHtmlOuterHtml}`;
+            const sanitizedHtml = clonedDoc.documentElement.outerHTML ?? "";
+            const finalHtml = decodeLavaEntityWhereFilters(sanitizedHtml);
+
+            const html = `${doctypeText}\n${finalHtml}`;
+
+            // Body width is used by some callers for preview image generation.
+            const bodyWidth = bodyGlobalAdapter.readGlobalProps(sourceDoc).widthPx;
 
             options.onSuccess({
                 html,
-                bodyWidth: globalBodyWidthProvider.value?.value
+                bodyWidth
             });
         }
         catch (e) {
             if (options.onError) {
-                options.onError(e?.["message"] ?? "An unknown error occurred while preparing HTML.");
+                options.onError(
+                    (e as Error)?.message
+                    ?? "An unknown error occurred while preparing HTML."
+                );
             }
             else {
                 throw e;
             }
         }
+    }
+
+    /**
+     * Decodes browser-encoded Lava `where:'...'` filters inside `{% %}` blocks.
+     *
+     * Browsers automatically encode `&` as `&amp;` in the HTML editor.
+     * This turns logical operators like `&&` into `&amp;&amp;`, which breaks
+     * Rock Entity `where:` filters during server-side Lava parsing.
+     *
+     * Example: `where:'IsActive == true && CampusId == 1'`
+     *
+     * Becomes: `where:'IsActive == true &amp;&amp; CampusId == 1'`
+     *
+     * We decode HTML entities inside the quoted `where:'...'` value.
+     * Although the original issue was `&amp;&amp;`, this intentionally
+     * decodes all entities (e.g. `&gt;`, `&lt;`, `&quot;`) to restore
+     * the filter logic exactly as authored.
+     *
+     * This runs on the final HTML string, not DOM nodes, because modifying
+     * the DOM would cause the browser to re-encode `&` back to `&amp;`.
+     *
+     * Scope is intentionally narrow:
+     * - Only processes `{% %}` blocks
+     * - Only decodes the quoted `where:'...'` value
+     * - Leaves all other HTML and Lava content untouched
+     */
+    function decodeLavaEntityWhereFilters(html: string): string {
+        const lavaTagRegex = /{%[\s\S]*?%}/g;
+
+        // Used only for fast detection, avoids allocating lowercase strings.
+        const whereTestRegex = /\bwhere:\s*'/i;
+
+        // Case-insensitive replacement of where clause values.
+        const whereReplaceRegex = /\bwhere:\s*'([^']*)'/gi;
+
+        // Use the browser's HTML parser to safely decode entities
+        // instead of hand-rolled replacements.
+        const template = document.createElement("template");
+
+        return html.replace(lavaTagRegex, (tag) => {
+            // Skip tags that clearly don't need processing.
+            if (!tag.includes("&") || !whereTestRegex.test(tag)) {
+                return tag;
+            }
+
+            return tag.replace(whereReplaceRegex, (_, whereValue) => {
+                // Only decode if the where value actually contains entities.
+                if (!whereValue.includes("&")) {
+                    return `where:'${whereValue}'`;
+                }
+
+                template.innerHTML = whereValue;
+                const decoded = template.content.textContent ?? "";
+                template.innerHTML = ""; // Reset to avoid retaining references.
+
+                return `where:'${decoded}'`;
+            });
+        });
     }
 
     function isComponentElement(element: HTMLElement): element is HTMLElement {
@@ -686,7 +746,7 @@ iframe {
 
     async function fixOldWizardElements(document: Document): Promise<void> {
         // Auto-migrate each component type to ensure they are all using the latest versions.
-        document.querySelectorAll(".component:not(.component-button,.component-rsvp)").forEach(componentElement => {
+        document.querySelectorAll(adapterComponentTypes.map(type => `.component:not(.component-${type})`).join(",")).forEach(componentElement => {
             try {
                 const componentTypeName = getComponentTypeName(componentElement);
                 const componentHelper = getComponentHelper(componentTypeName);
@@ -796,7 +856,7 @@ iframe {
 
         // Only include styles needed for editing the email, such as drag effects.
         // Styles for individual components in the HTML email should be styled by
-        // CSS defined in the Communication Template as these will be stripped out.
+        // CSS defined in the Communication Template as the following will be stripped out.
         var style = iFrameDocument.createElement("style");
         style.className = RockRuntimeElementCssClass;
         function createCssRuleset(selector, declarations): string {
@@ -1040,6 +1100,7 @@ body:not(.${draggingCssClass}) .rock-runtime-wrapper-element.for-component-secti
             iFrameDocument.body.append(dropzone);
         }
 
+        // This fixes issues where :empty styles are not applied due to whitespace text nodes.
         removeWhiteSpaceFromChildElements(iFrameDocument, ".structure-dropzone, .dropzone");
 
         await fixOldWizardElements(iFrameDocument);
@@ -1192,7 +1253,6 @@ body:not(.${draggingCssClass}) .rock-runtime-wrapper-element.for-component-secti
 
             const globalStyles = getStyleBuilder();
 
-            globalStyles.addStyle(GlobalStylesCssSelectors.bodyPadding, "padding: 24px;");
             globalStyles.addStyle(`.${GlobalCssClasses.fontGlobal}`,
                 `font-family: ${FontFamilies.Arial};
                 font-size: 16px;
@@ -1225,10 +1285,6 @@ body:not(.${draggingCssClass}) .rock-runtime-wrapper-element.for-component-secti
                 color: #364153;
                 line-height: ${LineHeights.tight.value};`);
             globalStyles.addStyle(`.${GlobalCssClasses.marginParagraph}`, `margin: 0;`);
-            globalStyles.addStyle(GlobalStylesCssSelectors.dividerStyle, `border-style: solid none none;`);
-            globalStyles.addStyle(GlobalStylesCssSelectors.dividerThickness, `border-width: 1px 0px 0px;`);
-            globalStyles.addStyle(GlobalStylesCssSelectors.dividerColor, `border-color: #8b8ba7 transparent transparent;`);
-            globalStyles.addStyle(GlobalStylesCssSelectors.dividerMargin, `padding: 12px 0;`);
 
             // Add non-editable global styles.
             globalStyles.addStyle(`html, body`,
@@ -1248,19 +1304,6 @@ body:not(.${draggingCssClass}) .rock-runtime-wrapper-element.for-component-secti
             // Insert as the first child. This style sheet will be removed when sent.
             iFrameDocument.body.insertBefore(styleElement, iFrameDocument.body.firstChild);
 
-            const mediaStyleElement = iFrameDocument.createElement("style");
-            mediaStyleElement.classList.add("rock-media-styles");
-
-            const mediaStyles = getStyleBuilder();
-            mediaStyles.addStyle(`@media screen and (max-width: 600px)`,
-                `.email-wrapper { min-height: 100vh; }`
-            );
-
-            mediaStyleElement.textContent = generateCssRulesets(mediaStyles.styles);
-
-            // Insert into the head since it shouldn't be removed.
-            iFrameDocument.head.append(mediaStyleElement);
-
             // Setting this to true will trigger global defaults in emailEditor.partial.obs
             // for components that follow the adapter pattern. All components before that
             // had globals set here when there was no style.rock-styles element, so we can
@@ -1273,96 +1316,9 @@ body:not(.${draggingCssClass}) .rock-runtime-wrapper-element.for-component-secti
         // Apply other defaults using providers.
         // These providers need to run as long as the editor is open regardless of side panel tab
         // so the matching element styles stay up-to-date.
-        globalBodyWidthProvider.value?.dispose();
-        globalBodyWidthProvider.value = createGlobalBodyWidthProvider(iFrameDocument);
-
-        globalBodyWidthMediaQueryEffect.value?.[Symbol.dispose]();
-        globalBodyWidthMediaQueryEffect.value = createMediaQueryEffect(
-            iFrameDocument.head,
-            "rock-media-styles",
-            `.small-12 {
-                display: inline-block !important;
-                width: 100% !important;
-            }
-
-            .small-11 {
-                display: inline-block !important;
-                width: 91.66667% !important;
-            }
-
-            .small-10 {
-                display: inline-block !important;
-                width: 83.33333% !important;
-            }
-
-            .small-9 {
-                display: inline-block !important;
-                width: 75% !important;
-            }
-
-            .small-8 {
-                display: inline-block !important;
-                width: 66.66667% !important;
-            }
-
-            .small-7 {
-                display: inline-block !important;
-                width: 58.33333% !important;
-            }
-
-            .small-6 {
-                display: inline-block !important;
-                width: 50% !important;
-            }
-
-            .small-5 {
-                display: inline-block !important;
-                width: 41.66667% !important;
-            }
-
-            .small-4 {
-                display: inline-block !important;
-                width: 33.33333% !important;
-            }
-
-            .small-3 {
-                display: inline-block !important;
-                width: 25% !important;
-            }
-
-            .small-2 {
-                display: inline-block !important;
-                width: 16.66667% !important;
-            }
-
-            .small-1 {
-                display: inline-block !important;
-                width: 8.33333% !important;
-            }
-
-            .spacer {
-                display: none !important;
-                width: 0 !important;
-            }`,
-            "max-width",
-            globalBodyWidthProvider.value,
-            pixelConverter
-        );
-
-        globalBodyAlignmentProvider.value?.dispose();
-        globalBodyAlignmentProvider.value = createGlobalBodyAlignmentProvider(iFrameDocument);
-
-        globalBodyColorProvider.value?.dispose();
-        globalBodyColorProvider.value = createGlobalBodyBackgroundColorProvider(iFrameDocument);
 
         globalBackgroundColorProvider.value?.dispose();
         globalBackgroundColorProvider.value = createGlobalBackgroundColorProvider(iFrameDocument);
-
-        globalDividerWidthProvider.value?.dispose();
-        globalDividerWidthProvider.value = createGlobalDividerWidthProvider(iFrameDocument);
-
-        globalDividerHorizontalAlignmentProvider.value?.dispose();
-        globalDividerHorizontalAlignmentProvider.value = createGlobalDividerHorizontalAlignmentProvider(iFrameDocument);
 
         return areGlobalDefaultsRequired;
     }
@@ -1578,7 +1534,7 @@ body:not(.${draggingCssClass}) .rock-runtime-wrapper-element.for-component-secti
             const customComponentElement = tempElement.querySelector(".component");
             if (customComponentElement) {
                 const componentTypeName = getComponentTypeName(customComponentElement);
-                if (componentTypeName !== "button" && componentTypeName !== "rsvp") {
+                if (!adapterComponentTypes.includes(componentTypeName)) {
                     const helper = getComponentHelper(getComponentTypeName(customComponentElement));
                     if (helper && helper.isMigrationRequired(customComponentElement)) {
                         customComponentElement.replaceWith(helper.migrate(customComponentElement));
@@ -1933,7 +1889,7 @@ body:not(.${draggingCssClass}) .rock-runtime-wrapper-element.for-component-secti
             const isComponentChild = draggingElement.value.contains(componentElement);
             if (componentElement) {
                 const componentTypeName = getComponentTypeName(componentElement);
-                if (componentTypeName !== "button" && componentTypeName !== "rsvp") {
+                if (!adapterComponentTypes.includes(componentTypeName)) {
                     const componentHelper = getComponentHelper(getComponentTypeName(componentElement));
                     if (componentHelper && componentHelper.isMigrationRequired(componentElement)) {
                         const migratedComponentElement = componentHelper.migrate(componentElement);
@@ -1948,7 +1904,14 @@ body:not(.${draggingCssClass}) .rock-runtime-wrapper-element.for-component-secti
                     }
                 }
 
-                emit("componentAdded", { componentTypeName: componentTypeName, componentElement: componentElement });
+                if (!componentElement.isConnected) {
+                    nextTick(() => {
+                        emit("componentAdded", { componentTypeName: componentTypeName, componentElement: componentElement });
+                    });
+                }
+                else {
+                    emit("componentAdded", { componentTypeName: componentTypeName, componentElement: componentElement });
+                }
             }
 
             if (draggingPlaceholderElement.value.parentElement) {
@@ -2163,13 +2126,7 @@ body:not(.${draggingCssClass}) .rock-runtime-wrapper-element.for-component-secti
         dropzoneEmptyResizeObserver.value?.disconnect();
         sectionComponentMutationObserver.value?.disconnect();
 
-        globalBodyWidthProvider.value?.dispose();
-        globalBodyWidthMediaQueryEffect.value?.[Symbol.dispose]();
-        globalBodyAlignmentProvider.value?.dispose();
-        globalBodyColorProvider.value?.dispose();
         globalBackgroundColorProvider.value?.dispose();
-        globalDividerWidthProvider.value?.dispose();
-        globalDividerHorizontalAlignmentProvider.value?.dispose();
     });
 
     // #endregion

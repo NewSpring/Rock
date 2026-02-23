@@ -111,7 +111,7 @@ namespace Rock.Blocks.Group
             var listItemBag = new List<ListItemBag>();
             foreach ( Enum enumValue in Enum.GetValues( enumType ) )
             {
-                var text = enumValue.GetDescription() ?? enumValue.ToString().SplitCase();
+                var text = enumValue.GetDisplayName();
                 listItemBag.Add( new ListItemBag { Text = text, Value = enumValue.ToString() } );
             }
 
@@ -222,8 +222,6 @@ namespace Rock.Blocks.Group
                 WarningWorkflowType = entity.WarningWorkflowType.ToListItemBag()
             };
 
-            bag.LoadAttributesAndValuesForPublicView( entity, GetCurrentPerson(), enforceSecurity: false );
-
             return bag;
         }
 
@@ -237,6 +235,8 @@ namespace Rock.Blocks.Group
 
             var bag = GetCommonEntityBag( entity );
 
+            bag.LoadAttributesAndValuesForPublicView( entity, GetCurrentPerson(), enforceSecurity: false );
+
             return bag;
         }
 
@@ -249,6 +249,8 @@ namespace Rock.Blocks.Group
             }
 
             var bag = GetCommonEntityBag( entity );
+
+            bag.LoadAttributesAndValuesForPublicEdit( entity, RequestContext.CurrentPerson, enforceSecurity: true );
 
             return bag;
         }
@@ -453,7 +455,11 @@ namespace Rock.Blocks.Group
                 return ActionBadRequest( validationMessage );
             }
 
-            RockContext.SaveChanges();
+            RockContext.WrapTransaction( () =>
+            {
+                RockContext.SaveChanges();
+                entity.SaveAttributeValues( RockContext );
+            } );
 
             var bag = GetEntityBagForView( entity );
 

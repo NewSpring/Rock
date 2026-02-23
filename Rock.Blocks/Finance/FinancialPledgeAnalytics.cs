@@ -22,6 +22,8 @@ using System.Data;
 using System.Globalization;
 using System.Linq;
 
+using Microsoft.EntityFrameworkCore;
+
 using Rock.Attribute;
 using Rock.Data;
 using Rock.Model;
@@ -219,7 +221,7 @@ namespace Rock.Blocks.Finance
             bool includeGifts = includeOption != 0;
 
             var rockContextAnalytics = new RockContextAnalytics();
-            rockContextAnalytics.Database.CommandTimeout = this.GetAttributeValue( AttributeKey.DatabaseTimeoutSeconds ).AsIntegerOrNull() ?? 180;
+            rockContextAnalytics.Database.SetCommandTimeout( this.GetAttributeValue( AttributeKey.DatabaseTimeoutSeconds ).AsIntegerOrNull() ?? 180 );
 
             DataSet ds = new FinancialPledgeService( rockContextAnalytics )
                 .GetPledgeAnalyticsDataSet(
@@ -265,11 +267,9 @@ namespace Rock.Blocks.Finance
         [BlockAction]
         public virtual BlockActionResult GetBlockData()
         {
-            var rockContext = new RockContext();
-
             var bag = new FinancialPledgeAnalyticsBlockDataBag
             {
-                PledgeGridData = GePledgeGridDataBag( rockContext )
+                PledgeGridData = GePledgeGridDataBag( RockContext )
             };
 
             return ActionOk( bag );
