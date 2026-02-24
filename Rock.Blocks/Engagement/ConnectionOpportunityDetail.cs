@@ -1,4 +1,4 @@
-﻿// <copyright>
+// <copyright>
 // Copyright by the Spark Development Network
 //
 // Licensed under the Rock Community License (the "License");
@@ -1052,7 +1052,6 @@ namespace Rock.Blocks.Engagement
 
                     var connectionOpportunityCampusService = new ConnectionOpportunityCampusService( RockContext );
                     var existingCampusesByCampusGuid = connectionOpportunityCampusService.Queryable()
-                        .AsNoTracking()
                         .Include( c => c.Campus )
                         .Where( c => c.ConnectionOpportunityId == entity.Id && c.Campus != null )
                         .ToList()
