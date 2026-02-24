@@ -2385,6 +2385,8 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
                 {
                     return ActionBadRequest( "You are not authorized to add a note to this Connection Request." );
                 }
+
+                noteService.Add( note );
             }
             else
             {
@@ -2402,7 +2404,6 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
             }
 
             note.Text = bag.NoteText;
-            noteService.Add( note );
 
             RockContext.SaveChanges();
 
@@ -2423,6 +2424,31 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
             };
 
             return ActionOk( activityEntryBag );
+        }
+
+        [BlockAction]
+        public BlockActionResult DeleteNote( string noteIdKey )
+        {
+            var noteService = new NoteService( RockContext );
+            var note = noteService.Get( noteIdKey, !PageCache.Layout.Site.DisablePredictableIds );
+
+            if ( note == null )
+            {
+                return ActionBadRequest( $"{Rock.Model.Note.FriendlyTypeName} not found." );
+            }
+
+            if ( !note.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson ) )
+            {
+                return ActionBadRequest( "You are not authorized to edit this Note." );
+            }
+
+            noteService.Delete( note );
+
+            RockContext.SaveChanges();
+
+            var key = $"{ActivityEntryType.RequestNote}_{noteIdKey}";
+
+            return ActionOk( key );
         }
 
         #endregion Detail View Block Actions

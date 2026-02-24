@@ -223,8 +223,14 @@
                         </DropDownContent>
                     </template>
                     <template #default>
-                        <RockForm @submit="saveNote">
+                        <RockForm @submit="onAddRequestNote">
                             <div class="d-flex flex-column gap-xs">
+                                <NotificationBox v-if="isAddRequestNoteErrorMessageVisible"
+                                                 alertType="danger"
+                                                 dismissible
+                                                 @dismiss="onAddRequestNoteErrorDismissed">
+                                    {{ addRequestNoteErrorMessage }}
+                                </NotificationBox>
                                 <TextBox v-model="connectionRequestNoteText"
                                          textMode="multiline"
                                          placeholder="Write a note..."
@@ -251,7 +257,12 @@
                                     <span> • {{ getElapsedDate(activityEntry.entryDateTime) }}</span>
                                 </div>
                             </div>
-                            <ActivityCard v-else :activityEntry="activityEntry" />
+                            <ActivityCard v-else
+                                          :connectionRequestIdKey="requestDetails?.connectionRequestIdKey ?? ''"
+                                          :activityEntry="activityEntry"
+                                          :ref="(el) => setActivityCardRef(activityEntry.key, el)"
+                                          @editNote="(bag) => onEditRequestNote(bag, activityEntry.key)"
+                                          @deleteNote="deleteNote" />
                         </template>
                     </template>
                 </ContentSection>
@@ -340,7 +351,7 @@
 
 <script setup lang="ts">
     import DockedPanel from "@Obsidian/Controls/Internal/dockedPanel.obs";
-    import { ref, PropType, watch, computed } from "vue";
+    import { ref, PropType, watch, computed, shallowRef } from "vue";
     import { useVModelPassthrough } from "@Obsidian/Utility/component";
     import { ConnectionRequestDetailsBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionRequestDetailsBag";
     import PersonAvatar from "@Obsidian/Controls/personAvatar.obs";
@@ -383,6 +394,7 @@
     import { ConnectionRequestNoteBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionRequestNoteBag";
     import RockForm from "@Obsidian/Controls/rockForm.obs";
     import { BtnSize } from "@Obsidian/Enums/Controls/btnSize";
+    import NotificationBox from "@Obsidian/Controls/notificationBox.obs";
 
     const props = defineProps({
         modelValue: {
@@ -452,12 +464,17 @@
 
     const selectedConnector = ref(props.requestDetails?.connectorPerson ?? "");
     const connectorItems = ref<PersonFieldBag[]>(props.requestDetails?.connectorItems ?? []);
+    const activityEntries = ref<ActivityEntryBag[]>([]);
 
     const isActivityFilterDropdownOpen = ref(false);
     const selectedActivityFilter = ref<ListItemBag>({ text: "All", value: "all" });
 
+    const activityCardRefs = shallowRef(new Map<string, InstanceType<typeof ActivityCard>>());
+
     const areRequestDetailsLoading = ref(true);
 
+    const isAddRequestNoteErrorMessageVisible = ref(false);
+    const addRequestNoteErrorMessage = ref();
     const connectionRequestNoteText = ref("");
 
     const currentIndex = computed(() =>
@@ -560,10 +577,9 @@
     });
 
     const filteredAndSortedActivityEntries = computed(() => {
-        const entries = props.requestDetails?.activityEntries ?? [];
         const filter = selectedActivityFilter.value.value;
 
-        let result = entries;
+        let result = activityEntries.value;
 
         if (filter !== "all") {
             const entryType = toNumber(filter);
@@ -789,41 +805,85 @@
         return date.toLocaleString({ year: "numeric", month: "numeric", day: "numeric" });
     }
 
-    async function saveNote(): Promise<void> {
+    function onAddRequestNoteErrorDismissed(): void {
+        isAddRequestNoteErrorMessageVisible.value = false;
+    }
+
+    function setActivityCardRef(key: string | null | undefined, el: unknown): void {
+        if (!key || isNullOrWhiteSpace(key)) {
+            return;
+        }
+
+        activityCardRefs.value.set(key, el as InstanceType<typeof ActivityCard>);
+    }
+
+    async function onAddRequestNote(): Promise<void> {
         const bag: ConnectionRequestNoteBag = {
             connectionRequestIdKey: props.requestDetails?.connectionRequestIdKey,
             noteIdKey: null,
             noteText: connectionRequestNoteText.value
         };
 
+        const errorMessage = await saveNote(bag);
+
+        if (isNullOrWhiteSpace(errorMessage)) {
+            connectionRequestNoteText.value = "";
+            return;
+        }
+
+        isAddRequestNoteErrorMessageVisible.value = true;
+        addRequestNoteErrorMessage.value = errorMessage;
+    }
+
+    async function onEditRequestNote(bag: ConnectionRequestNoteBag, key: string | null | undefined): Promise<void> {
+        if (!key || isNullOrWhiteSpace(key)) {
+            return;
+        }
+
+        const errorMessage = await saveNote(bag);
+
+        activityCardRefs.value.get(key)?.processSave(errorMessage);
+    }
+
+    async function saveNote(bag: ConnectionRequestNoteBag): Promise<string | null> {
         const result = await invokeBlockAction<ActivityEntryBag>("SaveNote", {
             bag
         });
 
         if (result.isSuccess && result.data) {
-            if (!props.requestDetails) {
-                return;
-            }
-
-            let existingNote = props.requestDetails.activityEntries?.find(a => a.key === result.data?.key);
-
-            if (existingNote) {
-                existingNote = result.data;
+            const index = activityEntries.value.findIndex(a => a.key === result.data?.key);
+            if (index !== -1) {
+                activityEntries.value[index] = result.data;
             }
             else {
-                props.requestDetails.activityEntries?.push(result.data);
+                activityEntries.value.push(result.data);
             }
 
-            connectionRequestNoteText.value = "";
+            return null;
         }
         else {
-            console.error(result.errorMessage);
+            return result.errorMessage ?? "An error occurred while saving the connection request note.";
+        }
+    }
+
+    async function deleteNote(noteIdKey: string): Promise<void> {
+        const result = await invokeBlockAction<string>("DeleteNote", {
+            noteIdKey
+        });
+
+        if (result.isSuccess && result.data) {
+            const index = activityEntries.value.findIndex(a => a.key === result.data);
+            if (index !== -1) {
+                activityEntries.value.splice(index, 1);
+            }
+        }
+        else {
+            // TODO: Handle error message from failed delete
         }
     }
 
     watch(isFullWidth, () => {
         if (isFullWidth.value) {
-            // TODO - add transition
             dockedPanelWidth.value = "100%";
         }
         else {
@@ -834,6 +894,7 @@
     watch(() => props.requestDetails, () => {
         selectedConnector.value = props.requestDetails?.connectorPerson ?? "";
         connectorItems.value = props.requestDetails?.connectorItems ?? [];
+        activityEntries.value = props.requestDetails?.activityEntries ?? [];
 
         if (!props.requestDetails) {
             areRequestDetailsLoading.value = true;

@@ -20,6 +20,8 @@
 /* Global styles that can be used on any implementation of the Control. */
 .dropdown-content {
     min-width: 200px;
+    border: 1px solid var(--color-interface-soft);
+    border-radius: var(--rounded-small);
 }
 
 .dropdown-content-item {

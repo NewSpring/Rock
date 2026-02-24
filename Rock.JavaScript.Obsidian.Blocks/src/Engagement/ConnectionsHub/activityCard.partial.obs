@@ -36,6 +36,12 @@
         </div>
 
         <RockForm v-if="isEditingNote" @submit="onSaveNote">
+            <NotificationBox v-if="isErrorMessageVisible"
+                             alertType="danger"
+                             dismissible
+                             @dismiss="onErrorMessageDismissed">
+                {{ errorMessage }}
+            </NotificationBox>
             <div class="border rounded py-spacing-tiny">
                 <TextBox v-model="noteText"
                          textMode="multiline"
@@ -118,24 +124,36 @@
     import { BtnType } from "@Obsidian/Enums/Controls/btnType";
     import { BtnSize } from "@Obsidian/Enums/Controls/btnSize";
     import { ConnectionRequestNoteBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionRequestNoteBag";
+    import NotificationBox from "@Obsidian/Controls/notificationBox.obs";
 
     const props = defineProps({
         activityEntry: {
             type: Object as PropType<ActivityEntryBag>,
             default: {}
-        }
+        },
+        connectionRequestIdKey: {
+            type: String as PropType<string>,
+        },
     });
 
 
     const emit = defineEmits<{
         (e: "editNote", value: ConnectionRequestNoteBag): void;
+        (e: "deleteNote", value: string): void;
     }>();
+
+    defineExpose({
+        processSave
+    });
 
     const isSecondaryActionDropdownOpen = ref(false);
     const badgeClasses = ref();
     const iconClass = ref();
     const isEditingNote = ref(false);
     const noteText = ref("");
+
+    const isErrorMessageVisible = ref(false);
+    const errorMessage = ref();
 
     const actionText = computed(() => {
         switch (props.activityEntry.entryType) {
@@ -174,6 +192,7 @@
         const idKey = props.activityEntry.key?.split("_")[1] ?? "";
 
         const bag: ConnectionRequestNoteBag = {
+            connectionRequestIdKey: props.connectionRequestIdKey,
             noteIdKey: idKey,
             noteText: noteText.value
         };
@@ -181,9 +200,23 @@
         emit("editNote", bag);
     }
 
+    function processSave(errorText: string | null): void {
+        if (isNullOrWhiteSpace(errorText)) {
+            isEditingNote.value = false;
+            return;
+        }
+        errorMessage.value = errorText;
+        isErrorMessageVisible.value = true;
+    }
+
     function onDelete(): void {
         isSecondaryActionDropdownOpen.value = false;
-        // emit delete
+        const noteIdKey = props.activityEntry.key?.split("_")[1] ?? "";
+        emit("deleteNote", noteIdKey);
+    }
+
+    function onErrorMessageDismissed(): void {
+        isErrorMessageVisible.value = false;
     }
 
     watch(() => props.activityEntry, () => {
