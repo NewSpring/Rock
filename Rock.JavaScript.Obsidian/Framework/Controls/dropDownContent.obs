@@ -18,6 +18,10 @@
 
 <style>
 /* Global styles that can be used on any implementation of the Control. */
+.dropdown-content {
+    min-width: 200px;
+}
+
 .dropdown-content-item {
     cursor: pointer;
 }

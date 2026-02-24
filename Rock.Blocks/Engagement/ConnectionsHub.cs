@@ -31,6 +31,7 @@ using System.Data.SqlClient;
 using Grpc.Core;
 using Fluid.Values;
 using System.Text.RegularExpressions;
+using OpenXmlPowerTools;
 
 namespace Rock.Blocks.Engagement
 {
@@ -119,6 +120,9 @@ namespace Rock.Blocks.Engagement
             public const string ConnectionRequestEntityTypeId = "@ConnectionRequestEntityTypeId";
             public const string RequestId = "@RequestId";
             public const string CategoryId = "@CategoryId";
+            public const string SourceEntityTypeId = "@SourceEntityTypeId";
+            public const string SourceEntityId = "@SourceEntityId";
+            public const string TargetEntityTypeId = "@TargetEntityTypeId";
         }
 
         #endregion Keys
@@ -2037,8 +2041,8 @@ namespace Rock.Blocks.Engagement
             bag.LavaHeadingTemplate = GetAttributeValue( AttributeKey.LavaHeadingTemplate ).ResolveMergeFields( mergeFields );
             bag.LavaBadgeBar = GetAttributeValue( AttributeKey.LavaBadgeBar ).ResolveMergeFields( mergeFields );
 
-            // Filters out Connection Request Activities that do not have a created by person alias id or created date time.
-            var validActivities = connectionRequest.ConnectionRequestActivities.Where( a => a.CreatedByPersonAliasId.HasValue && a.CreatedDateTime.HasValue ).ToList();
+            // Filters out Connection Request Activities that do not have a created by person alias id or created date time. -- TODO - determine if we should do this. Currently inconsistent.
+            var validActivities = connectionRequest.ConnectionRequestActivities.Where( a => a.CreatedByPersonAliasId.HasValue && a.ModifiedDateTime.HasValue ).ToList();
             //var validConnectionStatusHistories = connectionRequest.ConnectionRequestStatusHistories.OrderBy( h => h.EndDateTime ).ToList();
 
 
@@ -2046,8 +2050,9 @@ namespace Rock.Blocks.Engagement
 
             entries.AddRange( validActivities.Select( a => new ActivityEntryBag
             {
+                Key = $"{ActivityEntryType.Activity}_{IdHasher.Instance.GetHash( a.Id )}",
                 EntryType = ActivityEntryType.Activity,
-                EntryDateTime = a.CreatedDateTime.Value.ToRockDateTimeOffset(),
+                EntryDateTime = a.ModifiedDateTime.Value.ToRockDateTimeOffset(),
                 CreatedBy = a.CreatedByPersonAlias?.Person?.FullName,
                 CardEntry = new CardEntryBag
                 {
@@ -2075,6 +2080,7 @@ namespace Rock.Blocks.Engagement
 
             var categoryId = CategoryCache.Get( Rock.SystemGuid.Category.HISTORY_CONNECTION_REQUEST.AsGuid() ).Id;
             var connectionRequestEntityTypeId = EntityTypeCache.Get( SystemGuid.EntityType.CONNECTION_REQUEST.AsGuid() ).Id;
+            var communicationEntityTypeId = EntityTypeCache.Get( SystemGuid.EntityType.COMMUNICATION.AsGuid() ).Id;
 
             //var connectionRequestHistoryEntries = new HistoryService( RockContext ).Queryable()
             //    .Where( h => h.CategoryId == categoryId && h.EntityTypeId == connectionRequestEntityTypeId && h.EntityId == connectionRequest.Id )
@@ -2082,20 +2088,21 @@ namespace Rock.Blocks.Engagement
 
             var historySQL = @"
 SELECT
-    LTRIM(RTRIM(CONCAT(COALESCE(p.NickName, ''), ' ', COALESCE(p.LastName, '')))) AS CreatedBy,
-    h.CreatedDateTime,
-    h.Verb,
-    h.ValueName,
-    h.NewValue,
-    h.OldValue
-FROM History h
-LEFT JOIN PersonAlias pa
-    ON pa.Id = h.CreatedByPersonAliasId
-LEFT JOIN Person p
-    ON p.Id = pa.PersonId
-WHERE h.CategoryId = @CategoryId
-  AND h.EntityTypeId = @ConnectionRequestEntityTypeId
-  AND h.EntityId = @RequestId;
+    h.[Id],
+    LTRIM(RTRIM(CONCAT(COALESCE(p.[NickName], ''), ' ', COALESCE(p.[LastName], '')))) AS CreatedBy,
+    h.[CreatedDateTime],
+    h.[Verb],
+    h.[ValueName],
+    h.[NewValue],
+    h.[OldValue]
+FROM [History] h
+LEFT JOIN [PersonAlias] pa
+    ON pa.[Id] = h.[CreatedByPersonAliasId]
+LEFT JOIN [Person] p
+    ON p.[Id] = pa.[PersonId]
+WHERE h.[CategoryId] = @CategoryId
+  AND h.[EntityTypeId] = @ConnectionRequestEntityTypeId
+  AND h.[EntityId] = @RequestId;
 ";
             var sqlParams = new List<SqlParameter>
             {
@@ -2106,6 +2113,49 @@ WHERE h.CategoryId = @CategoryId
 
             var historyRows = RockContext.Database
                 .SqlQuery<HistoryRow>( historySQL, sqlParams.ToArray() )
+                .ToList();
+
+            var communicationSQL = @"
+SELECT
+	c.[Id],
+	c.[CommunicationType],
+	c.[Subject],
+	c.[SMSMessage],
+	c.[CreatedDateTime],
+	p.[NickName],
+	p.[LastName],
+	p.[PhotoId],
+	p.[Age],
+	p.[Gender],
+	p.[RecordTypeValueId],
+	p.[AgeClassification],
+	bf.[Guid] AS BinaryFileGuid,
+	bf.[FileName]
+FROM [RelatedEntity] re
+INNER JOIN [Communication] c
+	ON c.[Id] = re.[TargetEntityId]
+LEFT JOIN [PersonAlias] pa
+    ON pa.[Id] = c.[CreatedByPersonAliasId]
+LEFT JOIN [Person] p
+    ON p.[Id] = pa.[PersonId]
+LEFT JOIN [CommunicationAttachment] ca
+	ON ca.[CommunicationId] = c.[Id]
+LEFT JOIN [BinaryFile] bf
+	ON bf.[Id] = ca.[BinaryFileId]
+WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
+	AND re.[SourceEntityId] = @SourceEntityId
+	AND re.[TargetEntityTypeId] = @TargetEntityTypeId
+";
+
+            sqlParams = new List<SqlParameter>
+            {
+                new SqlParameter( SqlParamKey.SourceEntityTypeId, connectionRequestEntityTypeId ),
+                new SqlParameter( SqlParamKey.SourceEntityId, connectionRequest.Id ),
+                new SqlParameter( SqlParamKey.TargetEntityTypeId, communicationEntityTypeId ),
+            };
+
+            var communicationRows = RockContext.Database
+                .SqlQuery<CommunicationRow>( communicationSQL, sqlParams.ToArray() )
                 .ToList();
 
             entries.AddRange( historyRows.Select( r => 
@@ -2159,6 +2209,16 @@ WHERE h.CategoryId = @CategoryId
                             else
                             {
                                 systemUpdateType = SystemUpdateType.StateChange;
+
+                                if ( Enum.TryParse( previousValue, out ConnectionState previousConnectionState ) )
+                                {
+                                    previousValue = previousConnectionState.GetDisplayName();
+                                }
+
+                                if ( Enum.TryParse( newValue, out ConnectionState newConnectionState ) )
+                                {
+                                    newValue = newConnectionState.GetDisplayName();
+                                }
                             }
                             break;
                         case "DueDate":
@@ -2170,8 +2230,12 @@ WHERE h.CategoryId = @CategoryId
                     }
                 }
 
+                // Get unique key.
+                var key = $"{ActivityEntryType.SystemUpdate}_{IdHasher.Instance.GetHash( r.Id )}";
+
                 return new ActivityEntryBag
                 {
+                    Key = key,
                     EntryType = ActivityEntryType.SystemUpdate,
                     EntryDateTime = r.CreatedDateTime?.ToRockDateTimeOffset(),
                     CreatedBy = createdBy,
@@ -2184,9 +2248,181 @@ WHERE h.CategoryId = @CategoryId
                 };
             } ) );
 
+            entries.AddRange( communicationRows.Where( r => r.CommunicationType == CommunicationType.Email || r.CommunicationType == CommunicationType.SMS )
+                .GroupBy( r => new
+                {
+                    r.Id,
+                    r.CommunicationType,
+                    r.Subject,
+                    r.SMSMessage,
+                    r.CreatedDateTime,
+                    r.NickName,
+                    r.LastName,
+                    r.PhotoId,
+                    r.Age,
+                    r.Gender,
+                    r.RecordTypeValueId,
+                    r.AgeClassification
+                } ).Select( g =>
+                {
+                    string photoUrl = null;
+                    string title = null;
+                    string content = null;
+                    string createdBy = $"{g.Key.NickName ?? ""} {g.Key.LastName ?? ""}".Trim();
+
+                    if ( createdBy.IsNullOrWhiteSpace() )
+                    {
+                        createdBy = "Unknown Person";
+                        photoUrl = Rock.Model.Person.GetPersonNoPictureUrl( new Rock.Model.Person() );
+                    }
+                    else
+                    {
+                        string initials = $"{g.Key.NickName?.Truncate( 1, false )}{g.Key.LastName?.Truncate( 1, false )}";
+                        photoUrl = Rock.Model.Person.GetPersonPhotoUrl(
+                            initials,
+                            g.Key.PhotoId,
+                            g.Key.Age,
+                            g.Key.Gender ?? Gender.Unknown,
+                            g.Key.RecordTypeValueId,
+                            g.Key.AgeClassification
+                        );
+                    }
+
+                    if ( g.Key.CommunicationType == CommunicationType.SMS )
+                    {
+                        title = "SMS";
+                        content = g.Key.SMSMessage.ResolveMergeFields( mergeFields );
+                    }
+                    else
+                    {
+                        title = $"Email: {g.Key.Subject}";
+                    }
+
+                    // Get unique key.
+                    var key = $"{ActivityEntryType.Communication}_{IdHasher.Instance.GetHash( g.Key.Id )}";
+
+                    return new ActivityEntryBag
+                    {
+                        Key = key,
+                        EntryType = ActivityEntryType.Communication,
+                        EntryDateTime = g.Key.CreatedDateTime?.ToRockDateTimeOffset(),
+                        CreatedBy = createdBy,
+                        CardEntry = new CardEntryBag
+                        {
+                            Title = title,
+                            Content = content,
+                            PhotoUrl = photoUrl,
+                            Attachments = g.Where( x => x.BinaryFileGuid.HasValue )
+                                .DistinctBy( x => x.BinaryFileGuid.Value )
+                                .Select( x => new ListItemBag
+                                {
+                                    Value = x.BinaryFileGuid.Value.ToString(),
+                                    Text = x.FileName
+                                } )
+                                .ToList()
+                        }
+                    };
+            } ) );
+
+            var connectionRequestNoteTypeId = NoteTypeCache.Get( Rock.SystemGuid.NoteType.CONNECTION_REQUEST_NOTE.AsGuid() ).Id;
+            var noteService = new NoteService( RockContext );
+
+            var connectionRequestNotes = noteService.Queryable()
+                .Where( n => n.NoteTypeId == connectionRequestNoteTypeId && n.EntityId == connectionRequest.Id )
+                .ToList()
+                .Where( n => n.IsAuthorized( Authorization.VIEW, RequestContext.CurrentPerson ) );
+            // TODO - Do I need to check view security for each note? ^^^
+
+            entries.AddRange( connectionRequestNotes.Select( n => new ActivityEntryBag
+            {
+                Key = $"{ActivityEntryType.RequestNote}_{IdHasher.Instance.GetHash( n.Id )}",
+                EntryType = ActivityEntryType.RequestNote,
+                EntryDateTime = n.ModifiedDateTime?.ToRockDateTimeOffset(),
+                CreatedBy = n.CreatedByPersonAlias?.Person?.FullName,
+                CardEntry = new CardEntryBag
+                {
+                    Title = "Request Note",
+                    Content = n.Text,
+                    PhotoUrl = n.CreatedByPersonAlias?.Person?.PhotoUrl
+                }
+            } ) );
+
+
+
             bag.ActivityEntries = new List<ActivityEntryBag>( entries.OrderByDescending( e => e.EntryDateTime ) );
 
             return ActionOk( bag );
+        }
+
+        [BlockAction]
+        public BlockActionResult SaveNote( ConnectionRequestNoteBag bag )
+        {
+            var connectionRequestService = new ConnectionRequestService( RockContext );
+            var connectionRequest = connectionRequestService.Get( bag.ConnectionRequestIdKey, !PageCache.Layout.Site.DisablePredictableIds );
+            if ( connectionRequest == null )
+            {
+                return ActionBadRequest( $"{Rock.Model.ConnectionRequest.FriendlyTypeName} not found." );
+            }
+
+            if ( !connectionRequest.IsAuthorized( Authorization.VIEW, RequestContext.CurrentPerson ) )
+            {
+                return ActionBadRequest( "You are not authorized to view this Connection Request." );
+            }
+
+            var noteService = new NoteService( RockContext );
+            Note note;
+
+            if ( bag.NoteIdKey.IsNullOrWhiteSpace() )
+            {
+                note = new Note
+                {
+                    EntityId = connectionRequest.Id,
+                    NoteTypeId = NoteTypeCache.Get( Rock.SystemGuid.NoteType.CONNECTION_REQUEST_NOTE.AsGuid() ).Id,
+                    CreatedByPersonAliasId = RequestContext.CurrentPerson.PrimaryAliasId
+                };
+
+                if ( !note.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson ) )
+                {
+                    return ActionBadRequest( "You are not authorized to add a note to this Connection Request." );
+                }
+            }
+            else
+            {
+                note = noteService.Get( bag.NoteIdKey, !PageCache.Layout.Site.DisablePredictableIds );
+
+                if ( note == null )
+                {
+                    return ActionBadRequest( $"{Rock.Model.Note.FriendlyTypeName} not found." );
+                }
+
+                if ( !note.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson ) )
+                {
+                    return ActionBadRequest( "You are not authorized to edit this Note." );
+                }
+            }
+
+            note.Text = bag.NoteText;
+            noteService.Add( note );
+
+            RockContext.SaveChanges();
+
+            // TODO - Can a Connection Request Note be editted by someone who is not the creator?
+
+            var activityEntryBag = new ActivityEntryBag
+            {
+                Key = $"{ActivityEntryType.RequestNote}_{IdHasher.Instance.GetHash( note.Id )}",
+                EntryType = ActivityEntryType.RequestNote,
+                EntryDateTime = note.ModifiedDateTime?.ToRockDateTimeOffset(),
+                CreatedBy = note.CreatedByPersonName,
+                CardEntry = new CardEntryBag
+                {
+                    Title = "Request Note",
+                    Content = bag.NoteText,
+                    PhotoUrl = note.CreatedByPersonPhotoUrl
+                }
+            };
+
+            return ActionOk( activityEntryBag );
         }
 
         #endregion Detail View Block Actions
@@ -2236,6 +2472,7 @@ WHERE h.CategoryId = @CategoryId
                 .Select( cr => new
                 {
                     PersonAliasGuid = cr.PersonAlias.Guid,
+                    cr.Guid,
                     cr.PersonAlias.Person,
                     MobilePhone = cr
                         .PersonAlias
@@ -2246,6 +2483,7 @@ WHERE h.CategoryId = @CategoryId
                 .ToList() // materialize query before projecting because some properties require the full Person entity.
                 .Select( cr => new CommunicationRecipientBag
                 {
+                    ConnectionRequestGuid = cr.Guid,
                     IsDeceased = cr.Person.IsDeceased,
                     IsSmsAllowed = cr.MobilePhone != null
                         && cr.MobilePhone.Number.IsNotNullOrWhiteSpace() == true
@@ -2788,6 +3026,8 @@ WHERE h.CategoryId = @CategoryId
 
         public class HistoryRow
         {
+            public int Id { get; set; }
+
             public string CreatedBy { get; set; }
 
             public DateTime? CreatedDateTime { get; set; }
@@ -2799,6 +3039,37 @@ WHERE h.CategoryId = @CategoryId
             public string NewValue { get; set; }
 
             public string OldValue { get; set; }
+        }
+
+        public class CommunicationRow
+        {
+            public int Id { get; set; }
+
+            public CommunicationType CommunicationType { get; set; }
+
+            public string Subject { get; set; }
+
+            public string SMSMessage { get; set; }
+
+            public DateTime? CreatedDateTime { get; set; }
+
+            public string NickName { get; set; }
+
+            public string LastName { get; set; }
+
+            public int? PhotoId { get; set; }
+
+            public int? Age { get; set; }
+
+            public Gender? Gender { get; set; }
+
+            public int? RecordTypeValueId { get; set; }
+
+            public AgeClassification? AgeClassification { get; set; }
+
+            public Guid? BinaryFileGuid { get; set; }
+
+            public string FileName { get; set; }
         }
 
         #endregion Supporting Classes

@@ -8,20 +8,21 @@
                               :photoSize="24"
                               marginRight="2" />
                 <div class="d-flex flex-column">
-                    <div class="text-interface-strong"><span class="text-semibold">{{ activityEntry.createdBy }}</span> {{ actionText }} <span class="text-semibold">{{ activityEntry.cardEntry?.title }}</span></div>
+                    <div class="text-interface-strong"><span class="text-semibold">{{ activityEntry.createdBy }}</span> {{ actionText }} <span class="text-semibold">{{ activityEntry.cardEntry?.title }}</span>.</div>
                     <div class="text-interface-medium">{{ entryDateTimeElapsed }}</div>
                 </div>
             </div>
             <div class="d-flex gap-md  h-fit">
-                <DropDownContent v-model="isSecondaryActionDropdownOpen"
+                <DropDownContent v-if="activityEntry.entryType !== ActivityEntryType.Communication"
+                                 v-model="isSecondaryActionDropdownOpen"
                                  enableFlip>
                     <template #default>
                         <div class="dropdown-content bg-interface-softest">
-                            <div class="dropdown-content-item py-spacing-sm px-spacing-md"
+                            <div class="dropdown-content-item py-spacing-sm px-spacing-md text-small text-semibold"
                                  @click.stop="onEdit">
                                 Edit
                             </div>
-                            <div class="dropdown-content-item py-spacing-sm px-spacing-md text-danger"
+                            <div class="dropdown-content-item py-spacing-sm px-spacing-md text-small text-semibold text-danger"
                                  @click.stop="onDelete">
                                 Delete
                             </div>
@@ -34,14 +35,52 @@
             </div>
         </div>
 
-        <div v-if="!isNullOrWhiteSpace(activityEntry.cardEntry?.content)"
+        <RockForm v-if="isEditingNote" @submit="onSaveNote">
+            <div class="border rounded py-spacing-tiny">
+                <TextBox v-model="noteText"
+                         textMode="multiline"
+                         rules="required"
+                         validationTitle="Note"
+                         inputGroupClasses="request-note-editor">
+                    <template #inputGroupAppend>
+                        <div class="p-spacing-xs d-flex justify-content-end gap-xs">
+                            <RockButton :btnType="BtnType.Link"
+                                        :btnSize="BtnSize.Small"
+                                        @click="onCancelNoteEdit">
+                                Cancel
+                            </RockButton>
+                            <RockButton type="submit"
+                                        :btnType="BtnType.Primary"
+                                        :btnSize="BtnSize.Small">
+                                Save Note
+                            </RockButton>
+                        </div>
+                    </template>
+                </TextBox>
+            </div>
+        </RockForm>
+        <div v-else-if="!isNullOrWhiteSpace(activityEntry.cardEntry?.content)"
              class="text-interface-strong">
             {{ activityEntry.cardEntry?.content }}
+        </div>
+        <div v-if="activityEntry.cardEntry?.attachments && activityEntry.cardEntry.attachments.length > 0" class="d-flex flex-column gap-tiny">
+            <template v-for="(attachment, index) in activityEntry.cardEntry.attachments">
+                <a :href="`/GetFile.ashx?guid=${attachment.value}&fileName=${attachment.text}`" target="_blank" rel="noopener noreferrer">{{ isNullOrWhiteSpace(attachment.text) ? `View Attachment ${index}` : attachment.text }}</a>
+            </template>
         </div>
     </div>
 </template>
 
 <style scoped>
+/* text-sm is incorrectly returning xsmall at the moment in develop */
+.text-small {
+    font-size: var(--font-size-small);
+}
+
+.gap-tiny {
+    gap: var(--spacing-tiny);
+}
+
 .gap-xs {
     gap: var(--spacing-xsmall);
 }
@@ -50,12 +89,15 @@
     gap: var(--spacing-medium);
 }
 
-.dropdown-content {
-    min-width: 200px;
-}
-
 .h-fit {
     height: fit-content;
+}
+
+:deep(.request-note-editor .form-control) {
+    border: none;
+    border-radius: 0;
+    border-bottom: 1px solid var(--color-interface-soft);
+    box-shadow: none;
 }
 </style>
 
@@ -71,6 +113,11 @@
     import { RockDateTime } from "@Obsidian/Utility/rockDateTime";
     import DropDownContent from "@Obsidian/Controls/dropDownContent.obs";
     import Badge from "@Obsidian/Controls/badge.obs";
+    import TextBox from "@Obsidian/Controls/textBox.obs";
+    import RockForm from "@Obsidian/Controls/rockForm.obs";
+    import { BtnType } from "@Obsidian/Enums/Controls/btnType";
+    import { BtnSize } from "@Obsidian/Enums/Controls/btnSize";
+    import { ConnectionRequestNoteBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionRequestNoteBag";
 
     const props = defineProps({
         activityEntry: {
@@ -79,10 +126,16 @@
         }
     });
 
+
+    const emit = defineEmits<{
+        (e: "editNote", value: ConnectionRequestNoteBag): void;
+    }>();
+
     const isSecondaryActionDropdownOpen = ref(false);
     const badgeClasses = ref();
     const iconClass = ref();
-
+    const isEditingNote = ref(false);
+    const noteText = ref("");
 
     const actionText = computed(() => {
         switch (props.activityEntry.entryType) {
@@ -104,10 +157,32 @@
     });
 
     function onEdit(): void {
-        // emit edit
+        isSecondaryActionDropdownOpen.value = false;
+
+        if (props.activityEntry.entryType === ActivityEntryType.RequestNote) {
+            isEditingNote.value = true;
+            noteText.value = props.activityEntry.cardEntry?.content ?? "";
+        }
+    }
+
+    function onCancelNoteEdit(): void {
+        isEditingNote.value = false;
+    }
+
+    function onSaveNote(): void {
+        // Extract the note id key.
+        const idKey = props.activityEntry.key?.split("_")[1] ?? "";
+
+        const bag: ConnectionRequestNoteBag = {
+            noteIdKey: idKey,
+            noteText: noteText.value
+        };
+
+        emit("editNote", bag);
     }
 
     function onDelete(): void {
+        isSecondaryActionDropdownOpen.value = false;
         // emit delete
     }
 
@@ -123,8 +198,12 @@
                 break;
             case ActivityEntryType.Communication:
                 badgeClasses.value = "bg-info-soft text-info-strong";
-                iconClass.value = "ti ti-mail";
-                // TODO - Add SMS Icon
+                if (props.activityEntry.cardEntry?.title === "SMS") {
+                    iconClass.value = "ti ti-message-circle";
+                }
+                else {
+                    iconClass.value = "ti ti-mail";
+                }
                 break;
         }
     }, { immediate: true });

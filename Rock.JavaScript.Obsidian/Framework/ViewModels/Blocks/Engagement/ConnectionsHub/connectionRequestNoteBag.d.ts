@@ -21,20 +21,10 @@
 // </copyright>
 //
 
-import { ActivityEntryType } from "@Obsidian/Enums/Connection/activityEntryType";
-import { CardEntryBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/cardEntryBag";
-import { SystemUpdateBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/systemUpdateBag";
+export type ConnectionRequestNoteBag = {
+    connectionRequestIdKey?: string | null;
 
-export type ActivityEntryBag = {
-    cardEntry?: CardEntryBag | null;
+    noteIdKey?: string | null;
 
-    createdBy?: string | null;
-
-    entryDateTime?: string | null;
-
-    entryType: ActivityEntryType;
-
-    key?: string | null;
-
-    systemUpdate?: SystemUpdateBag | null;
+    noteText?: string | null;
 };

@@ -31,6 +31,8 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
     /// </summary>
     public class ActivityEntryBag
     {
+        public string Key { get; set; }
+
         public ActivityEntryType EntryType { get; set; }
 
         public DateTimeOffset? EntryDateTime { get; set; }
@@ -50,7 +52,7 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
 
         public string PhotoUrl { get; set; }
 
-        // TODO - Attachments?
+        public List<ListItemBag> Attachments { get; set; }
     }
 
     public class SystemUpdateBag

@@ -212,9 +212,9 @@
                                 </div>
                             </template>
                             <template #default>
-                                <div class="bg-interface-softest">
+                                <div class="bg-interface-softest dropdown-content">
                                     <div v-for="activityFilter in activityFilterOptions"
-                                         class="dropdown-content-item py-spacing-sm px-spacing-md"
+                                         class="dropdown-content-item py-spacing-sm px-spacing-md text-small text-semibold"
                                          @click.stop="updateActivityFilter(activityFilter)">
                                         {{ activityFilter.text }}
                                     </div>
@@ -223,7 +223,25 @@
                         </DropDownContent>
                     </template>
                     <template #default>
-                        <template v-for="activityEntry in filteredActivityEntries">
+                        <RockForm @submit="saveNote">
+                            <div class="d-flex flex-column gap-xs">
+                                <TextBox v-model="connectionRequestNoteText"
+                                         textMode="multiline"
+                                         placeholder="Write a note..."
+                                         validationTitle="Note"
+                                         rules="required" />
+                                <div class="row">
+                                    <div class="col-md-3">
+                                        <RockButton :btnType="BtnType.Primary"
+                                                    :btnSize="BtnSize.Small"
+                                                    type="submit">
+                                            Save Note
+                                        </RockButton>
+                                    </div>
+                                </div>
+                            </div>
+                        </RockForm>
+                        <template v-for="activityEntry in filteredAndSortedActivityEntries">
                             <div v-if="activityEntry.entryType === ActivityEntryType.SystemUpdate && activityEntry.systemUpdate" class="d-flex gap-xs text-interface-medium text-small">
                                 <Badge :isCircle="true" class="d-flex justify-content-center bg-interface-softest text-interface-medium h-fit">
                                     <i :class="systemUpdateIconClass(activityEntry.systemUpdate.systemUpdateType)"></i>
@@ -359,6 +377,12 @@
     import { SystemUpdateBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/systemUpdateBag";
     import { SystemUpdateType } from "@Obsidian/Enums/Connection/systemUpdateType";
     import { ActivityEntryBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/activityEntryBag";
+    import TextBox from "@Obsidian/Controls/textBox.obs";
+    import { BtnType } from "@Obsidian/Enums/Controls/btnType";
+    import { useInvokeBlockAction } from "@Obsidian/Utility/block";
+    import { ConnectionRequestNoteBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionRequestNoteBag";
+    import RockForm from "@Obsidian/Controls/rockForm.obs";
+    import { BtnSize } from "@Obsidian/Enums/Controls/btnSize";
 
     const props = defineProps({
         modelValue: {
@@ -394,6 +418,7 @@
     }>();
 
     const isVisible = useVModelPassthrough(props, "modelValue", emit);
+    const invokeBlockAction = useInvokeBlockAction();
 
     const defaultDockedPanelWidth = "700px";
 
@@ -413,6 +438,10 @@
         {
             text: pluralize(ActivityEntryTypeDescription[ActivityEntryType.SystemUpdate]),
             value: ActivityEntryType.SystemUpdate.toString()
+        },
+        {
+            text: pluralize(ActivityEntryTypeDescription[ActivityEntryType.Communication]),
+            value: ActivityEntryType.Communication.toString()
         }
     ];
 
@@ -428,6 +457,8 @@
     const selectedActivityFilter = ref<ListItemBag>({ text: "All", value: "all" });
 
     const areRequestDetailsLoading = ref(true);
+
+    const connectionRequestNoteText = ref("");
 
     const currentIndex = computed(() =>
         props.orderedKeys.indexOf(props.currentKey)
@@ -528,20 +559,38 @@
         return false;
     });
 
-    const filteredActivityEntries = computed(() => {
+    const filteredAndSortedActivityEntries = computed(() => {
         const entries = props.requestDetails?.activityEntries ?? [];
         const filter = selectedActivityFilter.value.value;
 
-        if (filter === "all") {
-            return entries;
+        let result = entries;
+
+        if (filter !== "all") {
+            const entryType = toNumber(filter);
+
+            if (!Number.isNaN(entryType)) {
+                result = result.filter(e => e.entryType === entryType);
+            }
         }
 
-        const entryType = toNumber(filter);
-        if (Number.isNaN(entryType)) {
-            return entries;
-        }
+        return result
+            .slice()
+            .sort((a, b) => {
+                const dateA = RockDateTime.parseISO(a.entryDateTime ?? "");
+                const dateB = RockDateTime.parseISO(b.entryDateTime ?? "");
 
-        return entries.filter(e => e.entryType === entryType);
+                if (!dateA && !dateB) {
+                    return 0;
+                }
+                if (!dateA) {
+                    return 1;
+                }
+                if (!dateB) {
+                    return -1;
+                }
+
+                return dateB.compareTo(dateA);
+            });
     });
 
     const systemUpdateIconClass = (systemUpdateType: SystemUpdateType): string => {
@@ -738,6 +787,38 @@
         }
 
         return date.toLocaleString({ year: "numeric", month: "numeric", day: "numeric" });
+    }
+
+    async function saveNote(): Promise<void> {
+        const bag: ConnectionRequestNoteBag = {
+            connectionRequestIdKey: props.requestDetails?.connectionRequestIdKey,
+            noteIdKey: null,
+            noteText: connectionRequestNoteText.value
+        };
+
+        const result = await invokeBlockAction<ActivityEntryBag>("SaveNote", {
+            bag
+        });
+
+        if (result.isSuccess && result.data) {
+            if (!props.requestDetails) {
+                return;
+            }
+
+            let existingNote = props.requestDetails.activityEntries?.find(a => a.key === result.data?.key);
+
+            if (existingNote) {
+                existingNote = result.data;
+            }
+            else {
+                props.requestDetails.activityEntries?.push(result.data);
+            }
+
+            connectionRequestNoteText.value = "";
+        }
+        else {
+            console.error(result.errorMessage);
+        }
     }
 
     watch(isFullWidth, () => {
