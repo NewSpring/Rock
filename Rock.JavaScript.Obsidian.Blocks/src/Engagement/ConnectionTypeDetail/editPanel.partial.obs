@@ -36,6 +36,7 @@
                     <div class="col-md-6">
                         <PagePicker v-model="connectionRequestDetailPage" label="Connection Request Detail Page"
                                     help="Select the page used to view requests for this connection type. This allows different connection types to use different request detail pages. If left blank, the default request detail page will be used."
+                                    :showSelectCurrentPage="true"
                                     trailblazerField />
                     </div>
                 </div>
