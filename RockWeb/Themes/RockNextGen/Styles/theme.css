@@ -17939,6 +17939,7 @@ iframe.file-browser {
 .board-card-pills {
   display: flex;
   flex-flow: row wrap;
+  gap: var(--spacing-tiny);
   align-content: space-between;
   margin: -5px -5px 10px;
 }

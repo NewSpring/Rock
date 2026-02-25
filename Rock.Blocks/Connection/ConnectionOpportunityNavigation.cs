@@ -121,8 +121,8 @@ namespace Rock.Blocks.Connection
                 {
                     _opportunityVisibilityItems = new List<ListItemBag>
                     {
-                        OpportunityVisibility.AllOpportunites,
-                        OpportunityVisibility.MyOpportunities
+                        OpportunityVisibility.MyOpportunities,
+                        OpportunityVisibility.AllOpportunites
                     };
                 }
 
