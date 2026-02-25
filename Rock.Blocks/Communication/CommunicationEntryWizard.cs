@@ -2031,7 +2031,7 @@ namespace Rock.Blocks.Communication
         {
             // Get the person aliases from existing communication recipients.
             var personAliasIds = new PersonAliasService( rockContext )
-                .GetPrimaryAliasQuery()
+                .Queryable()
                 .AsNoTracking()
                 .Where( personAlias => personAliasGuids.Contains( personAlias.Guid ) )
                 .Select( pa => pa.Id )
@@ -2924,9 +2924,12 @@ namespace Rock.Blocks.Communication
                 }
                 else
                 {
+                    // Intentionally not using AsNoTracking. The preview Lava can access related
+                    // entities through navigation properties. Since we cannot predict what Lava
+                    // will reference, the entity must remain tracked to allow lazy loading.
                     var firstRecipient = new CommunicationRecipientService( rockContext )
                         .Queryable()
-                        .AsNoTracking()
+                        //.AsNoTracking()
                         .Where( cr => cr.CommunicationId == communication.Id )
                         .FirstOrDefault();
 
