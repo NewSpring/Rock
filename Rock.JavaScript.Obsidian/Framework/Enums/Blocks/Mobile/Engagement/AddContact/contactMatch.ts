@@ -21,11 +21,32 @@
 // </copyright>
 //
 
-/** The additional configuration options for the Person Viewed List block. */
-export type PersonViewedSummaryOptionsBag = {
+/** The type of match that was found for an existing contact. */
+export const ContactMatch = {
+    /** No contact was found that matches the provided information. */
+    NoMatch: 0,
+
     /**
-     * Determines if profiles that have been viewed by the person
-     * should be displayed.
+     * A contact was found that could potentially match the provided
+     * information.
      */
-    seeProfilesViewed: boolean;
+    SoftMatch: 1,
+
+    /**
+     * A contact was found taht definitely matches the provided
+     * information.
+     */
+    HardMatch: 2
+} as const;
+
+/** The type of match that was found for an existing contact. */
+export const ContactMatchDescription: Record<number, string> = {
+    0: "No Match",
+
+    1: "Soft Match",
+
+    2: "Hard Match"
 };
+
+/** The type of match that was found for an existing contact. */
+export type ContactMatch = typeof ContactMatch[keyof typeof ContactMatch];
