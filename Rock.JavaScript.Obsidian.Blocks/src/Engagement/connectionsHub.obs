@@ -508,6 +508,7 @@
                       :connectionActivities="box.options?.connectionActivities ?? []"
                       :viewOptions="viewOptions"
                       :currentPerson="currentPerson"
+                      :activityToEdit="activityToEdit"
                       @addActivity="addActivity" />
     <ChangeStatusModal v-model:visible="isChangeStatusModalVisible"
                        :connectionStatuses="box.options?.connectionStatuses ?? []"
@@ -542,7 +543,8 @@
                                   :orderedKeys="orderedRequestKeys ?? []"
                                   :requestDetails="requestDetails"
                                   :options="box.options"
-                                  @navigate="updateSelectedRequestKey" />
+                                  @navigate="updateSelectedRequestKey"
+                                  @editActivity="onEditActivity" />
 </template>
 
 <style>
@@ -730,6 +732,7 @@
     import ChangeStateModal from "./ConnectionsHub/changeStateModal.partial.obs";
     import { UpdateConnectionRequestStatesBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/updateConnectionRequestStatesBag";
     import { AddActivityBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/addActivityBag";
+    import { ActivityEntryBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/activityEntryBag";
     import { LaunchWorkflowBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/launchWorkflowBag";
     import { LaunchWorkflowResultBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/launchWorkflowResultBag";
     import ModalAlert from "@Obsidian/Controls/modalAlert.obs";
@@ -849,6 +852,7 @@
     const isDockedPanelVisible = ref(false);
     const selectedRequestKey = ref();
     const requestDetails = ref<ConnectionRequestDetailsBag | undefined>();
+    const activityToEdit = ref<ActivityEntryBag | null>(null);
 
     const isRowDropdownOpen = ref<Record<string, boolean>>({});
 
@@ -1780,7 +1784,20 @@
         return false;
     }
 
+    function onEditActivity(entry: ActivityEntryBag): void {
+        const row = gridData.value?.rows?.find(r => r.idKey === selectedRequestKey.value) ?? null;
+        prepareRequestDetailsForModal(row);
+        activityToEdit.value = entry;
+        isAddActivityModalVisible.value = true;
+    }
+
+    // TODO - needs polish to better combine add and update.
     async function addActivity(bag: AddActivityBag): Promise<void> {
+        if (bag.activityIdKey) {
+            await updateActivity(bag);
+            return;
+        }
+
         const result = await invokeBlockAction<ConnectionListGridUpdateBag[]>("AddActivityForRequests", {
             bag: bag
         });
@@ -1814,6 +1831,29 @@
             }
 
             isAddActivityModalVisible.value = false;
+            activityToEdit.value = null;
+            return;
+        }
+
+        console.error(result.errorMessage);
+    }
+
+    async function updateActivity(bag: AddActivityBag): Promise<void> {
+        const result = await invokeBlockAction<ActivityEntryBag>("UpdateActivity", {
+            bag
+        });
+
+        if (result.isSuccess && result.data) {
+            if (requestDetails.value?.activityEntries) {
+                const updatedEntries = [...requestDetails.value.activityEntries];
+                const index = updatedEntries.findIndex(a => a.key === result.data?.key);
+                if (index !== -1) {
+                    updatedEntries[index] = result.data;
+                }
+                requestDetails.value = { ...requestDetails.value, activityEntries: updatedEntries };
+            }
+            isAddActivityModalVisible.value = false;
+            activityToEdit.value = null;
             return;
         }
 
@@ -2008,6 +2048,12 @@
     watch(selectedRequestKey, async () => {
         if (!isNullOrWhiteSpace(selectedRequestKey.value)) {
             await getConnectionRequestDetails(selectedRequestKey.value);
+        }
+    });
+
+    watch(isAddActivityModalVisible, (isVisible) => {
+        if (!isVisible) {
+            activityToEdit.value = null;
         }
     });
 

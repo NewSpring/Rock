@@ -22,16 +22,9 @@ using Rock.SystemKey;
 using Rock.Web;
 using Rock.Enums.Connection;
 using Rock.Tasks;
-using Rock.ClientService.Core.Note;
-using System.Data.Entity.Core.Metadata.Edm;
-using Slingshot.Core;
 using Rock.Web.UI.Controls;
-using AngleSharp.Browser.Dom;
 using System.Data.SqlClient;
-using Grpc.Core;
-using Fluid.Values;
 using System.Text.RegularExpressions;
-using OpenXmlPowerTools;
 
 namespace Rock.Blocks.Engagement
 {
@@ -1158,7 +1151,7 @@ namespace Rock.Blocks.Engagement
                     ),
 
 
-                Attributes = tempGroupMember.GetPublicAttributesForEdit( RequestContext.CurrentPerson )
+                GroupMemberAttributes = tempGroupMember.GetPublicAttributesForEdit( RequestContext.CurrentPerson )
             };
 
             return ActionOk( bag );
@@ -1868,7 +1861,12 @@ namespace Rock.Blocks.Engagement
                 ConnectionTypeSource = connectionRequest.ConnectionTypeSource?.Name,
                 ActionItems = new List<ListItemBag>(),
                 Attributes = connectionRequest.GetPublicAttributesForView( RequestContext.CurrentPerson ),
-                AttributeValues = connectionRequest.GetPublicAttributeValuesForView( RequestContext.CurrentPerson )
+                AttributeValues = connectionRequest.GetPublicAttributeValuesForView( RequestContext.CurrentPerson ),
+                IsFutureFollowUpEnabled = connectionRequest.ConnectionOpportunity.ConnectionType.EnableFutureFollowup,
+                IsRequestSecurityEnabled = connectionRequest.ConnectionOpportunity.ConnectionType.EnableRequestSecurity,
+                AreCelebrationsEnabled = connectionRequest.ConnectionOpportunity.ConnectionType.EnabledFeatures.HasFlag( EnabledFeatureFlags.Celebration ),
+                AreRemindersEnabled = connectionRequest.ConnectionOpportunity.ConnectionType.EnabledFeatures.HasFlag( EnabledFeatureFlags.Reminder ),
+                AreGroupPlacementsEnabled = connectionRequest.ConnectionOpportunity.ConnectionType.EnabledFeatures.HasFlag( EnabledFeatureFlags.GroupPlacement )
             };
 
             // Add Unassigned Connector
@@ -1911,17 +1909,65 @@ namespace Rock.Blocks.Engagement
                 } );
             }
 
-            if ( connectionRequest.AssignedGroup != null )
+            if ( bag.AreGroupPlacementsEnabled && connectionRequest.AssignedGroup != null )
             {
                 var placementGroup = connectionRequest.AssignedGroup;
-                // TODO - update this to be group member attributes
+
                 bag.PlacementGroup = new PlacementGroupDetailsBag
                 {
                     Name = placementGroup.Name,
                     IconCssClass = placementGroup.GroupType.IconCssClass ?? "ti ti-users",
-                    Attributes = placementGroup.GetPublicAttributesForView( RequestContext.CurrentPerson ),
-                    AttributeValues = placementGroup.GetPublicAttributeValuesForView( RequestContext.CurrentPerson )
                 };
+
+                var groupMember = placementGroup.Members.FirstOrDefault( m => m.PersonId == connectionRequest.PersonAlias.PersonId );
+
+                if ( groupMember == null )
+                {
+                    bag.PlacementGroup.IsPendingGroupMember = true;
+
+                    var pendingGroupMember = new GroupMember
+                    {
+                        GroupId = placementGroup.Id
+                    };
+
+                    pendingGroupMember.LoadAttributes();
+                    bag.PlacementGroup.GroupMemberAttributes = pendingGroupMember.GetPublicAttributesForView( RequestContext.CurrentPerson );
+
+                    var pendingGroupMemberAttributeValues = connectionRequest.AssignedGroupMemberAttributeValues.FromJsonOrNull<Dictionary<string, string>>();
+                    bag.PlacementGroup.GroupMemberAttributeValues = pendingGroupMemberAttributeValues;
+                }
+                else
+                {
+                    groupMember.LoadAttributes();
+
+                    bag.PlacementGroup.IsPendingGroupMember = false;
+                    bag.PlacementGroup.GroupMemberIdKey = groupMember.IdKey;
+                    bag.PlacementGroup.GroupMemberAttributes = groupMember.GetPublicAttributesForView( RequestContext.CurrentPerson );
+                    bag.PlacementGroup.GroupMemberAttributeValues = groupMember.GetPublicAttributeValuesForView( RequestContext.CurrentPerson );
+
+                    bag.PlacementGroup.GroupMemberRequirements = new List<GroupMemberRequirementBag>( placementGroup.GroupRequirements.Select( gr =>
+                    {
+                        var bag = new GroupMemberRequirementBag
+                        {
+                            GroupRequirementTypeIdKey = gr.GroupRequirementType.IdKey,
+                            RequirementName = gr.GroupRequirementType.Name,
+                            IsManualRequirement = gr.GroupRequirementType.RequirementCheckType == RequirementCheckType.Manual
+                        };
+
+                        var groupMemberRequirement = groupMember.GroupMemberRequirements.FirstOrDefault( gmr => gmr.GroupRequirementId == gr.Id );
+
+                        if ( groupMemberRequirement == null )
+                        {
+                            bag.GroupMemberRequirementState = MeetsGroupRequirement.NotApplicable;
+                        }
+                        else
+                        {
+                            bag.GroupMemberRequirementState = groupMemberRequirement.GroupMemberRequirementState;
+                        }
+
+                        return bag;
+                    } ).ToList() );
+                }
             }
 
             var connectionWorkflows = connectionRequest.ConnectionOpportunity.ConnectionWorkflows.Union( connectionRequest.ConnectionOpportunity.ConnectionType.ConnectionWorkflows );
@@ -2058,7 +2104,9 @@ namespace Rock.Blocks.Engagement
                 {
                     Title = string.Format( "Activity: {0}", a.ConnectionActivityType.Name ),
                     Content = a.Note,
-                    PhotoUrl = a.CreatedByPersonAlias?.Person?.PhotoUrl
+                    PhotoUrl = a.CreatedByPersonAlias?.Person?.PhotoUrl,
+                    ActivityTypeGuid = a.ConnectionActivityType?.Guid.ToString(),
+                    ConnectorPersonAliasGuid = a.ConnectorPersonAlias?.Guid.ToString()
                 }
             } ) );
 
@@ -2447,6 +2495,84 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
             RockContext.SaveChanges();
 
             var key = $"{ActivityEntryType.RequestNote}_{noteIdKey}";
+
+            return ActionOk( key );
+        }
+
+        // At the moment, the activity modal lives on the "List View". The docked panel emits an edit or delete activity event to the parent to render the modal. This pattern may need to change to accomodate the "Board View"
+
+        [BlockAction]
+        public BlockActionResult UpdateActivity( AddActivityBag bag )
+        {
+            var activityService = new ConnectionRequestActivityService( RockContext );
+
+            var activity = activityService.Get( bag.ActivityIdKey, !PageCache.Layout.Site.DisablePredictableIds );
+            if ( activity == null )
+            {
+                return ActionBadRequest( $"{ConnectionRequestActivity.FriendlyTypeName} not found." );
+            }
+
+            if ( !activity.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson ) )
+            {
+                return ActionBadRequest( "You are not authorized to edit this Activity." );
+            }
+
+            var activityType = new ConnectionActivityTypeService( RockContext ).Get( bag.ActivityTypeGuid.AsGuid() );
+            if ( activityType == null )
+            {
+                return ActionBadRequest( "Invalid Activity Type." );
+            }
+
+            var connectorPersonAlias = bag.ConnectorPersonAliasGuid.IsNullOrWhiteSpace()
+                ? null
+                : new PersonAliasService( RockContext ).GetInclude( bag.ConnectorPersonAliasGuid.AsGuid(), c => c.Person );
+
+            activity.Note = bag.Note;
+            activity.ConnectionActivityTypeId = activityType.Id;
+            activity.ConnectorPersonAliasId = connectorPersonAlias?.Id;
+
+            RockContext.SaveChanges();
+
+            var updatedEntry = new ActivityEntryBag
+            {
+                Key = $"{ActivityEntryType.Activity}_{bag.ActivityIdKey}",
+                EntryType = ActivityEntryType.Activity,
+                EntryDateTime = activity.ModifiedDateTime?.ToRockDateTimeOffset(),
+                CreatedBy = activity.CreatedByPersonAlias?.Person?.FullName,
+                CardEntry = new CardEntryBag
+                {
+                    Title = string.Format( "Activity: {0}", activityType.Name ),
+                    Content = bag.Note,
+                    PhotoUrl = activity.CreatedByPersonAlias?.Person?.PhotoUrl,
+                    ActivityTypeGuid = activityType.Guid.ToString(),
+                    ConnectorPersonAliasGuid = connectorPersonAlias?.Guid.ToString()
+                }
+            };
+
+            return ActionOk( updatedEntry );
+        }
+
+        [BlockAction]
+        public BlockActionResult DeleteActivity( string activityIdKey )
+        {
+            var activityService = new ConnectionRequestActivityService( RockContext );
+
+            var activity = activityService.Get( activityIdKey, !PageCache.Layout.Site.DisablePredictableIds );
+            if ( activity == null )
+            {
+                return ActionBadRequest( $"{ConnectionRequestActivity.FriendlyTypeName} not found." );
+            }
+
+            if ( !activity.ConnectionRequest.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson ) )
+            {
+                return ActionBadRequest( "You are not authorized to delete this activity." );
+            }
+
+            activityService.Delete( activity );
+
+            RockContext.SaveChanges();
+
+            var key = $"{ActivityEntryType.Activity}_{activityIdKey}";
 
             return ActionOk( key );
         }

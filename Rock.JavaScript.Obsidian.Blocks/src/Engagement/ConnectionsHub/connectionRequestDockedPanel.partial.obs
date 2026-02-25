@@ -176,19 +176,38 @@
                             </div>
                         </div>
                     </ContentStack>
-                    <ContentStack v-if="requestDetails?.placementGroup">
+                    <ContentStack v-if="requestDetails?.areGroupPlacementsEnabled">
                         <RockLabel class="text-interface-stronger mb-spacing-xs">Placement Group Details</RockLabel>
                         <div class="d-flex flex-column gap-md">
                             <div class="d-flex flex-column gap-xs">
                                 <RockLabel class="text-interface-medium text-regular">Group</RockLabel>
-                                <HighlightLabel :iconCssClass="requestDetails.placementGroup?.iconCssClass ?? 'ti ti-users'"
+                                <HighlightLabel v-if="requestDetails.placementGroup"
+                                                :iconCssClass="isNullOrWhiteSpace(requestDetails?.placementGroup?.iconCssClass) ? 'ti ti-users' : requestDetails?.placementGroup?.iconCssClass!"
                                                 labelType="custom"
                                                 customClass="label label-info w-fit">
-                                    {{ requestDetails.placementGroup?.name }}
+                                    {{ placementGroupName }}
+                                </HighlightLabel>
+                                <HighlightLabel v-else
+                                                iconCssClass="ti ti-alert-circle"
+                                                labelType="custom"
+                                                customClass="label bg-interface-medium w-fit">
+                                    None Assigned
                                 </HighlightLabel>
                             </div>
-                            <AttributeValuesContainer :modelValue="requestDetails.placementGroup.attributeValues ?? {}"
-                                                      :attributes="requestDetails.placementGroup.attributes ?? {}" />
+                            <AttributeValuesContainer :modelValue="requestDetails?.placementGroup?.groupMemberAttributeValues ?? {}"
+                                                      :attributes="requestDetails?.placementGroup?.groupMemberAttributes ?? {}"
+                                                      :numberOfColumns="2"
+                                                      :showCategoryLabel="false" />
+                            <div v-if="automatedGroupMemberRequirements && automatedGroupMemberRequirements.length > 0">
+                                <RockLabel class="text-interface-medium text-regular mb-spacing-xs">Requirements</RockLabel>
+                                <div class="d-flex flex-wrap gap-xs">
+                                    <HighlightLabel v-for="groupMemberRequirement in automatedGroupMemberRequirements"
+                                                    :iconCssClass="groupMemberRequirement.groupMemberRequirementState === MeetsGroupRequirement.Meets ? 'ti ti-circle-check-filled' : ''"
+                                                    :labelType="getRequirementLabelType(groupMemberRequirement)">
+                                        {{ groupMemberRequirement.requirementName }}
+                                    </HighlightLabel>
+                                </div>
+                            </div>
                         </div>
                     </ContentStack>
                     <ContentStack v-if="hasNonEmptyRequestAttributeValue">
@@ -262,7 +281,9 @@
                                           :activityEntry="activityEntry"
                                           :ref="(el) => setActivityCardRef(activityEntry.key, el)"
                                           @editNote="(bag) => onEditRequestNote(bag, activityEntry.key)"
-                                          @deleteNote="deleteNote" />
+                                          @deleteNote="deleteNote"
+                                          @editActivity="(entry) => emit('editActivity', entry)"
+                                          @deleteActivity="deleteActivity" />
                         </template>
                     </template>
                 </ContentSection>
@@ -395,6 +416,8 @@
     import RockForm from "@Obsidian/Controls/rockForm.obs";
     import { BtnSize } from "@Obsidian/Enums/Controls/btnSize";
     import NotificationBox from "@Obsidian/Controls/notificationBox.obs";
+    import { MeetsGroupRequirement } from "@Obsidian/Enums/Group/meetsGroupRequirement";
+    import { GroupMemberRequirementBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/groupMemberRequirementBag";
 
     const props = defineProps({
         modelValue: {
@@ -427,6 +450,7 @@
     const emit = defineEmits<{
         (e: "update:modelValue", value: boolean): void;
         (e: "navigate", value: string | null): void;
+        (e: "editActivity", value: ActivityEntryBag): void;
     }>();
 
     const isVisible = useVModelPassthrough(props, "modelValue", emit);
@@ -575,6 +599,11 @@
 
         return false;
     });
+
+    const placementGroupName = computed(() => props.requestDetails?.placementGroup?.isPendingGroupMember ? `${props.requestDetails.placementGroup?.name} (Pending Member)` : `${props.requestDetails?.placementGroup?.name}`);
+
+    const automatedGroupMemberRequirements = computed(() => props.requestDetails?.placementGroup?.groupMemberRequirements?.filter(gmr => !gmr.isManualRequirement));
+    const manualGroupMemberRequirements = computed(() => props.requestDetails?.placementGroup?.groupMemberRequirements?.filter(gmr => gmr.isManualRequirement));
 
     const filteredAndSortedActivityEntries = computed(() => {
         const filter = selectedActivityFilter.value.value;
@@ -805,6 +834,19 @@
         return date.toLocaleString({ year: "numeric", month: "numeric", day: "numeric" });
     }
 
+    function getRequirementLabelType(requirement: GroupMemberRequirementBag): "default" | "success" | "warning" | "danger" | "custom" {
+        switch (requirement.groupMemberRequirementState) {
+            case MeetsGroupRequirement.Meets:
+                return "success";
+            case MeetsGroupRequirement.NotMet:
+                return "danger";
+            case MeetsGroupRequirement.MeetsWithWarning:
+                return "warning";
+            default:
+                return "default";
+        }
+    }
+
     function onAddRequestNoteErrorDismissed(): void {
         isAddRequestNoteErrorMessageVisible.value = false;
     }
@@ -869,6 +911,22 @@
     async function deleteNote(noteIdKey: string): Promise<void> {
         const result = await invokeBlockAction<string>("DeleteNote", {
             noteIdKey
+        });
+
+        if (result.isSuccess && result.data) {
+            const index = activityEntries.value.findIndex(a => a.key === result.data);
+            if (index !== -1) {
+                activityEntries.value.splice(index, 1);
+            }
+        }
+        else {
+            // TODO: Handle error message from failed delete
+        }
+    }
+
+    async function deleteActivity(activityIdKey: string): Promise<void> {
+        const result = await invokeBlockAction<string>("DeleteActivity", {
+            activityIdKey
         });
 
         if (result.isSuccess && result.data) {

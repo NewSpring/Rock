@@ -93,12 +93,13 @@
                                       :showBlankItem="false" />
                     </div>
                 </div>
-                <div class="row" v-if="props.placementGroupDetails?.attributes">
+                <div class="row" v-if="props.placementGroupDetails?.groupMemberAttributes">
                     <div class="col-md-6">
                         <AttributeValuesContainer v-model="placementGroupMemberAttributeValues"
-                                                  :attributes="props.placementGroupDetails.attributes"
+                                                  :attributes="props.placementGroupDetails.groupMemberAttributes"
                                                   isEditMode
-                                                  :numberOfColumns="1" />
+                                                  :numberOfColumns="1"
+                                                  :showCategoryLabel="false" />
 
                     </div>
                 </div>
@@ -126,7 +127,8 @@
                 <AttributeValuesContainer v-model="connectionRequestAttributeValues"
                                           :attributes="props.options.connectionTypeRequestAttributes"
                                           isEditMode
-                                          :numberOfColumns="1" />
+                                          :numberOfColumns="1"
+                                          :showCategoryLabel="false" />
             </div>
         </div>
 
@@ -135,7 +137,8 @@
                 <AttributeValuesContainer v-model="connectionRequestAttributeValues"
                                           :attributes="props.connectionOpportunityDetails.connectionOpportunityRequestAttributes"
                                           isEditMode
-                                          :numberOfColumns="1" />
+                                          :numberOfColumns="1"
+                                          :showCategoryLabel="false" />
             </div>
         </div>
     </Modal>
@@ -247,7 +250,7 @@
             return false;
         }
 
-        if (details.attributes && Object.keys(details.attributes).length > 0) {
+        if (details.groupMemberAttributes && Object.keys(details.groupMemberAttributes).length > 0) {
             return true;
         }
 

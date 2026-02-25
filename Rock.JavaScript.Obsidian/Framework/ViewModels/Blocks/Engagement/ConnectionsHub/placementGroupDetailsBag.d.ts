@@ -21,21 +21,30 @@
 // </copyright>
 //
 
+import { GroupMemberRequirementBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/groupMemberRequirementBag";
 import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
 import { PublicAttributeBag } from "@Obsidian/ViewModels/Utility/publicAttributeBag";
 
 export type PlacementGroupDetailsBag = {
     /** Gets or sets the group member attributes for the selected placement group. */
-    attributes?: Record<string, PublicAttributeBag> | null;
+    groupMemberAttributes?: Record<string, PublicAttributeBag> | null;
 
     /** The attribute values for the placement group. */
-    attributeValues?: Record<string, string> | null;
+    groupMemberAttributeValues?: Record<string, string> | null;
+
+    /** The Group Member IdKey of the placed group member. */
+    groupMemberIdKey?: string | null;
+
+    groupMemberRequirements?: GroupMemberRequirementBag[] | null;
 
     groupMemberRoles?: ListItemBag[] | null;
 
     groupMemberStatuses?: Record<string, ListItemBag[]> | null;
 
     iconCssClass?: string | null;
+
+    /** True if the requester already exists as a GroupMember in the placement group */
+    isPendingGroupMember?: boolean | null;
 
     name?: string | null;
 };

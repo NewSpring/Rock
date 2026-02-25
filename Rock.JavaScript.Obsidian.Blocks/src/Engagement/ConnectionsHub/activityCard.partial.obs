@@ -140,6 +140,8 @@
     const emit = defineEmits<{
         (e: "editNote", value: ConnectionRequestNoteBag): void;
         (e: "deleteNote", value: string): void;
+        (e: "editActivity", value: ActivityEntryBag): void;
+        (e: "deleteActivity", value: string): void;
     }>();
 
     defineExpose({
@@ -177,7 +179,10 @@
     function onEdit(): void {
         isSecondaryActionDropdownOpen.value = false;
 
-        if (props.activityEntry.entryType === ActivityEntryType.RequestNote) {
+        if (props.activityEntry.entryType === ActivityEntryType.Activity) {
+            emit("editActivity", props.activityEntry);
+        }
+        else if (props.activityEntry.entryType === ActivityEntryType.RequestNote) {
             isEditingNote.value = true;
             noteText.value = props.activityEntry.cardEntry?.content ?? "";
         }
@@ -211,8 +216,15 @@
 
     function onDelete(): void {
         isSecondaryActionDropdownOpen.value = false;
-        const noteIdKey = props.activityEntry.key?.split("_")[1] ?? "";
-        emit("deleteNote", noteIdKey);
+
+        if (props.activityEntry.entryType === ActivityEntryType.Activity) {
+            const activityIdKey = props.activityEntry.key?.split("_")[1] ?? "";
+            emit("deleteActivity", activityIdKey);
+        }
+        else {
+            const noteIdKey = props.activityEntry.key?.split("_")[1] ?? "";
+            emit("deleteNote", noteIdKey);
+        }
     }
 
     function onErrorMessageDismissed(): void {

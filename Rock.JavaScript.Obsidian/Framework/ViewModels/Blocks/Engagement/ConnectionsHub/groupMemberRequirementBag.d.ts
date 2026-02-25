@@ -21,20 +21,14 @@
 // </copyright>
 //
 
-import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
+import { MeetsGroupRequirement } from "@Obsidian/Enums/Group/meetsGroupRequirement";
 
-export type CardEntryBag = {
-    /** The GUID of the activity type. Populated for Activity entries to support editing. */
-    activityTypeGuid?: string | null;
+export type GroupMemberRequirementBag = {
+    groupMemberRequirementState: MeetsGroupRequirement;
 
-    attachments?: ListItemBag[] | null;
+    groupRequirementTypeIdKey?: string | null;
 
-    /** The GUID of the connector's person alias. Populated for Activity entries to support editing. */
-    connectorPersonAliasGuid?: string | null;
+    isManualRequirement?: boolean | null;
 
-    content?: string | null;
-
-    photoUrl?: string | null;
-
-    title?: string | null;
+    requirementName?: string | null;
 };

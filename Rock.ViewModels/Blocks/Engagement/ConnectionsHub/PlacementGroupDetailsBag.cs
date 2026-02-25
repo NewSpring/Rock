@@ -17,6 +17,7 @@
 
 using System.Collections.Generic;
 
+using Rock.Model;
 using Rock.ViewModels.Utility;
 
 namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
@@ -34,7 +35,17 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
 
         public string IconCssClass { get; set; }
 
-        // TODO - Group Requirements
+        /// <summary>
+        /// True if the requester already exists as a GroupMember in the placement group
+        /// </summary>
+        public bool? IsPendingGroupMember { get; set; }
+
+        /// <summary>
+        /// The Group Member IdKey of the placed group member.
+        /// </summary>
+        public string GroupMemberIdKey { get; set; }
+
+        public List<GroupMemberRequirementBag> GroupMemberRequirements { get; set; }
 
         /// <summary>
         /// Gets or sets the group member attributes for the selected placement group.
@@ -42,11 +53,22 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
         /// <value>
         /// The attributes.
         /// </value>
-        public Dictionary<string, PublicAttributeBag> Attributes { get; set; }
+        public Dictionary<string, PublicAttributeBag> GroupMemberAttributes { get; set; }
 
         /// <summary>
         /// The attribute values for the placement group.
         /// </summary>
-        public Dictionary<string, string> AttributeValues { get; set; }
+        public Dictionary<string, string> GroupMemberAttributeValues { get; set; }
+    }
+
+    public class GroupMemberRequirementBag
+    {
+        public string GroupRequirementTypeIdKey { get; set; }
+
+        public string RequirementName { get; set; }
+
+        public MeetsGroupRequirement GroupMemberRequirementState { get; set; }
+
+        public bool? IsManualRequirement { get; set; }
     }
 }

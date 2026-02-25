@@ -83,5 +83,20 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
         /// The attribute values for the selected Connection Request.
         /// </summary>
         public Dictionary<string, string> AttributeValues { get; set; }
+
+
+        // We can get this from the parent but this panel needs to function outside of the parent scope.
+
+        public bool IsFutureFollowUpEnabled { get; set; }
+
+        public bool IsRequestSecurityEnabled { get; set; }
+
+        public bool AreRemindersEnabled { get; set; }
+
+        public bool AreCelebrationsEnabled { get; set; }
+
+        public bool AreGroupPlacementsEnabled { get; set; }
+
+        public bool? IsSequentialStatusMode { get; set; }
     }
 }

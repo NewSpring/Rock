@@ -38,6 +38,12 @@ export type ConnectionRequestDetailsBag = {
 
     additionalRequests?: AdditionalRequestBag[] | null;
 
+    areCelebrationsEnabled: boolean;
+
+    areGroupPlacementsEnabled: boolean;
+
+    areRemindersEnabled: boolean;
+
     /** The attributes for the selected Connection Request. */
     attributes?: Record<string, PublicAttributeBag> | null;
 
@@ -70,6 +76,12 @@ export type ConnectionRequestDetailsBag = {
     dueStatus: DueStatus;
 
     followUpDate?: string | null;
+
+    isFutureFollowUpEnabled: boolean;
+
+    isRequestSecurityEnabled: boolean;
+
+    isSequentialStatusMode?: boolean | null;
 
     lavaBadgeBar?: string | null;
 

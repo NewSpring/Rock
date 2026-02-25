@@ -53,6 +53,16 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
         public string PhotoUrl { get; set; }
 
         public List<ListItemBag> Attachments { get; set; }
+
+        /// <summary>
+        /// The GUID of the activity type. Populated for Activity entries to support editing.
+        /// </summary>
+        public string ActivityTypeGuid { get; set; }
+
+        /// <summary>
+        /// The GUID of the connector's person alias. Populated for Activity entries to support editing.
+        /// </summary>
+        public string ConnectorPersonAliasGuid { get; set; }
     }
 
     public class SystemUpdateBag

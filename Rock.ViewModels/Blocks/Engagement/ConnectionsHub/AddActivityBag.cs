@@ -33,5 +33,10 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
         public string Note { get; set; }
 
         public bool AddPersonNote { get; set; }
+
+        /// <summary>
+        /// If set, the activity with this ID key will be updated instead of creating a new one.
+        /// </summary>
+        public string ActivityIdKey { get; set; }
     }
 }

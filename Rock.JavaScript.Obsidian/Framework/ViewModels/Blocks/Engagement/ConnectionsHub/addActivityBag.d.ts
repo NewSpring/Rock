@@ -22,6 +22,9 @@
 //
 
 export type AddActivityBag = {
+    /** If set, the activity with this ID key will be updated instead of creating a new one. */
+    activityIdKey?: string | null;
+
     activityTypeGuid?: string | null;
 
     addPersonNote: boolean;

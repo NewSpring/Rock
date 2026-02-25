@@ -1,7 +1,7 @@
 <!-- Copyright by the Spark Development Network; Licensed under the Rock Community License -->
 <template>
     <Modal v-model="isVisible"
-           title="Add Activity"
+           :title="modalTitle"
            saveText="Save"
            @save="onSave">
         <div class="row">
@@ -56,6 +56,7 @@
     import { PersonNoteCreationBehavior } from "@Obsidian/Enums/Connection/personNoteCreationBehavior";
     import { CurrentPersonBag } from "@Obsidian/ViewModels/Crm/currentPersonBag";
     import { AddActivityBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/addActivityBag";
+    import { ActivityEntryBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/activityEntryBag";
 
     const props = defineProps({
         visible: {
@@ -85,6 +86,11 @@
         viewOptions: {
             type: Object as PropType<ViewOptions>,
             required: true
+        },
+
+        activityToEdit: {
+            type: Object as PropType<ActivityEntryBag | null>,
+            default: null
         }
     });
 
@@ -103,21 +109,31 @@
     const note = ref();
     const isPersonNote = ref(false);
 
+    const modalTitle = computed(() => props.activityToEdit ? "Edit Activity" : "Add Activity");
+
     const activityTypeItems = computed(() => props.connectionActivities.map(a => a.activityType).filter((x): x is ListItemBag => !!x));
 
     const isPersonNoteCheckboxVisible = computed(() => {
+        if (props.activityToEdit) {
+            return false;
+        }
+
         const selectedActivityBag = props.connectionActivities.find(a => a.activityType?.value === activityType.value);
 
         return selectedActivityBag?.personNoteCreationBehavior === PersonNoteCreationBehavior.AskAtActivityCreation;
     });
 
     function onSave(): void {
+        // TODO - this should be done before we get to this partial file. Consider passing in the activity bag and potentially renaming the bag to work with a more universal purpose.
+        const activityIdKey = props.activityToEdit?.key?.split("_")[1] || undefined;
+
         const bag: AddActivityBag = {
             connectionRequestIdKeys: props.requestDetails.map(r => r.idKey ?? ""),
             activityTypeGuid: activityType.value,
             connectorPersonAliasGuid: connector.value,
             note: note.value,
-            addPersonNote: isPersonNote.value
+            addPersonNote: isPersonNote.value,
+            activityIdKey
         };
 
         emit("addActivity", bag);
@@ -125,7 +141,22 @@
 
     watch(isVisible, () => {
         errorMessage.value = "";
-        if (!isVisible.value) {
+
+        if (isVisible.value) {
+            if (props.activityToEdit) {
+                activityType.value = props.activityToEdit.cardEntry?.activityTypeGuid ?? undefined;
+                connector.value = props.activityToEdit.cardEntry?.connectorPersonAliasGuid ?? "";
+                note.value = props.activityToEdit.cardEntry?.content ?? undefined;
+                isPersonNote.value = false;
+            }
+            else {
+                activityType.value = undefined;
+                connector.value = props.currentPerson?.primaryAliasGuid ?? "";
+                note.value = undefined;
+                isPersonNote.value = false;
+            }
+        }
+        else {
             emit("close");
         }
     });
