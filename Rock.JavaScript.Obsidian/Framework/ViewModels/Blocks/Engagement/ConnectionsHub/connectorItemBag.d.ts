@@ -21,16 +21,10 @@
 // </copyright>
 //
 
-import { MeetsGroupRequirement } from "@Obsidian/Enums/Group/meetsGroupRequirement";
+import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
 
-export type GroupMemberRequirementBag = {
-    groupMemberRequirementIdKey?: string | null;
+export type ConnectorItemBag = {
+    listItemBag?: ListItemBag | null;
 
-    groupMemberRequirementState: MeetsGroupRequirement;
-
-    groupRequirementIdKey?: string | null;
-
-    isManualRequirement?: boolean | null;
-
-    requirementName?: string | null;
+    photoUrl?: string | null;
 };

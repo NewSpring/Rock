@@ -29,6 +29,8 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
     /// </summary>
     public class ConnectionRequestBag
     {
+        public string IdKey { get; set; }
+
         public string ConnectionOpportunityGuid { get; set; }
 
         public ListItemBag Requester { get; set; }
@@ -41,6 +43,8 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
 
         public string ConnectionStatusGuid { get; set; }
 
+        public string ConnectionStatusHistoryNote { get; set; }
+
         public string PlacementGroupGuid { get; set; }
 
         public string GroupMemberRoleGuid { get; set; }
@@ -51,6 +55,8 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
 
         public string RequestSourceGuid { get; set; }
 
+        public Dictionary<string, PublicAttributeBag> ConnectionRequestAttributes { get; set; }
+
         /// <summary>
         /// Gets or sets the attribute values for the Connection Request.
         /// </summary>
@@ -58,6 +64,8 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
         /// The attribute values.
         /// </value>
         public Dictionary<string, string> ConnectionRequestAttributeValues { get; set; }
+
+        public Dictionary<string, PublicAttributeBag> PlacementGroupMemberAttributes { get; set; }
 
         /// <summary>
         /// Gets or sets the attribute values for the placement group member.

@@ -57,6 +57,27 @@
                 </div>
             </template>
 
+            <template v-else-if="displayAsContentSection">
+                <ContentSection title="Attributes"
+                                icon="ti ti-binary-tree-2"
+                                :disableCollapse="isContentSectionCollapseDisabled">
+                    <ContentStack v-for="cat in attributeCategories"
+                                  :key="cat.guid"
+                                  :title="cat.name ?? ''">
+                        <div :class="{ 'attributevaluescontainer-category-content': true, 'row': numberOfColumns > 1 }">
+                            <div v-for="a in getCategoryAttributes(cat.name ?? '')" :key="a.attributeGuid" :class="columnClass">
+                                <RockField :isEditMode="isEditMode"
+                                           :attribute="a"
+                                           :modelValue="values[a.key!]"
+                                           @update:modelValue="onUpdateValue(a.key!, $event)"
+                                           :showEmptyValue="showEmptyValues"
+                                           :showAbbreviatedName="showAbbreviatedName" />
+                            </div>
+                        </div>
+                    </ContentStack>
+                </ContentSection>
+            </template>
+
             <template v-else>
                 <div class="attributevaluescontainer">
                     <div v-for="cat in attributeCategories" key="cat.guid" class="attributevaluescontainer-category">
@@ -114,6 +135,8 @@
     import { ItemWithPreAndPostHtml } from "@Obsidian/Types/Controls/itemsWithPreAndPostHtml";
     import { Guid } from "@Obsidian/Types";
     import DropDownContent from "./dropDownContent.obs";
+    import ContentSection from "./contentSection.obs";
+    import ContentStack from "./contentStack.obs";
 
     type CategorizedAttributes = PublicAttributeCategoryBag & {
         attributes: PublicAttributeBag[]
@@ -154,6 +177,14 @@
             default: false
         },
         displayAsCategoryDropdown: {
+            type: Boolean,
+            default: false
+        },
+        displayAsContentSection: {
+            type: Boolean,
+            default: false
+        },
+        isContentSectionCollapseDisabled: {
             type: Boolean,
             default: false
         },
@@ -256,8 +287,19 @@
             }
         });
 
-        // Clear out any categories that don't have any attributes assigned to them, then sort the list by category order
-        return categoryList.filter(cat => cat.attributes.length > 0).sort((a, b) => a.order - b.order);
+        // Clear out any categories that don't have any attributes assigned to them, then sort the list by category order.
+        // The default category (emptyGuid) always comes first regardless of order.
+        return categoryList.filter(cat => cat.attributes.length > 0).sort((a, b) => {
+            if (areEqual(a.guid, emptyGuid)) {
+                return -1;
+            }
+
+            if (areEqual(b.guid, emptyGuid)) {
+                return 1;
+            }
+
+            return a.order - b.order;
+        });
     });
 
     const actuallyDisplayAsTabs = computed<boolean>(() => {

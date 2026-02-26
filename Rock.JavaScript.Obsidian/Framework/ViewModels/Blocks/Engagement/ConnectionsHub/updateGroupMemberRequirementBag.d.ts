@@ -21,16 +21,13 @@
 // </copyright>
 //
 
-import { MeetsGroupRequirement } from "@Obsidian/Enums/Group/meetsGroupRequirement";
+export type UpdateGroupMemberRequirementBag = {
+    /** The Group Member IdKey of the placed group member. */
+    groupMemberIdKey?: string | null;
 
-export type GroupMemberRequirementBag = {
     groupMemberRequirementIdKey?: string | null;
-
-    groupMemberRequirementState: MeetsGroupRequirement;
 
     groupRequirementIdKey?: string | null;
 
-    isManualRequirement?: boolean | null;
-
-    requirementName?: string | null;
+    isMet: boolean;
 };

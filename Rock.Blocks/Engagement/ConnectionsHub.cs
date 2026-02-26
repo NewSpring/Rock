@@ -488,6 +488,74 @@ namespace Rock.Blocks.Engagement
             return DueStatus.DueLater;
         }
 
+        private ConnectionRequestBag GetEntityBagForEdit( ConnectionRequest entity )
+        {
+            if ( entity == null )
+            {
+                return null;
+            }
+
+            var bag = new ConnectionRequestBag
+            {
+                IdKey = entity.IdKey,
+                Requester = new ListItemBag
+                {
+                    Text = entity.PersonAlias.Person.FullName,
+                    Value = entity.PersonAlias.Guid.ToString(),
+                },
+                ConnectorPersonAliasGuid = entity.ConnectorPersonAlias?.Guid.ToString(),
+                ConnectionState = entity.ConnectionState,
+                FollowUpDate = entity.FollowupDate?.ToRockDateTimeOffset(),
+                ConnectionStatusGuid = entity.ConnectionStatus?.Guid.ToString(),
+                Comments = entity.Comments,
+                RequestSourceGuid = entity.ConnectionTypeSource?.Guid.ToString()
+            };
+
+            var currentPerson = RequestContext.CurrentPerson;
+
+            if ( entity.AssignedGroupMemberRoleId.HasValue && entity.AssignedGroupId.HasValue )
+            {
+                var role = new GroupTypeRoleService( RockContext ).Get( entity.AssignedGroupMemberRoleId.Value );
+                bag.GroupMemberRoleGuid = role?.Guid.ToString();
+                bag.PlacementGroupGuid = entity.AssignedGroup?.Guid.ToString();
+                bag.GroupMemberStatus = entity.AssignedGroupMemberStatus;
+
+                var tempGroupMember = new GroupMember
+                {
+                    GroupId = entity.AssignedGroupId.Value,
+                    GroupRoleId = entity.AssignedGroupMemberRoleId.Value
+                };
+
+                tempGroupMember.LoadAttributes();
+
+                var savedMemberAttributeValues = entity.AssignedGroupMemberAttributeValues?.FromJsonOrNull<Dictionary<string, string>>();
+                if ( savedMemberAttributeValues != null )
+                {
+                    foreach ( var item in savedMemberAttributeValues )
+                    {
+                        tempGroupMember.SetAttributeValue( item.Key, item.Value );
+                    }
+                }
+
+                bag.PlacementGroupMemberAttributes = tempGroupMember.GetPublicAttributesForEdit( currentPerson );
+                bag.PlacementGroupMemberAttributeValues = tempGroupMember.GetPublicAttributeValuesForEdit( currentPerson );
+            }
+
+            entity.LoadAttributes();
+
+            bag.ConnectionRequestAttributes = entity.GetPublicAttributesForEdit( currentPerson );
+            bag.ConnectionRequestAttributeValues = entity.GetPublicAttributeValuesForEdit( currentPerson );
+
+            if ( entity.AssignedGroup != null )
+            {
+                entity.AssignedGroup.LoadAttributes();
+
+                bag.PlacementGroupMemberAttributes = entity.AssignedGroup.GetPublicAttributesForEdit( currentPerson );
+            }
+
+            return bag;
+        }
+
         private bool TryGetEntityForEditAction( string idKey, out ConnectionRequest entity, out BlockActionResult error )
         {
             var entityService = new ConnectionRequestService( RockContext );
@@ -503,6 +571,7 @@ namespace Rock.Blocks.Engagement
             else
             {
                 entity = new ConnectionRequest();
+                // TODO - Handle cases when connection type is not passed in as parameter
                 entity.ConnectionTypeId = ConnectionTypeCache.Get( PageParameter( PageParameterKey.ConnectionType ), !PageCache.Layout.Site.DisablePredictableIds )?.Id ?? 0;
                 entityService.Add( entity );
             }
@@ -1162,8 +1231,7 @@ namespace Rock.Blocks.Engagement
         {
             var connectionType = GetConnectionTypeCacheFromPageParameters();
 
-            // No edit mode at the moment.
-            if ( !TryGetEntityForEditAction( null, out var entity, out var actionError ) )
+            if ( !TryGetEntityForEditAction( box.Bag.IdKey, out var entity, out var actionError ) )
             {
                 return actionError;
             }
@@ -1831,10 +1899,100 @@ namespace Rock.Blocks.Engagement
                 return ActionBadRequest( "You are not authorized to view this Connection Request." );
             }
 
+            var box = new ConnectionRequestDetailBox();
+
+            box.Options = new ConnectionRequestDetailOptionsBag
+            {
+                ConnectorItems = connectionRequest.ConnectionOpportunity.ConnectionOpportunityConnectorGroups
+                    .SelectMany( cg => cg.ConnectorGroup.Members )
+                    .Select( gm => gm.Person )
+                    .Distinct()
+                    .Select( p => new ConnectorItemBag
+                    {
+                        ListItemBag = new ListItemBag
+                        {
+                            Text = p.FullName,
+                            Value = p.PrimaryAliasGuid.ToString()
+                        },
+                        PhotoUrl = p.PhotoUrl
+                    } ).ToList(),
+                ConnectionStatuses = connectionRequest.ConnectionOpportunity.ConnectionType.ConnectionStatuses.Select( s => new ConnectionStatusBag
+                {
+                    Guid = s.Guid,
+                    Name = s.Name,
+                    HighlightColor = s.HighlightColor,
+                    Order = s.Order,
+                    IsNoteRequiredOnCompletion = s.IsNoteRequiredOnCompletion
+                } ).ToList(),
+                ConnectionStates = typeof( ConnectionState ).ToEnumListItemBag(),
+                IsFutureFollowUpEnabled = connectionRequest.ConnectionOpportunity.ConnectionType.EnableFutureFollowup,
+                IsRequestSecurityEnabled = connectionRequest.ConnectionOpportunity.ConnectionType.EnableRequestSecurity,
+                IsSequentialStatusMode = connectionRequest.ConnectionOpportunity.ConnectionType.IsSequentialStatusEnforced,
+                AreCelebrationsEnabled = connectionRequest.ConnectionOpportunity.ConnectionType.EnabledFeatures.HasFlag( EnabledFeatureFlags.Celebration ),
+                AreRemindersEnabled = connectionRequest.ConnectionOpportunity.ConnectionType.EnabledFeatures.HasFlag( EnabledFeatureFlags.Reminder ),
+                AreGroupPlacementsEnabled = connectionRequest.ConnectionOpportunity.ConnectionType.EnabledFeatures.HasFlag( EnabledFeatureFlags.GroupPlacement ),
+                RequestSourceItems = connectionRequest.ConnectionOpportunity.ConnectionType.ConnectionTypeSources.ToListItemBagList()
+            };
+
+            var delimitedBadgeGuids = GetAttributeValue( AttributeKey.Badges );
+            box.Options.BadgeGuids = delimitedBadgeGuids.SplitDelimitedValues().AsGuidList();
+
+            if ( !box.Options.IsFutureFollowUpEnabled )
+            {
+                box.Options.ConnectionStates.RemoveAll( s => s.Value == ( ( int ) ConnectionState.FutureFollowUp ).ToString() );
+            }
+
+            if ( box.Options.AreGroupPlacementsEnabled )
+            {
+                var configsByGroupTypeId = connectionRequest.ConnectionOpportunity.ConnectionOpportunityGroupConfigs
+                    .GroupBy( c => c.GroupTypeId )
+                    .ToDictionary(
+                        grp => grp.Key,
+                        grp => grp.Select( c => new { Role = c.GroupMemberRole, Status = c.GroupMemberStatus } ).ToList()
+                    );
+
+            //.Where( g => !campusId.HasValue || !g.CampusId.HasValue || g.CampusId.Value == campusId.Value ) TODO - Consider whether the docked panel should be aware of campus context ... this could be problematic if we tried to convert to a control.
+                box.Options.PlacementGroups = connectionRequest.ConnectionOpportunity.ConnectionOpportunityGroups.Where( g => configsByGroupTypeId.ContainsKey( g.Group.GroupTypeId ) )
+                    .Select( g =>
+                    {
+                        var configs = configsByGroupTypeId[g.Group.GroupTypeId];
+
+                        var tempGroupMember = new Rock.Model.GroupMember { GroupId = g.GroupId };
+                        tempGroupMember.LoadAttributes();
+
+                        return new PlacementGroupDetailsBag
+                        {
+                            ListItemBag = new ListItemBag
+                            {
+                                Text = g.Group.CampusId.HasValue ? $"{g.Group.Name} ({g.Group.Campus.Name})" : $"{g.Group.Name} (No Campus)",
+                                Value = g.Group.Guid.ToString()
+                            },
+                            GroupMemberRoles = configs
+                                .DistinctBy( c => c.Role.Guid )
+                                .Select( c => c.Role.ToListItemBag() )
+                                .ToList(),
+                            GroupMemberStatuses = configs
+                                .GroupBy( c => c.Role.Guid.ToString() )
+                                .ToDictionary(
+                                    grp => grp.Key,
+                                    grp => grp.OrderBy( c => c.Status )
+                                        .DistinctBy( c => c.Status )
+                                        .Select( c => new ListItemBag
+                                        {
+                                            Text = c.Status.ToString(),
+                                            Value = ( ( int ) c.Status ).ToString()
+                                        } )
+                                        .ToList()
+                                ),
+                            GroupMemberAttributes = tempGroupMember.GetPublicAttributesForEdit( RequestContext.CurrentPerson )
+                        };
+                    } ).ToList();
+            }
+
             connectionRequest.LoadAttributes();
 
             // TODO - This is doing more work than we need it to by loading the entire entity. We should create a projection that only pulls the data we need for the details view.
-            var bag = new ConnectionRequestDetailsBag
+            box.Entity = new ConnectionRequestDetailsBag
             {
                 ConnectionRequestIdKey = connectionRequest.IdKey,
                 ConnectionState = connectionRequest.ConnectionState,
@@ -1842,18 +2000,7 @@ namespace Rock.Blocks.Engagement
                 ConnectionOpportunityName = connectionRequest.ConnectionOpportunity.Name,
                 ConnectionOpportunityIcon = connectionRequest.ConnectionOpportunity.IconCssClass,
                 Campus = connectionRequest.Campus?.Name,
-                ConnectorPerson = connectionRequest.ConnectorPersonAlias?.Person?.IdKey ?? "unassigned",
-                ConnectorItems = connectionRequest.ConnectionOpportunity.ConnectionOpportunityConnectorGroups
-                    .SelectMany( cg => cg.ConnectorGroup.Members )
-                    .Select( gm => gm.Person )
-                    .Distinct()
-                    .Select( p => new PersonFieldBag
-                    {
-                        IdKey = p.IdKey,
-                        NickName = p.NickName,
-                        LastName = p.LastName,
-                        PhotoUrl = p.PhotoUrl
-                    } ).ToList(),
+                ConnectorPerson = connectionRequest.ConnectorPersonAlias?.Guid.ToString() ?? "unassigned",
                 CreatedDateTime = connectionRequest.CreatedDateTime?.ToRockDateTimeOffset(),
                 DueDate = connectionRequest.DueDate?.ToRockDateTimeOffset(),
                 DueStatus = GetDueStatus( connectionRequest.DueDate, connectionRequest.DueSoonDate ),
@@ -1862,60 +2009,62 @@ namespace Rock.Blocks.Engagement
                 ActionItems = new List<ListItemBag>(),
                 Attributes = connectionRequest.GetPublicAttributesForView( RequestContext.CurrentPerson ),
                 AttributeValues = connectionRequest.GetPublicAttributeValuesForView( RequestContext.CurrentPerson ),
-                IsFutureFollowUpEnabled = connectionRequest.ConnectionOpportunity.ConnectionType.EnableFutureFollowup,
-                IsRequestSecurityEnabled = connectionRequest.ConnectionOpportunity.ConnectionType.EnableRequestSecurity,
-                AreCelebrationsEnabled = connectionRequest.ConnectionOpportunity.ConnectionType.EnabledFeatures.HasFlag( EnabledFeatureFlags.Celebration ),
-                AreRemindersEnabled = connectionRequest.ConnectionOpportunity.ConnectionType.EnabledFeatures.HasFlag( EnabledFeatureFlags.Reminder ),
-                AreGroupPlacementsEnabled = connectionRequest.ConnectionOpportunity.ConnectionType.EnabledFeatures.HasFlag( EnabledFeatureFlags.GroupPlacement )
             };
 
             // Add Unassigned Connector
-            bag.ConnectorItems.Add( new PersonFieldBag
+            box.Options.ConnectorItems.Add( new ConnectorItemBag
             {
-                IdKey = "unassigned",
-                NickName = "Unassigned",
+                ListItemBag = new ListItemBag
+                {
+                    Text = "Unassigned",
+                    Value = "unassigned"
+                },
                 PhotoUrl = Rock.Model.Person.GetPersonNoPictureUrl( new Rock.Model.Person() )
             } );
 
             // If the current connector (from the request) isn't in the connector list, add it.
-            if ( bag.ConnectorPerson != "unassigned" && !bag.ConnectorItems.Any( c => c.IdKey == bag.ConnectorPerson ) )
+            if ( box.Entity.ConnectorPerson != "unassigned" && !box.Options.ConnectorItems.Any( c => c.ListItemBag.Value == box.Entity.ConnectorPerson ) )
             {
                 // Get the Connector Person
                 var connectorPerson = connectionRequest.ConnectorPersonAlias?.Person;
 
                 if ( connectorPerson != null )
                 {
-                    bag.ConnectorItems.Add( new PersonFieldBag
+                    box.Options.ConnectorItems.Add( new ConnectorItemBag
                     {
-                        IdKey = connectorPerson.IdKey,
-                        NickName = connectorPerson.NickName,
-                        LastName = connectorPerson.LastName,
+                        ListItemBag = new ListItemBag
+                        {
+                            Text = connectorPerson.FullName,
+                            Value = connectorPerson.PrimaryAliasGuid.ToString()
+                        },
                         PhotoUrl = connectorPerson.PhotoUrl
                     } );
                 }
             }
 
             // If the connector list does not include the current person, add them.
-            if ( !bag.ConnectorItems.Any( c => c.IdKey == RequestContext.CurrentPerson.IdKey ) )
+            if ( !box.Options.ConnectorItems.Any( c => c.ListItemBag.Value == RequestContext.CurrentPerson.PrimaryAliasGuid.ToString() ) )
             {
                 var person = RequestContext.CurrentPerson;
 
-                bag.ConnectorItems.Add( new PersonFieldBag
+                box.Options.ConnectorItems.Add( new ConnectorItemBag
                 {
-                    IdKey = person.IdKey,
-                    NickName = person.NickName,
-                    LastName = person.LastName,
+                    ListItemBag = new ListItemBag
+                    {
+                        Text = person.FullName,
+                        Value = person.PrimaryAliasGuid.ToString()
+                    },
                     PhotoUrl = person.PhotoUrl
                 } );
             }
 
-            if ( bag.AreGroupPlacementsEnabled && connectionRequest.AssignedGroup != null )
+            if ( box.Options.AreGroupPlacementsEnabled && connectionRequest.AssignedGroup != null )
             {
                 var placementGroup = connectionRequest.AssignedGroup;
 
-                bag.PlacementGroup = new PlacementGroupDetailsBag
+                box.Entity.PlacementGroup = new PlacementGroupDetailsBag
                 {
-                    Name = placementGroup.Name,
+                    ListItemBag = placementGroup.ToListItemBag(),
                     IconCssClass = placementGroup.GroupType.IconCssClass ?? "ti ti-users",
                 };
 
@@ -1923,7 +2072,7 @@ namespace Rock.Blocks.Engagement
 
                 if ( groupMember == null )
                 {
-                    bag.PlacementGroup.IsPendingGroupMember = true;
+                    box.Entity.PlacementGroup.IsPendingGroupMember = true;
 
                     var pendingGroupMember = new GroupMember
                     {
@@ -1931,38 +2080,35 @@ namespace Rock.Blocks.Engagement
                     };
 
                     pendingGroupMember.LoadAttributes();
-                    bag.PlacementGroup.GroupMemberAttributes = pendingGroupMember.GetPublicAttributesForView( RequestContext.CurrentPerson );
+                    box.Entity.PlacementGroup.GroupMemberAttributes = pendingGroupMember.GetPublicAttributesForView( RequestContext.CurrentPerson );
 
                     var pendingGroupMemberAttributeValues = connectionRequest.AssignedGroupMemberAttributeValues.FromJsonOrNull<Dictionary<string, string>>();
-                    bag.PlacementGroup.GroupMemberAttributeValues = pendingGroupMemberAttributeValues;
+                    box.Entity.PlacementGroup.GroupMemberAttributeValues = pendingGroupMemberAttributeValues;
                 }
                 else
                 {
                     groupMember.LoadAttributes();
 
-                    bag.PlacementGroup.IsPendingGroupMember = false;
-                    bag.PlacementGroup.GroupMemberIdKey = groupMember.IdKey;
-                    bag.PlacementGroup.GroupMemberAttributes = groupMember.GetPublicAttributesForView( RequestContext.CurrentPerson );
-                    bag.PlacementGroup.GroupMemberAttributeValues = groupMember.GetPublicAttributeValuesForView( RequestContext.CurrentPerson );
+                    box.Entity.PlacementGroup.IsPendingGroupMember = false;
+                    box.Entity.PlacementGroup.GroupMemberIdKey = groupMember.IdKey;
+                    box.Entity.PlacementGroup.GroupMemberAttributes = groupMember.GetPublicAttributesForView( RequestContext.CurrentPerson );
+                    box.Entity.PlacementGroup.GroupMemberAttributeValues = groupMember.GetPublicAttributeValuesForView( RequestContext.CurrentPerson );
 
-                    bag.PlacementGroup.GroupMemberRequirements = new List<GroupMemberRequirementBag>( placementGroup.GroupRequirements.Select( gr =>
+                    var groupMemberRequirementStatuses = groupMember.GetGroupRequirementsStatuses( RockContext );
+
+                    box.Entity.PlacementGroup.GroupMemberRequirements = new List<GroupMemberRequirementBag>( groupMemberRequirementStatuses.Select( s =>
                     {
                         var bag = new GroupMemberRequirementBag
                         {
-                            GroupRequirementTypeIdKey = gr.GroupRequirementType.IdKey,
-                            RequirementName = gr.GroupRequirementType.Name,
-                            IsManualRequirement = gr.GroupRequirementType.RequirementCheckType == RequirementCheckType.Manual
+                            GroupRequirementIdKey = s.GroupRequirement.IdKey,
+                            RequirementName = s.GroupRequirement.GroupRequirementType.Name,
+                            IsManualRequirement = s.GroupRequirement.GroupRequirementType.RequirementCheckType == RequirementCheckType.Manual,
+                            GroupMemberRequirementState = s.MeetsGroupRequirement
                         };
 
-                        var groupMemberRequirement = groupMember.GroupMemberRequirements.FirstOrDefault( gmr => gmr.GroupRequirementId == gr.Id );
-
-                        if ( groupMemberRequirement == null )
+                        if ( s.GroupMemberRequirementId.HasValue )
                         {
-                            bag.GroupMemberRequirementState = MeetsGroupRequirement.NotApplicable;
-                        }
-                        else
-                        {
-                            bag.GroupMemberRequirementState = groupMemberRequirement.GroupMemberRequirementState;
+                            bag.GroupMemberRequirementIdKey = IdHasher.Instance.GetHash( s.GroupMemberRequirementId.Value );
                         }
 
                         return bag;
@@ -2009,7 +2155,7 @@ namespace Rock.Blocks.Engagement
 
                 if ( IsEligibleForWorkflow( workflow, connectionRequest, includedDataViewValues, excludedDataViewValues ) )
                 {
-                    bag.ActionItems.Add( new ListItemBag
+                    box.Entity.ActionItems.Add( new ListItemBag
                     {
                         Text = workflow.WorkflowType?.Name,
                         Value = workflow.Guid.ToString()
@@ -2037,7 +2183,7 @@ namespace Rock.Blocks.Engagement
                 }
             }
 
-            bag.RequesterPerson = new RequesterPersonBag
+            box.Entity.RequesterPerson = new RequesterPersonBag
             {
                 IdKey = requesterPerson.IdKey,
                 NickName = requesterPerson.NickName,
@@ -2067,7 +2213,7 @@ namespace Rock.Blocks.Engagement
                     RequesterLastName = r.PersonAlias.Person.LastName
                 } ).ToList();
 
-            bag.AdditionalRequests = additionalRequestsProjection.Select( r => new AdditionalRequestBag
+            box.Entity.AdditionalRequests = additionalRequestsProjection.Select( r => new AdditionalRequestBag
             {
                 RequestIdKey = IdHasher.Instance.GetHash( r.RequestId ),
                 ConnectionOpportunityIdKey = IdHasher.Instance.GetHash( r.ConnectionOpportunityId ),
@@ -2084,8 +2230,8 @@ namespace Rock.Blocks.Engagement
             mergeFields.Add( "ConnectionRequest", connectionRequest );
             mergeFields.Add( "Person", requesterPerson );
 
-            bag.LavaHeadingTemplate = GetAttributeValue( AttributeKey.LavaHeadingTemplate ).ResolveMergeFields( mergeFields );
-            bag.LavaBadgeBar = GetAttributeValue( AttributeKey.LavaBadgeBar ).ResolveMergeFields( mergeFields );
+            box.Options.LavaHeadingTemplate = GetAttributeValue( AttributeKey.LavaHeadingTemplate ).ResolveMergeFields( mergeFields );
+            box.Options.LavaBadgeBar = GetAttributeValue( AttributeKey.LavaBadgeBar ).ResolveMergeFields( mergeFields );
 
             // Filters out Connection Request Activities that do not have a created by person alias id or created date time. -- TODO - determine if we should do this. Currently inconsistent.
             var validActivities = connectionRequest.ConnectionRequestActivities.Where( a => a.CreatedByPersonAliasId.HasValue && a.ModifiedDateTime.HasValue ).ToList();
@@ -2397,9 +2543,71 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
 
 
 
-            bag.ActivityEntries = new List<ActivityEntryBag>( entries.OrderByDescending( e => e.EntryDateTime ) );
+            box.Entity.ActivityEntries = new List<ActivityEntryBag>( entries.OrderByDescending( e => e.EntryDateTime ) );
 
-            return ActionOk( bag );
+            return ActionOk( box );
+        }
+
+        [BlockAction]
+        public BlockActionResult UpdateManualRequirement( UpdateGroupMemberRequirementBag bag )
+        {
+            GroupMemberRequirement groupMemberRequirement;
+            var groupMemberRequirementService = new GroupMemberRequirementService( RockContext );
+
+            if ( bag.GroupMemberRequirementIdKey.IsNullOrWhiteSpace() )
+            {
+                if ( bag.GroupMemberIdKey.IsNullOrWhiteSpace() || bag.GroupRequirementIdKey.IsNullOrWhiteSpace() )
+                {
+                    return ActionBadRequest( $"{Rock.Model.GroupMemberRequirement.FriendlyTypeName} not found." );
+                }
+
+                groupMemberRequirement = new GroupMemberRequirement
+                {
+                    GroupMemberId = IdHasher.Instance.GetId( bag.GroupMemberIdKey ).Value,
+                    GroupRequirementId = IdHasher.Instance.GetId( bag.GroupRequirementIdKey ).Value,
+                };
+
+                groupMemberRequirementService.Add( groupMemberRequirement );
+            }
+            else
+            {
+                groupMemberRequirement = groupMemberRequirementService.Get( bag.GroupMemberRequirementIdKey, !PageCache.Layout.Site.DisablePredictableIds );
+                if ( groupMemberRequirement == null )
+                {
+                    return ActionBadRequest( $"{Rock.Model.GroupMemberRequirement.FriendlyTypeName} not found." );
+                }
+            }
+
+            if ( !groupMemberRequirement.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson ) )
+            {
+                return ActionBadRequest( "You are not authorized to edit this Group Member Requirement." );
+            }
+
+            groupMemberRequirement.WasManuallyCompleted = bag.IsMet;
+
+            if ( bag.IsMet )
+            {
+                groupMemberRequirement.ManuallyCompletedByPersonAliasId = RequestContext.CurrentPerson.PrimaryAliasId;
+                groupMemberRequirement.ManuallyCompletedDateTime = RockDateTime.Now;
+                groupMemberRequirement.RequirementMetDateTime = RockDateTime.Now;
+            }
+            else
+            {
+                groupMemberRequirement.ManuallyCompletedByPersonAliasId = null;
+                groupMemberRequirement.ManuallyCompletedDateTime = null;
+                groupMemberRequirement.RequirementMetDateTime = null;
+            }
+
+            RockContext.SaveChanges();
+
+            // We'll need to return the new state along with the group member requirement id key because it may have just been created, and therfore not present on the client.
+            var result = new GroupMemberRequirementBag
+            {
+                GroupMemberRequirementIdKey = groupMemberRequirement.IdKey,
+                GroupMemberRequirementState = groupMemberRequirement.GroupMemberRequirementState
+            };
+            
+            return ActionOk( result );
         }
 
         [BlockAction]
@@ -2575,6 +2783,25 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
             var key = $"{ActivityEntryType.Activity}_{activityIdKey}";
 
             return ActionOk( key );
+        }
+
+        [BlockAction]
+        public BlockActionResult Edit( string key )
+        {
+            if ( !TryGetEntityForEditAction( key, out var entity, out var actionError ) )
+            {
+                return actionError;
+            }
+
+            entity.LoadAttributes( RockContext );
+
+            var bag = GetEntityBagForEdit( entity );
+
+            return ActionOk( new ValidPropertiesBox<ConnectionRequestBag>
+            {
+                Bag = bag,
+                ValidProperties = bag.GetType().GetProperties().Select( p => p.Name ).ToList()
+            } );
         }
 
         #endregion Detail View Block Actions

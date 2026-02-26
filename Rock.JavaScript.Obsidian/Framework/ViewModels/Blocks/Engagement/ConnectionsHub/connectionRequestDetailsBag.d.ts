@@ -27,7 +27,6 @@ import { ActivityEntryBag } from "@Obsidian/ViewModels/Blocks/Engagement/Connect
 import { AdditionalRequestBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/additionalRequestBag";
 import { PlacementGroupDetailsBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/placementGroupDetailsBag";
 import { RequesterPersonBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/requesterPersonBag";
-import { PersonFieldBag } from "@Obsidian/ViewModels/Core/Grid/personFieldBag";
 import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
 import { PublicAttributeBag } from "@Obsidian/ViewModels/Utility/publicAttributeBag";
 
@@ -37,12 +36,6 @@ export type ConnectionRequestDetailsBag = {
     activityEntries?: ActivityEntryBag[] | null;
 
     additionalRequests?: AdditionalRequestBag[] | null;
-
-    areCelebrationsEnabled: boolean;
-
-    areGroupPlacementsEnabled: boolean;
-
-    areRemindersEnabled: boolean;
 
     /** The attributes for the selected Connection Request. */
     attributes?: Record<string, PublicAttributeBag> | null;
@@ -65,8 +58,6 @@ export type ConnectionRequestDetailsBag = {
 
     connectionTypeSource?: string | null;
 
-    connectorItems?: PersonFieldBag[] | null;
-
     connectorPerson?: string | null;
 
     createdDateTime?: string | null;
@@ -76,16 +67,6 @@ export type ConnectionRequestDetailsBag = {
     dueStatus: DueStatus;
 
     followUpDate?: string | null;
-
-    isFutureFollowUpEnabled: boolean;
-
-    isRequestSecurityEnabled: boolean;
-
-    isSequentialStatusMode?: boolean | null;
-
-    lavaBadgeBar?: string | null;
-
-    lavaHeadingTemplate?: string | null;
 
     placementGroup?: PlacementGroupDetailsBag | null;
 

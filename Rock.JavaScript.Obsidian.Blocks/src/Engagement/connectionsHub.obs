@@ -542,7 +542,7 @@
                                   :currentKey="selectedRequestKey"
                                   :orderedKeys="orderedRequestKeys ?? []"
                                   :requestDetails="requestDetails"
-                                  :options="box.options"
+                                  :options="requestDetailOptions"
                                   @navigate="updateSelectedRequestKey"
                                   @editActivity="onEditActivity" />
 </template>
@@ -746,6 +746,8 @@
     import { debounce } from "@Obsidian/Utility/util";
     import DropDownContent from "@Obsidian/Controls/dropDownContent.obs";
     import { removeCurrentUrlQueryParams } from "@Obsidian/Utility/url";
+    import { ConnectionRequestDetailBox } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionRequestDetailBox";
+    import { ConnectionRequestDetailOptionsBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionRequestDetailOptionsBag";
 
     /* =====================================================
      * Configuration & Data Loading
@@ -852,6 +854,7 @@
     const isDockedPanelVisible = ref(false);
     const selectedRequestKey = ref();
     const requestDetails = ref<ConnectionRequestDetailsBag | undefined>();
+    const requestDetailOptions = ref<ConnectionRequestDetailOptionsBag | undefined>();
     const activityToEdit = ref<ActivityEntryBag | null>(null);
 
     const isRowDropdownOpen = ref<Record<string, boolean>>({});
@@ -1282,6 +1285,7 @@
 
     function updateSelectedRequestKey(key: string | null): void {
         requestDetails.value = undefined;
+        requestDetailOptions.value = undefined;
         if (!isNullOrWhiteSpace(key)) {
             selectedRequestKey.value = key;
         }
@@ -1971,10 +1975,11 @@
     }
 
     async function getConnectionRequestDetails(requestIdKey: string): Promise<void> {
-        const result = await invokeBlockAction<ConnectionRequestDetailsBag>("GetConnectionRequestDetails", { connectionRequestIdKey: requestIdKey });
+        const result = await invokeBlockAction<ConnectionRequestDetailBox>("GetConnectionRequestDetails", { connectionRequestIdKey: requestIdKey });
 
         if (result.isSuccess && result.data) {
-            requestDetails.value = result.data;
+            requestDetails.value = result.data.entity ?? undefined;
+            requestDetailOptions.value = result.data.options ?? undefined;
             return;
         }
 

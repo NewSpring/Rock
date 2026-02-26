@@ -27,11 +27,11 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
     /// </summary>
     public class PlacementGroupDetailsBag
     {
+        public ListItemBag ListItemBag { get; set; }
+
         public List<ListItemBag> GroupMemberRoles { get; set; }
 
         public Dictionary<string, List<ListItemBag>> GroupMemberStatuses { get; set; }
-
-        public string Name { get; set; }
 
         public string IconCssClass { get; set; }
 
@@ -63,7 +63,9 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
 
     public class GroupMemberRequirementBag
     {
-        public string GroupRequirementTypeIdKey { get; set; }
+        public string GroupRequirementIdKey { get; set; }
+
+        public string GroupMemberRequirementIdKey { get; set; }
 
         public string RequirementName { get; set; }
 

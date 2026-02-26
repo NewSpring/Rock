@@ -1,295 +1,132 @@
 <!-- Copyright by the Spark Development Network; Licensed under the Rock Community License -->
 <template>
-    <DockedPanel v-model="isVisible"
-                 v-model:width="dockedPanelWidth"
-                 :canResize="true"
-                 class="docked-panel">
-        <template #header>
-            <div v-if="areRequestDetailsLoading" class="d-flex align-items-center justify-content-center">
-                <Loading :isLoading="areRequestDetailsLoading" />
-            </div>
-            <div v-else class="mb-spacing-sm">
-                <div class="pt-spacing-xs bg-interface-softer">
-                    <div class="d-flex justify-content-between px-spacing-sm">
-                        <div class="d-flex gap-sm">
-                            <i class="ti ti-chevron-left cursor-pointer" :class="{ disabled: !hasPrevious }" @click="goPrevious"></i>
-                            <i class="ti ti-chevron-right cursor-pointer" :class="{ disabled: !hasNext }" @click="goNext"></i>
-                        </div>
-                        <div class="d-flex gap-sm">
-                            <i v-if="!isFullWidth" class="ti ti-arrows-diagonal cursor-pointer" @click="setFullWidth(true)"></i>
-                            <i v-else class="ti ti-arrows-diagonal-minimize-2 cursor-pointer" @click="setFullWidth(false)"></i>
-                            <i class="ti ti-x cursor-pointer" @click="closeDockedPanel"></i>
-                        </div>
+    <RockForm @submit="onEditSubmit">
+        <DockedPanel v-model="isVisible"
+                     v-model:width="dockedPanelWidth"
+                     :canResize="true"
+                     class="docked-panel">
+            <template #header>
+                <div v-if="isLoading" class="d-flex align-items-center justify-content-center">
+                    <Loading :isLoading="isLoading" />
+                </div>
+                <div v-else class="mb-spacing-sm">
+                    <div v-if="isInEditMode" class="d-flex align-items-center justify-content-between p-spacing-md">
+                        <div class="font-size-h5 text-semibold">Connection Request</div>
+                        <i class="ti ti-x cursor-pointer" @click="closeDockedPanel"></i>
                     </div>
-                    <template v-if="requestDetails?.requesterPerson">
-                        <div class="px-spacing-md py-spacing-xs d-flex align-items-center justify-content-between">
+                    <div v-else class="pt-spacing-xs bg-interface-softer">
+                        <div class="d-flex justify-content-between px-spacing-sm">
                             <div class="d-flex gap-sm">
-                                <PersonAvatar :personIdKey="requestDetails.requesterPerson.idKey ?? ''"
-                                              :photoUrl="requestDetails.requesterPerson.photoUrl ?? ''"
-                                              :photoSize="70" />
-                                <div class="d-flex flex-column flex-shrink-0 person-details">
-                                    <div class="text-interface-stronger text-md">{{ requestDetails.requesterPerson.nickName }} {{ requestDetails.requesterPerson.lastName }}</div>
-                                    <div v-if="!isNullOrWhiteSpace(requestDetails.requesterPerson.connectionStatus)" class="text-interface-medium text-sm">{{ requestDetails.requesterPerson.connectionStatus }}</div>
-                                    <div v-if="requestDetails.requesterPerson.age" class="text-interface-medium text-sm">{{ requestDetails.requesterPerson.age }} {{ pluralize("year", requestDetails.requesterPerson.age) }} old</div>
-                                    <div class="text-interface-medium text-sm">{{ requestDetails.requesterPerson.gender }} | {{ requestDetails.requesterPerson.maritalStatus }}</div>
-                                </div>
+                                <i class="ti ti-chevron-left cursor-pointer" :class="{ disabled: !hasPrevious }" @click="goPrevious"></i>
+                                <i class="ti ti-chevron-right cursor-pointer" :class="{ disabled: !hasNext }" @click="goNext"></i>
                             </div>
-                            <div>
-                                <!-- TODO: Fix Styling -->
-                                <BadgeList :entityTypeGuid="EntityType.Person"
-                                           :entityKey="requestDetails.requesterPerson.idKey ?? ''"
-                                           :badgeTypeGuids="options?.badgeGuids ?? []"
-                                           class="align-items-center justify-content-center flex-wrap" />
-                            </div>
-                            <div class="d-flex py-spacing-lg gap-xs">
-                                <RockButton class="px-spacing-sm">
-                                    <i class="ti ti-user"></i>
-                                </RockButton>
-                                <RockButton class="px-spacing-sm">
-                                    <i class="ti ti-message-circle-plus"></i>
-                                </RockButton>
-                                <RockButton class="px-spacing-sm">
-                                    <i class="ti ti-mail-plus"></i>
-                                </RockButton>
+                            <div class="d-flex gap-sm">
+                                <i v-if="!isFullWidth" class="ti ti-arrows-diagonal cursor-pointer" @click="setFullWidth(true)"></i>
+                                <i v-else class="ti ti-arrows-diagonal-minimize-2 cursor-pointer" @click="setFullWidth(false)"></i>
+                                <i class="ti ti-x cursor-pointer" @click="closeDockedPanel"></i>
                             </div>
                         </div>
-                    </template>
-                </div>
-                <!-- TODO - Disuss notes with Jon -->
-                <!-- <div v-if="expandedNotes && expandedNotes.length > 0" class="bg-info-soft">
-                        <div class="w-100 text-center cursor-pointer">{{ areNotesVisible ? "Hide" : "Show" }} {{ expandedNotes.length }} {{ pluralize("Note", expandedNotes.length) }}</div>
-                        <TransitionVerticalCollapse>
-                        </TransitionVerticalCollapse>
-                </div> -->
-            </div>
-        </template>
-        <template #default>
-            <div v-if="!areRequestDetailsLoading" class="px-spacing-md pb-spacing-lg d-flex flex-column gap-md">
-                <!-- TODO - AI Summary -->
-                <div v-if="!isNullOrWhiteSpace(requestDetails?.lavaHeadingTemplate)" v-html="requestDetails?.lavaHeadingTemplate"></div>
-                <div class="border rounded p-spacing-sm">
-                    <div class="d-flex align-items-center gap-tiny text-interface-strong">
-                        <i class="ti ti-plug-connected header-icon"></i>
-                        <!-- TODO - Add logic to show additional requests for family members. -->
-                        <div class="text-small text-semibold">Additional Requests</div>
-                    </div>
-                    <div class="d-flex flex-column gap-tiny">
-                        <!-- TODO - remove this slice -->
-                        <p v-for="additionalRequest in requestDetails?.additionalRequests?.slice(0, 5)" class="mb-0" :class="{ 'additional-request': dockedPanelWidthNumber < 350 }">
-                            <span class="text-link text-small pr-spacing-sm">{{ additionalRequest.connectionOpportunityName }} </span>
-                            <span class="text-interface-medium text-xs">{{ getRequestMeta(additionalRequest) }}</span>
-                        </p>
-                    </div>
-                </div>
-
-                <ContentSection title="Connection Request"
-                                icon="ti ti-mail"
-                                :disableCollapse="true">
-                    <template #headerActions>
-                        <div class="d-flex align-items-center gap-md">
-                            <div v-if="requestDetails?.connectionState === ConnectionState.FutureFollowUp" class="text-semibold text-info-strong">
-                                {{ ConnectionStateDescription[ConnectionState.FutureFollowUp] }} - {{ asLocaleString(requestDetails.followUpDate) }}
-                            </div>
-                            <div v-else-if="requestDetails?.connectionState === ConnectionState.Inactive" class="text-semibold text-slate">
-                                {{ ConnectionStateDescription[ConnectionState.Inactive] }}
-                            </div>
-                            <div v-else-if="requestDetails?.connectionState === ConnectionState.Connected" class="text-semibold text-emerald">
-                                {{ ConnectionStateDescription[ConnectionState.Connected] }}
-                            </div>
-                            <i v-if="options?.areCelebrationsEnabled" class="ti ti-confetti"></i>
-                            <i v-if="options?.areRemindersEnabled" class="ti ti-bell"></i>
-                        </div>
-                    </template>
-                    <template #preBody v-if="!isNullOrWhiteSpace(requestDetails?.lavaBadgeBar)">
-                        <div class="border-top border-bottom px-spacing-md py-spacing-xs">
-                            <div v-html="requestDetails?.lavaBadgeBar"></div>
-                        </div>
-                    </template>
-                    <ContentStack>
-                        <div class="d-flex flex-column gap-md">
-                            <div>
-                                <RockLabel class="mb-spacing-xs text-interface-stronger">Request Detail</RockLabel>
-                                <DisplayCard :iconCssClass="requestDetails?.connectionOpportunityIcon"
-                                             iconLabelType="info"
-                                             :title="requestDetails?.connectionOpportunityName"
-                                             :description="requestDetails?.campus">
-                                    <template #middleSection>
-                                        <div class="d-flex flex-column">
-                                            <RockLabel class="text-interface-medium text-regular">Connector</RockLabel>
-                                            <DropDownContent v-model="isConnectorDropdownOpen"
-                                                             enableFlip>
-                                                <template #anchor>
-                                                    <div class="d-flex align-items-center gap-xs cursor-pointer">
-                                                        <PersonAvatar :photoUrl="selectedConnectorBag?.photoUrl ?? ''"
-                                                                      :photoSize="30"
-                                                                      marginRight="0" />
-                                                        <div class="d-flex align-items-center gap-tiny">
-                                                            <!-- TODO: Is there a blank space here when unassigned? -->
-                                                            <div class="text-small text-interface-strong text-semibold">{{ selectedConnectorBag?.nickName }} {{ selectedConnectorBag?.lastName }}</div>
-                                                            <i class="ti ti-chevron-down"></i>
-                                                        </div>
-                                                    </div>
-                                                </template>
-                                                <template #default>
-                                                    <div class="d-flex flex-column person-dropdown">
-                                                        <template v-for="connectorItem in connectorItems">
-                                                            <div v-if="connectorItem"
-                                                                 class="d-flex align-items-center gap-xs dropdown-content-item text-regular py-spacing-sm px-spacing-md bg-interface-softest"
-                                                                 :class="{ 'selected': connectorItem.idKey === selectedConnector }"
-                                                                 @click="updateConnector(connectorItem.idKey)">
-                                                                <PersonAvatar :photoUrl="connectorItem.photoUrl ?? ''"
-                                                                              :photoSize="30"
-                                                                              marginRight="0" />
-                                                                <div>{{ connectorItem.nickName }} {{ connectorItem.lastName }}</div>
-                                                            </div>
-                                                        </template>
-                                                    </div>
-                                                </template>
-                                            </DropDownContent>
-                                        </div>
-                                    </template>
-                                    <template #actions>
-                                        <div class="d-flex flex-column gap-tiny">
-                                            <div v-if="!isNullOrWhiteSpace(requestDetails?.createdDateTime)" class="text-interface-medium">
-                                                <i class="ti ti-calendar-plus"></i>
-                                                Created {{ createdDateTimeElapsed }}
-                                            </div>
-                                            <div v-if="!isNullOrWhiteSpace(requestDetails?.dueDate)" :class="getDueDateColor(requestDetails?.dueStatus)">
-                                                <i class="ti ti-clock"></i>
-                                                {{ elapsedDueDate }}
-                                            </div>
-                                        </div>
-                                    </template>
-                                </DisplayCard>
-                            </div>
-                            <div v-if="requestDetails?.actionItems && requestDetails.actionItems.length > 0">
-                                <RockLabel class="mb-spacing-xs text-interface-strong">Available Actions</RockLabel>
-                                <ActionItems :actionItems="requestDetails.actionItems ?? []" />
-                            </div>
-                            <div v-if="!isNullOrWhiteSpace(requestDetails?.comments)">
-                                <RockLabel class="mb-spacing-xs text-interface-medium text-regular">Comments</RockLabel>
-                                <div class="text-interface-stronger">{{ requestDetails?.comments }}</div>
-                            </div>
-                            <div v-if="!isNullOrWhiteSpace(requestDetails?.connectionTypeSource)">
-                                <RockLabel class="mb-spacing-xs text-interface-medium text-regular">Request Source</RockLabel>
-                                <div class="text-interface-stronger">{{ requestDetails?.connectionTypeSource }}</div>
-                            </div>
-                        </div>
-                    </ContentStack>
-                    <ContentStack v-if="requestDetails?.areGroupPlacementsEnabled">
-                        <RockLabel class="text-interface-stronger mb-spacing-xs">Placement Group Details</RockLabel>
-                        <div class="d-flex flex-column gap-md">
-                            <div class="d-flex flex-column gap-xs">
-                                <RockLabel class="text-interface-medium text-regular">Group</RockLabel>
-                                <HighlightLabel v-if="requestDetails.placementGroup"
-                                                :iconCssClass="isNullOrWhiteSpace(requestDetails?.placementGroup?.iconCssClass) ? 'ti ti-users' : requestDetails?.placementGroup?.iconCssClass!"
-                                                labelType="custom"
-                                                customClass="label label-info w-fit">
-                                    {{ placementGroupName }}
-                                </HighlightLabel>
-                                <HighlightLabel v-else
-                                                iconCssClass="ti ti-alert-circle"
-                                                labelType="custom"
-                                                customClass="label bg-interface-medium w-fit">
-                                    None Assigned
-                                </HighlightLabel>
-                            </div>
-                            <AttributeValuesContainer :modelValue="requestDetails?.placementGroup?.groupMemberAttributeValues ?? {}"
-                                                      :attributes="requestDetails?.placementGroup?.groupMemberAttributes ?? {}"
-                                                      :numberOfColumns="2"
-                                                      :showCategoryLabel="false" />
-                            <div v-if="automatedGroupMemberRequirements && automatedGroupMemberRequirements.length > 0">
-                                <RockLabel class="text-interface-medium text-regular mb-spacing-xs">Requirements</RockLabel>
-                                <div class="d-flex flex-wrap gap-xs">
-                                    <HighlightLabel v-for="groupMemberRequirement in automatedGroupMemberRequirements"
-                                                    :iconCssClass="groupMemberRequirement.groupMemberRequirementState === MeetsGroupRequirement.Meets ? 'ti ti-circle-check-filled' : ''"
-                                                    :labelType="getRequirementLabelType(groupMemberRequirement)">
-                                        {{ groupMemberRequirement.requirementName }}
-                                    </HighlightLabel>
-                                </div>
-                            </div>
-                        </div>
-                    </ContentStack>
-                    <ContentStack v-if="hasNonEmptyRequestAttributeValue">
-                        <AttributeValuesContainer :modelValue="requestDetails?.attributeValues ?? {}"
-                                                  :attributes="requestDetails?.attributes ?? {}"
-                                                  :numberOfColumns="2"
-                                                  displayAsCategoryDropdown
-                                                  globalCategoryNameOverride="General Attributes" />
-                    </ContentStack>
-                </ContentSection>
-                <ContentSection title="Activity Feed"
-                                icon="ti ti-activity"
-                                :disableCollapse="true">
-                    <template #headerActions>
-                        <DropDownContent v-model="isActivityFilterDropdownOpen"
-                                         enableFlip>
-                            <template #anchor>
-                                <div class="d-flex align-items-center gap-tiny text-primary cursor-pointer">
-                                    Show {{ selectedActivityFilter.text }}
-                                    <i class="ti ti-chevron-down"></i>
-                                </div>
-                            </template>
-                            <template #default>
-                                <div class="bg-interface-softest dropdown-content">
-                                    <div v-for="activityFilter in activityFilterOptions"
-                                         class="dropdown-content-item py-spacing-sm px-spacing-md text-small text-semibold"
-                                         @click.stop="updateActivityFilter(activityFilter)">
-                                        {{ activityFilter.text }}
+                        <template v-if="requestDetails?.requesterPerson">
+                            <div class="px-spacing-md py-spacing-xs d-flex align-items-center justify-content-between">
+                                <div class="d-flex gap-sm">
+                                    <PersonAvatar :personIdKey="requestDetails.requesterPerson.idKey ?? ''"
+                                                  :photoUrl="requestDetails.requesterPerson.photoUrl ?? ''"
+                                                  :photoSize="70" />
+                                    <div class="d-flex flex-column flex-shrink-0 person-details">
+                                        <div class="text-interface-stronger text-md">{{ requestDetails.requesterPerson.nickName }} {{ requestDetails.requesterPerson.lastName }}</div>
+                                        <div v-if="!isNullOrWhiteSpace(requestDetails.requesterPerson.connectionStatus)" class="text-interface-medium text-sm">{{ requestDetails.requesterPerson.connectionStatus }}</div>
+                                        <div v-if="requestDetails.requesterPerson.age" class="text-interface-medium text-sm">{{ requestDetails.requesterPerson.age }} {{ pluralize("year", requestDetails.requesterPerson.age) }} old</div>
+                                        <div class="text-interface-medium text-sm">{{ requestDetails.requesterPerson.gender }} | {{ requestDetails.requesterPerson.maritalStatus }}</div>
                                     </div>
                                 </div>
-                            </template>
-                        </DropDownContent>
-                    </template>
-                    <template #default>
-                        <RockForm @submit="onAddRequestNote">
-                            <div class="d-flex flex-column gap-xs">
-                                <NotificationBox v-if="isAddRequestNoteErrorMessageVisible"
-                                                 alertType="danger"
-                                                 dismissible
-                                                 @dismiss="onAddRequestNoteErrorDismissed">
-                                    {{ addRequestNoteErrorMessage }}
-                                </NotificationBox>
-                                <TextBox v-model="connectionRequestNoteText"
-                                         textMode="multiline"
-                                         placeholder="Write a note..."
-                                         validationTitle="Note"
-                                         rules="required" />
-                                <div class="row">
-                                    <div class="col-md-3">
-                                        <RockButton :btnType="BtnType.Primary"
-                                                    :btnSize="BtnSize.Small"
-                                                    type="submit">
-                                            Save Note
-                                        </RockButton>
-                                    </div>
-                                </div>
-                            </div>
-                        </RockForm>
-                        <template v-for="activityEntry in filteredAndSortedActivityEntries">
-                            <div v-if="activityEntry.entryType === ActivityEntryType.SystemUpdate && activityEntry.systemUpdate" class="d-flex gap-xs text-interface-medium text-small">
-                                <Badge :isCircle="true" class="d-flex justify-content-center bg-interface-softest text-interface-medium h-fit">
-                                    <i :class="systemUpdateIconClass(activityEntry.systemUpdate.systemUpdateType)"></i>
-                                </Badge>
                                 <div>
-                                    <span v-html="systemUpdateMessage(activityEntry)"></span>
-                                    <span> • {{ getElapsedDate(activityEntry.entryDateTime) }}</span>
+                                    <!-- TODO: Fix Styling -->
+                                    <BadgeList :entityTypeGuid="EntityType.Person"
+                                               :entityKey="requestDetails.requesterPerson.idKey ?? ''"
+                                               :badgeTypeGuids="options?.badgeGuids ?? []"
+                                               class="align-items-center justify-content-center flex-wrap" />
+                                </div>
+                                <div class="d-flex py-spacing-lg gap-xs">
+                                    <RockButton class="px-spacing-sm">
+                                        <i class="ti ti-user"></i>
+                                    </RockButton>
+                                    <RockButton class="px-spacing-sm">
+                                        <i class="ti ti-message-circle-plus"></i>
+                                    </RockButton>
+                                    <RockButton class="px-spacing-sm">
+                                        <i class="ti ti-mail-plus"></i>
+                                    </RockButton>
                                 </div>
                             </div>
-                            <ActivityCard v-else
-                                          :connectionRequestIdKey="requestDetails?.connectionRequestIdKey ?? ''"
-                                          :activityEntry="activityEntry"
-                                          :ref="(el) => setActivityCardRef(activityEntry.key, el)"
-                                          @editNote="(bag) => onEditRequestNote(bag, activityEntry.key)"
-                                          @deleteNote="deleteNote"
-                                          @editActivity="(entry) => emit('editActivity', entry)"
-                                          @deleteActivity="deleteActivity" />
                         </template>
+                    </div>
+                    <!-- TODO - Disuss notes with Jon -->
+                    <!-- <div v-if="expandedNotes && expandedNotes.length > 0" class="bg-info-soft">
+                            <div class="w-100 text-center cursor-pointer">{{ areNotesVisible ? "Hide" : "Show" }} {{ expandedNotes.length }} {{ pluralize("Note", expandedNotes.length) }}</div>
+                            <TransitionVerticalCollapse>
+                            </TransitionVerticalCollapse>
+                    </div> -->
+                </div>
+            </template>
+            <template #default v-if="!isLoading">
+                <EditDockedPanelBody v-if="isInEditMode"
+                                     v-model="editConnectionRequestBox"
+                                     ref="editDockedPanelBodyRef"
+                                     :options="options" />
+                <ViewDockedPanelBody v-else
+                                     :requestDetails="requestDetails"
+                                     :options="options"
+                                     :dockedPanelWidthNumber="dockedPanelWidthNumber"
+                                     @editActivity="(entry) => emit('editActivity', entry)" />
+            </template>
+            <template #footer>
+                <div class="d-flex align-items-center justify-content-between px-spacing-lg py-spacing-xs bg-interface-softer border-top">
+                    <template v-if="isInEditMode">
+                        <div class="d-flex align-items-center gap-xs">
+                            <RockButton :btnType="BtnType.Primary"
+                                        type="submit">
+                                Save
+                            </RockButton>
+                            <RockButton :btnType="BtnType.Link"
+                                        @click="setEditMode(false)">
+                                Cancel
+                            </RockButton>
+                        </div>
+                        <div class="d-flex align-items-center gap-xs">
+                            <RockButton :btnType="BtnType.Default">
+                                <i class="ti ti-circle-check"></i>
+                                Complete Request
+                            </RockButton>
+                            <RockButton :btnType="BtnType.Link">
+                                Delete
+                            </RockButton>
+                        </div>
                     </template>
-                </ContentSection>
-            </div>
-        </template>
-    </DockedPanel>
+                    <template v-else>
+                        <div class="d-flex align-items-center gap-xs">
+                            <RockButton :btnType="BtnType.Primary"
+                                        @click="onEditClick">
+                                Edit
+                            </RockButton>
+                            <RockButton :btnType="BtnType.Default">
+                                Complete
+                            </RockButton>
+                            <RockButton :btnType="BtnType.Link">
+                                Transfer
+                            </RockButton>
+                        </div>
+                        <div class="d-flex align-items-center gap-xs">
+                            <RockButton :btnType="BtnType.Default">
+                                <i class="ti ti-activity"></i>
+                                Add Activity
+                            </RockButton>
+                            <!-- Status Flyout -->
+                        </div>
+                    </template>
+                </div>
+            </template>
+        </DockedPanel>
+    </RockForm>
 </template>
 
 <style scoped>
@@ -416,8 +253,15 @@
     import RockForm from "@Obsidian/Controls/rockForm.obs";
     import { BtnSize } from "@Obsidian/Enums/Controls/btnSize";
     import NotificationBox from "@Obsidian/Controls/notificationBox.obs";
-    import { MeetsGroupRequirement } from "@Obsidian/Enums/Group/meetsGroupRequirement";
+    import { MeetsGroupRequirement, MeetsGroupRequirementDescription } from "@Obsidian/Enums/Group/meetsGroupRequirement";
     import { GroupMemberRequirementBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/groupMemberRequirementBag";
+    import CheckBox from "@Obsidian/Controls/checkBox.obs";
+    import { UpdateGroupMemberRequirementBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/updateGroupMemberRequirementBag";
+    import ViewDockedPanelBody from "./viewDockedPanelBody.partial.obs";
+    import EditDockedPanelBody from "./editDockedPanelBody.partial.obs";
+    import { ConnectionRequestDetailOptionsBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionRequestDetailOptionsBag";
+    import { ValidPropertiesBox } from "@Obsidian/ViewModels/Utility/validPropertiesBox";
+    import { ConnectionRequestBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionRequestBag";
 
     const props = defineProps({
         modelValue: {
@@ -442,7 +286,7 @@
         },
 
         options: {
-            type: Object as PropType<ConnectionsHubOptionsBag | null | undefined>,
+            type: Object as PropType<ConnectionRequestDetailOptionsBag | null | undefined>,
             required: true
         }
     });
@@ -457,49 +301,15 @@
     const invokeBlockAction = useInvokeBlockAction();
 
     const defaultDockedPanelWidth = "700px";
-
-    const activityFilterOptions = <ListItemBag[]>[
-        {
-            text: "All",
-            value: "all"
-        },
-        {
-            text: pluralize(ActivityEntryTypeDescription[ActivityEntryType.Activity]),
-            value: ActivityEntryType.Activity.toString()
-        },
-        {
-            text: pluralize(ActivityEntryTypeDescription[ActivityEntryType.RequestNote]),
-            value: ActivityEntryType.RequestNote.toString()
-        },
-        {
-            text: pluralize(ActivityEntryTypeDescription[ActivityEntryType.SystemUpdate]),
-            value: ActivityEntryType.SystemUpdate.toString()
-        },
-        {
-            text: pluralize(ActivityEntryTypeDescription[ActivityEntryType.Communication]),
-            value: ActivityEntryType.Communication.toString()
-        }
-    ];
+    const isLoading = ref(true);
+    const isInEditMode = ref<boolean>(false);
 
     const isFullWidth = ref(false);
     const dockedPanelWidth = ref(defaultDockedPanelWidth);
     const areNotesVisible = ref(false);
-    const isConnectorDropdownOpen = ref(false);
 
-    const selectedConnector = ref(props.requestDetails?.connectorPerson ?? "");
-    const connectorItems = ref<PersonFieldBag[]>(props.requestDetails?.connectorItems ?? []);
-    const activityEntries = ref<ActivityEntryBag[]>([]);
-
-    const isActivityFilterDropdownOpen = ref(false);
-    const selectedActivityFilter = ref<ListItemBag>({ text: "All", value: "all" });
-
-    const activityCardRefs = shallowRef(new Map<string, InstanceType<typeof ActivityCard>>());
-
-    const areRequestDetailsLoading = ref(true);
-
-    const isAddRequestNoteErrorMessageVisible = ref(false);
-    const addRequestNoteErrorMessage = ref();
-    const connectionRequestNoteText = ref("");
+    const editDockedPanelBodyRef = ref<InstanceType<typeof EditDockedPanelBody>>();
+    const editConnectionRequestBox = ref<ValidPropertiesBox<ConnectionRequestBag>>({});
 
     const currentIndex = computed(() =>
         props.orderedKeys.indexOf(props.currentKey)
@@ -529,226 +339,6 @@
         return parseInt(dockedPanelWidth.value, 10);
     });
 
-    const createdDateTimeElapsed = computed(() => {
-        if (isNullOrWhiteSpace(props.requestDetails?.createdDateTime)) {
-            return;
-        }
-
-        return RockDateTime.parseISO(props.requestDetails!.createdDateTime!)?.toElapsedString();
-    });
-
-    const elapsedDueDate = computed(() => {
-        if (isNullOrWhiteSpace(props.requestDetails?.dueDate)) {
-            return;
-        }
-
-        const due = RockDateTime.parseISO(props.requestDetails!.dueDate!);
-        if (!due) {
-            return "";
-        }
-
-        const today = RockDateTime.now().date;
-        const dueDay = due.date;
-
-        const msPerDay = 1000 * 60 * 60 * 24;
-
-        // signed whole days: positive => due in future, negative => overdue
-        const diffDays = Math.round((dueDay.toMilliseconds() - today.toMilliseconds()) / msPerDay);
-
-        if (diffDays > 0) {
-            return `Due in ${diffDays} ${diffDays === 1 ? "Day" : "Days"}`;
-        }
-        else if (diffDays < 0) {
-            const overdueDays = Math.abs(diffDays);
-            return `Overdue by ${overdueDays} ${overdueDays === 1 ? "Day" : "Days"}`;
-        }
-        else {
-            return "Due Today";
-        }
-    });
-
-    const selectedConnectorBag = computed(() => connectorItems.value.find(c => c.idKey === selectedConnector.value));
-
-    const hasNonEmptyRequestAttributeValue = computed(() => {
-        if (!props.requestDetails?.attributes || !props.requestDetails?.attributeValues) {
-            return false;
-        }
-
-        for (const [key, attribute] of Object.entries(props.requestDetails?.attributes)) {
-            // Skip if attribute name is empty
-            if (isNullOrWhiteSpace(attribute.name)) {
-                continue;
-            }
-
-            const rawValue = props.requestDetails?.attributeValues[key];
-
-            // Skip if the raw value is empty
-            if (isNullOrWhiteSpace(rawValue)) {
-                continue;
-            }
-
-            const formatted = getAttributeValueText(props.requestDetails?.attributeValues, attribute, key);
-
-            // Skip if formatted value is empty too
-            if (isNullOrWhiteSpace(formatted)) {
-                continue;
-            }
-
-            return true;
-        }
-
-        return false;
-    });
-
-    const placementGroupName = computed(() => props.requestDetails?.placementGroup?.isPendingGroupMember ? `${props.requestDetails.placementGroup?.name} (Pending Member)` : `${props.requestDetails?.placementGroup?.name}`);
-
-    const automatedGroupMemberRequirements = computed(() => props.requestDetails?.placementGroup?.groupMemberRequirements?.filter(gmr => !gmr.isManualRequirement));
-    const manualGroupMemberRequirements = computed(() => props.requestDetails?.placementGroup?.groupMemberRequirements?.filter(gmr => gmr.isManualRequirement));
-
-    const filteredAndSortedActivityEntries = computed(() => {
-        const filter = selectedActivityFilter.value.value;
-
-        let result = activityEntries.value;
-
-        if (filter !== "all") {
-            const entryType = toNumber(filter);
-
-            if (!Number.isNaN(entryType)) {
-                result = result.filter(e => e.entryType === entryType);
-            }
-        }
-
-        return result
-            .slice()
-            .sort((a, b) => {
-                const dateA = RockDateTime.parseISO(a.entryDateTime ?? "");
-                const dateB = RockDateTime.parseISO(b.entryDateTime ?? "");
-
-                if (!dateA && !dateB) {
-                    return 0;
-                }
-                if (!dateA) {
-                    return 1;
-                }
-                if (!dateB) {
-                    return -1;
-                }
-
-                return dateB.compareTo(dateA);
-            });
-    });
-
-    const systemUpdateIconClass = (systemUpdateType: SystemUpdateType): string => {
-        switch (systemUpdateType) {
-            case SystemUpdateType.Creation:
-                return "ti ti-plus";
-            case SystemUpdateType.StatusSet:
-            case SystemUpdateType.StatusUpdated:
-            case SystemUpdateType.StatusCleared:
-                return "ti ti-arrows-left-right";
-            case SystemUpdateType.StateChange:
-                return "ti ti-bolt";
-            case SystemUpdateType.Assignment:
-            case SystemUpdateType.Reassignment:
-            case SystemUpdateType.Unassignment:
-                return "ti ti-user-bolt";
-            case SystemUpdateType.Transfer:
-                return "ti ti-arrows-shuffle";
-            case SystemUpdateType.DueDateChange:
-            case SystemUpdateType.DueSoonDateChange:
-                return "ti ti-calendar-due";
-            case SystemUpdateType.Completion:
-                return "ti ti-circle-check-filled text-success";
-            default:
-                return "";
-        }
-    };
-
-    const systemUpdateMessage = (entry: ActivityEntryBag): string => {
-        const isCreatedByPopulated = isNullOrWhiteSpace(entry.createdBy) ? false : true;
-        if (!entry.systemUpdate) {
-            return "";
-        }
-
-        switch (entry.systemUpdate.systemUpdateType) {
-            case SystemUpdateType.Creation:
-                if (isCreatedByPopulated) {
-                    return `<span class="text-semibold">${entry.createdBy}</span> submitted this connection request for ${props.requestDetails?.connectionOpportunityName}.`;
-                }
-                return `This connection request was submitted for ${props.requestDetails?.connectionOpportunityName}.`;
-            case SystemUpdateType.StatusSet:
-                if (isCreatedByPopulated) {
-                    return `<span class="text-semibold">${entry.createdBy}</span> set the connection request status to <span class="text-semibold">${entry.systemUpdate.newValue}</span>.`;
-                }
-                return `The connection request status was set to <span class="text-semibold">${entry.systemUpdate.newValue}</span>.`;
-            case SystemUpdateType.StatusUpdated:
-                if (isCreatedByPopulated) {
-                    return `<span class="text-semibold">${entry.createdBy}</span> changed the connection request status from ${entry.systemUpdate.previousValue} to <span class="text-semibold">${entry.systemUpdate.newValue}</span>.`;
-                }
-                return `The connection request status changed from ${entry.systemUpdate.previousValue} to <span class="text-semibold">${entry.systemUpdate.newValue}</span>.`;
-            case SystemUpdateType.StatusCleared:
-                if (isCreatedByPopulated) {
-                    return `<span class="text-semibold">${entry.createdBy}</span> cleared the connection request status (was <span class="text-semibold">${entry.systemUpdate.previousValue}</span>).`;
-                }
-                return `The connection request status was cleared (was <span class="text-semibold">${entry.systemUpdate.previousValue}</span>).`;
-            case SystemUpdateType.StateChange: {
-                const hasPrevious = !isNullOrWhiteSpace(entry.systemUpdate.previousValue);
-
-                if (isCreatedByPopulated) {
-                    return hasPrevious
-                        ? `<span class="text-semibold">${entry.createdBy}</span> changed the connection request state from ${entry.systemUpdate.previousValue} to <span class="text-semibold">${entry.systemUpdate.newValue}</span>.`
-                        : `<span class="text-semibold">${entry.createdBy}</span> set the connection request state to <span class="text-semibold">${entry.systemUpdate.newValue}</span>.`;
-                }
-                return hasPrevious
-                    ? `The connection request state changed from ${entry.systemUpdate.previousValue} to <span class="text-semibold">${entry.systemUpdate.newValue}</span>.`
-                    : `The connection request state was set to <span class="text-semibold">${entry.systemUpdate.newValue}</span>.`;
-            }
-            case SystemUpdateType.Assignment:
-                if (isCreatedByPopulated) {
-                    return `<span class="text-semibold">${entry.createdBy}</span> assigned <span class="text-semibold">${entry.systemUpdate.newValue}</span> to the connection request.`;
-                }
-                return `The connection request was assigned to <span class="text-semibold">${entry.systemUpdate.newValue}</span>.`;
-            case SystemUpdateType.Unassignment:
-                if (isCreatedByPopulated) {
-                    return `<span class="text-semibold">${entry.createdBy}</span> unassigned <span class="text-semibold">${entry.systemUpdate.previousValue}</span> from the connection request.`;
-                }
-                return `The connection request was unassigned from <span class="text-semibold">${entry.systemUpdate.previousValue}</span>.`;
-            case SystemUpdateType.Reassignment:
-                if (isCreatedByPopulated) {
-                    return `<span class="text-semibold">${entry.createdBy}</span> reassigned the connection request from ${entry.systemUpdate.previousValue} to <span class="text-semibold">${entry.systemUpdate.newValue}</span>.`;
-                }
-                return `The connection request was reassigned from ${entry.systemUpdate.previousValue} to <span class="text-semibold">${entry.systemUpdate.newValue}</span>.`;
-            case SystemUpdateType.Transfer:
-                if (isCreatedByPopulated) {
-                    return `<span class="text-semibold">${entry.createdBy}</span> transferred the connection request from ${entry.systemUpdate.previousValue} to <span class="text-semibold">${entry.systemUpdate.newValue}</span>.`;
-                }
-                return `The connection request was transferred from ${entry.systemUpdate.previousValue} to <span class="text-semibold">${entry.systemUpdate.newValue}</span>.`;
-            case SystemUpdateType.DueDateChange:
-            case SystemUpdateType.DueSoonDateChange: {
-                const dateType = entry.systemUpdate.systemUpdateType === SystemUpdateType.DueDateChange ? "Due Date" : "Due Soon Date";
-                // TODO - humanize the dates
-                return `Status change auto-updated <span class="text-semibold">${dateType}</span> for the request from ${entry.systemUpdate.previousValue} to <span class="text-semibold">${entry.systemUpdate.newValue}</span>.`;
-            }
-            case SystemUpdateType.Completion:
-                if (isCreatedByPopulated) {
-                    return `<span class="text-semibold">${entry.createdBy}</span> completed this connection request.`;
-                }
-                return `This connection request was completed.`;
-            default:
-                return "";
-        }
-    };
-
-    function getAttributeValueText(attributeValues: Record<string, string> | null, attribute: PublicAttributeBag, key: string): string {
-        const fieldTypeGuid = toGuidOrNull(attribute.fieldTypeGuid);
-        const fieldType = getFieldType(fieldTypeGuid ?? FieldType.Text);
-
-        const rawValue = attributeValues?.[key] ?? "";
-        const configValues = attribute.configurationValues ?? {};
-
-        return fieldType?.getTextValue?.(rawValue, configValues) ?? rawValue;
-    }
-
     function setFullWidth(value: boolean): void {
         isFullWidth.value = value;
     }
@@ -765,179 +355,53 @@
         }
     }
 
-    function getRequestMeta(request: AdditionalRequestBag) {
-        const parts: string[] = [];
-
-        if (request.connectionStatus) {
-            parts.push(request.connectionStatus);
-        }
-
-        if (request.connector) {
-            parts.push(request.connector);
-        }
-
-        if (request.requestCreatedDateTime) {
-            parts.push(`Requested ${getElapsedDate(request.requestCreatedDateTime)}`);
-        }
-
-        if (request.requester) {
-            parts.push(`by ${request.requester}`);
-        }
-
-        return parts.join(" • ");
-    }
-
-    function getElapsedDate(dateTime: string | null | undefined): string | undefined {
-        const rockDateTime = RockDateTime.parseISO(dateTime ?? "");
-        return rockDateTime?.toElapsedString();
-    }
-
-    function getDueDateColor(dueStatus: DueStatus | null | undefined): string {
-        switch (dueStatus) {
-            case DueStatus.DueLater:
-                return "text-interface-medium";
-            case DueStatus.DueSoon:
-                return "text-warning";
-            case DueStatus.Overdue:
-                return "text-danger";
-            default:
-                return "text-interface-medium";
-        }
-    }
-
     function closeDockedPanel(): void {
         isVisible.value = false;
     }
 
-    // TODO - Determine if this needs to be saved immediately
-    function updateConnector(connectorKey: string | null | undefined): void {
-        if (isNullOrWhiteSpace(connectorKey)) {
-            return;
-        }
+    function onEditClick(): void {
+        // Fetch edit bag
 
-        selectedConnector.value = connectorKey!;
-        isConnectorDropdownOpen.value = false;
+        //Set edit mode
+        isLoading.value = true;
+        setEditMode(true);
+        onEdit();
     }
 
-    function updateActivityFilter(activityFilter: ListItemBag): void {
-        selectedActivityFilter.value = activityFilter;
-        isActivityFilterDropdownOpen.value = false;
+    function setEditMode(value: boolean): void {
+        isInEditMode.value = value;
     }
 
-    function asLocaleString(dateTime: string | null | undefined): string {
-        let date = RockDateTime.parseISO(dateTime ?? "");
-
-        if (!date) {
-            return "";
-        }
-
-        return date.toLocaleString({ year: "numeric", month: "numeric", day: "numeric" });
-    }
-
-    function getRequirementLabelType(requirement: GroupMemberRequirementBag): "default" | "success" | "warning" | "danger" | "custom" {
-        switch (requirement.groupMemberRequirementState) {
-            case MeetsGroupRequirement.Meets:
-                return "success";
-            case MeetsGroupRequirement.NotMet:
-                return "danger";
-            case MeetsGroupRequirement.MeetsWithWarning:
-                return "warning";
-            default:
-                return "default";
-        }
-    }
-
-    function onAddRequestNoteErrorDismissed(): void {
-        isAddRequestNoteErrorMessageVisible.value = false;
-    }
-
-    function setActivityCardRef(key: string | null | undefined, el: unknown): void {
-        if (!key || isNullOrWhiteSpace(key)) {
-            return;
-        }
-
-        activityCardRefs.value.set(key, el as InstanceType<typeof ActivityCard>);
-    }
-
-    async function onAddRequestNote(): Promise<void> {
-        const bag: ConnectionRequestNoteBag = {
-            connectionRequestIdKey: props.requestDetails?.connectionRequestIdKey,
-            noteIdKey: null,
-            noteText: connectionRequestNoteText.value
-        };
-
-        const errorMessage = await saveNote(bag);
-
-        if (isNullOrWhiteSpace(errorMessage)) {
-            connectionRequestNoteText.value = "";
-            return;
-        }
-
-        isAddRequestNoteErrorMessageVisible.value = true;
-        addRequestNoteErrorMessage.value = errorMessage;
-    }
-
-    async function onEditRequestNote(bag: ConnectionRequestNoteBag, key: string | null | undefined): Promise<void> {
-        if (!key || isNullOrWhiteSpace(key)) {
-            return;
-        }
-
-        const errorMessage = await saveNote(bag);
-
-        activityCardRefs.value.get(key)?.processSave(errorMessage);
-    }
-
-    async function saveNote(bag: ConnectionRequestNoteBag): Promise<string | null> {
-        const result = await invokeBlockAction<ActivityEntryBag>("SaveNote", {
-            bag
+    async function onEdit(): Promise<void> {
+        const result = await invokeBlockAction<ValidPropertiesBox<ConnectionRequestBag>>("Edit", {
+            key: props.requestDetails?.connectionRequestIdKey
         });
 
         if (result.isSuccess && result.data) {
-            const index = activityEntries.value.findIndex(a => a.key === result.data?.key);
-            if (index !== -1) {
-                activityEntries.value[index] = result.data;
-            }
-            else {
-                activityEntries.value.push(result.data);
-            }
-
-            return null;
+            editConnectionRequestBox.value = result.data;
         }
         else {
-            return result.errorMessage ?? "An error occurred while saving the connection request note.";
+            console.error(result.errorMessage);
         }
+
+        isLoading.value = false;
     }
 
-    async function deleteNote(noteIdKey: string): Promise<void> {
-        const result = await invokeBlockAction<string>("DeleteNote", {
-            noteIdKey
-        });
-
-        if (result.isSuccess && result.data) {
-            const index = activityEntries.value.findIndex(a => a.key === result.data);
-            if (index !== -1) {
-                activityEntries.value.splice(index, 1);
-            }
-        }
-        else {
-            // TODO: Handle error message from failed delete
-        }
+    function onEditSubmit(): void {
+        editDockedPanelBodyRef.value?.onSave();
     }
 
-    async function deleteActivity(activityIdKey: string): Promise<void> {
-        const result = await invokeBlockAction<string>("DeleteActivity", {
-            activityIdKey
+    async function saveConnectionRequest(): Promise<void> {
+        const result = await invokeBlockAction<ValidPropertiesBox<ConnectionRequestBag>>("SaveConnectionRequest", {
+            box: editConnectionRequestBox.value
         });
 
-        if (result.isSuccess && result.data) {
-            const index = activityEntries.value.findIndex(a => a.key === result.data);
-            if (index !== -1) {
-                activityEntries.value.splice(index, 1);
-            }
+        if (result.isSuccess) {
+            // Update request details.
+            return;
         }
-        else {
-            // TODO: Handle error message from failed delete
-        }
+
+        console.error(result.errorMessage);
     }
 
     watch(isFullWidth, () => {
@@ -949,17 +413,18 @@
         }
     });
 
-    watch(() => props.requestDetails, () => {
-        selectedConnector.value = props.requestDetails?.connectorPerson ?? "";
-        connectorItems.value = props.requestDetails?.connectorItems ?? [];
-        activityEntries.value = props.requestDetails?.activityEntries ?? [];
+    watch(editConnectionRequestBox, () => {
+        saveConnectionRequest();
+    });
 
+    watch(() => props.requestDetails, () => {
         if (!props.requestDetails) {
-            areRequestDetailsLoading.value = true;
+            isLoading.value = true;
         }
         else {
-            areRequestDetailsLoading.value = false;
+            isLoading.value = false;
         }
     });
 
+    // TODO - I need to reset state on close/navigate
 </script>

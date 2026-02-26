@@ -21,16 +21,11 @@
 // </copyright>
 //
 
-import { MeetsGroupRequirement } from "@Obsidian/Enums/Group/meetsGroupRequirement";
+import { ConnectionRequestDetailOptionsBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionRequestDetailOptionsBag";
+import { ConnectionRequestDetailsBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionRequestDetailsBag";
 
-export type GroupMemberRequirementBag = {
-    groupMemberRequirementIdKey?: string | null;
+export type ConnectionRequestDetailBox = {
+    entity?: ConnectionRequestDetailsBag | null;
 
-    groupMemberRequirementState: MeetsGroupRequirement;
-
-    groupRequirementIdKey?: string | null;
-
-    isManualRequirement?: boolean | null;
-
-    requirementName?: string | null;
+    options?: ConnectionRequestDetailOptionsBag | null;
 };

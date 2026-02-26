@@ -52,8 +52,6 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
 
         public string ConnectorPerson { get; set; }
 
-        public List<PersonFieldBag> ConnectorItems { get; set; }
-
         public DateTimeOffset? CreatedDateTime { get; set; }
 
         public DateTimeOffset? DueDate { get; set; }
@@ -68,10 +66,6 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
 
         public PlacementGroupDetailsBag PlacementGroup { get; set; }
 
-        public string LavaHeadingTemplate { get; set; }
-
-        public string LavaBadgeBar { get; set; }
-
         public List<ActivityEntryBag> ActivityEntries { get; set; }
 
         /// <summary>
@@ -83,20 +77,5 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
         /// The attribute values for the selected Connection Request.
         /// </summary>
         public Dictionary<string, string> AttributeValues { get; set; }
-
-
-        // We can get this from the parent but this panel needs to function outside of the parent scope.
-
-        public bool IsFutureFollowUpEnabled { get; set; }
-
-        public bool IsRequestSecurityEnabled { get; set; }
-
-        public bool AreRemindersEnabled { get; set; }
-
-        public bool AreCelebrationsEnabled { get; set; }
-
-        public bool AreGroupPlacementsEnabled { get; set; }
-
-        public bool? IsSequentialStatusMode { get; set; }
     }
 }

@@ -21,30 +21,38 @@
 // </copyright>
 //
 
-import { GroupMemberRequirementBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/groupMemberRequirementBag";
+import { Guid } from "@Obsidian/Types";
+import { ConnectionStatusBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionStatusBag";
+import { ConnectorItemBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectorItemBag";
+import { PlacementGroupDetailsBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/placementGroupDetailsBag";
 import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
-import { PublicAttributeBag } from "@Obsidian/ViewModels/Utility/publicAttributeBag";
 
-export type PlacementGroupDetailsBag = {
-    /** Gets or sets the group member attributes for the selected placement group. */
-    groupMemberAttributes?: Record<string, PublicAttributeBag> | null;
+export type ConnectionRequestDetailOptionsBag = {
+    areCelebrationsEnabled: boolean;
 
-    /** The attribute values for the placement group. */
-    groupMemberAttributeValues?: Record<string, string> | null;
+    areGroupPlacementsEnabled: boolean;
 
-    /** The Group Member IdKey of the placed group member. */
-    groupMemberIdKey?: string | null;
+    areRemindersEnabled: boolean;
 
-    groupMemberRequirements?: GroupMemberRequirementBag[] | null;
+    badgeGuids?: Guid[] | null;
 
-    groupMemberRoles?: ListItemBag[] | null;
+    connectionStates?: ListItemBag[] | null;
 
-    groupMemberStatuses?: Record<string, ListItemBag[]> | null;
+    connectionStatuses?: ConnectionStatusBag[] | null;
 
-    iconCssClass?: string | null;
+    connectorItems?: ConnectorItemBag[] | null;
 
-    /** True if the requester already exists as a GroupMember in the placement group */
-    isPendingGroupMember?: boolean | null;
+    isFutureFollowUpEnabled: boolean;
 
-    listItemBag?: ListItemBag | null;
+    isRequestSecurityEnabled: boolean;
+
+    isSequentialStatusMode: boolean;
+
+    lavaBadgeBar?: string | null;
+
+    lavaHeadingTemplate?: string | null;
+
+    placementGroups?: PlacementGroupDetailsBag[] | null;
+
+    requestSourceItems?: ListItemBag[] | null;
 };

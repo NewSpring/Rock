@@ -24,11 +24,14 @@
 import { ConnectionState } from "@Obsidian/Enums/Connection/connectionState";
 import { GroupMemberStatus } from "@Obsidian/Enums/Group/groupMemberStatus";
 import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
+import { PublicAttributeBag } from "@Obsidian/ViewModels/Utility/publicAttributeBag";
 
 export type ConnectionRequestBag = {
     comments?: string | null;
 
     connectionOpportunityGuid?: string | null;
+
+    connectionRequestAttributes?: Record<string, PublicAttributeBag> | null;
 
     /** Gets or sets the attribute values for the Connection Request. */
     connectionRequestAttributeValues?: Record<string, string> | null;
@@ -36,6 +39,8 @@ export type ConnectionRequestBag = {
     connectionState?: ConnectionState | null;
 
     connectionStatusGuid?: string | null;
+
+    connectionStatusHistoryNote?: string | null;
 
     connectorPersonAliasGuid?: string | null;
 
@@ -45,7 +50,11 @@ export type ConnectionRequestBag = {
 
     groupMemberStatus?: GroupMemberStatus | null;
 
+    idKey?: string | null;
+
     placementGroupGuid?: string | null;
+
+    placementGroupMemberAttributes?: Record<string, PublicAttributeBag> | null;
 
     /** Gets or sets the attribute values for the placement group member. */
     placementGroupMemberAttributeValues?: Record<string, string> | null;
