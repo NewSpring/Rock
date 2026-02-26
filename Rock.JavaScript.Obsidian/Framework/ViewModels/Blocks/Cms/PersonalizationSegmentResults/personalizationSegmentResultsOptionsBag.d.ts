@@ -25,4 +25,3 @@
 export type PersonalizationSegmentResultsOptionsBag = {
     segmentName?: string | null;
 };
-
