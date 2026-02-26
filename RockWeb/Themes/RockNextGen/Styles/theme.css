@@ -25919,6 +25919,45 @@ tr.inactive td {
   margin-bottom: var(--spacing-medium);
 }
 
+.personal-devices .displaycard .right-middle-container {
+  display: flex;
+  justify-content: start;
+  flex-direction: column;
+}
+.personal-devices .displaycard .dateInfo {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-tiny);
+  color: var(--color-interface-medium);
+}
+.personal-devices .displaycard .btn-interactions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xsmall);
+}
+.personal-devices .displaycard .displaycard-aside + .displaycard-actions {
+  margin-left: calc(var(--spacing-tiny) - var(--spacing-large));
+}
+@media (max-width: 767px) {
+  .personal-devices .displaycard .displaycard-aside + .displaycard-actions {
+    margin-left: 0;
+  }
+  .personal-devices .displaycard .right-middle-container {
+    flex-direction: column;
+    gap: var(--spacing-tiny);
+  }
+  .personal-devices .displaycard .displaycard-content:has(.icon-list:empty) {
+    display: none;
+  }
+}
+.personal-devices .displaycard .icon-list {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-medium);
+  flex-wrap: wrap;
+}
+
 input[type=number]::-webkit-inner-spin-button,
 input[type=number]::-webkit-outer-spin-button {
   margin: 0;
