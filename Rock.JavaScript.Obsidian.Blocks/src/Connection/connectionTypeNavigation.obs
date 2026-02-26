@@ -3,7 +3,11 @@
     <NotificationBox v-if="config.errorMessage" :alertType="AlertType.Warning" v-html="config.errorMessage"></NotificationBox>
 
     <template v-else>
-        <ContextSlicer title="Filters" class="connection-type-navigation-slicer" showCampus />
+        <ContextSlicer title="Filters" class="connection-type-navigation-slicer" showCampus>
+            <DropDownList v-model="typeVisibility"
+                          :items="config.typeVisibilityItems ?? []"
+                          :showBlankItem="false" />
+        </ContextSlicer>
 
         <Panel title="Connection Types">
             <template v-if="config.showConfigureConnectionTypesButton" #headerActions>
@@ -97,11 +101,12 @@
 </style>
 
 <script setup lang="ts">
-    import { computed, ref } from "vue";
-    import { NavigationUrlKey } from "./ConnectionTypeNavigation/types.partial";
+    import { computed, ref, watch } from "vue";
+    import { NavigationUrlKey, PreferenceKey } from "./ConnectionTypeNavigation/types.partial";
     import ContextSlicer from "@Obsidian/Controls/contextSlicer.obs";
     import DisplayCardContainer from "@Obsidian/Controls/displayCardContainer.obs";
     import DisplayCard from "@Obsidian/Controls/displayCard.obs";
+    import DropDownList from "@Obsidian/Controls/dropDownList.obs";
     import HighlightLabel from "@Obsidian/Controls/highlightLabel.obs";
     import NotificationBox from "@Obsidian/Controls/notificationBox.obs";
     import Panel from "@Obsidian/Controls/panel.obs";
@@ -110,7 +115,7 @@
     import { EntityType } from "@Obsidian/SystemGuids/entityType";
     import { MenuAction } from "@Obsidian/Types/Controls/dropDownMenu";
     import { ContextEntityChangedData, Message } from "@Obsidian/Types/Utility/browserBus";
-    import { onConfigurationValuesChanged, useBlockBrowserBus, useConfigurationValues, useInvokeBlockAction, useReloadBlock } from "@Obsidian/Utility/block";
+    import { onConfigurationValuesChanged, useBlockBrowserBus, useConfigurationValues, useInvokeBlockAction, usePersonPreferences, useReloadBlock } from "@Obsidian/Utility/block";
     import { PageMessages } from "@Obsidian/Utility/browserBus";
     import { updateRefValue } from "@Obsidian/Utility/component";
     import { areEqual } from "@Obsidian/Utility/guid";
@@ -120,6 +125,7 @@
     import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
 
     const config = useConfigurationValues<ConnectionTypeNavigationInitializationBox>();
+    const preferences = usePersonPreferences().blockPreferences;
     const contextEntities = useContextEntities();
     const browserBus = useBlockBrowserBus();
     const invokeBlockAction = useInvokeBlockAction();
@@ -138,6 +144,8 @@
     // #region Values
 
     const selectedCampus = ref<ListItemBag | null>(null);
+
+    const typeVisibility = ref(preferences.getValue(PreferenceKey.TypeVisibility) || "my-types");
 
     const connectionTypeSummaries = ref<ConnectionTypeSummaryBag[]>(config.connectionTypeSummaries || []);
     const isFetchingConnectionTypeSummaries = ref(false);
@@ -213,7 +221,7 @@
             if (summary.isGridViewEnabled) {
                 actions.push({
                     iconCssClass: "ti ti-table",
-                    title: "Connection Board",
+                    title: "Connection Board (List View)",
                     type: "default",
                     handler: () => {
                         window.location.href = `${connectionBoardPageUrl.value!.replace("((Key))", summary.idKey!)}&IsCardViewMode=False${campusPageParam.value}`;
@@ -290,6 +298,17 @@
     }
 
     // #endregion Event Handlers
+
+    // #region Watchers
+
+    watch(typeVisibility, async () => {
+        preferences.setValue(PreferenceKey.TypeVisibility, typeVisibility.value);
+
+        await preferences.save();
+        await fetchConnectionTypes();
+    });
+
+    // #endregion Watchers
 
     loadContextValues();
 </script>

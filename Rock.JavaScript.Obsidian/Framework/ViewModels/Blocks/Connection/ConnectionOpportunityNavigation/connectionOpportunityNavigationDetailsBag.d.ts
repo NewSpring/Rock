@@ -23,6 +23,7 @@
 
 import { ConnectionOpportunitySummaryBag } from "@Obsidian/ViewModels/Blocks/Connection/ConnectionOpportunityNavigation/connectionOpportunitySummaryBag";
 import { ConnectionRequestCountsPerDayBag } from "@Obsidian/ViewModels/Blocks/Connection/ConnectionOpportunityNavigation/connectionRequestCountsPerDayBag";
+import { ConnectionTypeSummaryBag } from "@Obsidian/ViewModels/Blocks/Connection/ConnectionOpportunityNavigation/connectionTypeSummaryBag";
 
 /**
  * A bag that contains information about connection opportunity metrics and summaries for the Connection
@@ -31,6 +32,9 @@ import { ConnectionRequestCountsPerDayBag } from "@Obsidian/ViewModels/Blocks/Co
 export type ConnectionOpportunityNavigationDetailsBag = {
     /** Gets or sets the list of filtered connection opportunity summaries to display. */
     connectionOpportunitySummaries?: ConnectionOpportunitySummaryBag[] | null;
+
+    /** Gets or sets the summary information for the connection type to display. */
+    connectionTypeSummary?: ConnectionTypeSummaryBag | null;
 
     /** Gets or sets the connection request counts per day for all filtered connection opportunities. */
     requestCountsPerDay?: ConnectionRequestCountsPerDayBag | null;

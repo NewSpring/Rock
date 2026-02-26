@@ -113,6 +113,9 @@ namespace Rock.Blocks.Connection
 
         #region Properties
 
+        /// <summary>
+        /// Gets the list of opportunity visibility items the individual may select.
+        /// </summary>
         private List<ListItemBag> OpportunityVisibilityItems
         {
             get
@@ -163,7 +166,7 @@ namespace Rock.Blocks.Connection
         {
             var box = new ConnectionOpportunityNavigationInitializationBox();
 
-            var connectionType = GetConnectionTypeFromPageParameter();
+            var connectionType = GetConnectionTypeFromPageParameterOrOverride();
             if ( connectionType == null )
             {
                 // Return early if unable to find the connection type.
@@ -178,11 +181,16 @@ namespace Rock.Blocks.Connection
                 return box;
             }
 
+            if ( !connectionType.IsActive )
+            {
+                // Return early if the connection type is not active.
+                box.ErrorMessage = $"The specified {ConnectionType.FriendlyTypeName} is not active.";
+                return box;
+            }
+
+            box.ConnectionTypeItems = GetConnectionTypeItems();
             box.OpportunityVisibilityItems = OpportunityVisibilityItems;
-            box.Name = connectionType.Name;
-            box.IconCssClass = connectionType.IconCssClass;
-            box.EnabledViews = connectionType.EnabledViews;
-            box.NavigationDetails = LoadNavigationDetails( connectionType.Id );
+            box.NavigationDetails = LoadNavigationDetails( connectionType );
             box.NavigationUrls = GetBoxNavigationUrls();
 
             return box;
@@ -195,11 +203,12 @@ namespace Rock.Blocks.Connection
         /// <summary>
         /// Gets the connection opportunity metrics and summaries.
         /// </summary>
+        /// <param name="bag">The information needed to get navigation details.</param>
         /// <returns>An object containing information about the connection opportunity metrics and summaries.</returns>
         [BlockAction]
-        public BlockActionResult GetNavigationDetails()
+        public BlockActionResult GetNavigationDetails( GetNavigationDetailsRequestBag bag )
         {
-            var connectionType = GetConnectionTypeFromPageParameter();
+            var connectionType = GetConnectionTypeFromPageParameterOrOverride( bag?.ConnectionTypeIdKeyOverride );
             if ( connectionType == null )
             {
                 return ActionBadRequest( $"Unable to find the specified {ConnectionType.FriendlyTypeName}." );
@@ -210,7 +219,12 @@ namespace Rock.Blocks.Connection
                 return ActionUnauthorized( EditModeMessage.NotAuthorizedToView( ConnectionType.FriendlyTypeName ) );
             }
 
-            var response = LoadNavigationDetails( connectionType.Id );
+            if ( !connectionType.IsActive )
+            {
+                return ActionBadRequest( $"The specified {ConnectionType.FriendlyTypeName} is not active." );
+            }
+
+            var response = LoadNavigationDetails( connectionType );
 
             return ActionOk( response );
         }
@@ -220,14 +234,47 @@ namespace Rock.Blocks.Connection
         #region Private Methods
 
         /// <summary>
-        /// Gets the <see cref="ConnectionTypeCache"/> based on the page parameter.
+        /// Gets the list of <see cref="ConnectionType"/> items the individual may select.
         /// </summary>
-        /// <returns>An <see cref="ConnectionTypeCache"/> based on the page parameter.</returns>
-        private ConnectionTypeCache GetConnectionTypeFromPageParameter()
+        /// <returns></returns>
+        private List<ListItemBag> GetConnectionTypeItems()
         {
-            var communicationKey = PageParameter( PageParameterKey.ConnectionType );
+            var currentPerson = GetCurrentPerson();
+            return ConnectionTypeCache.All()
+                .Where( ct =>
+                    ct.IsActive
+                    && (
+                         ct.IsAuthorized( Authorization.EDIT, currentPerson )
+                        || ct.IsAuthorized( Authorization.VIEW, currentPerson )
+                    )
+                )
+                .OrderBy( ct => ct.Order )
+                .ThenBy( ct => ct.Name )
+                .Select( ct => new ListItemBag
+                {
+                    Text = ct.Name,
+                    Value = ct.IdKey
+                } )
+                .ToList();
+        }
 
-            return ConnectionTypeCache.Get( communicationKey, !PageCache.Layout.Site.DisablePredictableIds );
+        /// <summary>
+        /// Gets the <see cref="ConnectionTypeCache"/> based on the page parameter or identifier key override.
+        /// </summary>
+        /// <param name="connectionTypeIdKey">
+        /// The optional <see cref="ConnectionType"/> identifier key that should override the page parameter.
+        /// </param>
+        /// <returns>An <see cref="ConnectionTypeCache"/> based on the page parameter or identifier key override.</returns>
+        private ConnectionTypeCache GetConnectionTypeFromPageParameterOrOverride( string connectionTypeIdKey = null )
+        {
+            if ( connectionTypeIdKey.IsNullOrWhiteSpace() )
+            {
+                connectionTypeIdKey = PageParameter( PageParameterKey.ConnectionType );
+            }
+
+            return connectionTypeIdKey.IsNotNullOrWhiteSpace()
+                ? ConnectionTypeCache.Get( connectionTypeIdKey, !PageCache.Layout.Site.DisablePredictableIds )
+                : null;
         }
 
         /// <summary>
@@ -245,16 +292,34 @@ namespace Rock.Blocks.Connection
         /// <summary>
         /// Loads connection opportunity metrics and summaries for the provided <paramref name="connectionTypeId"/>.
         /// </summary>
-        /// <param name="connectionTypeId">
-        /// The identifier of the <see cref="ConnectionType"/> for which to load opportunity metrics and summaries.
+        /// <param name="connectionType">
+        /// The <see cref="ConnectionTypeCache"/> for which to load navigation details.
         /// </param>
         /// <returns>A <see cref="ConnectionOpportunityNavigationDetailsBag"/>.</returns>
-        private ConnectionOpportunityNavigationDetailsBag LoadNavigationDetails( int connectionTypeId )
+        private ConnectionOpportunityNavigationDetailsBag LoadNavigationDetails( ConnectionTypeCache connectionType )
         {
             return new ConnectionOpportunityNavigationDetailsBag
             {
-                ConnectionOpportunitySummaries = LoadConnectionOpportunitySummaries( connectionTypeId ),
-                RequestCountsPerDay = LoadRequestsCountsPerDay( connectionTypeId )
+                ConnectionTypeSummary = LoadConnectionTypeSummary( connectionType ),
+                ConnectionOpportunitySummaries = LoadConnectionOpportunitySummaries( connectionType ),
+                RequestCountsPerDay = LoadRequestsCountsPerDay( connectionType )
+            };
+        }
+
+        /// <summary>
+        /// Loads connection type summary information into a <see cref="ConnectionTypeSummaryBag"/>.
+        /// </summary>
+        /// <param name="connectionType">
+        /// The <see cref="ConnectionTypeCache"/> for which to load summary information.
+        /// </param>
+        /// <returns>A <see cref="ConnectionTypeSummaryBag"/>.</returns>
+        private ConnectionTypeSummaryBag LoadConnectionTypeSummary( ConnectionTypeCache connectionType )
+        {
+            return new ConnectionTypeSummaryBag
+            {
+                IconCssClass = connectionType.IconCssClass,
+                Name = connectionType.Name,
+                EnabledViews = connectionType.EnabledViews
             };
         }
 
@@ -262,12 +327,13 @@ namespace Rock.Blocks.Connection
         /// Loads <see cref="ConnectionOpportunity"/> data from the database and uses this data to buld a list of
         /// <see cref="ConnectionOpportunitySummaryBag"/>s.
         /// </summary>
-        /// <param name="connectionTypeId">
-        /// The identifier of the <see cref="ConnectionType"/> for which to load <see cref="ConnectionOpportunity"/> data.
+        /// <param name="connectionType">
+        /// The <see cref="ConnectionTypeCache"/> for which to load <see cref="ConnectionOpportunity"/> data.
         /// </param>
         /// <returns>A list of <see cref="ConnectionOpportunitySummaryBag"/>s.</returns>
-        private List<ConnectionOpportunitySummaryBag> LoadConnectionOpportunitySummaries( int connectionTypeId )
+        private List<ConnectionOpportunitySummaryBag> LoadConnectionOpportunitySummaries( ConnectionTypeCache connectionType )
         {
+            var connectionTypeId = connectionType.Id;
             var personId = GetCurrentPerson()?.Id ?? 0;
             var campusId = RequestContext.GetContextEntity<Campus>()?.Id;
             var today = RockDateTime.Today;
@@ -278,11 +344,17 @@ namespace Rock.Blocks.Connection
                     cr.ConnectionState == ConnectionState.Active
                     && ( !campusId.HasValue || cr.CampusId == campusId.Value )
                     && cr.ConnectionOpportunity.ConnectionTypeId == connectionTypeId
+                    && cr.ConnectionOpportunity.ConnectionType.IsActive
+                    && cr.ConnectionOpportunity.IsActive
                 );
 
             var connectionOpportunityQry = new ConnectionOpportunityService( RockContext )
                 .Queryable()
-                .Where( co => co.ConnectionTypeId == connectionTypeId );
+                .Where( co =>
+                    co.ConnectionTypeId == connectionTypeId
+                    && co.ConnectionType.IsActive
+                    && co.IsActive
+                );
 
             if ( OpportunityVisibilityPreference == OpportunityVisibility.MyOpportunitiesValue )
             {
@@ -373,12 +445,13 @@ namespace Rock.Blocks.Connection
         /// <summary>
         /// Loads the counts of <see cref="ConnectionRequest"/>s per day for the past 30 days.
         /// </summary>
-        /// <param name="connectionTypeId">
-        /// The identifier of the <see cref="ConnectionType"/> for which to load request counts.
+        /// <param name="connectionType">
+        /// The <see cref="ConnectionTypeCache"/> for which to load request counts.
         /// </param>
         /// <returns>Counts of <see cref="ConnectionRequest"/>s per day.</returns>
-        private ConnectionRequestCountsPerDayBag LoadRequestsCountsPerDay( int connectionTypeId )
+        private ConnectionRequestCountsPerDayBag LoadRequestsCountsPerDay( ConnectionTypeCache connectionType )
         {
+            var connectionTypeId = connectionType.Id;
             var campusId = RequestContext.GetContextEntity<Campus>()?.Id;
 
             var startDate = RockDateTime.Today.AddDays( -29 ); // 30 days including today.
@@ -389,6 +462,8 @@ namespace Rock.Blocks.Connection
                 .Where( cr =>
                     ( !campusId.HasValue || cr.CampusId == campusId.Value )
                     && cr.ConnectionOpportunity.ConnectionTypeId == connectionTypeId
+                    && cr.ConnectionOpportunity.ConnectionType.IsActive
+                    && cr.ConnectionOpportunity.IsActive
                 );
 
             if ( OpportunityVisibilityPreference == OpportunityVisibility.MyOpportunitiesValue )
@@ -499,23 +574,23 @@ namespace Rock.Blocks.Connection
 
         #endregion Private Methods
 
-        #region Supporting Members
+        #region Supporting Classes
 
         /// <summary>
-        /// A POCO to represent available opportunity visibility options.
+        /// A POCO to represent available connection opportunity visibility options.
         /// </summary>
         private class OpportunityVisibility
         {
-            public const string AllOpportunitiesValue = "all-opportunities";
             public const string MyOpportunitiesValue = "my-opportunities";
-
-            private static readonly ListItemBag _allOpportunities = new ListItemBag { Text = "All Opportunities", Value = AllOpportunitiesValue };
-            public static ListItemBag AllOpportunites => _allOpportunities;
+            public const string AllOpportunitiesValue = "all-opportunities";
 
             private static readonly ListItemBag _myOpportunities = new ListItemBag { Text = "My Opportunities", Value = MyOpportunitiesValue };
             public static ListItemBag MyOpportunities => _myOpportunities;
+
+            private static readonly ListItemBag _allOpportunities = new ListItemBag { Text = "All Opportunities", Value = AllOpportunitiesValue };
+            public static ListItemBag AllOpportunites => _allOpportunities;
         }
 
-        #endregion Supporting Members
+        #endregion Supporting Classes
     }
 }

@@ -17,6 +17,8 @@
 
 using System.Collections.Generic;
 
+using Rock.ViewModels.Utility;
+
 namespace Rock.ViewModels.Blocks.Connection.ConnectionTypeNavigation
 {
     /// <summary>
@@ -24,6 +26,11 @@ namespace Rock.ViewModels.Blocks.Connection.ConnectionTypeNavigation
     /// </summary>
     public class ConnectionTypeNavigationInitializationBox : BlockBox
     {
+        /// <summary>
+        /// Gets or sets the list of connection type visibility items the individual may select.
+        /// </summary>
+        public List<ListItemBag> TypeVisibilityItems { get; set; }
+
         /// <summary>
         /// Gets or sets whether to show the configure connection types button.
         /// </summary>

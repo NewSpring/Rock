@@ -21,38 +21,19 @@
 // </copyright>
 //
 
-import { EnabledViewFlags } from "@Obsidian/Enums/Connection/enabledViewFlags";
 import { ConnectionOpportunityNavigationDetailsBag } from "@Obsidian/ViewModels/Blocks/Connection/ConnectionOpportunityNavigation/connectionOpportunityNavigationDetailsBag";
 import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
 
 /** The box that contains all the initialization information for the connection opportunity navigation block. */
 export type ConnectionOpportunityNavigationInitializationBox = {
-    /** Gets or sets the enabled views for the parent connection type. */
-    enabledViews: EnabledViewFlags;
+    /** Gets or sets the list of connection type items the individual may select. */
+    connectionTypeItems?: ListItemBag[] | null;
 
     /**
      * Gets or sets the error message. A non-empty value indicates that
      * an error is preventing the block from being displayed.
      */
     errorMessage?: string | null;
-
-    /** Gets or sets the icon CSS class for the parent connection type. */
-    iconCssClass?: string | null;
-
-    /** Gets whether board view is enabled for the parent connection type. */
-    isBoardViewEnabled: boolean;
-
-    /** Gets whether board view is enabled for the parent connection type. */
-    isGridViewEnabled: boolean;
-
-    /** Gets whether list view is enabled for the parent connection type. */
-    isListViewEnabled: boolean;
-
-    /** Gets whether snapshot view is enabled for the parent connection type. */
-    isSnapshotViewEnabled: boolean;
-
-    /** Gets or sets the name for the parent connection type. */
-    name?: string | null;
 
     /** Gets or sets the connection opportunity metrics and summaries. */
     navigationDetails?: ConnectionOpportunityNavigationDetailsBag | null;

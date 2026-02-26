@@ -27,6 +27,11 @@ namespace Rock.ViewModels.Blocks.Connection.ConnectionOpportunityNavigation
     public class ConnectionOpportunityNavigationDetailsBag
     {
         /// <summary>
+        /// Gets or sets the summary information for the connection type to display.
+        /// </summary>
+        public ConnectionTypeSummaryBag ConnectionTypeSummary { get; set; }
+
+        /// <summary>
         /// Gets or sets the list of filtered connection opportunity summaries to display.
         /// </summary>
         public List<ConnectionOpportunitySummaryBag> ConnectionOpportunitySummaries { get; set; }

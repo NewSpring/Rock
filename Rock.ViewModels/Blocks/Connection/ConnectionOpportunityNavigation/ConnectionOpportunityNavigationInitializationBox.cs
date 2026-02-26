@@ -28,44 +28,14 @@ namespace Rock.ViewModels.Blocks.Connection.ConnectionOpportunityNavigation
     public class ConnectionOpportunityNavigationInitializationBox : BlockBox
     {
         /// <summary>
+        /// Gets or sets the list of connection type items the individual may select.
+        /// </summary>
+        public List<ListItemBag> ConnectionTypeItems { get; set; }
+
+        /// <summary>
         /// Gets or sets the list of opportunity visibility items the individual may select.
         /// </summary>
         public List<ListItemBag> OpportunityVisibilityItems { get; set; }
-
-        /// <summary>
-        /// Gets or sets the icon CSS class for the parent connection type.
-        /// </summary>
-        public string IconCssClass { get; set; }
-
-        /// <summary>
-        /// Gets or sets the name for the parent connection type.
-        /// </summary>
-        public string Name { get; set; }
-
-        /// <summary>
-        /// Gets or sets the enabled views for the parent connection type.
-        /// </summary>
-        public EnabledViewFlags EnabledViews { get; set; }
-
-        /// <summary>
-        /// Gets whether list view is enabled for the parent connection type.
-        /// </summary>
-        public bool IsListViewEnabled => EnabledViews.HasFlag( EnabledViewFlags.List );
-
-        /// <summary>
-        /// Gets whether board view is enabled for the parent connection type.
-        /// </summary>
-        public bool IsBoardViewEnabled => EnabledViews.HasFlag( EnabledViewFlags.Board );
-
-        /// <summary>
-        /// Gets whether board view is enabled for the parent connection type.
-        /// </summary>
-        public bool IsGridViewEnabled => EnabledViews.HasFlag( EnabledViewFlags.Grid );
-
-        /// <summary>
-        /// Gets whether snapshot view is enabled for the parent connection type.
-        /// </summary>
-        public bool IsSnapshotViewEnabled => EnabledViews.HasFlag( EnabledViewFlags.Snapshot );
 
         /// <summary>
         /// Gets or sets the connection opportunity metrics and summaries.

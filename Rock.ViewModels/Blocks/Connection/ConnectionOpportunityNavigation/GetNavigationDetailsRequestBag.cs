@@ -1,4 +1,4 @@
-// <copyright>
+﻿// <copyright>
 // Copyright by the Spark Development Network
 //
 // Licensed under the Rock Community License (the "License");
@@ -15,14 +15,16 @@
 // </copyright>
 //
 
-export const enum NavigationUrlKey {
-    ConfigurationPage = "ConfigurationPage",
-    OpportunitiesPage = "OpportunitiesPage",
-    ConnectionsListPage = "ConnectionsListPage",
-    ConnectionBoardPage = "ConnectionBoardPage",
-    OperationalSnapshotPage = "OperationalSnapshotPage"
-}
-
-export const enum PreferenceKey {
-    TypeVisibility = "type-visibility"
+namespace Rock.ViewModels.Blocks.Connection.ConnectionOpportunityNavigation
+{
+    /// <summary>
+    /// A bag that contains information about a request to get navigation details for the Connection Opportunity Navigation block.
+    /// </summary>
+    public class GetNavigationDetailsRequestBag
+    {
+        /// <summary>
+        /// Gets or sets the connection type identifier key that should override the page parameter.
+        /// </summary>
+        public string ConnectionTypeIdKeyOverride { get; set; }
+    }
 }

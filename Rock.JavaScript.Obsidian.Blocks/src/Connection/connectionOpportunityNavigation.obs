@@ -4,6 +4,11 @@
 
     <BreakpointObserver v-else @breakpointHelper="breakpointHelper = $event">
         <ContextSlicer title="Filters" class="connection-opportunity-navigation-slicer" showCampus>
+            <DropDownList v-if="showConnectionTypeFilter"
+                          v-model="connectionTypeIdKey"
+                          :items="config.connectionTypeItems ?? []"
+                          :showBlankItem="false" />
+
             <DropDownList v-model="opportunityVisibility"
                           :items="config.opportunityVisibilityItems ?? []"
                           :showBlankItem="false" />
@@ -12,14 +17,14 @@
         <Panel :title="connectionTypeName"
                :titleIconCssClass="connectionTypeIconCssClass">
             <template v-if="showPanelHeaderActions" #headerActions>
-                <RockButton v-if="config.isListViewEnabled"
+                <RockButton v-if="isListViewEnabled"
                             :btnType="BtnType.Primary"
                             :title="viewRequestsBtnTooltip"
                             @click="onViewRequestsClick">
                     <i class="ti ti-layout-list"></i> <span v-if="breakpointHelper?.isSmOrLarger">{{ viewRequestsBtnText }}</span>
                 </RockButton>
 
-                <RockButton v-if="config.isSnapshotViewEnabled"
+                <RockButton v-if="isSnapshotViewEnabled"
                             :title="operationalSnapshotBtnTooltip"
                             @click="onOperationalSnapshotClick">
                     <i class="ti ti-chart-bar"></i> <span v-if="breakpointHelper?.isSmOrLarger">{{ operationalSnapshotBtnText }}</span>
@@ -239,10 +244,13 @@
     import { Enumerable } from "@Obsidian/Utility/linq";
     import { asFormattedString } from "@Obsidian/Utility/numberUtils";
     import { RockDateTime } from "@Obsidian/Utility/rockDateTime";
+    import { syncRefsWithQueryParams } from "@Obsidian/Utility/url";
     import { ConnectionOpportunityNavigationDetailsBag } from "@Obsidian/ViewModels/Blocks/Connection/ConnectionOpportunityNavigation/ConnectionOpportunityNavigationDetailsBag";
     import { ConnectionOpportunityNavigationInitializationBox } from "@Obsidian/ViewModels/Blocks/Connection/ConnectionOpportunityNavigation/connectionOpportunityNavigationInitializationBox";
     import { ConnectionOpportunitySummaryBag } from "@Obsidian/ViewModels/Blocks/Connection/ConnectionOpportunityNavigation/connectionOpportunitySummaryBag";
     import { ConnectionRequestCountsPerDayBag } from "@Obsidian/ViewModels/Blocks/Connection/ConnectionOpportunityNavigation/connectionRequestCountsPerDayBag";
+    import { ConnectionTypeSummaryBag } from "@Obsidian/ViewModels/Blocks/Connection/ConnectionOpportunityNavigation/connectionTypeSummaryBag";
+    import { GetNavigationDetailsRequestBag } from "@Obsidian/ViewModels/Blocks/Connection/ConnectionOpportunityNavigation/getNavigationDetailsRequestBag";
     import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
 
     const config = useConfigurationValues<ConnectionOpportunityNavigationInitializationBox>();
@@ -266,7 +274,7 @@
     // #region Values
 
     const selectedCampus = ref<ListItemBag | null>(null);
-
+    const connectionTypeIdKey = ref("");
     const opportunityVisibility = ref(preferences.getValue(PreferenceKey.OpportunityVisibility) || "my-opportunities");
 
     const navigationDetails = ref<ConnectionOpportunityNavigationDetailsBag | null>(config.navigationDetails ?? null);
@@ -284,6 +292,10 @@
     const opportunityConnectionsListPageUrl = ref(config.navigationUrls?.[NavigationUrlKey.OpportunityConnectionsListPage]);
     const opportunityConnectionBoardPageUrl = ref(config.navigationUrls?.[NavigationUrlKey.OpportunityConnectionBoardPage]);
 
+    syncRefsWithQueryParams([
+        { param: "ConnectionType", ref: connectionTypeIdKey, type: "string" }
+    ]);
+
     // #endregion Values
 
     // #region Computed Values
@@ -292,16 +304,40 @@
         return selectedCampus.value ? `&Campus=${selectedCampus.value.value}` : "";
     });
 
+    const showConnectionTypeFilter = computed((): boolean => {
+        return (config.connectionTypeItems?.length ?? 0) > 1;
+    });
+
+    const connectionTypeSummary = computed((): ConnectionTypeSummaryBag | null | undefined => {
+        return navigationDetails.value?.connectionTypeSummary;
+    });
+
     const connectionTypeName = computed((): string => {
-        return config.name ?? "";
+        return connectionTypeSummary.value?.name ?? "";
     });
 
     const connectionTypeIconCssClass = computed((): string => {
-        return config.iconCssClass ?? "";
+        return connectionTypeSummary.value?.iconCssClass ?? "";
+    });
+
+    const isListViewEnabled = computed((): boolean => {
+        return connectionTypeSummary.value?.isListViewEnabled ?? false;
+    });
+
+    const isBoardViewEnabled = computed((): boolean => {
+        return connectionTypeSummary.value?.isBoardViewEnabled ?? false;
+    });
+
+    const isGridViewEnabled = computed((): boolean => {
+        return connectionTypeSummary.value?.isGridViewEnabled ?? false;
+    });
+
+    const isSnapshotViewEnabled = computed((): boolean => {
+        return connectionTypeSummary.value?.isSnapshotViewEnabled ?? false;
     });
 
     const showPanelHeaderActions = computed((): boolean => {
-        return config.isListViewEnabled || config.isSnapshotViewEnabled;
+        return isListViewEnabled.value || isSnapshotViewEnabled.value;
     });
 
     const viewRequestsBtnTooltip = computed((): string | undefined => {
@@ -457,7 +493,7 @@
     function getPrimaryActions(summary: ConnectionOpportunitySummaryBag): MenuAction[] {
         const actions: MenuAction[] = [];
 
-        if (opportunityConnectionsListPageUrl.value && config.isListViewEnabled) {
+        if (opportunityConnectionsListPageUrl.value && isListViewEnabled.value) {
             actions.push({
                 iconCssClass: "ti ti-layout-list",
                 title: "Connections List",
@@ -469,7 +505,7 @@
         }
 
         if (opportunityConnectionBoardPageUrl.value) {
-            if (config.isBoardViewEnabled) {
+            if (isBoardViewEnabled.value) {
                 actions.push({
                     iconCssClass: "ti ti-layout-cards",
                     title: "Connection Board",
@@ -480,10 +516,10 @@
                 });
             }
 
-            if (config.isGridViewEnabled) {
+            if (isGridViewEnabled.value) {
                 actions.push({
                     iconCssClass: "ti ti-table",
-                    title: "Connection Board",
+                    title: "Connection Board (List View)",
                     type: "default",
                     handler: () => {
                         window.location.href = `${opportunityConnectionBoardPageUrl.value!.replace("((Key))", summary.idKey!)}&IsCardViewMode=False${campusPageParam.value}`;
@@ -506,7 +542,11 @@
         isFetchingNavigationDetails.value = true;
         fetchNavigationDetailsErrorMessage.value = "";
 
-        const result = await invokeBlockAction<ConnectionOpportunityNavigationDetailsBag>("GetNavigationDetails");
+        var bag: GetNavigationDetailsRequestBag = {
+            connectionTypeIdKeyOverride: connectionTypeIdKey.value,
+        };
+
+        const result = await invokeBlockAction<ConnectionOpportunityNavigationDetailsBag>("GetNavigationDetails", { bag });
         isFetchingNavigationDetails.value = false;
 
         if (!result.isSuccess || !result.data) {
@@ -549,6 +589,10 @@
         preferences.setValue(PreferenceKey.OpportunityVisibility, opportunityVisibility.value);
 
         await preferences.save();
+        await fetchNavigationDetails();
+    });
+
+    watch(connectionTypeIdKey, async () => {
         await fetchNavigationDetails();
     });
 

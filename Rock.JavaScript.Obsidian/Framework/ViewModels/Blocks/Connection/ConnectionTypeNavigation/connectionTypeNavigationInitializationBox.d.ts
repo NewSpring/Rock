@@ -22,6 +22,7 @@
 //
 
 import { ConnectionTypeSummaryBag } from "@Obsidian/ViewModels/Blocks/Connection/ConnectionTypeNavigation/connectionTypeSummaryBag";
+import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
 
 /** The box that contains all the initialization information for the connection type navigation block. */
 export type ConnectionTypeNavigationInitializationBox = {
@@ -42,4 +43,7 @@ export type ConnectionTypeNavigationInitializationBox = {
 
     /** Gets or sets whether to show the configure connection types button. */
     showConfigureConnectionTypesButton: boolean;
+
+    /** Gets or sets the list of connection type visibility items the individual may select. */
+    typeVisibilityItems?: ListItemBag[] | null;
 };

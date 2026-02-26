@@ -24,7 +24,9 @@ using System.Linq;
 using Rock.Attribute;
 using Rock.Model;
 using Rock.Security;
+using Rock.Utility;
 using Rock.ViewModels.Blocks.Connection.ConnectionTypeNavigation;
+using Rock.ViewModels.Utility;
 using Rock.Web.Cache;
 using Rock.Web.UI;
 
@@ -116,9 +118,64 @@ namespace Rock.Blocks.Connection
             public const string ConnectionType = "ConnectionType";
         }
 
+        private static class PersonPreferenceKey
+        {
+            public const string TypeVisibility = "type-visibility";
+        }
+
         #endregion Keys
 
+        #region Fields
+
+        private List<ListItemBag> _typeVisibilityItems;
+
+        #endregion Fields
+
         #region Properties
+
+        /// <summary>
+        /// Gets the list of connection type visibility items the individual may select.
+        /// </summary>
+        private List<ListItemBag> TypeVisibilityItems
+        {
+            get
+            {
+                if ( _typeVisibilityItems == null )
+                {
+                    _typeVisibilityItems = new List<ListItemBag>
+                    {
+                        TypeVisibility.MyTypes,
+                        TypeVisibility.AllTypes
+                    };
+                }
+
+                return _typeVisibilityItems;
+            }
+        }
+
+        /// <summary>
+        /// Gets the block person preferences.
+        /// </summary>
+        private PersonPreferenceCollection BlockPersonPreferences => this.GetBlockPersonPreferences();
+
+        /// <summary>
+        /// Gets or sets the current person's connection type visibility preference.
+        /// </summary>
+        private string TypeVisibilityPreference
+        {
+            get
+            {
+                var typeVisibility = BlockPersonPreferences
+                    .GetValue( PersonPreferenceKey.TypeVisibility );
+
+                if ( typeVisibility.IsNotNullOrWhiteSpace() )
+                {
+                    return typeVisibility;
+                }
+
+                return TypeVisibility.MyTypesValue;
+            }
+        }
 
         /// <summary>
         /// Gets whether the current person is authorized to administrate this block.
@@ -134,6 +191,7 @@ namespace Rock.Blocks.Connection
         {
             var box = new ConnectionTypeNavigationInitializationBox
             {
+                TypeVisibilityItems = TypeVisibilityItems,
                 ShowConfigureConnectionTypesButton = CanAdministrate,
                 ConnectionTypeSummaries = LoadConnectionTypeSummaries(),
                 NavigationUrls = GetBoxNavigationUrls()
@@ -187,7 +245,8 @@ namespace Rock.Blocks.Connection
             var currentPerson = GetCurrentPerson();
             var authorizedConnectionTypeIds = ConnectionTypeCache.All()
                 .Where( ct =>
-                    (
+                    ct.IsActive
+                    && (
                         !connectionTypeFilterGuids.Any()
                         || connectionTypeFilterGuids.Contains( ct.Guid )
                     )
@@ -207,6 +266,7 @@ namespace Rock.Blocks.Connection
             var personId = currentPerson?.Id ?? 0;
             var campusId = RequestContext.GetContextEntity<Campus>()?.Id;
             var today = RockDateTime.Today;
+            var limitToMyTypes = TypeVisibilityPreference == TypeVisibility.MyTypesValue;
 
             var requestCountsQry = new ConnectionRequestService( RockContext )
                 .Queryable()
@@ -214,6 +274,13 @@ namespace Rock.Blocks.Connection
                     cr.ConnectionState == ConnectionState.Active
                     && ( !campusId.HasValue || cr.CampusId == campusId.Value )
                     && authorizedConnectionTypeIds.Contains( cr.ConnectionOpportunity.ConnectionTypeId )
+                    && (
+                        !limitToMyTypes
+                        || (
+                            cr.ConnectorPersonAliasId.HasValue
+                            && cr.ConnectorPersonAlias.PersonId == personId
+                        )
+                    )
                 )
                 .GroupBy( cr => cr.ConnectionOpportunity.ConnectionTypeId )
                 .Select( g => new
@@ -241,7 +308,13 @@ namespace Rock.Blocks.Connection
 
             var summaries = new ConnectionTypeService( RockContext )
                 .Queryable()
-                .Where( ct => authorizedConnectionTypeIds.Contains( ct.Id ) )
+                .Where( ct =>
+                    authorizedConnectionTypeIds.Contains( ct.Id )
+                    && (
+                        !limitToMyTypes
+                        || requestCountsQry.Any( a => a.ConnectionTypeId == ct.Id )
+                    )
+                )
                 .GroupJoin(
                     requestCountsQry,
                     ct => ct.Id,
@@ -297,6 +370,21 @@ namespace Rock.Blocks.Connection
         #endregion Private Methods
 
         #region Supporting Classes
+
+        /// <summary>
+        /// A POCO to represent available connection type visibility options.
+        /// </summary>
+        private class TypeVisibility
+        {
+            public const string MyTypesValue = "my-types";
+            public const string AllTypesValue = "all-types";
+
+            private static readonly ListItemBag _myTypes = new ListItemBag { Text = "My Types", Value = MyTypesValue };
+            public static ListItemBag MyTypes => _myTypes;
+
+            private static readonly ListItemBag _allTypes = new ListItemBag { Text = "All Types", Value = AllTypesValue };
+            public static ListItemBag AllTypes => _allTypes;
+        }
 
         /// <summary>
         /// A POCO to represent a <see cref="ConnectionRequest"/>'s relevant properties needed for aggregation.
