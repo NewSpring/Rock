@@ -395,18 +395,13 @@ namespace Rock.Blocks.Engagement
             };
         }
 
-        private GroupingFieldBag GetGroupingFieldBag( int? id, string type, string label, int? order = null, string iconCssClass = null, PersonFieldBag person = null, string textColorCssClass = null )
+        private GroupingFieldBag GetGroupingFieldBag( int? id, string type, string label, int? order = null, string iconCssClass = null, string photoUrl = null, string textColorCssClass = null )
         {
             if ( !id.HasValue )
             {
                 if ( type == "person" )
                 {
-                    person = new PersonFieldBag
-                    {
-                        IdKey = string.Empty,
-                        NickName = "Unassigned",
-                        PhotoUrl = Rock.Model.Person.GetPersonNoPictureUrl( new Rock.Model.Person() ),
-                    };
+                    photoUrl = Rock.Model.Person.GetPersonNoPictureUrl( new Rock.Model.Person() );
                 }
 
                 return new GroupingFieldBag
@@ -414,7 +409,7 @@ namespace Rock.Blocks.Engagement
                     Key = "unassigned",
                     Type = type,
                     Label = "Unassigned",
-                    Person = person,
+                    PhotoUrl = photoUrl,
                     Order = order,
                     TextColorCssClass = textColorCssClass
                 };
@@ -426,7 +421,7 @@ namespace Rock.Blocks.Engagement
                 Type = type,
                 Label = label,
                 IconCssClass = iconCssClass,
-                Person = person,
+                PhotoUrl = photoUrl,
                 Order = order,
                 TextColorCssClass = textColorCssClass
             };
@@ -598,22 +593,34 @@ namespace Rock.Blocks.Engagement
                 return false;
             }
 
-            var isConnectionOpportunityValid = box.IfValidProperty( nameof( box.Bag.ConnectionOpportunityGuid ), () =>
-            {
-                var connectionOpportunityId = new ConnectionOpportunityService( RockContext ).GetId( box.Bag.ConnectionOpportunityGuid.AsGuid() );
+            var originalConnectionState = entity.ConnectionState;
 
-                if ( !connectionOpportunityId.HasValue )
+            // If we are creating a new connection request, then we need to set the Connection Opportunity. If we are editing an existing connection request, then we should not change the Connection Opportunity.
+            if ( entity.Id == 0 )
+            {
+                var isConnectionOpportunityValid = box.IfValidProperty( nameof( box.Bag.ConnectionOpportunityGuid ), () =>
+                {
+                    var connectionOpportunityId = new ConnectionOpportunityService( RockContext ).GetId( box.Bag.ConnectionOpportunityGuid.AsGuid() );
+
+                    if ( !connectionOpportunityId.HasValue )
+                    {
+                        return false;
+                    }
+
+                    entity.ConnectionOpportunityId = connectionOpportunityId.Value;
+                    return true;
+                }, true);
+
+                if ( !isConnectionOpportunityValid )
                 {
                     return false;
                 }
-
-                entity.ConnectionOpportunityId = connectionOpportunityId.Value;
-                return true;
-            }, true);
-
-            if ( !isConnectionOpportunityValid )
+            }
+            else
             {
-                return false;
+                // We only need to handle adding the connection status history note when editing a connection request.
+                box.IfValidProperty( nameof( box.Bag.ConnectionStatusHistoryNote ),
+                    () => entity.ConnectionStatusHistoryNote = box.Bag.ConnectionStatusHistoryNote );
             }
 
             box.IfValidProperty( nameof( box.Bag.Requester ),
@@ -653,14 +660,21 @@ namespace Rock.Blocks.Engagement
                 return false;
             }
 
-            box.IfValidProperty( nameof( box.Bag.PlacementGroupGuid ),
-                () => entity.AssignedGroupId = GroupCache.GetId( box.Bag.PlacementGroupGuid.AsGuid() ) );
+            // The placement group details cannot be set if the request's original connection state is connected. (mirrors webforms)
+            if ( originalConnectionState != ConnectionState.Connected )
+            {
+                box.IfValidProperty( nameof( box.Bag.PlacementGroupGuid ),
+                    () => entity.AssignedGroupId = GroupCache.GetId( box.Bag.PlacementGroupGuid.AsGuid() ) );
 
-            box.IfValidProperty( nameof( box.Bag.GroupMemberRoleGuid ),
-                () => entity.AssignedGroupMemberRoleId = GroupTypeRoleCache.GetId( box.Bag.GroupMemberRoleGuid.AsGuid() ) );
+                box.IfValidProperty( nameof( box.Bag.GroupMemberRoleGuid ),
+                    () => entity.AssignedGroupMemberRoleId = GroupTypeRoleCache.GetId( box.Bag.GroupMemberRoleGuid.AsGuid() ) );
 
-            box.IfValidProperty( nameof( box.Bag.GroupMemberStatus ),
-                () => entity.AssignedGroupMemberStatus = box.Bag.GroupMemberStatus );
+                box.IfValidProperty( nameof( box.Bag.GroupMemberStatus ),
+                    () => entity.AssignedGroupMemberStatus = box.Bag.GroupMemberStatus );
+
+                box.IfValidProperty( nameof( box.Bag.PlacementGroupMemberAttributeValues ),
+                    () => entity.AssignedGroupMemberAttributeValues = GetGroupMemberAttributeValuesFromBag( box.Bag.PlacementGroupMemberAttributeValues, entity.AssignedGroupId, entity.AssignedGroupMemberRoleId, entity.AssignedGroupMemberStatus ) );
+            }
 
             box.IfValidProperty( nameof( box.Bag.Comments ),
                 () => entity.Comments = box.Bag.Comments );
@@ -673,9 +687,6 @@ namespace Rock.Blocks.Engagement
                 entity.LoadAttributes( RockContext );
                 entity.SetPublicAttributeValues( box.Bag.ConnectionRequestAttributeValues, RequestContext.CurrentPerson );
             } );
-
-            box.IfValidProperty( nameof( box.Bag.PlacementGroupMemberAttributeValues ),
-                () => entity.AssignedGroupMemberAttributeValues = GetGroupMemberAttributeValuesFromBag( box.Bag.PlacementGroupMemberAttributeValues, entity.AssignedGroupId, entity.AssignedGroupMemberRoleId, entity.AssignedGroupMemberStatus ) );
 
             return true;
         }
@@ -956,7 +967,7 @@ namespace Rock.Blocks.Engagement
                     ConnectorGroupingProjection = new GroupingProjection
                     {
                         Id = a.ConnectorPersonAliasId,
-                        Label = a.ConnectorPersonAlias != null ? a.ConnectorPersonAlias.Person.NickName + " " + a.ConnectorPersonAlias.Person.LastName : string.Empty,
+                        Label = string.Empty,
                         Order = ( int? ) null
                     },
                     OpportunityGroupingProjection = new GroupingProjection
@@ -1004,7 +1015,7 @@ namespace Rock.Blocks.Engagement
                         Name = a.ConnectionStatus.Name, // TODO - Test what happens when a Connection Status is deleted.
                         Order = a.ConnectionStatus.Order,
                         HighlightColor = a.ConnectionStatus.HighlightColor,
-                        IsNotRequiredOnCompletion = a.ConnectionStatus.IsNoteRequiredOnCompletion
+                        IsNoteRequiredOnCompletion = a.ConnectionStatus.IsNoteRequiredOnCompletion
                     },
                     ConnectionState = a.ConnectionState,
                     LastActivityDateTime = a.ConnectionRequestActivities.Select( cra => cra.CreatedDateTime )
@@ -1060,7 +1071,7 @@ namespace Rock.Blocks.Engagement
                     Name = request.ConnectionStatusProjection.Name,
                     Order = request.ConnectionStatusProjection.Order,
                     HighlightColor = request.ConnectionStatusProjection.HighlightColor,
-                    IsNoteRequiredOnCompletion = request.ConnectionStatusProjection.IsNotRequiredOnCompletion
+                    IsNoteRequiredOnCompletion = request.ConnectionStatusProjection.IsNoteRequiredOnCompletion
                 };
 
                 request.Person = new PersonFieldBag
@@ -1089,20 +1100,23 @@ namespace Rock.Blocks.Engagement
                     }
                 }
 
-                PersonFieldBag connectorPerson = null;
+                ListItemBag connectorItem = new ListItemBag();
+                string connectorFullName = string.Empty;
+                string photoUrl = string.Empty;
+
 
                 if ( request.ConnectorPersonProjection.Id.HasValue )
                 {
-                    connectorPerson = new PersonFieldBag
-                    {
-                        IdKey = IdHasher.Instance.GetHash( request.ConnectorPersonProjection.Id.Value ),
-                        NickName = request.ConnectorPersonProjection.NickName,
-                        LastName = request.ConnectorPersonProjection.LastName
-                    };
+                    // TODO - Missing suffix. Is this needed (i.e. AddPersonField())?
+                    var fullName = Rock.Model.Person.FormatFullName( request.ConnectorPersonProjection.NickName, request.ConnectorPersonProjection.LastName, null );
+
+                    connectorItem.Value = IdHasher.Instance.GetHash( request.ConnectorPersonProjection.Id.Value );
+                    connectorItem.Text = fullName;
+                    connectorFullName = fullName;
 
 
-                    var connectorInitials = $"{connectorPerson.NickName.Truncate( 1, false )}{connectorPerson.LastName.Truncate( 1, false )}";
-                    connectorPerson.PhotoUrl = Rock.Model.Person.GetPersonPhotoUrl(
+                    var connectorInitials = $"{request.ConnectorPersonProjection.NickName.Truncate( 1, false )}{request.ConnectorPersonProjection.LastName.Truncate( 1, false )}";
+                    photoUrl = Rock.Model.Person.GetPersonPhotoUrl(
                         connectorInitials,
                         request.ConnectorPersonProjection.PhotoId,
                         request.ConnectorPersonProjection.Age,
@@ -1110,22 +1124,18 @@ namespace Rock.Blocks.Engagement
                         request.ConnectorPersonProjection.RecordTypeValueId,
                         request.ConnectorPersonProjection.AgeClassification
                     );
-
-                    if ( request.ConnectorPersonProjection.ConnectionStatusValueId.HasValue )
-                    {
-                        var connectionStatusValue = DefinedValueCache.Get( request.ConnectorPersonProjection.ConnectionStatusValueId.Value );
-                        if ( connectionStatusValue != null )
-                        {
-                            connectorPerson.ConnectionStatus = connectionStatusValue.Value;
-                        }
-                    }
+                }
+                else
+                {
+                    connectorItem.Value = "unassigned";
+                    connectorItem.Text = "Unassigned";
                 }
 
                 var dueStatus = GetDueStatus( request.DueDate, request.DueSoonDate );
                 request.DueStatus = dueStatus;
-                request.ConnectorPerson = connectorPerson;
+                request.ConnectorDetails = connectorItem;
 
-                request.ConnectorGrouping = GetGroupingFieldBag( request.ConnectorGroupingProjection.Id, "person", request.ConnectorGroupingProjection.Label, null, null, connectorPerson );
+                request.ConnectorGrouping = GetGroupingFieldBag( request.ConnectorGroupingProjection.Id, "person", connectorFullName, null, null, photoUrl );
                 request.OpportunityGrouping = GetGroupingFieldBag( request.OpportunityGroupingProjection.Id, "text", request.OpportunityGroupingProjection.Label, request.OpportunityGroupingProjection.Order, request.ConnectionOpportunityIcon );
                 request.CampusGrouping = GetGroupingFieldBag( request.CampusGroupingProjection.Id, "text", request.CampusGroupingProjection.Label, request.CampusGroupingProjection.Order );
                 request.StatusGrouping = GetGroupingFieldBag( request.StatusGroupingProjection.Id, "text", request.StatusGroupingProjection.Label, request.StatusGroupingProjection.Order );
@@ -1236,6 +1246,8 @@ namespace Rock.Blocks.Engagement
                 return actionError;
             }
 
+            var isInEditMode = entity.Id != 0;
+
             // Update the entity instance from the information in the bag.
             if ( !UpdateEntityFromBox( entity, box ) )
             {
@@ -1256,7 +1268,136 @@ namespace Rock.Blocks.Engagement
                 entity.SaveAttributeValues( RockContext );
             } );
 
-            return ActionOk();
+            entity = new ConnectionRequestService( RockContext )
+                .Queryable()
+                .Include( r => r.PersonAlias.Person )
+                .Include( r => r.ConnectorPersonAlias.Person )
+                .Include( r => r.ConnectionOpportunity )
+                .Include( r => r.ConnectionStatus )
+                .Include( r => r.Campus )
+                .Include( r => r.AssignedGroup )
+                .Include( r => r.ConnectionRequestActivities )
+                .FirstOrDefault( r => r.Id == entity.Id );
+
+
+            var updateBox = new ConnectionRequestUpdateBox();
+
+            var dueStatus = GetDueStatus( entity.DueDate, entity.DueSoonDate );
+            var connectorItem = new ListItemBag();
+
+            if ( entity.ConnectorPersonAliasId.HasValue )
+            {
+                connectorItem.Value = entity.ConnectorPersonAlias.Person.IdKey;
+                connectorItem.Text = entity.ConnectorPersonAlias.Person.FullName;
+            }
+            else
+            {
+                connectorItem.Value = "unassigned";
+                connectorItem.Text = "Unassigned";
+            }
+
+            var connectionStatusBag = new ConnectionStatusBag
+            {
+                Guid = entity.ConnectionStatus.Guid,
+                Name = entity.ConnectionStatus.Name,
+                Order = entity.ConnectionStatus.Order,
+                HighlightColor = entity.ConnectionStatus.HighlightColor,
+                IsNoteRequiredOnCompletion = entity.ConnectionStatus.IsNoteRequiredOnCompletion
+            };
+
+            var reminderCount = new ReminderService( RockContext ).Queryable()
+                .Include( r => r.PersonAlias )
+                .AsNoTracking()
+                .Where( r => !r.IsComplete && r.ReminderDate < RockDateTime.Now && r.PersonAlias.PersonId == RequestContext.CurrentPerson.Id )
+                .Count();
+
+            var requesterPerson = new PersonFieldBag
+            {
+                IdKey = entity.PersonAlias.Person.IdKey,
+                NickName = entity.PersonAlias.Person.NickName,
+                LastName = entity.PersonAlias.Person.LastName,
+                PhotoUrl = entity.PersonAlias.Person.PhotoUrl,
+            };
+
+            if ( entity.PersonAlias.Person.ConnectionStatusValueId.HasValue )
+            {
+                var connectionStatusValue = DefinedValueCache.Get( entity.PersonAlias.Person.ConnectionStatusValueId.Value );
+                if ( connectionStatusValue != null )
+                {
+                    requesterPerson.ConnectionStatus = connectionStatusValue.Value;
+                }
+            }
+
+            var newConnection = new ConnectionRow
+            {
+                ConnectionRequest = entity,
+                ConnectionRequestId = entity.Id,
+                ConnectorGrouping = GetGroupingFieldBag( entity.ConnectorPersonAliasId, "person", entity.ConnectorPersonAlias?.Person?.FullName, null, null, entity.ConnectorPersonAlias?.Person?.PhotoUrl ),
+                OpportunityGrouping = GetGroupingFieldBag( entity.ConnectionOpportunityId, "text", entity.ConnectionOpportunity.Name, entity.ConnectionOpportunity.Order, entity.ConnectionOpportunity.IconCssClass ),
+                CampusGrouping = GetGroupingFieldBag( entity.CampusId, "text", entity.Campus?.Name, entity.Campus?.Order ),
+                StatusGrouping = GetGroupingFieldBag( entity.ConnectionStatusId, "text", entity.ConnectionStatus?.Name, entity.ConnectionStatus?.Order ),
+                DueStatusGrouping = GetGroupingFieldBag( ( int ) dueStatus, "text", dueStatus.ToString(), dueStatus.GetOrder(), "ti ti-calendar", null, GetDueStatusTextColorCssClass( dueStatus ) ),
+                StateGrouping = new GroupingFieldBag
+                {
+                    Key = entity.ConnectionState.ToString(),
+                    Type = "text",
+                    Label = entity.ConnectionState.GetDisplayName(),
+                    IconCssClass = GetStateIconCssClass( entity.ConnectionState ),
+                    Order = ( int ) entity.ConnectionState
+                },
+                ConnectorDetails = connectorItem,
+                Person = requesterPerson,
+                RequesterPersonAliasGuid = entity.PersonAlias.Guid,
+                ConnectionOpportunity = entity.ConnectionOpportunity.Name,
+                ConnectionTypeSource = entity.ConnectionTypeSource?.Name,
+                Campus = entity.Campus?.Name,
+                Group = entity.AssignedGroup?.Name,
+                ConnectionStatus = connectionStatusBag,
+                LastActivityDateTime = entity.ConnectionRequestActivities.Select( cra => cra.CreatedDateTime )
+                    .OrderByDescending( d => d )
+                    .FirstOrDefault(),
+                ActivityCount = entity.ConnectionRequestActivities.Count(),
+                CreatedDateTime = entity.CreatedDateTime,
+                DueDate = entity.DueDate,
+                DueSoonDate = entity.DueSoonDate,
+                DueStatus = dueStatus,
+                FollowUpDate = entity.FollowupDate,
+                ConnectionState = entity.ConnectionState,
+                CelebrationText = entity.CelebrationText,
+                ReminderCount = reminderCount,
+            };
+
+            var builder = GetGridBuilder();
+            var row = builder.Build( new[] { newConnection } ).Rows[0];
+
+            //var gridUpdateBag = new ConnectionListGridUpdateBag
+            //{
+            //    IdKey = entity.IdKey,
+            //    ConnectorGrouping = newConnection.ConnectorGrouping,
+            //    CampusGrouping = newConnection.CampusGrouping,
+            //    StatusGrouping = newConnection.StatusGrouping,
+            //    DueStatusGrouping = newConnection.DueStatusGrouping,
+            //    StateGrouping = newConnection.StateGrouping,
+            //    ConnectorDetails = newConnection.ConnectorDetails,
+            //    Person = newConnection.Person,
+            //    RequesterPersonAliasGuid = newConnection.RequesterPersonAliasGuid,
+            //    ConnectionTypeSource = newConnection.ConnectionTypeSource,
+            //    Campus = newConnection.Campus,
+            //    Group = newConnection.Group,
+            //    ConnectionStatus = newConnection.ConnectionStatus,
+            //    LastActivityDateTime = newConnection.LastActivityDateTime,
+            //    ActivityCount = newConnection.ActivityCount,
+            //    CreatedDateTime = newConnection.CreatedDateTime,
+            //    DueDate = newConnection.DueDate,
+            //    DueSoonDate = newConnection.DueSoonDate,
+            //    DueStatus = newConnection.DueStatus,
+            //    FollowUpDate = newConnection.FollowUpDate,
+            //    ConnectionState = newConnection.ConnectionState,
+            //    CelebrationText = newConnection.CelebrationText,
+            //    ReminderCount = newConnection.ReminderCount
+            //};
+
+            return ActionOk( row );
         }
 
         [BlockAction]
@@ -1279,37 +1420,37 @@ namespace Rock.Blocks.Engagement
             var newConnectorPersonAlias = new PersonAliasService( RockContext ).GetInclude( connectorPersonAliasGuid.AsGuid(), c => c.Person );
 
             List<ConnectionListGridUpdateBag> gridUpdateBags = new List<ConnectionListGridUpdateBag>();
-            PersonFieldBag connectorPerson = null;
+            ListItemBag connectorItem = null;
 
             if ( newConnectorPersonAlias != null )
             {
-                connectorPerson = new PersonFieldBag
+                connectorItem = new ListItemBag
                 {
-                    IdKey = newConnectorPersonAlias.Person.IdKey,
-                    NickName = newConnectorPersonAlias.Person.NickName,
-                    LastName = newConnectorPersonAlias.Person.LastName,
-                    PhotoUrl = newConnectorPersonAlias.Person.PhotoUrl
+                    Value = newConnectorPersonAlias.Person.IdKey,
+                    Text = newConnectorPersonAlias.Person.FullName
                 };
-
-                var connectionStatusValue = DefinedValueCache.Get( newConnectorPersonAlias.Person.ConnectionStatusValueId.Value );
-                if ( connectionStatusValue != null )
-                {
-                    connectorPerson.ConnectionStatus = connectionStatusValue.Value;
-                }
             }
-
-            // Can't use Bulk Update becase we need the Save Hook logic to run.
-            foreach ( var connectionRequest in connectionRequests )
+            else
             {
-                connectionRequest.ConnectorPersonAliasId = newConnectorPersonAlias?.Id;
-
-                gridUpdateBags.Add( new ConnectionListGridUpdateBag
+                connectorItem = new ListItemBag
                 {
-                    IdKey = connectionRequest.IdKey,
-                    ConnectorGrouping = GetGroupingFieldBag( newConnectorPersonAlias?.Id, "person", newConnectorPersonAlias?.Person?.FullName, null, null, connectorPerson ),
-                    PersonFieldBag = connectorPerson
-                } );
+                    Value = "unassigned",
+                    Text = "Unassigned"
+                };
             }
+
+                // Can't use Bulk Update becase we need the Save Hook logic to run.
+                foreach ( var connectionRequest in connectionRequests )
+                {
+                    connectionRequest.ConnectorPersonAliasId = newConnectorPersonAlias?.Id;
+
+                    gridUpdateBags.Add( new ConnectionListGridUpdateBag
+                    {
+                        IdKey = connectionRequest.IdKey,
+                        ConnectorGrouping = GetGroupingFieldBag( newConnectorPersonAlias?.Id, "person", newConnectorPersonAlias?.Person?.FullName, null, null, newConnectorPersonAlias?.Person?.PhotoUrl ),
+                        ConnectorDetails = connectorItem
+                    } );
+                }
 
             RockContext.SaveChanges();
 
@@ -3233,7 +3374,7 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
                 .AddField( "statusGrouping", a => a.StatusGrouping )
                 .AddField( "stateGrouping", a => a.StateGrouping )
                 .AddField( "dueStatusGrouping", a => a.DueStatusGrouping )
-                .AddField( "connectorDetails", a => a.ConnectorPerson )
+                .AddField( "connectorDetails", a => a.ConnectorDetails )
                 .AddField( "requestDetails", a => a.Person )
                 .AddField( "requesterPersonAliasGuid", a => a.RequesterPersonAliasGuid )
                 .AddTextField( "connectionOpportunity", a => a.ConnectionOpportunity )
@@ -3312,7 +3453,7 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
 
             public PersonProjection ConnectorPersonProjection { get; set; }
 
-            public PersonFieldBag ConnectorPerson { get; set; }
+            public ListItemBag ConnectorDetails { get; set; }
 
             public PersonProjection PersonProjection { get; set; }
 
@@ -3379,7 +3520,7 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
             public int Order { get; set; }
             public string HighlightColor { get; set; }
 
-            public bool IsNotRequiredOnCompletion { get; set; }
+            public bool IsNoteRequiredOnCompletion { get; set; }
         }
 
         public class PersonProjection

@@ -169,8 +169,9 @@
                         name="connectorDetails"
                         field="connectorDetails">
                     <template #format="{ row }">
-                        <span v-if="!isNullOrWhiteSpace(row.connectorDetails?.idKey)">{{ getFormattedName(row.connectorDetails!) }}</span>
-                        <span v-else>Unassigned</span>
+                        {{ row.connectorDetails?.text }}
+                        <!-- <span v-if="!isNullOrWhiteSpace(row.connectorDetails?.idKey)">{{ getFormattedName(row.connectorDetails!) }}</span>
+                        <span v-else>Unassigned</span> -->
                     </template>
                 </Column>
 
@@ -1067,13 +1068,13 @@
             // Requests Assigned to Me
             // TODO Is this still needed?
             if (areOnlyMyRequestsVisible.value === "true") {
-                const connectorValue = row["connectorDetails"] as PersonFieldBag | undefined;
+                const connectorValue = row["connectorDetails"] as ListItemBag | undefined;
 
                 if (!connectorValue || typeof connectorValue !== "object") {
                     return false;
                 }
 
-                if (currentPerson.value?.idKey !== connectorValue.idKey) {
+                if (currentPerson.value?.idKey !== connectorValue.value) {
                     return false;
                 }
             }
@@ -1377,7 +1378,7 @@
         const connectionOpportunity = row["connectionOpportunity"] as string | null | undefined;
         const connectionStatus = row["connectionStatus"] as ConnectionStatusBag | null | undefined;
         const connectionTypeSource = row["connectionTypeSource"] as string | null | undefined;
-        const connector = row["connectorDetails"] as PersonFieldBag | null | undefined;
+        const connector = row["connectorDetails"] as ListItemBag | null | undefined;
         const dueDate = row["dueDate"] as string | null | undefined;
         const requester = row["requestDetails"] as PersonFieldBag | null | undefined;
         const celebrationText = row["celebrationText"] as string | null | undefined;
@@ -1890,12 +1891,13 @@
 
     async function saveNewConnectionRequest(): Promise<void> {
         console.log("Saving...");
-        const result = await invokeBlockAction<ValidPropertiesBox<ConnectionRequestBag>>("SaveConnectionRequest", {
+        const result = await invokeBlockAction<Record<string, unknown>>("SaveConnectionRequest", {
             box: newConnectionRequest.value
         });
 
-        if (result.isSuccess) {
-            await loadGridData();
+        if (result.isSuccess && result.data) {
+            // await loadGridData();
+            gridData.value?.rows?.push(result.data);
             isAddConnectionRequestModalVisible.value = false;
             return;
         }
@@ -1921,7 +1923,7 @@
                 }
 
                 row.connectorGrouping = updateBag.connectorGrouping;
-                row.connectorDetails = updateBag.personFieldBag;
+                row.connectorDetails = updateBag.connectorDetails;
             }
 
             // clear selected keys

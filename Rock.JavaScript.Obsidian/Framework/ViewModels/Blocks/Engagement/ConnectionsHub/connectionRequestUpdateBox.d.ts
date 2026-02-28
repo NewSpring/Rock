@@ -21,18 +21,11 @@
 // </copyright>
 //
 
-export type GroupingFieldBag = {
-    iconCssClass?: string | null;
+import { ConnectionListGridUpdateBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionListGridUpdateBag";
+import { ConnectionRequestDetailsBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionRequestDetailsBag";
 
-    key?: string | null;
+export type ConnectionRequestUpdateBox = {
+    detailsUpdateBag?: ConnectionRequestDetailsBag | null;
 
-    label?: string | null;
-
-    order?: number | null;
-
-    photoUrl?: string | null;
-
-    textColorCssClass?: string | null;
-
-    type?: string | null;
+    gridUpdateBag?: ConnectionListGridUpdateBag | null;
 };

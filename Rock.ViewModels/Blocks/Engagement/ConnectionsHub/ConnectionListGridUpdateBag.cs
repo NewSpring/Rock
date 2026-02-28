@@ -20,6 +20,7 @@ using System;
 using Rock.Enums.Connection;
 using Rock.Model;
 using Rock.ViewModels.Core.Grid;
+using Rock.ViewModels.Utility;
 
 namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
 {
@@ -46,8 +47,7 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
 
         public ConnectionState ConnectionState { get; set; }
 
-        // I could use the Person Field Bag from the Grouping Field Bag, but having it here for now.
-        public PersonFieldBag PersonFieldBag { get; set; }
+        public ListItemBag ConnectorDetails { get; set; }
 
         public DateTime? FollowUpDate { get; set; }
 

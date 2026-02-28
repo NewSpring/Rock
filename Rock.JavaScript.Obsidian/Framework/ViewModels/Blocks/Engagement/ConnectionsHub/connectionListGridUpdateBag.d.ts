@@ -25,7 +25,7 @@ import { ConnectionState } from "@Obsidian/Enums/Connection/connectionState";
 import { DueStatus } from "@Obsidian/Enums/Connection/dueStatus";
 import { ConnectionStatusBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionStatusBag";
 import { GroupingFieldBag } from "@Obsidian/ViewModels/Core/Grid/groupingFieldBag";
-import { PersonFieldBag } from "@Obsidian/ViewModels/Core/Grid/personFieldBag";
+import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
 
 export type ConnectionListGridUpdateBag = {
     activityCount?: number | null;
@@ -37,6 +37,8 @@ export type ConnectionListGridUpdateBag = {
     connectionState: ConnectionState;
 
     connectionStatusBag?: ConnectionStatusBag | null;
+
+    connectorDetails?: ListItemBag | null;
 
     connectorGrouping?: GroupingFieldBag | null;
 
@@ -55,8 +57,6 @@ export type ConnectionListGridUpdateBag = {
     lastActivityDateTime?: string | null;
 
     opportunityGrouping?: GroupingFieldBag | null;
-
-    personFieldBag?: PersonFieldBag | null;
 
     stateGrouping?: GroupingFieldBag | null;
 

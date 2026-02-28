@@ -1,132 +1,133 @@
 <!-- Copyright by the Spark Development Network; Licensed under the Rock Community License -->
 <template>
-    <RockForm @submit="onEditSubmit">
-        <DockedPanel v-model="isVisible"
-                     v-model:width="dockedPanelWidth"
-                     :canResize="true"
-                     class="docked-panel">
-            <template #header>
-                <div v-if="isLoading" class="d-flex align-items-center justify-content-center">
-                    <Loading :isLoading="isLoading" />
+    <DockedPanel v-model="isVisible"
+                 v-model:width="dockedPanelWidth"
+                 :canResize="true"
+                 class="docked-panel">
+        <template #header>
+            <div v-if="isLoading" class="d-flex align-items-center justify-content-center">
+                <Loading :isLoading="isLoading" />
+            </div>
+            <div v-else class="mb-spacing-sm">
+                <div v-if="isInEditMode" class="d-flex align-items-center justify-content-between p-spacing-md">
+                    <div class="font-size-h5 text-semibold">Connection Request</div>
+                    <i class="ti ti-x cursor-pointer" @click="closeDockedPanel"></i>
                 </div>
-                <div v-else class="mb-spacing-sm">
-                    <div v-if="isInEditMode" class="d-flex align-items-center justify-content-between p-spacing-md">
-                        <div class="font-size-h5 text-semibold">Connection Request</div>
-                        <i class="ti ti-x cursor-pointer" @click="closeDockedPanel"></i>
+                <div v-else class="pt-spacing-xs bg-interface-softer">
+                    <div class="d-flex justify-content-between px-spacing-sm">
+                        <div class="d-flex gap-sm">
+                            <i class="ti ti-chevron-left cursor-pointer" :class="{ disabled: !hasPrevious }" @click="goPrevious"></i>
+                            <i class="ti ti-chevron-right cursor-pointer" :class="{ disabled: !hasNext }" @click="goNext"></i>
+                        </div>
+                        <div class="d-flex gap-sm">
+                            <i v-if="!isFullWidth" class="ti ti-arrows-diagonal cursor-pointer" @click="setFullWidth(true)"></i>
+                            <i v-else class="ti ti-arrows-diagonal-minimize-2 cursor-pointer" @click="setFullWidth(false)"></i>
+                            <i class="ti ti-x cursor-pointer" @click="closeDockedPanel"></i>
+                        </div>
                     </div>
-                    <div v-else class="pt-spacing-xs bg-interface-softer">
-                        <div class="d-flex justify-content-between px-spacing-sm">
+                    <template v-if="requestDetails?.requesterPerson">
+                        <div class="px-spacing-md py-spacing-xs d-flex align-items-center justify-content-between">
                             <div class="d-flex gap-sm">
-                                <i class="ti ti-chevron-left cursor-pointer" :class="{ disabled: !hasPrevious }" @click="goPrevious"></i>
-                                <i class="ti ti-chevron-right cursor-pointer" :class="{ disabled: !hasNext }" @click="goNext"></i>
+                                <PersonAvatar :personIdKey="requestDetails.requesterPerson.idKey ?? ''"
+                                              :photoUrl="requestDetails.requesterPerson.photoUrl ?? ''"
+                                              :photoSize="70" />
+                                <div class="d-flex flex-column flex-shrink-0 person-details">
+                                    <div class="text-interface-stronger text-md">{{ requestDetails.requesterPerson.nickName }} {{ requestDetails.requesterPerson.lastName }}</div>
+                                    <div v-if="!isNullOrWhiteSpace(requestDetails.requesterPerson.connectionStatus)" class="text-interface-medium text-sm">{{ requestDetails.requesterPerson.connectionStatus }}</div>
+                                    <div v-if="requestDetails.requesterPerson.age" class="text-interface-medium text-sm">{{ requestDetails.requesterPerson.age }} {{ pluralize("year", requestDetails.requesterPerson.age) }} old</div>
+                                    <div class="text-interface-medium text-sm">{{ requestDetails.requesterPerson.gender }} | {{ requestDetails.requesterPerson.maritalStatus }}</div>
+                                </div>
                             </div>
-                            <div class="d-flex gap-sm">
-                                <i v-if="!isFullWidth" class="ti ti-arrows-diagonal cursor-pointer" @click="setFullWidth(true)"></i>
-                                <i v-else class="ti ti-arrows-diagonal-minimize-2 cursor-pointer" @click="setFullWidth(false)"></i>
-                                <i class="ti ti-x cursor-pointer" @click="closeDockedPanel"></i>
+                            <div>
+                                <!-- TODO: Fix Styling -->
+                                <BadgeList :entityTypeGuid="EntityType.Person"
+                                           :entityKey="requestDetails.requesterPerson.idKey ?? ''"
+                                           :badgeTypeGuids="options?.badgeGuids ?? []"
+                                           class="align-items-center justify-content-center flex-wrap" />
+                            </div>
+                            <div class="d-flex py-spacing-lg gap-xs">
+                                <RockButton class="px-spacing-sm">
+                                    <i class="ti ti-user"></i>
+                                </RockButton>
+                                <RockButton class="px-spacing-sm">
+                                    <i class="ti ti-message-circle-plus"></i>
+                                </RockButton>
+                                <RockButton class="px-spacing-sm">
+                                    <i class="ti ti-mail-plus"></i>
+                                </RockButton>
                             </div>
                         </div>
-                        <template v-if="requestDetails?.requesterPerson">
-                            <div class="px-spacing-md py-spacing-xs d-flex align-items-center justify-content-between">
-                                <div class="d-flex gap-sm">
-                                    <PersonAvatar :personIdKey="requestDetails.requesterPerson.idKey ?? ''"
-                                                  :photoUrl="requestDetails.requesterPerson.photoUrl ?? ''"
-                                                  :photoSize="70" />
-                                    <div class="d-flex flex-column flex-shrink-0 person-details">
-                                        <div class="text-interface-stronger text-md">{{ requestDetails.requesterPerson.nickName }} {{ requestDetails.requesterPerson.lastName }}</div>
-                                        <div v-if="!isNullOrWhiteSpace(requestDetails.requesterPerson.connectionStatus)" class="text-interface-medium text-sm">{{ requestDetails.requesterPerson.connectionStatus }}</div>
-                                        <div v-if="requestDetails.requesterPerson.age" class="text-interface-medium text-sm">{{ requestDetails.requesterPerson.age }} {{ pluralize("year", requestDetails.requesterPerson.age) }} old</div>
-                                        <div class="text-interface-medium text-sm">{{ requestDetails.requesterPerson.gender }} | {{ requestDetails.requesterPerson.maritalStatus }}</div>
-                                    </div>
-                                </div>
-                                <div>
-                                    <!-- TODO: Fix Styling -->
-                                    <BadgeList :entityTypeGuid="EntityType.Person"
-                                               :entityKey="requestDetails.requesterPerson.idKey ?? ''"
-                                               :badgeTypeGuids="options?.badgeGuids ?? []"
-                                               class="align-items-center justify-content-center flex-wrap" />
-                                </div>
-                                <div class="d-flex py-spacing-lg gap-xs">
-                                    <RockButton class="px-spacing-sm">
-                                        <i class="ti ti-user"></i>
-                                    </RockButton>
-                                    <RockButton class="px-spacing-sm">
-                                        <i class="ti ti-message-circle-plus"></i>
-                                    </RockButton>
-                                    <RockButton class="px-spacing-sm">
-                                        <i class="ti ti-mail-plus"></i>
-                                    </RockButton>
-                                </div>
-                            </div>
-                        </template>
-                    </div>
-                    <!-- TODO - Disuss notes with Jon -->
-                    <!-- <div v-if="expandedNotes && expandedNotes.length > 0" class="bg-info-soft">
+                    </template>
+                </div>
+                <!-- TODO - Disuss notes with Jon -->
+                <!-- <div v-if="expandedNotes && expandedNotes.length > 0" class="bg-info-soft">
                             <div class="w-100 text-center cursor-pointer">{{ areNotesVisible ? "Hide" : "Show" }} {{ expandedNotes.length }} {{ pluralize("Note", expandedNotes.length) }}</div>
                             <TransitionVerticalCollapse>
                             </TransitionVerticalCollapse>
                     </div> -->
-                </div>
-            </template>
-            <template #default v-if="!isLoading">
-                <EditDockedPanelBody v-if="isInEditMode"
-                                     v-model="editConnectionRequestBox"
-                                     ref="editDockedPanelBodyRef"
-                                     :options="options" />
-                <ViewDockedPanelBody v-else
-                                     :requestDetails="requestDetails"
-                                     :options="options"
-                                     :dockedPanelWidthNumber="dockedPanelWidthNumber"
-                                     @editActivity="(entry) => emit('editActivity', entry)" />
-            </template>
-            <template #footer>
-                <div class="d-flex align-items-center justify-content-between px-spacing-lg py-spacing-xs bg-interface-softer border-top">
-                    <template v-if="isInEditMode">
-                        <div class="d-flex align-items-center gap-xs">
-                            <RockButton :btnType="BtnType.Primary"
-                                        type="submit">
-                                Save
-                            </RockButton>
-                            <RockButton :btnType="BtnType.Link"
-                                        @click="setEditMode(false)">
-                                Cancel
-                            </RockButton>
-                        </div>
-                        <div class="d-flex align-items-center gap-xs">
-                            <RockButton :btnType="BtnType.Default">
-                                <i class="ti ti-circle-check"></i>
-                                Complete Request
-                            </RockButton>
-                            <RockButton :btnType="BtnType.Link">
-                                Delete
-                            </RockButton>
-                        </div>
-                    </template>
-                    <template v-else>
-                        <div class="d-flex align-items-center gap-xs">
-                            <RockButton :btnType="BtnType.Primary"
-                                        @click="onEditClick">
-                                Edit
-                            </RockButton>
-                            <RockButton :btnType="BtnType.Default">
-                                Complete
-                            </RockButton>
-                            <RockButton :btnType="BtnType.Link">
-                                Transfer
-                            </RockButton>
-                        </div>
-                        <div class="d-flex align-items-center gap-xs">
-                            <RockButton :btnType="BtnType.Default">
-                                <i class="ti ti-activity"></i>
-                                Add Activity
-                            </RockButton>
-                            <!-- Status Flyout -->
-                        </div>
-                    </template>
-                </div>
-            </template>
-        </DockedPanel>
-    </RockForm>
+            </div>
+        </template>
+        <template #default v-if="!isLoading">
+            <EditDockedPanelBody v-if="isInEditMode"
+                                 :modelValue="editConnectionRequestBox"
+                                 @update:modelValue="onEditConnectionRequestSaved"
+                                 ref="editDockedPanelBodyRef"
+                                 :options="options"
+                                 :editConnectionRequestFormId="editConnectionRequestFormId" />
+            <ViewDockedPanelBody v-else
+                                 :requestDetails="requestDetails"
+                                 :options="options"
+                                 :dockedPanelWidthNumber="dockedPanelWidthNumber"
+                                 @editActivity="(entry) => emit('editActivity', entry)" />
+        </template>
+        <template #footer>
+            <div class="d-flex align-items-center justify-content-between px-spacing-lg py-spacing-xs bg-interface-softer border-top">
+                <template v-if="isInEditMode">
+                    <div class="d-flex align-items-center gap-xs">
+                        <RockButton :btnType="BtnType.Primary"
+                                    :form="editConnectionRequestFormId"
+                                    type="submit">
+                            Save
+                        </RockButton>
+                        <RockButton :btnType="BtnType.Link"
+                                    @click="setEditMode(false)">
+                            Cancel
+                        </RockButton>
+                    </div>
+                    <div class="d-flex align-items-center gap-xs">
+                        <RockButton :btnType="BtnType.Default">
+                            <i class="ti ti-circle-check"></i>
+                            Complete Request
+                        </RockButton>
+                        <RockButton :btnType="BtnType.Link">
+                            Delete
+                        </RockButton>
+                    </div>
+                </template>
+                <template v-else>
+                    <div class="d-flex align-items-center gap-xs">
+                        <RockButton :btnType="BtnType.Primary"
+                                    @click="onEditClick">
+                            Edit
+                        </RockButton>
+                        <RockButton :btnType="BtnType.Default">
+                            Complete
+                        </RockButton>
+                        <RockButton :btnType="BtnType.Link">
+                            Transfer
+                        </RockButton>
+                    </div>
+                    <div class="d-flex align-items-center gap-xs">
+                        <RockButton :btnType="BtnType.Default">
+                            <i class="ti ti-activity"></i>
+                            Add Activity
+                        </RockButton>
+                        <!-- Status Flyout -->
+                    </div>
+                </template>
+            </div>
+        </template>
+    </DockedPanel>
 </template>
 
 <style scoped>
@@ -234,7 +235,7 @@
     import HighlightLabel from "@Obsidian/Controls/highlightLabel.obs";
     import AttributeValuesContainer from "@Obsidian/Controls/attributeValuesContainer.obs";
     import { PublicAttributeBag } from "@Obsidian/ViewModels/Utility/publicAttributeBag";
-    import { toGuidOrNull } from "@Obsidian/Utility/guid";
+    import { newGuid, toGuidOrNull } from "@Obsidian/Utility/guid";
     import { FieldType } from "@Obsidian/SystemGuids/fieldType";
     import { getFieldType } from "@Obsidian/Utility/fieldTypes";
     import { ConnectionState, ConnectionStateDescription } from "@Obsidian/Enums/Connection/connectionState";
@@ -299,6 +300,8 @@
 
     const isVisible = useVModelPassthrough(props, "modelValue", emit);
     const invokeBlockAction = useInvokeBlockAction();
+
+    const editConnectionRequestFormId = `edit-connection-request-form-${newGuid()}`;
 
     const defaultDockedPanelWidth = "700px";
     const isLoading = ref(true);
@@ -372,6 +375,11 @@
         isInEditMode.value = value;
     }
 
+    function onEditConnectionRequestSaved(newBox: ValidPropertiesBox<ConnectionRequestBag>): void {
+        editConnectionRequestBox.value = newBox;
+        saveConnectionRequest();
+    }
+
     async function onEdit(): Promise<void> {
         const result = await invokeBlockAction<ValidPropertiesBox<ConnectionRequestBag>>("Edit", {
             key: props.requestDetails?.connectionRequestIdKey
@@ -387,11 +395,8 @@
         isLoading.value = false;
     }
 
-    function onEditSubmit(): void {
-        editDockedPanelBodyRef.value?.onSave();
-    }
-
     async function saveConnectionRequest(): Promise<void> {
+        console.log("Saving Edit");
         const result = await invokeBlockAction<ValidPropertiesBox<ConnectionRequestBag>>("SaveConnectionRequest", {
             box: editConnectionRequestBox.value
         });
@@ -411,10 +416,6 @@
         else {
             dockedPanelWidth.value = defaultDockedPanelWidth;
         }
-    });
-
-    watch(editConnectionRequestBox, () => {
-        saveConnectionRequest();
     });
 
     watch(() => props.requestDetails, () => {

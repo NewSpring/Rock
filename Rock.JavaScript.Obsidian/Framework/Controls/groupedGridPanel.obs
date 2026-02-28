@@ -49,17 +49,15 @@
                                 @onSectionTransition="(isCollapsed) => onGroupTransition(`${groupingKey}-${group.key}`, isCollapsed)">
                     <!-- <ContentSection v-if="group.key" :isCollapsed="collapsedGroups[group.key]"> -->
                     <template #title>
-                        <div class="d-flex align-items-center">
-                            <template v-if="group.type === 'person' && group.person">
-                                <PersonAvatar :personIdKey="group.person.idKey ?? ''"
-                                              :photoUrl="group.person.photoUrl ?? ''"
+                        <div class="d-flex align-items-center" :class="group.textColorCssClass">
+                            <template v-if="group.type === 'person'">
+                                <PersonAvatar :photoUrl="group.photoUrl ?? ''"
                                               :photoSize="24" />
-                                <span :class="group.textColorCssClass">{{ group.person.nickName }} {{ group.person.lastName }}</span>
                             </template>
-                            <div v-else :class="group.textColorCssClass">
+                            <template v-else>
                                 <i v-if="group.iconCssClass" :class="group.iconCssClass" class="mr-3"></i>
-                                <span>{{ group.label }}</span>
-                            </div>
+                            </template>
+                            <span>{{ group.label }}</span>
                         </div>
                     </template>
                     <template #headerActions>
@@ -175,7 +173,7 @@
         key?: string | null;
         label?: string | null;
         order?: number | null;
-        person?: PersonFieldBag | null;
+        photoUrl?: string | null;
         textColorCssClass?: string | null;
         type?: string | null;
     };

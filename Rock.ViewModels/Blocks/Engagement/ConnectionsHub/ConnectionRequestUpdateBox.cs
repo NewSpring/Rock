@@ -15,25 +15,15 @@
 // </copyright>
 //
 
-namespace Rock.ViewModels.Core.Grid
+namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
 {
     /// <summary>
-    ///
+    /// 
     /// </summary>
-    public class GroupingFieldBag
+    public class ConnectionRequestUpdateBox
     {
-        public string Key { get; set; }
+        public ConnectionListGridUpdateBag GridUpdateBag { get; set; }
 
-        public string Type { get; set; } // TODO - Consider enum
-
-        public string Label { get; set; }
-
-        public string IconCssClass { get; set; }
-
-        public string TextColorCssClass { get; set; }
-
-        public string PhotoUrl { get; set; }
-
-        public int? Order { get; set; }
+        public ConnectionRequestDetailsBag DetailsUpdateBag { get; set; }
     }
 }
