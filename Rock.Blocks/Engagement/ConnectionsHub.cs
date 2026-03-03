@@ -917,7 +917,7 @@ namespace Rock.Blocks.Engagement
             return true;
         }
 
-        public string StripBracketId( string value )
+        private string StripBracketId( string value )
         {
             return value.IsNullOrWhiteSpace()
                 ? null
@@ -2943,6 +2943,126 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
                 Bag = bag,
                 ValidProperties = bag.GetType().GetProperties().Select( p => p.Name ).ToList()
             } );
+        }
+
+        [BlockAction]
+        public BlockActionResult GetTransferDetails( string key )
+        {
+            var connectionRequestService = new ConnectionRequestService( RockContext );
+            var connectionRequest = connectionRequestService.Get( key, !PageCache.Layout.Site.DisablePredictableIds );
+            if ( connectionRequest == null )
+            {
+                return ActionBadRequest( $"{Rock.Model.ConnectionRequest.FriendlyTypeName} not found." );
+            }
+
+            if ( !connectionRequest.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson ) )
+            {
+                return ActionBadRequest( "You are not authorized to edit this Connection Request." );
+            }
+
+            var connectionType = ConnectionTypeCache.Get( connectionRequest.ConnectionTypeId );
+
+            var tempOpportunity = new ConnectionOpportunity
+            {
+                ConnectionTypeId = connectionType.Id
+            };
+
+            tempOpportunity.LoadAttributes();
+
+            var connectionOpportunities = new ConnectionOpportunityService( RockContext ).Queryable()
+                .AsNoTracking()
+                .Include( "ConnectionOpportunityConnectorGroups.ConnectorGroup.Members" )
+                .Include( "ConnectionOpportunityCampuses.Campus" )
+                .Where( o => o.ConnectionTypeId == connectionType.Id )
+                .ToList();
+
+            var campuses = connectionOpportunities
+                .SelectMany( o => o.ConnectionOpportunityCampuses )
+                .Where( c => c.Campus != null && c.Campus.IsActive == true )
+                .DistinctBy( c => c.CampusId )
+                .Select( c => new ListItemBag
+                {
+                    Value = c.Campus.Guid.ToString(),
+                    Text = c.Campus.Name
+                } )
+                .ToList();
+
+            bool? entityAuthorized = null;
+
+            var transferDetailsBag = new TransferConnectionRequestDetailsBag
+            {
+                ConnectionRequestIdKey = connectionRequest.IdKey,
+                CurrentConnectorName = connectionRequest.ConnectorPersonAlias?.Person?.FullName ?? "No Connector",
+                CurrentConnectorPersonAliasGuid = connectionRequest.ConnectorPersonAlias?.Guid,
+                CurrentConnectionOpportunityGuid = connectionRequest.ConnectionOpportunity.Guid,
+                CurrentCampusGuid = connectionRequest.Campus?.Guid,
+                CurrentConnectionStatusGuid = connectionRequest.ConnectionStatus.Guid,
+                CurrentDueDate = connectionRequest.DueDate?.ToRockDateTimeOffset(),
+                Campuses = campuses,
+                Statuses = connectionType.OrderedStatuses.ToListItemBagList(),
+                ConnectionOpportunities = new List<ConnectionOpportunityBag>(),
+                Attributes = tempOpportunity.GetPublicAttributesForEdit( RequestContext.CurrentPerson, false, a => a.AllowSearch && Rock.ExtensionMethods.IsAttributeAuthorized( tempOpportunity, ref entityAuthorized, a, Authorization.VIEW, RequestContext.CurrentPerson ) )
+            };
+
+            foreach( var opportunity in connectionOpportunities )
+            {
+                opportunity.LoadAttributes();
+
+                var connectorItems = opportunity.ConnectionOpportunityConnectorGroups
+                    .SelectMany( cg => cg.ConnectorGroup.Members )
+                    .Select( gm => gm.Person )
+                    .Distinct()
+                    .Select( p => new ListItemBag
+                    {
+                        Text = p.FullName,
+                        Value = p.PrimaryAlias.Guid.ToString()
+                    } )
+                    .ToList();
+
+                // If the current connector (from the request) isn't in the connector list, add it.
+                if ( connectionRequest.ConnectorPersonAlias != null && !connectorItems.Any( c => c.Value == connectionRequest.ConnectorPersonAlias.Guid.ToString() ) )
+                {
+                    connectorItems.Add( new ListItemBag
+                    {
+                        Text = connectionRequest.ConnectorPersonAlias.Person.FullName,
+                        Value = connectionRequest.ConnectorPersonAlias.Guid.ToString()
+                    } );
+                }
+
+                // If the connector list does not include the current person, add them.
+                if ( !connectorItems.Any( c => c.Value == RequestContext.CurrentPerson.PrimaryAliasGuid.ToString() ) )
+                {
+                    var person = RequestContext.CurrentPerson;
+
+                    connectorItems.Add(  new ListItemBag
+                    {
+                        Text = person.FullName,
+                        Value = person.PrimaryAliasGuid.ToString()
+                    } );
+                }
+
+                bool? otherEntityAuthorized = null;
+
+                var opportunityBag = new ConnectionOpportunityBag
+                {
+                    Name = opportunity.Name,
+                    Guid = opportunity.Guid,
+                    Campuses = opportunity.ConnectionOpportunityCampuses.Where( c => c.Campus != null && c.Campus.IsActive == true )
+                        .Select( c => c.Campus )
+                        .ToListItemBagList(),
+                    PotentialConnectors = connectorItems,
+                    PhotoUrl = ConnectionOpportunity.GetPhotoUrl( opportunity.PhotoId ),
+                    IconCssClass = opportunity.IconCssClass,
+                    Description = opportunity.Description,
+                    ShowCampusOnTransfer = opportunity.ShowCampusOnTransfer,
+                    ShowStatusOnTransfer = opportunity.ShowStatusOnTransfer,
+                    AttributeValues = opportunity.GetPublicAttributeValuesForEdit( RequestContext.CurrentPerson, false, a => a.AllowSearch && Rock.ExtensionMethods.IsAttributeAuthorized( tempOpportunity, ref otherEntityAuthorized, a, Authorization.VIEW, RequestContext.CurrentPerson ) )
+                };
+
+                transferDetailsBag.ConnectionOpportunities.Add( opportunityBag );
+            }
+
+            return ActionOk( transferDetailsBag );
         }
 
         #endregion Detail View Block Actions

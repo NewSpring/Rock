@@ -15,7 +15,7 @@
 
     <Modal v-model="isModalVisible" title="Connection Opportunity Attributes" saveText="Save" cancelText="Cancel"
            :onSave="onSave">
-        <AttributeEditor v-model="theAttribute" :reservedKeyNames="reservedKeyNames" />
+        <AttributeEditor v-model="theAttribute" :reservedKeyNames="reservedKeyNames" isAllowSearchVisible />
     </Modal>
 </template>
 

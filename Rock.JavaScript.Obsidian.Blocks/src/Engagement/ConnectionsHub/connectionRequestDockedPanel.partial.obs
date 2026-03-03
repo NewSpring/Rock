@@ -113,7 +113,8 @@
                         <RockButton :btnType="BtnType.Default">
                             Complete
                         </RockButton>
-                        <RockButton :btnType="BtnType.Link">
+                        <RockButton :btnType="BtnType.Link"
+                                    @click="onTransferClick">
                             Transfer
                         </RockButton>
                     </div>
@@ -128,6 +129,9 @@
             </div>
         </template>
     </DockedPanel>
+
+    <TransferConnectionRequestModal v-model="isTransferModalVisible"
+                                    :transferDetails="transferRequestDetails" />
 </template>
 
 <style scoped>
@@ -263,6 +267,8 @@
     import { ConnectionRequestDetailOptionsBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionRequestDetailOptionsBag";
     import { ValidPropertiesBox } from "@Obsidian/ViewModels/Utility/validPropertiesBox";
     import { ConnectionRequestBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionRequestBag";
+    import { TransferConnectionRequestDetailsBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/transferConnectionRequestDetailsBag";
+    import TransferConnectionRequestModal from "./transferConnectionRequestModal.partial.obs";
 
     const props = defineProps({
         modelValue: {
@@ -313,6 +319,9 @@
 
     const editDockedPanelBodyRef = ref<InstanceType<typeof EditDockedPanelBody>>();
     const editConnectionRequestBox = ref<ValidPropertiesBox<ConnectionRequestBag>>({});
+
+    const isTransferModalVisible = ref<boolean>(false);
+    const transferRequestDetails = ref<TransferConnectionRequestDetailsBag>();
 
     const currentIndex = computed(() =>
         props.orderedKeys.indexOf(props.currentKey)
@@ -393,6 +402,20 @@
         }
 
         isLoading.value = false;
+    }
+
+    async function onTransferClick(): Promise<void> {
+        const result = await invokeBlockAction<TransferConnectionRequestDetailsBag>("GetTransferDetails", {
+            key: props.requestDetails?.connectionRequestIdKey
+        });
+
+        if (result.isSuccess && result.data) {
+            transferRequestDetails.value = result.data;
+            isTransferModalVisible.value = true;
+        }
+        else {
+            console.error(result.errorMessage);
+        }
     }
 
     async function saveConnectionRequest(): Promise<void> {
