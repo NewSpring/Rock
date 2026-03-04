@@ -39,10 +39,12 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
 
         public Guid? StatusGuid { get; set; }
 
-        public Guid? Campus { get; set; }
+        public Guid? CampusGuid { get; set; }
 
         public string DueDateOption { get; set; }
 
         public DateTimeOffset? DueDate { get; set; }
+
+        public string Note { get; set; }
     }
 }

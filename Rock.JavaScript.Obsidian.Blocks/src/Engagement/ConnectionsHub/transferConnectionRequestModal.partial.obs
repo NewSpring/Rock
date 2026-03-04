@@ -321,14 +321,15 @@
         }
 
         const bag: TransferConnectionRequestBag = {
-            campus: selectedCampus.value,
+            campusGuid: selectedCampus.value,
             newConnectionOpportunityGuid: selectedOpportunity.value,
             connectionRequestIdKey: props.transferDetails?.connectionRequestIdKey,
             statusGuid: selectedStatus.value,
             connectorOption: selectedConnectorOption.value,
             connectorPersonAliasGuid: selectedConnector.value,
             dueDateOption: selectedDueDateOption.value,
-            dueDate: selectedDueDate.value
+            dueDate: selectedDueDate.value,
+            note: note.value
         };
 
         emit("transfer", bag);

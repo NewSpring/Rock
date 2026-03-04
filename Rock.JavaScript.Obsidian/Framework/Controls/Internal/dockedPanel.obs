@@ -100,6 +100,7 @@
     /* Add width transition so setting the width programmatically animates smoothly (like when maximizing to fullscreen). */
     transition: width 150ms ease;
 }
+
 .docked-panel.dragging {
     /* Disable transitions while dragging, otherwise the drag feels sluggish. */
     transition: none;
@@ -171,6 +172,11 @@
         canResize: {
             type: Boolean as PropType<boolean>,
             default: false
+        },
+
+        closeOnOutsideClick: {
+            type: Boolean as PropType<boolean>,
+            default: false
         }
     });
 
@@ -224,10 +230,11 @@
         document.removeEventListener("pointerup", onResizeEnd);
     }
 
-    onBeforeUnmount(() => {
-        document.removeEventListener("pointermove", onResizeMove);
-        document.removeEventListener("pointerup", onResizeEnd);
-    });
+    function onDocumentMouseDown(e: MouseEvent): void {
+        if (e.target instanceof HTMLElement && props.closeOnOutsideClick && internalValue.value && dockedPanelRef.value && !dockedPanelRef.value.contains(e.target)) {
+            internalValue.value = false;
+        }
+    }
 
     // #endregion Values
 
@@ -242,7 +249,17 @@
         // Ensure the docked panel is rendered before opening
         if (open) {
             isRendered.value = true;
+            document.addEventListener("mousedown", onDocumentMouseDown);
         }
+        else {
+            document.removeEventListener("mousedown", onDocumentMouseDown);
+        }
+    }, { immediate: true });
+
+    onBeforeUnmount(() => {
+        document.removeEventListener("pointermove", onResizeMove);
+        document.removeEventListener("pointerup", onResizeEnd);
+        document.removeEventListener("mousedown", onDocumentMouseDown);
     });
 
     // #endregion Lifecycle

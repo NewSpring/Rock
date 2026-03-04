@@ -3,15 +3,31 @@
     <DockedPanel v-model="isVisible"
                  v-model:width="dockedPanelWidth"
                  :canResize="true"
-                 class="docked-panel">
+                 class="docked-panel"
+                 :closeOnOutsideClick="dockedPanelCloseOnOutsideClick">
         <template #header>
-            <div v-if="isLoading" class="d-flex align-items-center justify-content-center">
-                <Loading :isLoading="isLoading" />
-            </div>
+            <template v-if="isLoading">
+                <div class="bg-interface-softer">
+                    <!-- <Loading :isLoading="isLoading" /> -->
+                    <div class="py-spacing-sm">
+                        <div class="mx-spacing-md">
+                            <div class="d-flex gap-sm">
+                                <div class="skeleton skeleton-avatar flex-shrink-0"></div>
+                                <div class="skeleton skeleton-heading"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </template>
             <div v-else class="mb-spacing-sm">
                 <div v-if="isInEditMode" class="d-flex align-items-center justify-content-between p-spacing-md">
-                    <div class="font-size-h5 text-semibold">Connection Request</div>
-                    <i class="ti ti-x cursor-pointer" @click="closeDockedPanel"></i>
+                    <template v-if="isLoading">
+                        <div class="skeleton skeleton-heading skeleton-rounded"></div>
+                    </template>
+                    <template v-else>
+                        <div class="font-size-h5 text-semibold">Connection Request</div>
+                        <i class="ti ti-x cursor-pointer" @click="closeDockedPanel"></i>
+                    </template>
                 </div>
                 <div v-else class="pt-spacing-xs bg-interface-softer">
                     <div class="d-flex justify-content-between px-spacing-sm">
@@ -129,9 +145,6 @@
             </div>
         </template>
     </DockedPanel>
-
-    <TransferConnectionRequestModal v-model="isTransferModalVisible"
-                                    :transferDetails="transferRequestDetails" />
 </template>
 
 <style scoped>
@@ -210,6 +223,18 @@
 .h-fit {
     height: fit-content;
 }
+
+/* Skeleton adjustments */
+.skeleton {
+    background: var(--color-interface-soft);
+}
+
+.skeleton-heading {
+    max-width: none;
+    height: 70px;
+    margin: 0;
+    border-radius: var(--rounded-small);
+}
 </style>
 
 <script setup lang="ts">
@@ -268,7 +293,8 @@
     import { ValidPropertiesBox } from "@Obsidian/ViewModels/Utility/validPropertiesBox";
     import { ConnectionRequestBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionRequestBag";
     import { TransferConnectionRequestDetailsBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/transferConnectionRequestDetailsBag";
-    import TransferConnectionRequestModal from "./transferConnectionRequestModal.partial.obs";
+    import { TransferConnectionRequestBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/transferConnectionRequestBag";
+    import { ConnectionListUpdateBox } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionListUpdateBox";
 
     const props = defineProps({
         modelValue: {
@@ -295,6 +321,11 @@
         options: {
             type: Object as PropType<ConnectionRequestDetailOptionsBag | null | undefined>,
             required: true
+        },
+
+        dockedPanelCloseOnOutsideClick: {
+            type: Boolean as PropType<boolean>,
+            default: true
         }
     });
 
@@ -302,7 +333,13 @@
         (e: "update:modelValue", value: boolean): void;
         (e: "navigate", value: string | null): void;
         (e: "editActivity", value: ActivityEntryBag): void;
+        (e: "editRequest", value: ValidPropertiesBox<ConnectionRequestBag>): void;
+        (e: "transferRequest"): void;
     }>();
+
+    defineExpose({
+        setEditMode
+    });
 
     const isVisible = useVModelPassthrough(props, "modelValue", emit);
     const invokeBlockAction = useInvokeBlockAction();
@@ -319,9 +356,6 @@
 
     const editDockedPanelBodyRef = ref<InstanceType<typeof EditDockedPanelBody>>();
     const editConnectionRequestBox = ref<ValidPropertiesBox<ConnectionRequestBag>>({});
-
-    const isTransferModalVisible = ref<boolean>(false);
-    const transferRequestDetails = ref<TransferConnectionRequestDetailsBag>();
 
     const currentIndex = computed(() =>
         props.orderedKeys.indexOf(props.currentKey)
@@ -384,9 +418,10 @@
         isInEditMode.value = value;
     }
 
-    function onEditConnectionRequestSaved(newBox: ValidPropertiesBox<ConnectionRequestBag>): void {
-        editConnectionRequestBox.value = newBox;
-        saveConnectionRequest();
+    function onEditConnectionRequestSaved(editBox: ValidPropertiesBox<ConnectionRequestBag>): void {
+        editConnectionRequestBox.value = editBox;
+        // saveConnectionRequest();
+        emit("editRequest", editBox);
     }
 
     async function onEdit(): Promise<void> {
@@ -404,32 +439,8 @@
         isLoading.value = false;
     }
 
-    async function onTransferClick(): Promise<void> {
-        const result = await invokeBlockAction<TransferConnectionRequestDetailsBag>("GetTransferDetails", {
-            key: props.requestDetails?.connectionRequestIdKey
-        });
-
-        if (result.isSuccess && result.data) {
-            transferRequestDetails.value = result.data;
-            isTransferModalVisible.value = true;
-        }
-        else {
-            console.error(result.errorMessage);
-        }
-    }
-
-    async function saveConnectionRequest(): Promise<void> {
-        console.log("Saving Edit");
-        const result = await invokeBlockAction<ValidPropertiesBox<ConnectionRequestBag>>("SaveConnectionRequest", {
-            box: editConnectionRequestBox.value
-        });
-
-        if (result.isSuccess) {
-            // Update request details.
-            return;
-        }
-
-        console.error(result.errorMessage);
+    function onTransferClick(): void {
+        emit("transferRequest");
     }
 
     watch(isFullWidth, () => {

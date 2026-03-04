@@ -15,15 +15,17 @@
 // </copyright>
 //
 
+using System.Collections.Generic;
+
 namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
 {
     /// <summary>
     /// 
     /// </summary>
-    public class ConnectionRequestUpdateBox
+    public class ConnectionListUpdateBox
     {
-        public ConnectionListGridUpdateBag GridUpdateBag { get; set; }
+        public Dictionary<string, object> GridRow { get; set; }
 
-        public ConnectionRequestDetailsBag DetailsUpdateBag { get; set; }
+        public ConnectionRequestDetailBox DetailBox { get; set; }
     }
 }

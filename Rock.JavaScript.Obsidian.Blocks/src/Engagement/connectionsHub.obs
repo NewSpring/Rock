@@ -540,12 +540,20 @@
     </ModalAlert>
 
     <ConnectionRequestDockedPanel v-model="isDockedPanelVisible"
+                                  ref="connectionRequestDockedPanelRef"
                                   :currentKey="selectedRequestKey"
                                   :orderedKeys="orderedRequestKeys ?? []"
                                   :requestDetails="requestDetails"
                                   :options="requestDetailOptions"
+                                  :dockedPanelCloseOnOutsideClick="dockedPanelCloseOnOutsideClick"
                                   @navigate="updateSelectedRequestKey"
-                                  @editActivity="onEditActivity" />
+                                  @editActivity="onEditActivity"
+                                  @editRequest="onEditRequest"
+                                  @transferRequest="onTransferClick" />
+
+    <TransferConnectionRequestModal v-model="isTransferModalVisible"
+                                    :transferDetails="transferRequestDetails"
+                                    @transfer="transferRequest" />
 </template>
 
 <style>
@@ -749,6 +757,10 @@
     import { removeCurrentUrlQueryParams } from "@Obsidian/Utility/url";
     import { ConnectionRequestDetailBox } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionRequestDetailBox";
     import { ConnectionRequestDetailOptionsBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionRequestDetailOptionsBag";
+    import { ConnectionListUpdateBox } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionListUpdateBox";
+    import { TransferConnectionRequestBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/transferConnectionRequestBag";
+    import TransferConnectionRequestModal from "./ConnectionsHub/transferConnectionRequestModal.partial.obs";
+    import { TransferConnectionRequestDetailsBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/transferConnectionRequestDetailsBag";
 
     /* =====================================================
      * Configuration & Data Loading
@@ -857,6 +869,12 @@
     const requestDetails = ref<ConnectionRequestDetailsBag | undefined>();
     const requestDetailOptions = ref<ConnectionRequestDetailOptionsBag | undefined>();
     const activityToEdit = ref<ActivityEntryBag | null>(null);
+    const connectionRequestDockedPanelRef = ref<InstanceType<typeof ConnectionRequestDockedPanel>>();
+    const dockedPanelCloseOnOutsideClick = ref<boolean>(true);
+
+    const isTransferModalVisible = ref<boolean>(false);
+    const transferErrorMessage = ref();
+    const transferRequestDetails = ref<TransferConnectionRequestDetailsBag>();
 
     const isRowDropdownOpen = ref<Record<string, boolean>>({});
 
@@ -1466,6 +1484,16 @@
         isLaunchWorkflowModalVisible.value = true;
     }
 
+    /**
+     * If the docked panel is currently open and we open a modal, we need to disable the "click outside" outside logic on the docked panel.
+     * Once the modal is closed we need to enable "click outside" logic again.
+     */
+    function handleClickOutsideSettingForDockedPanel(value: boolean): void {
+        if (isDockedPanelVisible.value) {
+            dockedPanelCloseOnOutsideClick.value = value;
+        }
+    }
+
     function updateStatusFromModal(bag: ConnectionRequestUpdateBag): void {
         const statusUpdateBags: ConnectionRequestUpdateBag[] = [];
         const completedRequests: string[] = [];
@@ -1578,6 +1606,31 @@
         connectionRequestUpdateBag.value = {} as ConnectionRequestUpdateBag;
         isNoteRequired.value = false;
         anchorEl.value = null;
+    }
+
+    function syncGridData(gridRow: Record<string, unknown>): void {
+        if (!gridRow) {
+            return;
+        }
+
+        if (!gridData.value) {
+            gridData.value = { rows: [gridRow] };
+            return;
+        }
+
+        if (!gridData.value.rows) {
+            gridData.value.rows = [gridRow];
+            return;
+        }
+
+        const index = gridData.value.rows.findIndex(r => r.idKey === gridRow.idKey);
+
+        if (index !== -1) {
+            gridData.value.rows[index] = gridRow;
+        }
+        else {
+            gridData.value.rows.push(gridRow);
+        }
     }
 
     async function showSMSModal(): Promise<void> {
@@ -1889,20 +1942,80 @@
         }
     }
 
-    async function saveNewConnectionRequest(): Promise<void> {
-        console.log("Saving...");
-        const result = await invokeBlockAction<Record<string, unknown>>("SaveConnectionRequest", {
-            box: newConnectionRequest.value
+    async function onEditRequest(box: ValidPropertiesBox<ConnectionRequestBag>): Promise<void> {
+        const result = await saveConnectionRequest(box);
+
+        if (result.isSuccess && result.data && result.data.detailBox) {
+            if (result.data.gridRow) {
+                syncGridData(result.data.gridRow);
+            }
+
+            requestDetails.value = result.data.detailBox.entity ?? undefined;
+            requestDetailOptions.value = result.data.detailBox.options ?? undefined;
+
+            connectionRequestDockedPanelRef.value?.setEditMode(false);
+        }
+        else {
+            console.error(result.errorMessage ?? "An unknown error occurred while editing the request.");
+        }
+    }
+
+    async function onTransferClick(): Promise<void> {
+        const result = await invokeBlockAction<TransferConnectionRequestDetailsBag>("GetTransferDetails", {
+            key: requestDetails.value?.connectionRequestIdKey
         });
 
         if (result.isSuccess && result.data) {
-            // await loadGridData();
-            gridData.value?.rows?.push(result.data);
+            transferRequestDetails.value = result.data;
+            isTransferModalVisible.value = true;
+        }
+        else {
+            console.error(result.errorMessage);
+        }
+    }
+
+    async function transferRequest(bag: TransferConnectionRequestBag): Promise<void> {
+        const result = await invokeBlockAction<ConnectionListUpdateBox>("TransferConnectionRequest", {
+            bag
+        });
+
+        if (result.isSuccess && result.data && result.data.detailBox) {
+            if (result.data.gridRow) {
+                syncGridData(result.data.gridRow);
+            }
+
+            requestDetails.value = result.data.detailBox.entity ?? undefined;
+            requestDetailOptions.value = result.data.detailBox.options ?? undefined;
+
+            isTransferModalVisible.value = false;
+        }
+        else {
+            transferErrorMessage.value = result.errorMessage ?? "An unknown error occurred while transferring the connection request.";
+        }
+    }
+
+    async function onAddRequest(box: ValidPropertiesBox<ConnectionRequestBag>): Promise<void> {
+        const result = await saveConnectionRequest(box);
+
+        if (result.isSuccess && result.data) {
+            if (result.data.gridRow) {
+                syncGridData(result.data.gridRow);
+            }
+
             isAddConnectionRequestModalVisible.value = false;
             return;
         }
+        else {
+            console.error(result.errorMessage ?? "An unknown error occurred while adding the request.");
+        }
+    }
 
-        console.error(result.errorMessage);
+    async function saveConnectionRequest(box: ValidPropertiesBox<ConnectionRequestBag>): Promise<HttpResult<ConnectionListUpdateBox>> {
+        const result = await invokeBlockAction<ConnectionListUpdateBox>("SaveConnectionRequest", {
+            box
+        });
+
+        return result;
     }
 
     async function reassignConnector(connector: string): Promise<void> {
@@ -1988,6 +2101,12 @@
         console.error(result.errorMessage);
     }
 
+    // When any modal is open, disable close-on-outside-click for the docked panel so that
+    // clicking inside a modal doesn't accidentally close the panel behind it.
+    watch([isTransferModalVisible, isCelebrationModalVisible, isAddActivityModalVisible, isReminderModalVisible], (values) => {
+        handleClickOutsideSettingForDockedPanel(!values.some(Boolean));
+    });
+
     watch(areOnlyMyRequestsVisible, async () => {
         preferences.setValue(PreferenceKey.AreOnlyMyRequestsVisible, areOnlyMyRequestsVisible.value);
 
@@ -2043,7 +2162,7 @@
     });
 
     watch(newConnectionRequest, () => {
-        saveNewConnectionRequest();
+        onAddRequest(newConnectionRequest.value);
     });
 
     watch(selectedGrouping, async () => {

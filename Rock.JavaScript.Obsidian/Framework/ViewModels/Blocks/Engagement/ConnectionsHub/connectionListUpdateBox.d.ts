@@ -21,24 +21,10 @@
 // </copyright>
 //
 
-import { Guid } from "@Obsidian/Types";
+import { ConnectionRequestDetailBox } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionRequestDetailBox";
 
-export type TransferConnectionRequestBag = {
-    campusGuid?: Guid | null;
+export type ConnectionListUpdateBox = {
+    detailBox?: ConnectionRequestDetailBox | null;
 
-    connectionRequestIdKey?: string | null;
-
-    connectorOption?: string | null;
-
-    connectorPersonAliasGuid?: Guid | null;
-
-    dueDate?: string | null;
-
-    dueDateOption?: string | null;
-
-    newConnectionOpportunityGuid: Guid;
-
-    note?: string | null;
-
-    statusGuid?: Guid | null;
+    gridRow?: Record<string, unknown> | null;
 };
