@@ -131,7 +131,8 @@
                           itemTerm="Connector"
                           :keyField="getGridRowPropertyName('idKey')"
                           :onSelectItem="onConnectorRowClicked"
-                          title="Connectors">
+                          title="Connectors"
+                          titleIconCssClass="ti ti-user-circle">
                         <Column name="overdue-indicator"
                                 width="8px"
                                 disableSort
