@@ -502,8 +502,7 @@ namespace Rock.Model
                             )
                             .SelectMany( co => co.ConnectionRequests )
                     )
-                where cr.ConnectionState == ConnectionState.Connected
-                    && cr.ModifiedDateTime.HasValue
+                where cr.ModifiedDateTime.HasValue
                     && cr.ModifiedDateTime >= rangeStart
                     && cr.ModifiedDateTime < rangeEnd
                     && ( !campusGuid.HasValue
@@ -525,30 +524,38 @@ namespace Rock.Model
                 {
                     ConnectionTypeId = g.Key,
 
-                    RequestsCompletedCount = g.Count(),
+                    RequestsCompletedCount = g
+                        .Count( x => x.cr.ConnectionState == ConnectionState.Connected ),
 
                     TimelinessPercent = g
                         .Count( x =>
-                            !x.cr.DueDate.HasValue
-                            || x.cr.ModifiedDateTime <= x.cr.DueDate
+                            x.cr.ConnectionState == ConnectionState.Connected
+                            && x.cr.ConnectedDateTime.HasValue
+                            && (
+                                !x.cr.DueDate.HasValue
+                                || x.cr.ConnectedDateTime.Value <= x.cr.DueDate.Value
+                            )
                         )
-                        * 100m
-                        / g.Count(),
+                        / g.Count( x => x.cr.ConnectionState == ConnectionState.Connected ),
 
                     AverageResponsivenessDays = g
                         .Where( x =>
                             x.cr.CreatedDateTime.HasValue
                             && x.firstActivityDate.HasValue
                         )
-                        .Average( x =>
-                            ( decimal ) DbFunctions.DiffDays( x.cr.CreatedDateTime.Value, x.firstActivityDate.Value )
-                        ),
+                        .Select( x => ( decimal ) DbFunctions.DiffDays( x.cr.CreatedDateTime.Value, x.firstActivityDate.Value ) )
+                        .DefaultIfEmpty()
+                        .Average(),
 
                     AverageCompletionDays = g
-                        .Where( x => x.cr.CreatedDateTime.HasValue )
-                        .Average( x =>
-                             ( decimal ) DbFunctions.DiffDays( x.cr.CreatedDateTime.Value, x.cr.ModifiedDateTime.Value )
+                        .Where( x =>
+                            x.cr.CreatedDateTime.HasValue
+                            && x.cr.ConnectionState == ConnectionState.Connected
+                            && x.cr.ConnectedDateTime.HasValue
                         )
+                        .Select( x => ( decimal )DbFunctions.DiffDays( x.cr.CreatedDateTime.Value, x.cr.ConnectedDateTime.Value ) )
+                        .DefaultIfEmpty()
+                        .Average()
                 };
 
             return query;
