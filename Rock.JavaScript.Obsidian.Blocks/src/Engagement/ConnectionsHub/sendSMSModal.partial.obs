@@ -6,11 +6,11 @@
            saveText="Send"
            title="Send SMS"
            @save="onSend">
-       <PillList :modelValue="communicationRecipients ?? []"
+        <PillList :modelValue="communicationRecipients ?? []"
                   :disabled="isSending"
                   canExpand
                   label="Recipients"
-                 :rules="hasAtLeastOneValidRecipient">
+                  :rules="hasAtLeastOneValidRecipient">
             <template #item="{ item }">
                 <Pill :disabled="isSending"
                       :tooltip="getRecipientTooltip(item)"
@@ -126,6 +126,7 @@
 
     const emit = defineEmits<{
         (e: "update:visible", value: boolean): void;
+        (e: "onSuccessfulSend"): void;
         (e: "close"): void;
     }>();
 
@@ -243,6 +244,7 @@
 
             if (result.isSuccess) {
                 isVisible.value = false;
+                emit("onSuccessfulSend");
             }
             else {
                 sendErrorMessage.value = result.errorMessage ?? "An error occurred while sending the message.";

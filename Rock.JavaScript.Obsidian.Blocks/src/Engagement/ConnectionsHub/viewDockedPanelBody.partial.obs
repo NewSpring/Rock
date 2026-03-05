@@ -32,8 +32,46 @@
                     <div v-else-if="requestDetails?.connectionState === ConnectionState.Connected" class="text-semibold text-emerald">
                         {{ ConnectionStateDescription[ConnectionState.Connected] }}
                     </div>
-                    <i v-if="options?.areCelebrationsEnabled" class="ti ti-confetti"></i>
-                    <i v-if="options?.areRemindersEnabled" class="ti ti-bell"></i>
+                    <template v-if="options?.areCelebrationsEnabled">
+                        <i v-if="isNullOrWhiteSpace(requestDetails?.celebrationText)"
+                           class="ti ti-confetti cursor-pointer"
+                           :ref="(el) => addTooltip(el as Element)"
+                           data-toggle="tooltip"
+                           data-placement="auto"
+                           data-container="body"
+                           data-original-title="Add Celebration"
+                           @click="emit('onCelebrationClick')">
+                        </i>
+                        <i v-else
+                           class="ti ti-confetti-filled cursor-pointer text-info-strong"
+                           :ref="(el) => addTooltip(el as Element)"
+                           data-toggle="tooltip"
+                           data-placement="auto"
+                           data-container="body"
+                           data-original-title="Has Celebration"
+                           @click="emit('onCelebrationClick')">
+                        </i>
+                    </template>
+                    <template v-if="options?.areRemindersEnabled">
+                        <i v-if="requestDetails?.reminderCount && requestDetails.reminderCount > 0"
+                           class="ti ti-bell-filled cursor-pointer text-info-strong"
+                           :ref="(el) => addTooltip(el as Element)"
+                           data-toggle="tooltip"
+                           data-placement="auto"
+                           data-container="body"
+                           :data-original-title="`${requestDetails?.reminderCount} ${pluralize('Reminder', requestDetails?.reminderCount)}`"
+                           @click="emit('onReminderClick')">
+                        </i>
+                        <i v-else
+                           class="ti ti-bell cursor-pointer"
+                           :ref="(el) => addTooltip(el as Element)"
+                           data-toggle="tooltip"
+                           data-placement="auto"
+                           data-container="body"
+                           data-original-title="Add Reminder"
+                           @click="emit('onReminderClick')">
+                        </i>
+                    </template>
                 </div>
             </template>
             <template #preBody v-if="!isNullOrWhiteSpace(options?.lavaBadgeBar)">
@@ -384,6 +422,7 @@
     import { ConnectionRequestDetailOptionsBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionRequestDetailOptionsBag";
     import ConnectionOpportunityDetail from "../connectionOpportunityDetail.obs";
     import { ConnectorItemBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectorItemBag";
+    import { tooltip } from "@Obsidian/Utility/tooltip";
 
     const props = defineProps({
         requestDetails: {
@@ -404,6 +443,9 @@
 
     const emit = defineEmits<{
         (e: "editActivity", value: ActivityEntryBag): void;
+        (e: "onCelebrationClick"): void;
+        (e: "onReminderClick"): void;
+        (e: "onReassignConnector", value: string): void;
     }>();
 
     const invokeBlockAction = useInvokeBlockAction();
@@ -715,12 +757,14 @@
 
     // TODO - Determine if this needs to be saved immediately
     function updateConnector(connectorKey: string | null | undefined): void {
-        if (isNullOrWhiteSpace(connectorKey)) {
+        if (!connectorKey || isNullOrWhiteSpace(connectorKey)) {
             return;
         }
 
-        selectedConnector.value = connectorKey!;
+        selectedConnector.value = connectorKey;
         isConnectorDropdownOpen.value = false;
+
+        emit("onReassignConnector", connectorKey);
     }
 
     function updateActivityFilter(activityFilter: ListItemBag): void {
@@ -765,6 +809,14 @@
         }
 
         activityCardRefs.value.set(key, el as InstanceType<typeof ActivityCard>);
+    }
+
+    // TODO - Move to reusable place?
+    /** Adds the tooltip behavior to the element. */
+    function addTooltip(element: Element | null): void {
+        if (element) {
+            tooltip(element);
+        }
     }
 
     async function onAddRequestNote(): Promise<void> {
@@ -906,8 +958,11 @@
 
     watch(() => props.requestDetails, () => {
         selectedConnector.value = props.requestDetails?.connectorPerson ?? "";
-        activityEntries.value = props.requestDetails?.activityEntries ?? [];
         groupMemberRequirements.value = props.requestDetails?.placementGroup?.groupMemberRequirements ?? [];
+    });
+
+    watch(() => props.requestDetails?.activityEntries, () => {
+        activityEntries.value = props.requestDetails?.activityEntries ?? [];
     });
 
     // TODO - I need to reset state on close/navigate

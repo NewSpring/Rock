@@ -95,11 +95,11 @@
             </div>
             <div class="right-actions d-flex align-items-center gap-md">
                 <div class="pl-spacing-md d-flex align-items-center gap-xs">
-                    <RockButton @click="showSMSModal" class="activity-btn">
+                    <RockButton @click="showSMSModal()" class="activity-btn">
                         <i class="ti ti-message-circle-plus"></i>
                         <span class="activity-btn-label">SMS</span>
                     </RockButton>
-                    <RockButton @click="showEmailModal" class="activity-btn">
+                    <RockButton @click="showEmailModal()" class="activity-btn">
                         <i class="ti ti-mail-plus"></i>
                         <span class="activity-btn-label">Email</span>
                     </RockButton>
@@ -288,13 +288,13 @@
                                      class="cursor-pointer py-spacing-tiny px-spacing-xs rounded-huge text-semibold text-interface-softest d-flex align-items-center"
                                      :style="`background-color: ${row.connectionStatus.highlightColor}`">
                                     <i class="ti ti-circle-check"></i>
-                                    <sapn class="w-100 text-center">{{ row.connectionStatus.name }}</sapn>
+                                    <span class="w-100 text-center">{{ row.connectionStatus.name }}</span>
                                 </div>
                                 <div v-else
                                      @click.stop="(e) => onStatusClick(row.idKey, row.connectionStatus, row.connectionState, e)"
                                      class="cursor-pointer py-spacing-tiny px-spacing-xs rounded-huge text-semibold text-interface-softest d-flex align-items-center"
                                      :style="`background-color: ${row.connectionStatus.highlightColor}`">
-                                    <sapn class="w-100 text-center">{{ row.connectionStatus.name }}</sapn>
+                                    <span class="w-100 text-center">{{ row.connectionStatus.name }}</span>
                                     <i class="ti ti-caret-down-filled text-right"></i>
                                 </div>
                             </template>
@@ -493,7 +493,7 @@
                         :connectorItems="allPossibleConnectors"
                         :requestDetails="requestDetailsForModal"
                         :viewOptions="viewOptions"
-                        @updateConnector="reassignConnector" />
+                        @updateConnector="(connector) => reassignConnector(allSelectedKeys, connector)" />
     <ChangeStateModal v-model:visible="isChangeStateModalVisible"
                       :connectionState="changeStateTo"
                       :requestDetails="requestDetailsForModal"
@@ -525,10 +525,12 @@
     <SendSMSModal v-model:visible="isSendSMSModalVisible"
                   :communicationRecipients="communicationRecipients"
                   :smsFromSystemPhoneNumbers="smsFromSystemPhoneNumbers"
-                  :smsSnippets="smsSnippets" />
+                  :smsSnippets="smsSnippets"
+                  @onSuccessfulSend="refreshActivityEntries(dockedPanelDetailsBox?.entity?.connectionRequestIdKey)" />
     <SendEmailModal v-model:visible="isSendEmailModalVisible"
                     :communicationRecipients="communicationRecipients"
-                    :communicationTemplates="communicationTemplates" />
+                    :communicationTemplates="communicationTemplates"
+                    @onSuccessfulSend="refreshActivityEntries(dockedPanelDetailsBox?.entity?.connectionRequestIdKey)" />
     <ViewOptionsModal v-model="viewOptions"
                       v-model:visible="isViewOptionsModalVisible"
                       :gridDataToShowItems="box.options?.gridDataToShowItems ?? []"
@@ -543,13 +545,18 @@
                                   ref="connectionRequestDockedPanelRef"
                                   :currentKey="selectedRequestKey"
                                   :orderedKeys="orderedRequestKeys ?? []"
-                                  :requestDetails="requestDetails"
-                                  :options="requestDetailOptions"
+                                  :detailsBox="dockedPanelDetailsBox"
                                   :dockedPanelCloseOnOutsideClick="dockedPanelCloseOnOutsideClick"
                                   @navigate="updateSelectedRequestKey"
                                   @editActivity="onEditActivity"
                                   @editRequest="onEditRequest"
-                                  @transferRequest="onTransferClick" />
+                                  @transferRequest="onTransferClick"
+                                  @onCelebrationClick="box => showCelebrationModal(null, box)"
+                                  @onReminderClick="box => showReminderModal(null, box)"
+                                  @onSMSClick="showSMSModal(true)"
+                                  @onEmailClick="showEmailModal(true)"
+                                  @onReassignConnector="(connector) => reassignConnector([dockedPanelDetailsBox?.entity?.connectionRequestIdKey ?? ''], connector, true)"
+                                  @onRequestStateChanged="updateRequestStateFromDockedPanel" />
 
     <TransferConnectionRequestModal v-model="isTransferModalVisible"
                                     :transferDetails="transferRequestDetails"
@@ -859,15 +866,16 @@
     const isFlyoutOpen = ref(false);
     const anchorEl = ref<HTMLElement | null>(null);
     const connectionRequestUpdateBag = ref<ConnectionRequestUpdateBag>({} as ConnectionRequestUpdateBag);
-    const isNoteRequired = ref<boolean>(false);
+    const isNoteRequired = ref(false);
 
     const requestDetailsForModal = ref<BulkRequestViewBag[]>([]);
 
     const orderedRequestKeys = ref<string[]>([]);
     const isDockedPanelVisible = ref(false);
     const selectedRequestKey = ref();
-    const requestDetails = ref<ConnectionRequestDetailsBag | undefined>();
-    const requestDetailOptions = ref<ConnectionRequestDetailOptionsBag | undefined>();
+    const dockedPanelDetailsBox = ref<ConnectionRequestDetailBox>();
+    // const requestDetails = ref<ConnectionRequestDetailsBag | undefined>();
+    // const requestDetailOptions = ref<ConnectionRequestDetailOptionsBag | undefined>();
     const activityToEdit = ref<ActivityEntryBag | null>(null);
     const connectionRequestDockedPanelRef = ref<InstanceType<typeof ConnectionRequestDockedPanel>>();
     const dockedPanelCloseOnOutsideClick = ref<boolean>(true);
@@ -1005,7 +1013,7 @@
                 return null;
             }
 
-            return getBulkRequestViewBag(row, idKey);
+            return getBulkRequestViewBagFromRow(row, idKey);
         }).filter((r): r is BulkRequestViewBag => r !== null);
     });
 
@@ -1303,8 +1311,7 @@
     }
 
     function updateSelectedRequestKey(key: string | null): void {
-        requestDetails.value = undefined;
-        requestDetailOptions.value = undefined;
+        dockedPanelDetailsBox.value = undefined;
         if (!isNullOrWhiteSpace(key)) {
             selectedRequestKey.value = key;
         }
@@ -1328,9 +1335,9 @@
     }
 
     /** Adds the tooltip behavior to the element. */
-    function addTooltip(noteElement: Element | null): void {
-        if (noteElement) {
-            tooltip(noteElement);
+    function addTooltip(element: Element | null): void {
+        if (element) {
+            tooltip(element);
         }
     }
 
@@ -1346,21 +1353,25 @@
     function decreaseReminderCount(requesterPersonAliasGuid: string): void {
         const row = gridData.value?.rows?.find(r => r.requesterPersonAliasGuid === requesterPersonAliasGuid);
 
-        if (!row || typeof row.reminderCount !== "number") {
-            return;
+        if (row && typeof row.reminderCount === "number") {
+            row.reminderCount--;
         }
 
-        row.reminderCount--;
+        if (dockedPanelDetailsBox.value?.entity) {
+            dockedPanelDetailsBox.value.entity.reminderCount--;
+        }
     }
 
     function increaseReminderCount(requesterPersonAliasGuid: string): void {
         const row = gridData.value?.rows?.find(r => r.requesterPersonAliasGuid === requesterPersonAliasGuid);
 
-        if (!row || typeof row.reminderCount !== "number") {
-            return;
+        if (row && typeof row.reminderCount === "number") {
+            row.reminderCount++;
         }
 
-        row.reminderCount++;
+        if (dockedPanelDetailsBox.value?.entity) {
+            dockedPanelDetailsBox.value.entity.reminderCount++;
+        }
     }
 
     function toggleGridRowDropdown(key: string | null | undefined): void {
@@ -1379,16 +1390,24 @@
         selectedKeys.value[key] = [...state.selectedKeys];
     }
 
-    function setSingleRequestDetail(row: Record<string, unknown> | null): void {
-        if (!row) {
+    function setSingleRequestDetail(row: Record<string, unknown> | null, dockedPanelBox: ConnectionRequestDetailBox | null): void {
+        let requestDetailsBag;
+
+        if (!row && !dockedPanelBox) {
             return;
         }
 
-        const requestDetailsBag = getBulkRequestViewBag(row);
+        if (row) {
+            requestDetailsBag = getBulkRequestViewBagFromRow(row);
+        }
+        else if (dockedPanelBox) {
+            requestDetailsBag = getBulkRequestViewBagFromDockedPanelDetails(dockedPanelBox);
+        }
+
         requestDetailsForModal.value = [requestDetailsBag];
     }
 
-    function getBulkRequestViewBag(row: Record<string, unknown>, idKey: string | null | undefined = null): BulkRequestViewBag {
+    function getBulkRequestViewBagFromRow(row: Record<string, unknown>, idKey: string | null | undefined = null): BulkRequestViewBag {
         if (isNullOrWhiteSpace(idKey)) {
             idKey = row["idKey"] as string | null | undefined;
         }
@@ -1413,14 +1432,34 @@
         } as BulkRequestViewBag;
     }
 
-    function prepareRequestDetailsForModal(row: Record<string, unknown> | null = null): void {
+    function getBulkRequestViewBagFromDockedPanelDetails(box: ConnectionRequestDetailBox): BulkRequestViewBag {
+        if (!box.options || !box.entity) {
+            return {};
+        }
+
+        const connector = box.options.connectorItems?.find(c => c.listItemBag?.value === box.entity?.connectorPerson)?.listItemBag;
+
+        const bag = <BulkRequestViewBag>{
+            idKey: box.entity.connectionRequestIdKey,
+            connectionOpportunity: box.entity.connectionOpportunityName,
+            connectionStatus: box.entity.connectionStatus,
+            connectionTypeSource: box.entity.connectionTypeSource,
+            connector: connector,
+            dueDate: box.entity.dueDate,
+            requester: box.entity.requesterPerson,
+            celebrationText: box.entity.celebrationText
+        };
+
+        return bag;
+    }
+
+    function prepareRequestDetailsForModal(row: Record<string, unknown> | null = null, dockedPanelBox: ConnectionRequestDetailBox | null = null): void {
         // If row is null then we are in bulk action mode.
-        if (row === null) {
+        if (row === null && dockedPanelBox === null) {
             requestDetailsForModal.value = selectedRequestDetails.value;
-            console.log("selected details: ", selectedRequestDetails.value);
         }
         else {
-            setSingleRequestDetail(row);
+            setSingleRequestDetail(row, dockedPanelBox);
         }
     }
 
@@ -1432,24 +1471,32 @@
         groupedGridPanel.value.collapseAll();
     }
 
-    function showCelebrationModal(row: Record<string, unknown> | null): void {
-        prepareRequestDetailsForModal(row);
+    function showCelebrationModal(row: Record<string, unknown> | null = null, detailsBox: ConnectionRequestDetailBox | null = null): void {
+        prepareRequestDetailsForModal(row, detailsBox);
         isCelebrationModalVisible.value = true;
     }
 
-    function showReminderModal(row: Record<string, unknown> | null): void {
-        if (!row) {
+    function showReminderModal(row: Record<string, unknown> | null = null, detailBox: ConnectionRequestDetailBox | null = null): void {
+        if (!row && !detailBox) {
             return;
         }
 
-        const requesterPersonAliasGuid = row["requesterPersonAliasGuid"] as string | null | undefined;
+        let requesterPersonAliasGuid;
+
+        if (row) {
+            requesterPersonAliasGuid = row["requesterPersonAliasGuid"] as string | null | undefined;
+
+        }
+        else {
+            requesterPersonAliasGuid = detailBox?.entity?.requesterPersonAliasGuid;
+        }
 
         if (!requesterPersonAliasGuid || typeof requesterPersonAliasGuid !== "string") {
             return;
         }
 
         reminderEntityGuid.value = requesterPersonAliasGuid;
-        prepareRequestDetailsForModal(row);
+        prepareRequestDetailsForModal(row, detailBox);
         isReminderModalVisible.value = true;
     }
 
@@ -1563,6 +1610,15 @@
         }
     }
 
+    async function updateRequestStateFromDockedPanel(bag: UpdateConnectionRequestStatesBag): Promise<void> {
+        const result = await updateRequestStates(bag);
+
+        if (result && dockedPanelDetailsBox.value?.entity) {
+            dockedPanelDetailsBox.value.entity.connectionState = bag.connectionState;
+            refreshActivityEntries(dockedPanelDetailsBox.value.entity.connectionRequestIdKey);
+        }
+    }
+
     async function deleteRequestsFromModal(keys: string[]): Promise<void> {
         const result = await deleteRequests(keys);
 
@@ -1598,7 +1654,6 @@
         };
         isNoteRequired.value = status.isNoteRequiredOnCompletion;
         anchorEl.value = event.currentTarget as HTMLElement;
-        console.log("made it here: ", connectionRequestUpdateBag.value);
         isFlyoutOpen.value = true;
     }
 
@@ -1633,8 +1688,19 @@
         }
     }
 
-    async function showSMSModal(): Promise<void> {
-        const result = await getSmsConfiguration();
+    async function showSMSModal(fromDockedPanel: boolean = false): Promise<void> {
+        let selectedKeys: string[];
+        let connectionTypeIdKey: string | null | undefined;
+        if (fromDockedPanel) {
+            selectedKeys = [dockedPanelDetailsBox.value?.entity?.connectionRequestIdKey ?? ""];
+            connectionTypeIdKey = dockedPanelDetailsBox.value?.options?.connectionTypeIdKey;
+        }
+        else {
+            selectedKeys = allSelectedKeys.value;
+            connectionTypeIdKey = box.options?.connectionTypeIdKey;
+        }
+
+        const result = await getSmsConfiguration(selectedKeys, connectionTypeIdKey);
 
         if (result.isSuccess && result.data?.communicationRecipients?.length) {
             communicationRecipients.value = result.data.communicationRecipients;
@@ -1652,8 +1718,19 @@
         }
     }
 
-    async function showEmailModal(): Promise<void> {
-        const result = await getEmailConfiguration();
+    async function showEmailModal(fromDockedPanel: boolean = false): Promise<void> {
+        let selectedKeys: string[];
+        let connectionTypeIdKey: string | null | undefined;
+        if (fromDockedPanel) {
+            selectedKeys = [dockedPanelDetailsBox.value?.entity?.connectionRequestIdKey ?? ""];
+            connectionTypeIdKey = dockedPanelDetailsBox.value?.options?.connectionTypeIdKey;
+        }
+        else {
+            selectedKeys = allSelectedKeys.value;
+            connectionTypeIdKey = box.options?.connectionTypeIdKey;
+        }
+
+        const result = await getEmailConfiguration(selectedKeys, connectionTypeIdKey);
 
         if (result.isSuccess && result.data?.communicationRecipients?.length) {
             communicationRecipients.value = result.data.communicationRecipients;
@@ -1678,10 +1755,10 @@
         // });
     }
 
-    async function getSmsConfiguration(): Promise<HttpResult<GetSmsConfigurationResponseBag>> {
+    async function getSmsConfiguration(selectedKeys: string[], connectionTypeIdKey: string | null | undefined): Promise<HttpResult<GetSmsConfigurationResponseBag>> {
         const bag: GetSmsConfigurationRequestBag = {
-            connectionRequestIdKeys: allSelectedKeys.value,
-            connectionTypeIdKey: box.options?.connectionTypeIdKey
+            connectionRequestIdKeys: selectedKeys,
+            connectionTypeIdKey: connectionTypeIdKey
         };
 
         const result = await invokeBlockAction<GetSmsConfigurationResponseBag>("GetSmsConfiguration", {
@@ -1691,10 +1768,10 @@
         return result;
     }
 
-    async function getEmailConfiguration(): Promise<HttpResult<GetEmailConfigurationResponseBag>> {
+    async function getEmailConfiguration(selectedKeys: string[], connectionTypeIdKey: string | null | undefined): Promise<HttpResult<GetEmailConfigurationResponseBag>> {
         const bag: GetEmailConfigurationRequestBag = {
-            connectionRequestIdKeys: allSelectedKeys.value,
-            connectionTypeIdKey: box.options?.connectionTypeIdKey
+            connectionRequestIdKeys: selectedKeys,
+            connectionTypeIdKey: connectionTypeIdKey
         };
 
         const result = await invokeBlockAction<GetEmailConfigurationResponseBag>("GetEmailConfiguration", {
@@ -1902,13 +1979,13 @@
         });
 
         if (result.isSuccess && result.data) {
-            if (requestDetails.value?.activityEntries) {
-                const updatedEntries = [...requestDetails.value.activityEntries];
+            if (dockedPanelDetailsBox.value?.entity?.activityEntries) {
+                const updatedEntries = [...dockedPanelDetailsBox.value.entity.activityEntries];
                 const index = updatedEntries.findIndex(a => a.key === result.data?.key);
                 if (index !== -1) {
                     updatedEntries[index] = result.data;
                 }
-                requestDetails.value = { ...requestDetails.value, activityEntries: updatedEntries };
+                dockedPanelDetailsBox.value.entity = { ...dockedPanelDetailsBox.value.entity, activityEntries: updatedEntries };
             }
             isAddActivityModalVisible.value = false;
             activityToEdit.value = null;
@@ -1950,8 +2027,7 @@
                 syncGridData(result.data.gridRow);
             }
 
-            requestDetails.value = result.data.detailBox.entity ?? undefined;
-            requestDetailOptions.value = result.data.detailBox.options ?? undefined;
+            dockedPanelDetailsBox.value = result.data.detailBox;
 
             connectionRequestDockedPanelRef.value?.setEditMode(false);
         }
@@ -1962,7 +2038,7 @@
 
     async function onTransferClick(): Promise<void> {
         const result = await invokeBlockAction<TransferConnectionRequestDetailsBag>("GetTransferDetails", {
-            key: requestDetails.value?.connectionRequestIdKey
+            key: dockedPanelDetailsBox.value?.entity?.connectionRequestIdKey
         });
 
         if (result.isSuccess && result.data) {
@@ -1984,8 +2060,7 @@
                 syncGridData(result.data.gridRow);
             }
 
-            requestDetails.value = result.data.detailBox.entity ?? undefined;
-            requestDetailOptions.value = result.data.detailBox.options ?? undefined;
+            dockedPanelDetailsBox.value = result.data.detailBox;
 
             isTransferModalVisible.value = false;
         }
@@ -2018,9 +2093,9 @@
         return result;
     }
 
-    async function reassignConnector(connector: string): Promise<void> {
+    async function reassignConnector(connectionRequestIdKeys: string[], connector: string, fromDockedPanel: boolean = false): Promise<void> {
         const result = await invokeBlockAction<ConnectionListGridUpdateBag[]>("ReassignConnector", {
-            connectionRequestIdKeys: allSelectedKeys.value,
+            connectionRequestIdKeys: connectionRequestIdKeys,
             connectorPersonAliasGuid: connector
         });
 
@@ -2039,9 +2114,15 @@
                 row.connectorDetails = updateBag.connectorDetails;
             }
 
-            // clear selected keys
-            // TODO - Ask Jon if this should happen.
-            clearAllSelections();
+            if (fromDockedPanel) {
+                dockedPanelDetailsBox.value?.entity?.connectorPerson === result.data[0].connectorDetails?.value;
+                refreshActivityEntries(connectionRequestIdKeys[0]);
+            }
+            else {
+                // clear selected keys
+                // TODO - Ask Jon if this should happen.
+                clearAllSelections();
+            }
 
             isAssignRequestModalVisible.value = false;
             return;
@@ -2082,6 +2163,10 @@
             if (row) {
                 row.celebrationText = result.data.celebrationText;
             }
+            if (dockedPanelDetailsBox.value?.entity) {
+                dockedPanelDetailsBox.value.entity.celebrationText = result.data.celebrationText;
+            }
+
             isCelebrationModalVisible.value = false;
             return;
         }
@@ -2090,20 +2175,39 @@
     }
 
     async function getConnectionRequestDetails(requestIdKey: string): Promise<void> {
+        dockedPanelDetailsBox.value = undefined;
+
         const result = await invokeBlockAction<ConnectionRequestDetailBox>("GetConnectionRequestDetails", { connectionRequestIdKey: requestIdKey });
 
         if (result.isSuccess && result.data) {
-            requestDetails.value = result.data.entity ?? undefined;
-            requestDetailOptions.value = result.data.options ?? undefined;
+            dockedPanelDetailsBox.value = result.data;
             return;
         }
 
         console.error(result.errorMessage);
     }
 
+    async function refreshActivityEntries(requestIdKey: string | null | undefined): Promise<void> {
+        // We only need to refresh activity entries if the docked panel is open and has data.
+        if (!isDockedPanelVisible.value || !dockedPanelDetailsBox.value?.entity || !requestIdKey) {
+            return;
+        }
+
+        const result = await invokeBlockAction<ActivityEntryBag[]>("GetActivityEntries", {
+            connectionRequestIdKey: requestIdKey
+        });
+
+        if (result.isSuccess && result.data) {
+            dockedPanelDetailsBox.value.entity.activityEntries = result.data;
+        }
+        else {
+            console.error(result.errorMessage);
+        }
+    }
+
     // When any modal is open, disable close-on-outside-click for the docked panel so that
     // clicking inside a modal doesn't accidentally close the panel behind it.
-    watch([isTransferModalVisible, isCelebrationModalVisible, isAddActivityModalVisible, isReminderModalVisible], (values) => {
+    watch([isTransferModalVisible, isCelebrationModalVisible, isAddActivityModalVisible, isReminderModalVisible, isSendSMSModalVisible, isSendEmailModalVisible], (values) => {
         handleClickOutsideSettingForDockedPanel(!values.some(Boolean));
     });
 

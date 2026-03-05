@@ -119,6 +119,7 @@
 
     const emit = defineEmits<{
         (e: "update:visible", value: boolean): void;
+        (e: "onSuccessfulSend"): void;
         (e: "close"): void;
     }>();
 
@@ -239,6 +240,7 @@
 
             if (result.isSuccess) {
                 isVisible.value = false;
+                emit("onSuccessfulSend");
             }
             else {
                 sendErrorMessage.value = result.errorMessage ?? "An error occurred while sending the message.";

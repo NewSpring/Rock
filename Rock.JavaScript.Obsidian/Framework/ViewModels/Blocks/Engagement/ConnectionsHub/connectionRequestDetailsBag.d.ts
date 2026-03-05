@@ -23,8 +23,10 @@
 
 import { ConnectionState } from "@Obsidian/Enums/Connection/connectionState";
 import { DueStatus } from "@Obsidian/Enums/Connection/dueStatus";
+import { Guid } from "@Obsidian/Types";
 import { ActivityEntryBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/activityEntryBag";
 import { AdditionalRequestBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/additionalRequestBag";
+import { ConnectionStatusBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionStatusBag";
 import { PlacementGroupDetailsBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/placementGroupDetailsBag";
 import { RequesterPersonBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/requesterPersonBag";
 import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
@@ -46,6 +48,8 @@ export type ConnectionRequestDetailsBag = {
     /** The selected Campus on the Connection Request */
     campus?: string | null;
 
+    celebrationText?: string | null;
+
     comments?: string | null;
 
     connectionOpportunityIcon?: string | null;
@@ -55,6 +59,8 @@ export type ConnectionRequestDetailsBag = {
     connectionRequestIdKey?: string | null;
 
     connectionState: ConnectionState;
+
+    connectionStatus?: ConnectionStatusBag | null;
 
     connectionTypeSource?: string | null;
 
@@ -70,5 +76,9 @@ export type ConnectionRequestDetailsBag = {
 
     placementGroup?: PlacementGroupDetailsBag | null;
 
+    reminderCount: number;
+
     requesterPerson?: RequesterPersonBag | null;
+
+    requesterPersonAliasGuid: Guid;
 };

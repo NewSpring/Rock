@@ -40,6 +40,8 @@ export type ConnectionRequestDetailOptionsBag = {
 
     connectionStatuses?: ConnectionStatusBag[] | null;
 
+    connectionTypeIdKey?: string | null;
+
     connectorItems?: ConnectorItemBag[] | null;
 
     isFutureFollowUpEnabled: boolean;

@@ -1060,6 +1060,7 @@ namespace Rock.Blocks.Engagement
         {
             var optionsBag = new ConnectionRequestDetailOptionsBag
             {
+                ConnectionTypeIdKey = connectionRequest.ConnectionOpportunity.ConnectionType.IdKey,
                 ConnectorItems = connectionRequest.ConnectionOpportunity.ConnectionOpportunityConnectorGroups
                     .SelectMany( cg => cg.ConnectorGroup.Members )
                     .Select( gm => gm.Person )
@@ -1215,7 +1216,16 @@ namespace Rock.Blocks.Engagement
             var detailsBag = new ConnectionRequestDetailsBag
             {
                 ConnectionRequestIdKey = connectionRequest.IdKey,
+                RequesterPersonAliasGuid = connectionRequest.PersonAlias.Guid,
                 ConnectionState = connectionRequest.ConnectionState,
+                ConnectionStatus = connectionRequest.ConnectionStatus != null ? new ConnectionStatusBag
+                {
+                    Guid = connectionRequest.ConnectionStatus.Guid,
+                    Name = connectionRequest.ConnectionStatus.Name,
+                    HighlightColor = connectionRequest.ConnectionStatus.HighlightColor,
+                    Order = connectionRequest.ConnectionStatus.Order,
+                    IsNoteRequiredOnCompletion = connectionRequest.ConnectionStatus.IsNoteRequiredOnCompletion
+                } : null,
                 FollowUpDate = connectionRequest.FollowupDate?.ToRockDateTimeOffset(),
                 ConnectionOpportunityName = connectionRequest.ConnectionOpportunity.Name,
                 ConnectionOpportunityIcon = connectionRequest.ConnectionOpportunity.IconCssClass,
@@ -1226,10 +1236,21 @@ namespace Rock.Blocks.Engagement
                 DueStatus = GetDueStatus( connectionRequest.DueDate, connectionRequest.DueSoonDate ),
                 Comments = connectionRequest.Comments,
                 ConnectionTypeSource = connectionRequest.ConnectionTypeSource?.Name,
+                CelebrationText = connectionRequest.CelebrationText,
                 ActionItems = new List<ListItemBag>(),
                 Attributes = connectionRequest.GetPublicAttributesForView( RequestContext.CurrentPerson ),
                 AttributeValues = connectionRequest.GetPublicAttributeValuesForView( RequestContext.CurrentPerson ),
             };
+
+            var reminderQry = new ReminderService( RockContext ).Queryable()
+                .Include( r => r.PersonAlias )
+                .AsNoTracking()
+                .Where( r => !r.IsComplete
+                    && r.ReminderDate < RockDateTime.Now
+                    && r.PersonAlias.PersonId == RequestContext.CurrentPerson.Id
+                    && r.EntityId == connectionRequest.PersonAliasId );
+
+            detailsBag.ReminderCount = reminderQry.Count();
 
             var areGroupPlacementsEnabled = connectionRequest.ConnectionOpportunity.ConnectionType.EnabledFeatures.HasFlag( EnabledFeatureFlags.GroupPlacement );
 
@@ -1399,6 +1420,13 @@ namespace Rock.Blocks.Engagement
                 Requester = r.RequesterNickName + " " + r.RequesterLastName
             } ).ToList();
 
+            detailsBag.ActivityEntries = GetActivityEntries( connectionRequest, mergeFields );
+
+            return detailsBag;
+        }
+
+        private List<ActivityEntryBag> GetActivityEntries( ConnectionRequest connectionRequest, Dictionary<string, object> mergeFields )
+        {
             // Filters out Connection Request Activities that do not have a created by person alias id or created date time. -- TODO - determine if we should do this. Currently inconsistent.
             var validActivities = connectionRequest.ConnectionRequestActivities.Where( a => a.CreatedByPersonAliasId.HasValue && a.ModifiedDateTime.HasValue ).ToList();
             //var validConnectionStatusHistories = connectionRequest.ConnectionRequestStatusHistories.OrderBy( h => h.EndDateTime ).ToList();
@@ -1706,9 +1734,7 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
                 }
             } ) );
 
-            detailsBag.ActivityEntries = new List<ActivityEntryBag>( entries.OrderByDescending( e => e.EntryDateTime ) );
-
-            return detailsBag;
+            return new List<ActivityEntryBag>( entries.OrderByDescending( e => e.EntryDateTime ) );
         }
 
         #endregion Methods
@@ -3230,6 +3256,30 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
             var updateBox = GetConnectionListUpdateBox( connectionRequest.Id, true );
 
             return ActionOk( updateBox );
+        }
+
+        [BlockAction]
+        public BlockActionResult GetActivityEntries( string connectionRequestIdKey )
+        {
+            var connectionRequestService = new ConnectionRequestService( RockContext );
+            var connectionRequest = connectionRequestService.GetInclude( connectionRequestIdKey, c => c.ConnectionRequestActivities.Select( a => a.ConnectionActivityType ), !PageCache.Layout.Site.DisablePredictableIds );
+            if ( connectionRequest == null )
+            {
+                return ActionBadRequest( $"{Rock.Model.ConnectionRequest.FriendlyTypeName} not found." );
+            }
+
+            if ( !connectionRequest.IsAuthorized( Authorization.VIEW, RequestContext.CurrentPerson ) )
+            {
+                return ActionBadRequest( "You are not authorized to view this Connection Request." );
+            }
+
+            var mergeFields = this.RequestContext.GetCommonMergeFields();
+            mergeFields.Add( "ConnectionRequest", connectionRequest );
+            mergeFields.Add( "Person", connectionRequest.PersonAlias.Person );
+
+            var activityEntries = GetActivityEntries( connectionRequest, mergeFields );
+
+            return ActionOk( activityEntries );
         }
 
         #endregion Detail View Block Actions

@@ -34,6 +34,7 @@
             </div>
             <div v-if="isConnectorVisible" class="d-flex align-items-center">
                 <i class="ti ti-user-circle pr-spacing-tiny"></i>
+                <span>{{ request.connector?.text }}</span>
 
                 <!-- <span v-if="!isNullOrWhiteSpace(request.connector?.idKey)">{{ getFormattedName(request.connector!) }}</span>
                 <span v-else>Unassigned</span> -->

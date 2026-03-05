@@ -35,9 +35,13 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
 
         public RequesterPersonBag RequesterPerson { get; set; }
 
+        public Guid RequesterPersonAliasGuid { get; set; }
+
         public List<AdditionalRequestBag> AdditionalRequests { get; set; }
 
         public ConnectionState ConnectionState { get; set; }
+
+        public ConnectionStatusBag ConnectionStatus { get; set; }
 
         public DateTimeOffset? FollowUpDate { get; set; }
 
@@ -63,6 +67,10 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
         public string Comments { get; set; }
 
         public string ConnectionTypeSource { get; set; }
+
+        public string CelebrationText { get; set; }
+
+        public int ReminderCount { get; set; }
 
         public PlacementGroupDetailsBag PlacementGroup { get; set; }
 

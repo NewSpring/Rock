@@ -38,7 +38,7 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
 
         public string ConnectionTypeSource { get; set; }
 
-        public PersonFieldBag Connector { get; set; }
+        public ListItemBag Connector { get; set; }
 
         public string DueDate { get; set; }
 

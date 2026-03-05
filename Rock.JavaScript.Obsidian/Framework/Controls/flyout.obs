@@ -1,6 +1,6 @@
 <!-- Copyright by the Spark Development Network; Licensed under the Rock Community License -->
 <template>
-    <teleport to="body" v-if="props.modelValue">
+    <teleport :to="teleportTarget" v-if="props.modelValue">
         <div ref="flyoutEl"
              class="flyout"
              :style="style">
@@ -83,6 +83,8 @@
     const style = ref<Record<string, string>>({});
 
     const hasHeader = computed(() => !!slots.header);
+    const fullscreenElement = ref<Element | null>(null);
+    const teleportTarget = computed(() => fullscreenElement.value ?? document.body);
 
     function updatePosition(): void {
         if (!props.anchorEl || !flyoutEl.value) {
@@ -120,9 +122,9 @@
         }
 
         style.value = {
-            position: "absolute",
-            top: `${top + window.scrollY}px`,
-            right: `${viewportWidth - anchorRect.right - window.scrollX}px`,
+            position: "fixed",
+            top: `${top}px`,
+            right: `${viewportWidth - anchorRect.right}px`,
             zIndex: "1000"
         };
     }
@@ -152,6 +154,10 @@
         close();
     }
 
+    function onFullscreenChange(): void {
+        fullscreenElement.value = document.fullscreenElement;
+    }
+
     /**
      * Event handler for when the form has been submitted.
      */
@@ -172,14 +178,16 @@
     onMounted(() => {
         updatePosition();
         document.addEventListener("click", onDocumentClick);
-        // window.addEventListener("scroll", updatePosition, true);
+        window.addEventListener("scroll", updatePosition, true);
         window.addEventListener("resize", updatePosition);
+        document.addEventListener("fullscreenchange", onFullscreenChange);
     });
 
     onBeforeUnmount(() => {
         document.removeEventListener("click", onDocumentClick);
-        // window.removeEventListener("scroll", updatePosition, true);
+        window.removeEventListener("scroll", updatePosition, true);
         window.removeEventListener("resize", updatePosition);
+        document.removeEventListener("fullscreenchange", onFullscreenChange);
     });
 
 </script>

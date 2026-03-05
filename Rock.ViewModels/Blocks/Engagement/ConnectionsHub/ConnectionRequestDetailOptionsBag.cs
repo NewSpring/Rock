@@ -31,6 +31,8 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
     /// </summary>
     public class ConnectionRequestDetailOptionsBag
     {
+        public string ConnectionTypeIdKey { get; set; }
+
         public List<ConnectorItemBag> ConnectorItems { get; set; }
 
         public List<ConnectionStatusBag> ConnectionStatuses { get; set; }
