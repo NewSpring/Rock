@@ -520,23 +520,26 @@ namespace Rock.Model
                 }
                 by cr.ConnectionTypeId
                 into g
+                let connectedCount = g.Count( x => x.cr.ConnectionState == ConnectionState.Connected ) 
                 select new ConnectionRequestCompletionMetricsSummary
                 {
                     ConnectionTypeId = g.Key,
 
-                    RequestsCompletedCount = g
-                        .Count( x => x.cr.ConnectionState == ConnectionState.Connected ),
+                    RequestsCompletedCount = connectedCount,
 
-                    TimelinessPercent = g
-                        .Count( x =>
-                            x.cr.ConnectionState == ConnectionState.Connected
-                            && x.cr.ConnectedDateTime.HasValue
-                            && (
-                                !x.cr.DueDate.HasValue
-                                || x.cr.ConnectedDateTime.Value <= x.cr.DueDate.Value
+                    TimelinessPercent = connectedCount == 0
+                        ? 0
+                        : (
+                            g.Count( x =>
+                                x.cr.ConnectionState == ConnectionState.Connected
+                                && x.cr.ConnectedDateTime.HasValue
+                                && (
+                                    !x.cr.DueDate.HasValue
+                                    || x.cr.ConnectedDateTime.Value <= x.cr.DueDate.Value
+                                )
                             )
-                        )
-                        / g.Count( x => x.cr.ConnectionState == ConnectionState.Connected ),
+                            / connectedCount
+                        ),
 
                     AverageResponsivenessDays = g
                         .Where( x =>
