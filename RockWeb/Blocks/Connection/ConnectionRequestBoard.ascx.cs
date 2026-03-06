@@ -1711,12 +1711,45 @@ ORDER BY ct.[Name], cs.[Name]",
                 connectionRequest.ConnectionState = ConnectionState.Active;
             }
 
-            if ( connectionRequest.ConnectionStatusId != rblRequestModalAddEditModeStatus.SelectedValueAsInt().Value )
+            var connectionStatusId = rblRequestModalAddEditModeStatus.SelectedValueAsInt() ?? 0;
+            var isSequentialAddMode = isAddMode && IsSequentialStatusEnforced;
+            if ( isSequentialAddMode || connectionStatusId == 0 )
             {
-                MaintainRequestOrder( connectionRequest, connectionRequestService, connectionRequest.Order, connectionRequest.ConnectionStatusId, rblRequestModalAddEditModeStatus.SelectedValueAsInt().Value, rockContext );
+                var allStatuses = GetConnectionType()
+                    .ConnectionStatuses
+                    .OrderBy( cs => cs.Order )
+                    .ThenByDescending( cs => cs.IsDefault )
+                    .ThenBy( cs => cs.Name );
+
+                if ( isSequentialAddMode )
+                {
+                    // If sequential, default is the first active status (ignoring [IsDefault] flag).
+                    connectionStatusId = allStatuses
+                        .FirstOrDefault( s => s.IsActive )
+                        ?.Id ?? 0;
+                }
+                else
+                {
+                    // If not sequential, default is the first active [IsDefault] status.
+                    connectionStatusId = allStatuses
+                        .FirstOrDefault( s => s.IsActive && s.IsDefault )
+                        ?.Id ?? 0;
+                }
+
+                if ( connectionStatusId == 0 )
+                {
+                    cvRequestModalCustomValidator.IsValid = false;
+                    cvRequestModalCustomValidator.ErrorMessage = "Unable to determine Connection Status.";
+                    return;
+                }
             }
 
-            connectionRequest.ConnectionStatusId = rblRequestModalAddEditModeStatus.SelectedValueAsInt().Value;
+            if ( connectionRequest.ConnectionStatusId != connectionStatusId )
+            {
+                MaintainRequestOrder( connectionRequest, connectionRequestService, connectionRequest.Order, connectionRequest.ConnectionStatusId, connectionStatusId, rockContext );
+            }
+
+            connectionRequest.ConnectionStatusId = connectionStatusId;
             connectionRequest.Comments = tbRequestModalAddEditModeComments.Text.SanitizeHtml();
 
             // If this request is a Future FollowUp state, use the selected date from the date picker, otherwise it should be null.
