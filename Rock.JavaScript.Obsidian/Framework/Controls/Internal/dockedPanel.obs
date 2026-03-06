@@ -141,6 +141,7 @@
 <script setup lang="ts">
     import { onBeforeUnmount, PropType, ref, watch } from "vue";
     import { useVModelPassthrough } from "@Obsidian/Utility/component";
+    import { isElement, isHTMLElement } from "@Obsidian/Utility/dom";
 
     const props = defineProps({
         /**
@@ -230,8 +231,12 @@
         document.removeEventListener("pointerup", onResizeEnd);
     }
 
-    function onDocumentMouseDown(e: MouseEvent): void {
-        if (e.target instanceof HTMLElement && props.closeOnOutsideClick && internalValue.value && dockedPanelRef.value && !dockedPanelRef.value.contains(e.target)) {
+    function onDocumentPointerDown(e: PointerEvent): void {
+        if (isHTMLElement(e.target)
+            && props.closeOnOutsideClick
+            && internalValue.value
+            && dockedPanelRef.value
+            && !dockedPanelRef.value.contains(e.target)) {
             internalValue.value = false;
         }
     }
@@ -249,17 +254,17 @@
         // Ensure the docked panel is rendered before opening
         if (open) {
             isRendered.value = true;
-            document.addEventListener("mousedown", onDocumentMouseDown);
+            document.addEventListener("pointerdown", onDocumentPointerDown);
         }
         else {
-            document.removeEventListener("mousedown", onDocumentMouseDown);
+            document.removeEventListener("pointerdown", onDocumentPointerDown);
         }
     }, { immediate: true });
 
     onBeforeUnmount(() => {
         document.removeEventListener("pointermove", onResizeMove);
         document.removeEventListener("pointerup", onResizeEnd);
-        document.removeEventListener("mousedown", onDocumentMouseDown);
+        document.removeEventListener("pointerdown", onDocumentPointerDown);
     });
 
     // #endregion Lifecycle
