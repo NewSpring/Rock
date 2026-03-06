@@ -20,11 +20,13 @@ using System.Collections.Generic;
 namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
 {
     /// <summary>
-    /// 
+    ///
     /// </summary>
-    public class AddActivityBag
+    public class ActivityBag
     {
         public List<string> ConnectionRequestIdKeys { get; set; }
+
+        //public string ConnectionTypeIdKey { get; set; }
 
         public string ActivityTypeGuid { get; set; }
 

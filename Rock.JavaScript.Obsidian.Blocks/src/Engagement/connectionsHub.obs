@@ -493,14 +493,14 @@
                         :requestDetails="requestDetailsForModal"
                         :viewOptions="viewOptions"
                         @deleteRequests="deleteRequestsFromModal" />
-    <AddActivityModal v-model:visible="isAddActivityModalVisible"
-                      :connectorItems="allPossibleConnectors"
-                      :requestDetails="requestDetailsForModal"
-                      :connectionActivities="box.options?.connectionActivities ?? []"
-                      :viewOptions="viewOptions"
-                      :currentPerson="currentPerson"
-                      :activityToEdit="activityToEdit"
-                      @addActivity="addActivity" />
+    <ActivityModal v-model:visible="isActivityModalVisible"
+                   :connectorItems="allPossibleConnectors"
+                   :requestDetails="requestDetailsForModal"
+                   :connectionActivities="box.options?.connectionActivities ?? []"
+                   :viewOptions="viewOptions"
+                   :currentPerson="currentPerson"
+                   :activityToEdit="activityToEdit"
+                   @upsertActivity="upsertActivity" />
     <ChangeStatusModal v-model:visible="isChangeStatusModalVisible"
                        :connectionStatuses="box.options?.connectionStatuses ?? []"
                        :isSequentialMode="box.options?.isSequentialStatusMode ?? false"
@@ -546,7 +546,7 @@
                                   @onSMSClick="showSMSModal(true)"
                                   @onEmailClick="showEmailModal(true)"
                                   @onReassignConnector="(connector) => reassignConnector([dockedPanelDetailsBox?.entity?.connectionRequestIdKey ?? ''], connector, true)"
-                                  @onRequestStateChanged="updateRequestStateFromDockedPanel"
+                                  @onRequestStateChanged="updateRequestStates"
                                   @onStatusButtonClick="onStatusClickFromDockedPanel" />
 
     <TransferConnectionRequestModal v-model="isTransferModalVisible"
@@ -721,7 +721,7 @@
     import AssignRequestModal from "./ConnectionsHub/assignRequestModal.partial.obs";
     import { BulkRequestViewBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/bulkRequestViewBag";
     import DeleteRequestModal from "./ConnectionsHub/deleteRequestModal.partial.obs";
-    import AddActivityModal from "./ConnectionsHub/addActivityModal.partial.obs";
+    import ActivityModal from "./ConnectionsHub/activityModal.partial.obs";
     import ChangeStatusModal from "./ConnectionsHub/changeStatusModal.partial.obs";
     import LaunchWorkflowModal from "./ConnectionsHub/launchWorkflowModal.partial.obs";
     import ButtonDropdownList from "@Obsidian/Controls/buttonDropDownList.obs";
@@ -738,7 +738,7 @@
     import { AssignFromCampaignBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/assignFromCampaignBag";
     import ChangeStateModal from "./ConnectionsHub/changeStateModal.partial.obs";
     import { UpdateConnectionRequestStatesBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/updateConnectionRequestStatesBag";
-    import { AddActivityBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/addActivityBag";
+    import { ActivityBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/activityBag";
     import { ActivityEntryBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/activityEntryBag";
     import { LaunchWorkflowBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/launchWorkflowBag";
     import { LaunchWorkflowResultBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/launchWorkflowResultBag";
@@ -845,7 +845,7 @@
     const isCelebrationModalVisible = ref(false);
     const isAssignRequestModalVisible = ref(false);
     const isDeleteRequestModalVisible = ref(false);
-    const isAddActivityModalVisible = ref(false);
+    const isActivityModalVisible = ref(false);
     const isChangeStatusModalVisible = ref(false);
     const isLaunchWorkflowModalVisible = ref(false);
     const isChangeStateModalVisible = ref(false);
@@ -1510,7 +1510,7 @@
 
     function showAddActivityModal(): void {
         prepareRequestDetailsForModal();
-        isAddActivityModalVisible.value = true;
+        isActivityModalVisible.value = true;
     }
 
     function showChangeStatusModal(): void {
@@ -1599,15 +1599,6 @@
 
         if (result) {
             isFlyoutOpen.value = false;
-        }
-    }
-
-    async function updateRequestStateFromDockedPanel(bag: UpdateConnectionRequestStatesBag): Promise<void> {
-        const result = await updateRequestStates(bag);
-
-        if (result && dockedPanelDetailsBox.value?.entity) {
-            dockedPanelDetailsBox.value.entity.connectionState = bag.connectionState;
-            refreshActivityEntries(dockedPanelDetailsBox.value.entity.connectionRequestIdKey);
         }
     }
 
@@ -1843,6 +1834,14 @@
                 row.dueDate = result.data.dueDate;
                 row.dueSoonDate = result.data.dueSoonDate;
             }
+
+            if (!!dockedPanelDetailsBox.value?.entity && dockedPanelDetailsBox.value.entity.connectionRequestIdKey === bag.connectionRequestIdKey) {
+                dockedPanelDetailsBox.value.entity.connectionStatus = result.data.connectionStatusBag;
+                dockedPanelDetailsBox.value.entity.dueStatus = result.data.dueStatus;
+                dockedPanelDetailsBox.value.entity.dueDate = result.data.dueDate;
+                refreshActivityEntries(dockedPanelDetailsBox.value.entity.connectionRequestIdKey);
+            }
+
             isFlyoutOpen.value = false;
         }
         // display error
@@ -1863,6 +1862,14 @@
                     row.stateGrouping = resultBag.stateGrouping;
                     row.connectionState = resultBag.connectionState;
                     row.followUpDate = resultBag.followUpDate;
+                }
+
+                // TODO - Determine if we need to make this work for bulk updates. The only case that this would matter is if the selected request
+                // was included in the bulk update and then after the bulk update concludes, the user attempts to select the request again.
+                if (!!dockedPanelDetailsBox.value?.entity && dockedPanelDetailsBox.value.entity.connectionRequestIdKey === resultBag.idKey) {
+                    dockedPanelDetailsBox.value.entity.connectionState = resultBag.connectionState;
+                    dockedPanelDetailsBox.value.entity.followUpDate = resultBag.followUpDate;
+                    refreshActivityEntries(dockedPanelDetailsBox.value.entity.connectionRequestIdKey);
                 }
             }
             else {
@@ -1929,14 +1936,14 @@
     }
 
     function onEditActivity(entry: ActivityEntryBag): void {
-        const row = gridData.value?.rows?.find(r => r.idKey === selectedRequestKey.value) ?? null;
-        prepareRequestDetailsForModal(row);
+        prepareRequestDetailsForModal(null, dockedPanelDetailsBox.value);
         activityToEdit.value = entry;
-        isAddActivityModalVisible.value = true;
+        isActivityModalVisible.value = true;
     }
 
-    // TODO - needs polish to better combine add and update.
-    async function addActivity(bag: AddActivityBag): Promise<void> {
+    async function upsertActivity(bag: ActivityBag): Promise<void> {
+        console.log("here: ", bag);
+        // If we have an activity Id Key then we are in update mode.
         if (bag.activityIdKey) {
             await updateActivity(bag);
             return;
@@ -1974,7 +1981,7 @@
                 }
             }
 
-            isAddActivityModalVisible.value = false;
+            isActivityModalVisible.value = false;
             activityToEdit.value = null;
             return;
         }
@@ -1982,21 +1989,21 @@
         console.error(result.errorMessage);
     }
 
-    async function updateActivity(bag: AddActivityBag): Promise<void> {
+    async function updateActivity(bag: ActivityBag): Promise<void> {
         const result = await invokeBlockAction<ActivityEntryBag>("UpdateActivity", {
             bag
         });
 
         if (result.isSuccess && result.data) {
+            console.log("result: ", result.data);
             if (dockedPanelDetailsBox.value?.entity?.activityEntries) {
-                const updatedEntries = [...dockedPanelDetailsBox.value.entity.activityEntries];
-                const index = updatedEntries.findIndex(a => a.key === result.data?.key);
+                const index = dockedPanelDetailsBox.value.entity.activityEntries.findIndex(a => a.key === result.data?.key);
+
                 if (index !== -1) {
-                    updatedEntries[index] = result.data;
+                    dockedPanelDetailsBox.value.entity.activityEntries[index] = result.data;
                 }
-                dockedPanelDetailsBox.value.entity = { ...dockedPanelDetailsBox.value.entity, activityEntries: updatedEntries };
             }
-            isAddActivityModalVisible.value = false;
+            isActivityModalVisible.value = false;
             activityToEdit.value = null;
             return;
         }
@@ -2216,7 +2223,7 @@
 
     // When any modal is open, disable close-on-outside-click for the docked panel so that
     // clicking inside a modal doesn't accidentally close the panel behind it.
-    watch([isTransferModalVisible, isCelebrationModalVisible, isAddActivityModalVisible, isReminderModalVisible, isSendSMSModalVisible, isSendEmailModalVisible], (values) => {
+    watch([isTransferModalVisible, isCelebrationModalVisible, isActivityModalVisible, isReminderModalVisible, isSendSMSModalVisible, isSendEmailModalVisible, isFlyoutOpen], (values) => {
         handleClickOutsideSettingForDockedPanel(!values.some(Boolean));
     });
 
@@ -2290,7 +2297,7 @@
         }
     });
 
-    watch(isAddActivityModalVisible, (isVisible) => {
+    watch(isActivityModalVisible, (isVisible) => {
         if (!isVisible) {
             activityToEdit.value = null;
         }

@@ -1,7 +1,7 @@
 <!-- Copyright by the Spark Development Network; Licensed under the Rock Community License -->
 <template>
     <div class="px-spacing-md pb-spacing-lg d-flex flex-column gap-md">
-        <div class="border border-info-soft rounded p-spacing-sm bg-interface-softer d-flex flex-column gap-xs">
+        <div v-if="options?.isAISummaryVisible" class="border border-info-soft rounded p-spacing-sm bg-interface-softer d-flex flex-column gap-xs">
             <div class="d-flex gap-xs align-items-center text-info">
                 <i class="ti ti-sparkles font-size-h4"></i>
                 <div class="text-semibold text-small">AI Summary</div>

@@ -544,7 +544,9 @@
             options.value = props.detailsBox.options;
             isLoading.value = false;
 
-            fetchAiSummary();
+            if (props.detailsBox.options.isAISummaryVisible) {
+                fetchAiSummary();
+            }
         }
     });
 

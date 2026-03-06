@@ -21,7 +21,7 @@
 // </copyright>
 //
 
-export type AddActivityBag = {
+export type ActivityBag = {
     /** If set, the activity with this ID key will be updated instead of creating a new one. */
     activityIdKey?: string | null;
 

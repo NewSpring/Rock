@@ -756,7 +756,8 @@ namespace Rock.Blocks.Engagement
                 error = ActionBadRequest( $"{ConnectionRequest.FriendlyTypeName} not found." );
             }
 
-            var connectionRequestsQry = new ConnectionRequestService( RockContext ).GetByIds( connectionRequestIds );
+            var connectionRequestsQry = new ConnectionRequestService( RockContext ).GetByIds( connectionRequestIds )
+                .Where(c => c.ConnectionTypeId == connectionType.Id); // Confirm that all requests match the Connection Type that we are checking security for.
 
             if ( queryModifier != null )
             {
@@ -868,9 +869,16 @@ namespace Rock.Blocks.Engagement
             }
         }
 
-        private ConnectionTypeCache GetConnectionTypeCacheFromPageParameters()
+        private ConnectionTypeCache GetConnectionTypeCacheFromPageParameters( string connectionTypeIdKey = null )
         {
             ConnectionTypeCache connectionType;
+
+            // TODO - I may not need this. I will need it if a docked panel block action uses this method.
+            if ( connectionTypeIdKey.IsNotNullOrWhiteSpace() )
+            {
+                connectionType = ConnectionTypeCache.Get( connectionTypeIdKey, !PageCache.Layout.Site.DisablePredictableIds );
+                return connectionType;
+            }
 
             var connectionOpportunity = new ConnectionOpportunityService( RockContext ).Get( PageParameter( PageParameterKey.ConnectionOpportunity ), !PageCache.Layout.Site.DisablePredictableIds );
 
@@ -1454,6 +1462,8 @@ namespace Rock.Blocks.Engagement
                     Content = a.Note,
                     PhotoUrl = a.CreatedByPersonAlias?.Person?.PhotoUrl,
                     ActivityTypeGuid = a.ConnectionActivityType?.Guid.ToString(),
+                    ActivityTypeName = a.ConnectionActivityType?.Name,
+                    IsSystemActivityType = a.ConnectionActivityType != null && a.ConnectionActivityType.ConnectionTypeId == null,
                     ConnectorPersonAliasGuid = a.ConnectorPersonAlias?.Guid.ToString()
                 }
             } ) );
@@ -2550,7 +2560,7 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
         }
 
         [BlockAction]
-        public BlockActionResult AddActivityForRequests( AddActivityBag bag )
+        public BlockActionResult AddActivityForRequests( ActivityBag bag )
         {
             ConnectionTypeCache connectionType = GetConnectionTypeCacheFromPageParameters();
             if ( connectionType == null )
@@ -2619,6 +2629,65 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
 
             RockContext.SaveChanges();
             return ActionOk( gridUpdateBags );
+        }
+
+        [BlockAction]
+        public BlockActionResult UpdateActivity( ActivityBag bag )
+        {
+            var activityService = new ConnectionRequestActivityService( RockContext );
+
+            var activity = activityService.Get( bag.ActivityIdKey, !PageCache.Layout.Site.DisablePredictableIds );
+            if ( activity == null )
+            {
+                return ActionBadRequest( $"{ConnectionRequestActivity.FriendlyTypeName} not found." );
+            }
+
+            if ( !activity.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson ) )
+            {
+                return ActionBadRequest( "You are not authorized to edit this Activity." );
+            }
+
+            var activityType = new ConnectionActivityTypeService( RockContext ).Get( bag.ActivityTypeGuid.AsGuid() );
+            if ( activityType == null )
+            {
+                return ActionBadRequest( "Invalid Activity Type." );
+            }
+
+            var connectorPersonAlias = bag.ConnectorPersonAliasGuid.IsNullOrWhiteSpace()
+                ? null
+                : new PersonAliasService( RockContext ).GetInclude( bag.ConnectorPersonAliasGuid.AsGuid(), c => c.Person );
+
+            activity.Note = bag.Note;
+            activity.ConnectorPersonAliasId = connectorPersonAlias?.Id;
+
+            // The activity type can only be updated if it is not a "system activity type"
+            if ( activity.ConnectionActivityType != null && activity.ConnectionActivityType.ConnectionTypeId.HasValue )
+            {
+                activity.ConnectionActivityTypeId = activityType.Id;
+            }
+
+            RockContext.SaveChanges();
+
+            var updatedEntry = new ActivityEntryBag
+            {
+                Key = $"{ActivityEntryType.Activity}_{bag.ActivityIdKey}",
+                EntryType = ActivityEntryType.Activity,
+                EntryDateTime = activity.ModifiedDateTime?.ToRockDateTimeOffset(),
+                CreatedBy = activity.CreatedByPersonAlias?.Person?.FullName,
+                CardEntry = new CardEntryBag
+                {
+                    Title = string.Format( "Activity: {0}", activityType.Name ),
+                    Content = bag.Note,
+                    PhotoUrl = activity.CreatedByPersonAlias?.Person?.PhotoUrl,
+
+                    ActivityTypeGuid = activityType.Guid.ToString(),
+                    ActivityTypeName = activityType.Name,
+                    IsSystemActivityType = activityType.ConnectionTypeId == null,
+                    ConnectorPersonAliasGuid = connectorPersonAlias?.Guid.ToString()
+                }
+            };
+
+            return ActionOk( updatedEntry );
         }
 
         [BlockAction]
@@ -3048,59 +3117,6 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
             var key = $"{ActivityEntryType.RequestNote}_{noteIdKey}";
 
             return ActionOk( key );
-        }
-
-        // At the moment, the activity modal lives on the "List View". The docked panel emits an edit or delete activity event to the parent to render the modal. This pattern may need to change to accomodate the "Board View"
-
-        [BlockAction]
-        public BlockActionResult UpdateActivity( AddActivityBag bag )
-        {
-            var activityService = new ConnectionRequestActivityService( RockContext );
-
-            var activity = activityService.Get( bag.ActivityIdKey, !PageCache.Layout.Site.DisablePredictableIds );
-            if ( activity == null )
-            {
-                return ActionBadRequest( $"{ConnectionRequestActivity.FriendlyTypeName} not found." );
-            }
-
-            if ( !activity.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson ) )
-            {
-                return ActionBadRequest( "You are not authorized to edit this Activity." );
-            }
-
-            var activityType = new ConnectionActivityTypeService( RockContext ).Get( bag.ActivityTypeGuid.AsGuid() );
-            if ( activityType == null )
-            {
-                return ActionBadRequest( "Invalid Activity Type." );
-            }
-
-            var connectorPersonAlias = bag.ConnectorPersonAliasGuid.IsNullOrWhiteSpace()
-                ? null
-                : new PersonAliasService( RockContext ).GetInclude( bag.ConnectorPersonAliasGuid.AsGuid(), c => c.Person );
-
-            activity.Note = bag.Note;
-            activity.ConnectionActivityTypeId = activityType.Id;
-            activity.ConnectorPersonAliasId = connectorPersonAlias?.Id;
-
-            RockContext.SaveChanges();
-
-            var updatedEntry = new ActivityEntryBag
-            {
-                Key = $"{ActivityEntryType.Activity}_{bag.ActivityIdKey}",
-                EntryType = ActivityEntryType.Activity,
-                EntryDateTime = activity.ModifiedDateTime?.ToRockDateTimeOffset(),
-                CreatedBy = activity.CreatedByPersonAlias?.Person?.FullName,
-                CardEntry = new CardEntryBag
-                {
-                    Title = string.Format( "Activity: {0}", activityType.Name ),
-                    Content = bag.Note,
-                    PhotoUrl = activity.CreatedByPersonAlias?.Person?.PhotoUrl,
-                    ActivityTypeGuid = activityType.Guid.ToString(),
-                    ConnectorPersonAliasGuid = connectorPersonAlias?.Guid.ToString()
-                }
-            };
-
-            return ActionOk( updatedEntry );
         }
 
         [BlockAction]

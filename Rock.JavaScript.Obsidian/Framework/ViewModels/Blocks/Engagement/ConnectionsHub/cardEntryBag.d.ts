@@ -27,12 +27,18 @@ export type CardEntryBag = {
     /** The GUID of the activity type. Populated for Activity entries to support editing. */
     activityTypeGuid?: string | null;
 
+    /** The Name of the activity type. Populated for Activity entries to support editing. */
+    activityTypeName?: string | null;
+
     attachments?: ListItemBag[] | null;
 
     /** The GUID of the connector's person alias. Populated for Activity entries to support editing. */
     connectorPersonAliasGuid?: string | null;
 
     content?: string | null;
+
+    /** Gets or sets whether or not the activity type for this entry is a system activity type. Populated for Activity entries to support editing. */
+    isSystemActivityType?: boolean | null;
 
     photoUrl?: string | null;
 

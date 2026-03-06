@@ -6,11 +6,20 @@
            @save="onSave">
         <div class="row">
             <div class="col-md-4">
-                <DropDownList v-model="activityType"
+                <DropDownList v-if="!activityToEdit?.cardEntry?.isSystemActivityType"
+                              v-model="activityType"
                               :items="activityTypeItems"
                               label="Activity Type"
                               :showBlankItem="false"
                               rules="required" />
+                <div v-else class="form-group">
+                    <label class="control-label">
+                        Activity Type
+                    </label>
+                    <div class="control-wrapper">
+                        {{ activityToEdit.cardEntry.activityTypeName }}
+                    </div>
+                </div>
             </div>
         </div>
         <div class="row">
@@ -55,8 +64,9 @@
     import { ConnectionActivityBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionActivityBag";
     import { PersonNoteCreationBehavior } from "@Obsidian/Enums/Connection/personNoteCreationBehavior";
     import { CurrentPersonBag } from "@Obsidian/ViewModels/Crm/currentPersonBag";
-    import { AddActivityBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/addActivityBag";
+    import { ActivityBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/activityBag";
     import { ActivityEntryBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/activityEntryBag";
+    import { isNullOrWhiteSpace } from "@Obsidian/Utility/stringUtils";
 
     const props = defineProps({
         visible: {
@@ -96,7 +106,7 @@
 
     const emit = defineEmits<{
         (e: "update:visible", value: boolean): void;
-        (e: "addActivity", value: AddActivityBag): void;
+        (e: "upsertActivity", value: ActivityBag): void;
         (e: "close"): void;
     }>();
 
@@ -113,8 +123,10 @@
 
     const activityTypeItems = computed(() => props.connectionActivities.map(a => a.activityType).filter((x): x is ListItemBag => !!x));
 
+    const isInEditMode = computed(() => !isNullOrWhiteSpace(props.activityToEdit?.key));
+
     const isPersonNoteCheckboxVisible = computed(() => {
-        if (props.activityToEdit) {
+        if (isInEditMode.value) {
             return false;
         }
 
@@ -124,10 +136,9 @@
     });
 
     function onSave(): void {
-        // TODO - this should be done before we get to this partial file. Consider passing in the activity bag and potentially renaming the bag to work with a more universal purpose.
         const activityIdKey = props.activityToEdit?.key?.split("_")[1] || undefined;
 
-        const bag: AddActivityBag = {
+        const bag: ActivityBag = {
             connectionRequestIdKeys: props.requestDetails.map(r => r.idKey ?? ""),
             activityTypeGuid: activityType.value,
             connectorPersonAliasGuid: connector.value,
@@ -136,7 +147,7 @@
             activityIdKey
         };
 
-        emit("addActivity", bag);
+        emit("upsertActivity", bag);
     }
 
     watch(isVisible, () => {

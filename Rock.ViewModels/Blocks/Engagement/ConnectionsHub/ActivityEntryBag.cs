@@ -60,6 +60,16 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
         public string ActivityTypeGuid { get; set; }
 
         /// <summary>
+        /// The Name of the activity type. Populated for Activity entries to support editing.
+        /// </summary>
+        public string ActivityTypeName { get; set; }
+
+        /// <summary>
+        /// Gets or sets whether or not the activity type for this entry is a system activity type. Populated for Activity entries to support editing.
+        /// </summary>
+        public bool? IsSystemActivityType { get; set; }
+
+        /// <summary>
         /// The GUID of the connector's person alias. Populated for Activity entries to support editing.
         /// </summary>
         public string ConnectorPersonAliasGuid { get; set; }
