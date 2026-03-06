@@ -283,20 +283,10 @@
                     <template #format="{ row }">
                         <div class="w-100">
                             <template v-if="row.connectionState === ConnectionState.Active">
-                                <div v-if="box.options?.isSequentialStatusMode"
-                                     @click.stop="(e) => onStatusClick(row.idKey, row.connectionStatus, row.connectionState, e)"
-                                     class="cursor-pointer py-spacing-tiny px-spacing-xs rounded-huge text-semibold text-interface-softest d-flex align-items-center"
-                                     :style="`background-color: ${row.connectionStatus.highlightColor}`">
-                                    <i class="ti ti-circle-check"></i>
-                                    <span class="w-100 text-center">{{ row.connectionStatus.name }}</span>
-                                </div>
-                                <div v-else
-                                     @click.stop="(e) => onStatusClick(row.idKey, row.connectionStatus, row.connectionState, e)"
-                                     class="cursor-pointer py-spacing-tiny px-spacing-xs rounded-huge text-semibold text-interface-softest d-flex align-items-center"
-                                     :style="`background-color: ${row.connectionStatus.highlightColor}`">
-                                    <span class="w-100 text-center">{{ row.connectionStatus.name }}</span>
-                                    <i class="ti ti-caret-down-filled text-right"></i>
-                                </div>
+                                <ConnectionStatusButton :isSequentialStatusMode="box.options?.isSequentialStatusMode"
+                                                        :highlightColor="row.connectionStatus.highlightColor"
+                                                        :currentStatusName="row.connectionStatus.name"
+                                                        @click.stop="(e) => onStatusClick(row.idKey, row.connectionStatus, row.connectionState, e)" />
                             </template>
                             <div v-else-if="row.connectionState === ConnectionState.Inactive"
                                  class="text-center text-semibold text-slate">
@@ -556,7 +546,8 @@
                                   @onSMSClick="showSMSModal(true)"
                                   @onEmailClick="showEmailModal(true)"
                                   @onReassignConnector="(connector) => reassignConnector([dockedPanelDetailsBox?.entity?.connectionRequestIdKey ?? ''], connector, true)"
-                                  @onRequestStateChanged="updateRequestStateFromDockedPanel" />
+                                  @onRequestStateChanged="updateRequestStateFromDockedPanel"
+                                  @onStatusButtonClick="onStatusClickFromDockedPanel" />
 
     <TransferConnectionRequestModal v-model="isTransferModalVisible"
                                     :transferDetails="transferRequestDetails"
@@ -768,6 +759,7 @@
     import { TransferConnectionRequestBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/transferConnectionRequestBag";
     import TransferConnectionRequestModal from "./ConnectionsHub/transferConnectionRequestModal.partial.obs";
     import { TransferConnectionRequestDetailsBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/transferConnectionRequestDetailsBag";
+    import ConnectionStatusButton from "./ConnectionsHub/connectionStatusButton.partial.obs";
 
     /* =====================================================
      * Configuration & Data Loading
@@ -1653,6 +1645,23 @@
             connectionState: state
         };
         isNoteRequired.value = status.isNoteRequiredOnCompletion;
+        anchorEl.value = event.currentTarget as HTMLElement;
+        isFlyoutOpen.value = true;
+    }
+
+    function onStatusClickFromDockedPanel(event: MouseEvent): void {
+        if (isFlyoutOpen.value) {
+            isFlyoutOpen.value = false;
+            return;
+        }
+
+        connectionRequestUpdateBag.value = {
+            connectionRequestIdKey: dockedPanelDetailsBox.value?.entity?.connectionRequestIdKey,
+            connectionStatusGuid: dockedPanelDetailsBox.value?.entity?.connectionStatus?.guid,
+            connectionState: dockedPanelDetailsBox.value?.entity?.connectionState
+        };
+
+        isNoteRequired.value = dockedPanelDetailsBox.value?.entity?.connectionStatus?.isNoteRequiredOnCompletion ?? false;
         anchorEl.value = event.currentTarget as HTMLElement;
         isFlyoutOpen.value = true;
     }

@@ -24,8 +24,12 @@ using Rock.Enums.Connection;
 using Rock.Tasks;
 using Rock.Web.UI.Controls;
 using System.Data.SqlClient;
+using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using AngleSharp.Dom;
+using Rock.AI.Classes.ChatCompletions;
+using Microsoft.Ajax.Utilities;
 
 namespace Rock.Blocks.Engagement
 {
@@ -1095,6 +1099,9 @@ namespace Rock.Blocks.Engagement
             var delimitedBadgeGuids = GetAttributeValue( AttributeKey.Badges );
             optionsBag.BadgeGuids = delimitedBadgeGuids.SplitDelimitedValues().AsGuidList();
 
+            optionsBag.IsAISummaryVisible = new AIProviderService( RockContext ).GetActiveProvider() != null
+                && ( connectionRequest.ConnectionOpportunity.ConnectionType.GetConnectionTypeAdditionalSettings()?.AIInsightsPrompt.IsNotNullOrWhiteSpace() == true );
+
             if ( !optionsBag.IsFutureFollowUpEnabled )
             {
                 optionsBag.ConnectionStates.RemoveAll( s => s.Value == ( ( int ) ConnectionState.FutureFollowUp ).ToString() );
@@ -1420,6 +1427,8 @@ namespace Rock.Blocks.Engagement
                 Requester = r.RequesterNickName + " " + r.RequesterLastName
             } ).ToList();
 
+            detailsBag.PersonNotes = GetPersonNotesForPerson( connectionRequest.PersonAlias.PersonId );
+
             detailsBag.ActivityEntries = GetActivityEntries( connectionRequest, mergeFields );
 
             return detailsBag;
@@ -1714,11 +1723,13 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
             var connectionRequestNoteTypeId = NoteTypeCache.Get( Rock.SystemGuid.NoteType.CONNECTION_REQUEST_NOTE.AsGuid() ).Id;
             var noteService = new NoteService( RockContext );
 
-            var connectionRequestNotes = noteService.Queryable()
-                .Where( n => n.NoteTypeId == connectionRequestNoteTypeId && n.EntityId == connectionRequest.Id )
-                .ToList()
+            var connectionRequestNoteQry = noteService.Queryable()
+                .Where( n => n.NoteTypeId == connectionRequestNoteTypeId && n.EntityId == connectionRequest.Id );
+
+            connectionRequestNoteQry = connectionRequestNoteQry.AreViewableBy( RequestContext.CurrentPerson.Id );
+
+            var connectionRequestNotes = connectionRequestNoteQry.ToList()
                 .Where( n => n.IsAuthorized( Authorization.VIEW, RequestContext.CurrentPerson ) );
-            // TODO - Do I need to check view security for each note? ^^^
 
             entries.AddRange( connectionRequestNotes.Select( n => new ActivityEntryBag
             {
@@ -1735,6 +1746,106 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
             } ) );
 
             return new List<ActivityEntryBag>( entries.OrderByDescending( e => e.EntryDateTime ) );
+        }
+
+        private List<PersonNoteBag> GetPersonNotesForPerson( int personId )
+        {
+            var personEntityTypeId = EntityTypeCache.Get( SystemGuid.EntityType.PERSON ).Id;
+
+            var noteQry = new NoteService( RockContext ).Queryable()
+                .AsNoTracking()
+                .Include( n => n.NoteType )
+                .Include( n => n.CreatedByPersonAlias.Person)
+                .Where( n => n.NoteType.EntityTypeId == personEntityTypeId && n.EntityId == personId);
+
+            noteQry = noteQry.AreViewableBy( RequestContext.CurrentPerson.Id );
+
+            var personNotes = noteQry.ToList()
+                .Where( n => n.IsAuthorized( Authorization.VIEW, RequestContext.CurrentPerson ) )
+                .Select( n => new PersonNoteBag
+                {
+                    IdKey = n.IdKey,
+                    CreatedByPhotoUrl = n.CreatedByPersonAlias?.Person.PhotoUrl,
+                    NoteTypeName = n.NoteType.Name,
+                    CreatedByName = n.CreatedByPersonAlias?.Person.FullName,
+                    CreatedDateTime = n.CreatedDateTime?.ToRockDateTimeOffset(),
+                    IsAlert = n.IsAlert ?? false,
+                    IsPinned = n.IsPinned,
+                    Text = n.Text,
+                } ).ToList();
+
+            return personNotes;
+        }
+
+        private string AttachAIPromptContext( string prompt, ConnectionRequest connectionRequest )
+        {
+            var sb = new StringBuilder();
+
+            sb.AppendLine( $"Requester: {connectionRequest.PersonAlias?.Person?.FullName ?? "Unknown"}" );
+            sb.AppendLine( $"Connector: {connectionRequest.ConnectorPersonAlias?.Person?.FullName ?? "Unassigned"}" );
+            sb.AppendLine( $"Opportunity: {connectionRequest.ConnectionOpportunity?.Name}" );
+            sb.AppendLine( $"Status: {connectionRequest.ConnectionStatus?.Name}" );
+            sb.AppendLine( $"State: {connectionRequest.ConnectionState.GetDisplayName()}" );
+
+            var dueStatus = GetDueStatus( connectionRequest.DueDate, connectionRequest.DueSoonDate );
+            sb.AppendLine( $"Due Status: {dueStatus.GetDisplayName()}" );
+
+            if ( connectionRequest.CreatedDateTime.HasValue )
+            {
+                sb.AppendLine( $"Created Date: {connectionRequest.CreatedDateTime}" );
+            }
+
+            if ( connectionRequest.DueDate.HasValue )
+            {
+                sb.AppendLine( $"Due Date: {connectionRequest.DueDate}" );
+            }
+
+            if ( connectionRequest.DueSoonDate.HasValue )
+            {
+                sb.AppendLine( $"Due Soon Date: {connectionRequest.DueSoonDate}" );
+            }
+
+            if ( connectionRequest.ConnectionTypeSourceId.HasValue && connectionRequest.ConnectionTypeSource != null )
+            {
+                sb.AppendLine( $"Source of Request: {connectionRequest.ConnectionTypeSource.Name}" );
+            }
+
+            if ( connectionRequest.ConnectionState == ConnectionState.FutureFollowUp )
+            {
+                sb.AppendLine( $"Follow-Up Date: {connectionRequest.FollowupDate}" );
+            }
+
+            if ( connectionRequest.ConnectionState == ConnectionState.Connected )
+            {
+                sb.AppendLine( $"Completed Date: {connectionRequest.ConnectedDateTime}" );
+                sb.AppendLine( $"Was Completed On Time: {connectionRequest.WasCompletedOnTime}" );
+            }
+
+            if ( !connectionRequest.CelebrationText.IsNullOrWhiteSpace() )
+            {
+                sb.AppendLine( $"Celebration: {connectionRequest.CelebrationText}" );
+            }
+
+            if ( !connectionRequest.Comments.IsNullOrWhiteSpace() )
+            {
+                sb.AppendLine( $"Comments: {connectionRequest.Comments}" );
+            }
+
+            var activities = connectionRequest.ConnectionRequestActivities
+                .Where( a => a.CreatedByPersonAliasId.HasValue )
+                .OrderBy( a => a.CreatedDateTime )
+                .ToList();
+
+            if ( activities.Any() )
+            {
+                sb.AppendLine( "\nActivities:" );
+                foreach ( var activity in activities )
+                {
+                    sb.AppendLine( $"- [{activity.ConnectionActivityType?.Name}] by {activity.CreatedByPersonAlias?.Person?.FullName}: {activity.Note}" );
+                }
+            }
+
+            return $"Based on the following connection request data, write a 2-3 sentence human-friendly response following the instructions of the prompt. Prompt: {prompt}\n\n{sb}";
         }
 
         #endregion Methods
@@ -2729,6 +2840,55 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
             var box = GetConnectionRequestDetailBox( connectionRequest ); 
 
             return ActionOk( box );
+        }
+
+        [BlockAction]
+        public async Task<BlockActionResult> GetAiSummary( string connectionRequestIdKey )
+        {
+            var connectionRequestService = new ConnectionRequestService( RockContext );
+            var connectionRequest = connectionRequestService.Get( connectionRequestIdKey, !PageCache.Layout.Site.DisablePredictableIds );
+
+            if ( connectionRequest == null )
+            {
+                return ActionBadRequest( $"{Rock.Model.ConnectionRequest.FriendlyTypeName} not found." );
+            }
+
+            if ( !connectionRequest.IsAuthorized( Authorization.VIEW, RequestContext.CurrentPerson ) )
+            {
+                return ActionBadRequest( "You are not authorized to view this Connection Request." );
+            }
+
+            var aiProvider = new AIProviderService( RockContext ).GetActiveProvider();
+            if ( aiProvider == null )
+            {
+                return ActionBadRequest( "No active AI provider is configured." );
+            }
+
+            var prompt = connectionRequest.ConnectionOpportunity.ConnectionType.GetConnectionTypeAdditionalSettings()?.AIInsightsPrompt;
+            if ( prompt.IsNullOrWhiteSpace() )
+            {
+                return ActionBadRequest( "An AI Insights Prompt must be defined on the Connection Type." );
+            }
+
+            var aiProviderComponent = aiProvider.GetAIComponent();
+            var promptWithContext = AttachAIPromptContext( prompt, connectionRequest );
+
+            var completionsRequest = new ChatCompletionsRequest
+            {
+                Messages = new List<ChatCompletionsRequestMessage>
+                {
+                    new ChatCompletionsRequestMessage
+                    {
+                        Role = Rock.Enums.AI.ChatMessageRole.User,
+                        Content = promptWithContext
+                    }
+                }
+            };
+
+            var response = await aiProviderComponent.GetChatCompletions( aiProvider, completionsRequest );
+            var summary = response.Choices?.FirstOrDefault()?.Text ?? string.Empty;
+
+            return ActionOk( new GetAiSummaryResponseBag { Summary = summary } );
         }
 
         [BlockAction]

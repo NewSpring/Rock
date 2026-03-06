@@ -83,12 +83,18 @@
                         </div>
                     </template>
                 </div>
-                <!-- TODO - Disuss notes with Jon -->
-                <!-- <div v-if="expandedNotes && expandedNotes.length > 0" class="bg-info-soft">
-                            <div class="w-100 text-center cursor-pointer">{{ areNotesVisible ? "Hide" : "Show" }} {{ expandedNotes.length }} {{ pluralize("Note", expandedNotes.length) }}</div>
-                            <TransitionVerticalCollapse>
-                            </TransitionVerticalCollapse>
-                    </div> -->
+                <template v-if="requestDetails?.personNotes && requestDetails.personNotes.length > 0">
+                    <div class="bg-info-soft py-spacing-tiny">
+                        <div class="w-100 text-center cursor-pointer text-link text-small" @click="toggleVisibleNotes">
+                            {{ areNotesVisible ? "Hide" : "Show" }} {{ requestDetails.personNotes.length }} {{ pluralize("Note", requestDetails.personNotes.length) }}
+                        </div>
+                    </div>
+                    <TransitionVerticalCollapse>
+                        <div v-show="areNotesVisible">
+                            <NoteItem v-for="note in requestDetails.personNotes" :note="note" />
+                        </div>
+                    </TransitionVerticalCollapse>
+                </template>
             </div>
         </template>
         <template #default>
@@ -106,6 +112,9 @@
                                      :editConnectionRequestFormId="editConnectionRequestFormId" />
                 <ViewDockedPanelBody v-else
                                      :requestDetails="requestDetails"
+                                     :aiSummary="aiSummary"
+                                     :aiSummaryError="aiSummaryError"
+                                     :isAiSummaryLoading="isAiSummaryLoading"
                                      :options="options"
                                      :dockedPanelWidthNumber="dockedPanelWidthNumber"
                                      @editActivity="(entry) => emit('editActivity', entry)"
@@ -168,7 +177,12 @@
                                 <i class="ti ti-activity"></i>
                                 Add Activity
                             </RockButton>
-                            <!-- Status Flyout -->
+                            <div style="min-width: 150px;">
+                                <ConnectionStatusButton :isSequentialStatusMode="options?.isSequentialStatusMode"
+                                                        :highlightColor="requestDetails?.connectionStatus?.highlightColor"
+                                                        :currentStatusName="requestDetails?.connectionStatus?.name"
+                                                        @click="(e) => emit('onStatusButtonClick', e)" />
+                            </div>
                         </div>
                     </template>
                 </template>
@@ -287,7 +301,10 @@
     import { ConnectionRequestDetailBox } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionRequestDetailBox";
     import { UpdateConnectionRequestStatesBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/updateConnectionRequestStatesBag";
     import { ConnectionState } from "@Obsidian/Enums/Connection/connectionState";
-    import HighlightLabel from "@Obsidian/Controls/highlightLabel.obs";
+    import TransitionVerticalCollapse from "@Obsidian/Controls/transitionVerticalCollapse.obs";
+    import { GetAiSummaryResponseBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/getAiSummaryResponseBag";
+    import NoteItem from "./noteItem.partial.obs";
+    import ConnectionStatusButton from "./connectionStatusButton.partial.obs";
 
     const props = defineProps({
         modelValue: {
@@ -329,6 +346,7 @@
         (e: "onEmailClick"): void;
         (e: "onReassignConnector", value: string): void;
         (e: "onRequestStateChanged", value: UpdateConnectionRequestStatesBag): void;
+        (e: "onStatusButtonClick", value: MouseEvent): void;
     }>();
 
     defineExpose({
@@ -352,6 +370,9 @@
     const isFullWidth = ref(false);
     const dockedPanelWidth = ref(defaultDockedPanelWidth);
     const areNotesVisible = ref(false);
+    const aiSummary = ref<string>("");
+    const aiSummaryError = ref<string>("");
+    const isAiSummaryLoading = ref(false);
 
     const editDockedPanelBodyRef = ref<InstanceType<typeof EditDockedPanelBody>>();
     const editConnectionRequestBox = ref<ValidPropertiesBox<ConnectionRequestBag>>({});
@@ -423,6 +444,10 @@
         window.open(url, "_blank");
     }
 
+    function toggleVisibleNotes(): void {
+        areNotesVisible.value = !areNotesVisible.value;
+    }
+
     function onEditClick(): void {
         // Fetch edit bag
 
@@ -467,6 +492,26 @@
         isLoading.value = false;
     }
 
+    async function fetchAiSummary(): Promise<void> {
+        if (!requestDetails.value?.connectionRequestIdKey) {
+            return;
+        }
+
+        isAiSummaryLoading.value = true;
+        const result = await invokeBlockAction<GetAiSummaryResponseBag>("GetAiSummary", {
+            connectionRequestIdKey: requestDetails.value.connectionRequestIdKey
+        });
+
+        if (result.isSuccess && result.data?.summary) {
+            aiSummary.value = result.data.summary;
+        }
+        else {
+            aiSummaryError.value = result.errorMessage ?? "An error occurred while creating the AI Summary.";
+        }
+
+        isAiSummaryLoading.value = false;
+    }
+
     function onTransferClick(): void {
         emit("transferRequest");
     }
@@ -498,6 +543,8 @@
             requestDetails.value = props.detailsBox.entity;
             options.value = props.detailsBox.options;
             isLoading.value = false;
+
+            fetchAiSummary();
         }
     });
 

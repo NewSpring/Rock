@@ -45,7 +45,7 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
 
         public bool AreGroupPlacementsEnabled { get; set; }
 
-        public bool? IsSequentialStatusMode { get; set; }
+        public bool IsSequentialStatusMode { get; set; }
 
         public List<Guid> BadgeGuids { get; set; }
 

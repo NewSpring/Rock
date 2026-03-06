@@ -27,6 +27,7 @@ import { Guid } from "@Obsidian/Types";
 import { ActivityEntryBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/activityEntryBag";
 import { AdditionalRequestBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/additionalRequestBag";
 import { ConnectionStatusBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionStatusBag";
+import { PersonNoteBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/personNoteBag";
 import { PlacementGroupDetailsBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/placementGroupDetailsBag";
 import { RequesterPersonBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/requesterPersonBag";
 import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
@@ -73,6 +74,8 @@ export type ConnectionRequestDetailsBag = {
     dueStatus: DueStatus;
 
     followUpDate?: string | null;
+
+    personNotes?: PersonNoteBag[] | null;
 
     placementGroup?: PlacementGroupDetailsBag | null;
 

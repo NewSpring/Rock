@@ -1,0 +1,36 @@
+<!-- Copyright by the Spark Development Network; Licensed under the Rock Community License -->
+<template>
+    <div v-if="isSequentialStatusMode"
+         class="cursor-pointer py-spacing-tiny px-spacing-xs rounded-huge text-semibold text-interface-softest d-flex align-items-center"
+         :style="`background-color: ${highlightColor}`">
+        <i class="ti ti-circle-check"></i>
+        <span class="w-100 text-center">{{ currentStatusName }}</span>
+    </div>
+    <div v-else
+         class="cursor-pointer py-spacing-tiny px-spacing-xs rounded-huge text-semibold text-interface-softest d-flex align-items-center"
+         :style="`background-color: ${highlightColor}`">
+        <span class="w-100 text-center">{{ currentStatusName }}</span>
+        <i class="ti ti-caret-down-filled text-right"></i>
+    </div>
+</template>
+
+<script setup lang="ts">
+    import { PropType } from "vue";
+
+    defineProps({
+        isSequentialStatusMode: {
+            type: Boolean as PropType<boolean | null | undefined>,
+            required: true
+        },
+
+        highlightColor: {
+            type: String as PropType<string | null | undefined>,
+            required: true
+        },
+
+        currentStatusName: {
+            type: String as PropType<string | null | undefined>,
+            required: true
+        }
+    });
+</script>

@@ -44,6 +44,9 @@ export type ConnectionRequestDetailOptionsBag = {
 
     connectorItems?: ConnectorItemBag[] | null;
 
+    /** Gets or sets a value indicating whether an active AI provider is configured. */
+    isAISummaryVisible: boolean;
+
     isFutureFollowUpEnabled: boolean;
 
     isRequestSecurityEnabled: boolean;

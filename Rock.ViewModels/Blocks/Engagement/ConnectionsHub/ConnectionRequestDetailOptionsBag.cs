@@ -60,5 +60,10 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
         public bool IsSequentialStatusMode { get; set; }
 
         public List<Guid> BadgeGuids { get; set; }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether an active AI provider is configured.
+        /// </summary>
+        public bool IsAISummaryVisible { get; set; }
     }
 }

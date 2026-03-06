@@ -65,7 +65,7 @@ export type ConnectionsHubOptionsBag = {
 
     isRequestSecurityEnabled: boolean;
 
-    isSequentialStatusMode?: boolean | null;
+    isSequentialStatusMode: boolean;
 
     requestSourceItems?: ListItemBag[] | null;
 

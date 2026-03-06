@@ -74,6 +74,8 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
 
         public PlacementGroupDetailsBag PlacementGroup { get; set; }
 
+        public List<PersonNoteBag> PersonNotes { get; set; }
+
         public List<ActivityEntryBag> ActivityEntries { get; set; }
 
         /// <summary>

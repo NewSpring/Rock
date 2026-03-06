@@ -125,7 +125,7 @@
             position: "fixed",
             top: `${top}px`,
             right: `${viewportWidth - anchorRect.right}px`,
-            zIndex: "1000"
+            zIndex: "1100" // Needs to be above 1050 because the flyout can appear in the docked panel.
         };
     }
 
