@@ -20,7 +20,7 @@
                              :aside="item.partialUrl"
                              asideIconCssClass="ti ti-link">
                     <template v-if="item.fullUrl" #actions>
-                        <CopyButton :value="item.fullUrl" />
+                        <CopyButton :value="item.fullUrl" tooltip="Copy URL" />
                     </template>
                 </DisplayCard>
             </DisplayCardContainer>
