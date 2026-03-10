@@ -20,7 +20,6 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Configuration;
 using System.Linq;
-using System.Web;
 
 using Rock.Attribute;
 using Rock.Constants;
@@ -194,7 +193,7 @@ namespace Rock.Blocks.Store
 
             var packageService = new PackageService();
 
-            var package = packageService.GetPackage( packageId.Value );
+            var package = packageService.GetPackage( packageId.Value, out _ );
 
             return package;
         }
@@ -329,7 +328,7 @@ namespace Rock.Blocks.Store
         {
             var url = relativeUrl;
 
-            var localPath = VirtualPathUtility.ToAbsolute( "~" );
+            var localPath = RequestContext.ResolveRockUrl( "~" );
             if ( !localPath.EndsWith( "/" ) )
             {
                 localPath += "/";

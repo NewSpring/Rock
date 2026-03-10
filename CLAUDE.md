@@ -401,7 +401,7 @@ Commits fall into two categories based on whether they should appear in release 
 \*\*Domain\*\* must be exactly one of the following (wrapped in parentheses):
 
 `AI`, `API`, `CMS`, `Check-in`, `Communication`, `Connection`, `Core`, `CRM`, `Engagement`, `Event`, `Farm`, `Finance`, `Group`, `Lava`, `LMS`, `Mobile`, `Prayer`, `Reporting`, `Workflow`, `Other`
-
+IMPORTANT: You may only use one of the domains listed. You may not make new ones up.
 
 
 \*\*Message\*\* must begin with one of these specific words, which determines the release note classification:

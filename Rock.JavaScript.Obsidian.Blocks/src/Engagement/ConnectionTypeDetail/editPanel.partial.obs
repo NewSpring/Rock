@@ -36,6 +36,7 @@
                     <div class="col-md-6">
                         <PagePicker v-model="connectionRequestDetailPage" label="Connection Request Detail Page"
                                     help="Select the page used to view requests for this connection type. This allows different connection types to use different request detail pages. If left blank, the default request detail page will be used."
+                                    :showSelectCurrentPage="true"
                                     trailblazerField />
                     </div>
                 </div>
@@ -81,12 +82,12 @@
                                       v-model:attributeValues="attributeValues" :attributesForAttributeValueContainer="attributes" />
         </ContentSection>
 
-        <ContentSection title="Request Attributes" icon="ti ti-binary-tree-2">
-            <ConnectionRequestAttributes v-model:connectionRequestAttributes="connectionRequestAttributes" />
+        <ContentSection title="Opportunity Attributes" icon="ti ti-route-2">
+            <ConnectionOpportunityAttributes v-model:connectionOpportunityAttributes="connectionOpportunityAttributes" />
         </ContentSection>
 
-        <ContentSection title="Opportunity Attributes" icon="ti ti-binary-tree-2">
-            <ConnectionOpportunityAttributes v-model:connectionOpportunityAttributes="connectionOpportunityAttributes" />
+        <ContentSection title="Request Attributes" icon="ti ti-id">
+            <ConnectionRequestAttributes v-model:connectionRequestAttributes="connectionRequestAttributes" />
         </ContentSection>
 
         <ContentSection title="Activity Types" icon="ti ti-activity">

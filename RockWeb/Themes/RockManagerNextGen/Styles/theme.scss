@@ -215,6 +215,12 @@ html {
     font-size: var(--font-size-h4);
     color: var(--base-interface-softest);
     cursor: pointer;
+    touch-action: manipulation;
+  }
+
+  // Make the side nav toggle feel instant (override Bootstrap's default transitions).
+  .navbar-toggle-side-left {
+    transition: none !important;
   }
 
   .navbar-zone-header {
@@ -546,12 +552,45 @@ html {
   border-right: 1px solid var(--color-interface-soft);
   box-shadow: var(--popup-box-shadow);
   transform: translateX(-100%);
-  transition: transform 0.3s ease, opacity 0.3s ease;
+  pointer-events: none;
+  transition: transform 0.2s ease, opacity 0.2s ease;
   will-change: transform;
+
+  // Bootstrap toggles aria-expanded immediately when show/hide begins.
+  // Use this to drive our transform/opacity animation instantly.
+  &[aria-expanded="true"] {
+    transform: translateX(0);
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  // Bootstrap's collapse plugin temporarily applies inline height changes and the
+  // `.collapsing` class. Since we animate the sidenav via transform/opacity, keep
+  // height stable to avoid mismatched timing/jank.
+  &.collapse,
+  &.collapsing,
+  &.collapse.in {
+    display: flex !important;
+  }
+
+  &.collapse {
+    height: auto !important;
+  }
 
   &.collapse.in {
     transform: translateX(0);
     opacity: 1;
+    pointer-events: auto;
+  }
+
+  &.collapsing {
+    height: auto !important;
+    overflow: hidden;
+    transition: transform 0.2s ease, opacity 0.2s ease !important;
+    transition-property: transform, opacity !important;
+    transition-duration: 0.2s !important;
+    transition-timing-function: ease !important;
+    transition-delay: 0s !important;
   }
 
   &::-webkit-scrollbar {
@@ -574,6 +613,15 @@ html {
 
 // 6. ROSTER BLOCK STYLES
 // =============================================
+
+.rostergrid .fa-fw {
+  width: 1em; // Reduced fixed to make font awesome icon more visually balanced in the grid cells
+}
+
+.action-button-cell.dropdown-menu {
+  position: fixed; // Override absolute positioning to prevent dropdown menu drift when scrolling.
+  z-index: 2; // Hardcoded so dropdown will flow under grid header
+}
 
 // Custom Checked Out Button Style
 .btn.btn-checked-out,
@@ -1158,6 +1206,9 @@ html {
   .panel {
 
     .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
       border-bottom-left-radius: 0;
       border-bottom-right-radius: 0;
       border-bottom: 1px solid var(--color-interface-soft);

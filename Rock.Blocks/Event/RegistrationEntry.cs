@@ -1235,16 +1235,20 @@ namespace Rock.Blocks.Event
                 Reason: Registration entries are sometimes missing registration form data.
                 https://github.com/SparkDevNetwork/Rock/issues/5091
              */
+            var enableMissingFieldDiagnostics = GetAttributeValue( AttributeKey.EnableMissingFieldDiagnostics ).AsBoolean();
             var logInstanceOrTemplateName = context?.RegistrationSettings?.Name;
             var logCurrentPersonDetails = $"Current Person Name: {this.RequestContext.CurrentPerson?.FullName} (Person ID: {this.RequestContext.CurrentPerson?.Id});";
             var logMsgPrefix = $"Obsidian{( logInstanceOrTemplateName.IsNotNullOrWhiteSpace() ? $@" ""{logInstanceOrTemplateName}""" : string.Empty )} Registration; {logCurrentPersonDetails}{Environment.NewLine}";
 
-            var (wereFieldsMissing, missingFieldsDetails) = new RegistrationTemplateFormService( rockContext ).TryLoadMissingFields( context?.RegistrationSettings?.Forms );
-            if ( wereFieldsMissing )
+            if ( enableMissingFieldDiagnostics )
             {
-                var logMissingFieldsMsg = $"{logMsgPrefix}RegistrationTemplateForm(s) missing Fields data when trying to save Registration.{Environment.NewLine}{missingFieldsDetails}";
+                var (wereFieldsMissing, missingFieldsDetails) = new RegistrationTemplateFormService( rockContext ).TryLoadMissingFields( context?.RegistrationSettings?.Forms );
+                if ( wereFieldsMissing )
+                {
+                    var logMissingFieldsMsg = $"{logMsgPrefix}RegistrationTemplateForm(s) missing Fields data when trying to save Registration.{Environment.NewLine}{missingFieldsDetails}";
 
-                ExceptionLogService.LogException( new RegistrationTemplateFormFieldException( logMissingFieldsMsg ) );
+                    ExceptionLogService.LogException( new RegistrationTemplateFormFieldException( logMissingFieldsMsg ) );
+                }
             }
 
             errorMessage = string.Empty;
@@ -1653,7 +1657,7 @@ namespace Rock.Blocks.Event
 
                     bool isCreatedAsRegistrant = context.RegistrationSettings.RegistrarOption == RegistrarOption.UseFirstRegistrant && registrantInfo == args.Registrants.FirstOrDefault();
 
-                    MissingFieldsByFormId = GetAttributeValue( AttributeKey.EnableMissingFieldDiagnostics ).AsBoolean() && isNewRegistrant
+                    MissingFieldsByFormId = enableMissingFieldDiagnostics && isNewRegistrant
                         ? new Dictionary<int, Dictionary<Guid, string>>()
                         : null;
 
@@ -3435,6 +3439,7 @@ namespace Rock.Blocks.Event
             var personService = new PersonService( rockContext );
             var registrationInstanceService = new RegistrationInstanceService( rockContext );
             var registrantService = new RegistrationRegistrantService( rockContext );
+            var registrationTemplateService = new RegistrationTemplateService( rockContext );
 
             var registrantChanges = new History.HistoryChangeList();
             var personChanges = new History.HistoryChangeList();
@@ -3477,6 +3482,31 @@ namespace Rock.Blocks.Event
 
             if ( registrant == null )
             {
+                var registrationTemplate = registrationTemplateService.Get( context.RegistrationSettings.RegistrationTemplateId );
+                var registrantEligibilityEvaluator = registrationTemplateService.GetRegistrantEligibility( registrationTemplate );
+
+                // If a new registrant is being created (this is a new registration or a new registrant is being added to an existing one),
+                // check if the person is eligible, and optionally, if the person has been registered before.
+                if ( !registrantEligibilityEvaluator.Evaluate( person, out var friendlyError ) )
+                {
+                    // Throw an exception to rollback the transaction and display a friendly error message in the browser.
+                    throw new InvalidOperationException( friendlyError );
+                }
+
+                if ( registrationTemplate.AreDuplicateRegistrantsPrevented )
+                {
+                    var isPersonAlreadyRegistered = registrantService
+                        .Queryable()
+                        .Where( rr => rr.Registration.RegistrationInstanceId == context.RegistrationSettings.RegistrationInstanceId )
+                        .Any( rr => rr.PersonAlias.PersonId == person.Id );
+
+                    if ( isPersonAlreadyRegistered )
+                    {
+                        // Throw an exception to rollback the transaction and display a friendly error message in the browser.
+                        throw new InvalidOperationException( $"{person.FullName} has already been registered." );
+                    }
+                }
+
                 registrant = new RegistrationRegistrant
                 {
                     Guid = registrantInfo.Guid,
@@ -3978,7 +4008,13 @@ namespace Rock.Blocks.Event
             var formModels = context.RegistrationSettings
                 .Forms?.OrderBy( f => f.Order ).ToList() ?? new List<RegistrationTemplateForm>();
 
-            // Get family members
+            // Get family members.
+            // Exclude family members who do not meet Registrant Eligibility.
+            // Do not exclude family members who have already registered. They will still be displayed in the dropdown but a warning will be displayed if they are selected.
+            var registrationTemplateService = new RegistrationTemplateService( rockContext );
+            var registrationTemplate = registrationTemplateService.Get( context.RegistrationSettings.RegistrationTemplateId );
+            var registrantEligibilityEvaluator = registrationTemplateService.GetRegistrantEligibility( registrationTemplate );
+
             var currentPerson = GetCurrentPerson();
             var familyMembers = context.RegistrationSettings.AreCurrentFamilyMembersShown ?
                 currentPerson.GetFamilyMembers( true, rockContext )
@@ -3989,6 +4025,7 @@ namespace Rock.Blocks.Event
                     } )
                     .DistinctBy( gm => gm.Person.Guid )
                     .ToList()
+                    .Where( gm => registrantEligibilityEvaluator.Evaluate( gm.Person ) )
                     .Select( gm => new RegistrationEntryFamilyMemberBag
                     {
                         Guid = gm.Person.Guid,
@@ -3998,6 +4035,27 @@ namespace Rock.Blocks.Event
                     } )
                     .ToList() :
                     new List<RegistrationEntryFamilyMemberBag>();
+
+            // Mark the family members who have already been registered for this event.
+            // This is used for browser validation if a registered family member is selected.
+            var familyMembersDictionary = familyMembers.ToDictionary( m => m.Guid, m => m );
+            var registrationId = context.Registration?.Id;
+            var registeredFamilyMembersGuids = familyMembersDictionary.Any()
+                ? new RegistrationRegistrantService( rockContext )
+                    .Queryable()
+                    .Where( rr =>
+                        rr.Registration.RegistrationInstanceId == context.RegistrationSettings.RegistrationInstanceId
+                        && familyMembersDictionary.Keys.Contains( rr.PersonAlias.Person.Guid )
+                        && ( !registrationId.HasValue || registrationId.Value == 0 || registrationId.Value != rr.RegistrationId )
+                    )
+                    .Select( rr => rr.PersonAlias.Person.Guid )
+                    .ToList()
+                : new List<Guid>();
+
+            foreach ( var registeredFamilyMemberGuid in registeredFamilyMembersGuids )
+            {
+                familyMembersDictionary[registeredFamilyMemberGuid].IsRegistrantInAnotherRegistration = true;
+            }
 
             // Get the instructions
             var instructions = context.RegistrationSettings.Instructions;
@@ -4200,7 +4258,7 @@ namespace Rock.Blocks.Event
             {
                 var thresholdPercent = context.RegistrationSettings.TimeoutThreshold
                     ?? RegistrationInstance.DefaultTimeoutThreshold;
-                var remainingPercent = ( decimal )context.SpotsRemaining.Value / ( decimal )context.RegistrationSettings.MaxAttendees.Value * 100m;
+                var remainingPercent = ( decimal ) context.SpotsRemaining.Value / ( decimal ) context.RegistrationSettings.MaxAttendees.Value * 100m;
 
                 var hasMetThreshold = remainingPercent <= thresholdPercent;
 
@@ -4249,9 +4307,9 @@ namespace Rock.Blocks.Event
                         Guid = Guid.NewGuid(),
                         FamilyGuid = currentPerson.PrimaryFamily.Guid,
                         IsOnWaitList = isOnWaitList,
-                        PersonGuid = currentPerson.Guid,
+                        PersonGuid = null,//currentPerson.Guid,
                         FeeItemQuantities = new Dictionary<Guid, int>(),
-                        FieldValues = GetCurrentValueFieldValues( context, rockContext, currentPerson, null, formModels, false )
+                        FieldValues = new Dictionary<Guid, object>(),//GetCurrentValueFieldValues( context, rockContext, currentPerson, null, formModels, false )
                     } );
                 }
                 else
@@ -4401,6 +4459,30 @@ namespace Rock.Blocks.Event
 
             var isPaymentPlanAllowed = context.RegistrationSettings.IsPaymentPlanAllowed;
 
+            RegistrantEligibilityBag registrantEligibilityBag = null;
+            var registrantEligibilitySettings = context.RegistrationSettings.RegistrantEligibilitySettings;
+            if ( registrantEligibilitySettings != null )
+            {
+                // Age classification and data view eligibility must be checked at submission time
+                // since simple validation values cannot be passed to the UI. In the future, we
+                // may add a "pre-check" block action to perform complex eligibility checks on-demand.
+
+                registrantEligibilityBag = new RegistrantEligibilityBag
+                {
+                    MinimumAge = registrantEligibilitySettings.GetEffectiveMinimumAge(),
+                    MinimumAgeBirthDate = registrantEligibilitySettings.GetEffectiveMinimumAgeBirthDate(),
+                    MaximumAge = registrantEligibilitySettings.GetEffectiveMaximumAge(),
+                    MaximumAgeBirthDate = registrantEligibilitySettings.GetEffectiveMaximumAgeBirthDate(),
+                    Gender = registrantEligibilitySettings.Gender,
+                    // Add Grade DefinedValue Guids since the GradePicker values are Guids.
+                    // Null means any grade is valid.
+                    Grades = registrantEligibilitySettings
+                        .GetGradeDefinedValues()
+                        ?.Select( g => g.Guid )
+                        .ToList()
+                };
+            }
+
             var currencyInfo = new RockCurrencyCodeInfo();
             var viewModel = new RegistrationEntryInitializationBox
             {
@@ -4524,6 +4606,10 @@ namespace Rock.Blocks.Event
                     Symbol = currencyInfo.Symbol,
                     SymbolLocation = currencyInfo.SymbolLocation,
                 },
+
+                RegistrantEligibility = registrantEligibilityBag,
+
+                AreDuplicateRegistrantsPrevented = registrationTemplate.AreDuplicateRegistrantsPrevented
             };
 
             if ( context.RegistrationSettings.SignatureDocumentTemplateId.HasValue && context.RegistrationSettings.IsInlineSignatureRequired )
