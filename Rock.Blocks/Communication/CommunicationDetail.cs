@@ -117,63 +117,63 @@ namespace Rock.Blocks.Communication
             {
                 Id = 1,
                 Name = "Sent",
-                Color = "--color-info-tint"
+                Color = "--color-metric-primary"
             };
 
             public static SankeyDiagramNodeBag Delivered => new SankeyDiagramNodeBag
             {
                 Id = 2,
                 Name = "Delivered",
-                Color = "--color-info-shade"
+                Color = "--color-metric-7"
             };
 
             public static SankeyDiagramNodeBag Failed => new SankeyDiagramNodeBag
             {
                 Id = 3,
                 Name = "Failed",
-                Color = "--color-danger-tint"
+                Color = "--color-negative-primary"
             };
 
             public static SankeyDiagramNodeBag Pending => new SankeyDiagramNodeBag
             {
                 Id = 4,
                 Name = "Pending",
-                Color = "--color-interface-medium"
+                Color = "--color-neutral-primary"
             };
 
             public static SankeyDiagramNodeBag Cancelled => new SankeyDiagramNodeBag
             {
                 Id = 5,
                 Name = "Cancelled",
-                Color = "--color-warning-tint"
+                Color = "--color-caution-primary"
             };
 
             public static SankeyDiagramNodeBag Opened => new SankeyDiagramNodeBag
             {
                 Id = 6,
                 Name = "Opened",
-                Color = "--color-success-tint"
+                Color = "--color-positive-primary"
             };
 
             public static SankeyDiagramNodeBag Clicked => new SankeyDiagramNodeBag
             {
                 Id = 7,
                 Name = "Clicked",
-                Color = "--color-success-shade"
+                Color = "--color-positive-7"
             };
 
             public static SankeyDiagramNodeBag MarkedAsSpam => new SankeyDiagramNodeBag
             {
                 Id = 8,
                 Name = "Marked As Spam",
-                Color = "--color-warning-shade"
+                Color = "--color-caution-7"
             };
 
             public static SankeyDiagramNodeBag Unsubscribed => new SankeyDiagramNodeBag
             {
                 Id = 9,
                 Name = "Unsubscribed",
-                Color = "--color-danger-shade"
+                Color = "--color-negative-8"
             };
         }
 
@@ -1730,7 +1730,7 @@ namespace Rock.Blocks.Communication
                     SeriesName = "Open Rate",
                     Label = label,
                     Value = GetPercentage( openCount, deliveredRecipientCount ),
-                    Color = "--color-info-shade"
+                    Color = "--color-metric-primary"
                 } );
 
                 if ( isEmail )
@@ -1741,7 +1741,7 @@ namespace Rock.Blocks.Communication
                         SeriesName = "Click-Through Rate",
                         Label = label,
                         Value = GetPercentage( clickCount, uniqueOpensCount ),
-                        Color = "--color-success-shade"
+                        Color = "--color-positive-primary"
                     } );
 
                     spamComplaintCount += spamComplaintsByDate.GetValueOrDefault( currentDate, 0 );
@@ -1750,7 +1750,7 @@ namespace Rock.Blocks.Communication
                         SeriesName = "Spam Rate",
                         Label = label,
                         Value = GetPercentage( spamComplaintCount, deliveredRecipientCount ),
-                        Color = "--color-warning-shade"
+                        Color = "--color-caution-primary"
                     } );
 
                     unsubscribeCount += unsubscribeCountsByDate.GetValueOrDefault( currentDate, 0 );
@@ -1759,7 +1759,7 @@ namespace Rock.Blocks.Communication
                         SeriesName = "Unsubscribe Rate",
                         Label = label,
                         Value = GetPercentage( unsubscribeCount, deliveredRecipientCount ),
-                        Color = "--color-danger-shade"
+                        Color = "--color-negative-primary"
                     } );
                 }
 
@@ -2069,7 +2069,7 @@ namespace Rock.Blocks.Communication
                 {
                     Label = Gender.Unknown.ConvertToString(),
                     Value = GetPercentage( unknownCount ),
-                    Color = "--color-interface-soft"
+                    Color = "--color-neutral-primary"
                 } );
             }
 
@@ -2130,8 +2130,8 @@ namespace Rock.Blocks.Communication
 
             var uniqueOpensByAgeRange = new List<ChartNumericDataPointBag>();
 
-            var knownAgeColor = "--color-categorical-3";
-            var unknownAgeColor = "--color-interface-soft";
+            var knownAgeColor = "--color-positive-primary";
+            var unknownAgeColor = "--color-neutral-primary";
 
             for ( var i = 0; i < labels.Length; i++ )
             {
@@ -2162,7 +2162,7 @@ namespace Rock.Blocks.Communication
             var seriesName = "Clients";
 
             var unknownLabel = "Unknown";
-            var unknownColor = "--color-interface-soft";
+            var unknownColor = "--color-neutral-primary";
 
             var othersLabel = "Others";
             var othersColor = "--color-interface-strong";
