@@ -1,6 +1,17 @@
 <!-- Copyright by the Spark Development Network; Licensed under the Rock Community License -->
 <template>
     <div class="px-spacing-md pb-spacing-lg d-flex flex-column gap-md">
+        <div v-if="connectionRequestBreadcrumbs.length > 0"
+             class="w-100 d-flex gap-tiny flex-wrap text-small">
+            <template v-for="(breadcrumb, index) in connectionRequestBreadcrumbs">
+                <span class="cursor-pointer request-breadcrumb" @click="emit('navigateToBreadcrumb', index)">
+                    {{ breadcrumb.text }}
+                </span>
+                <span v-if="index !== connectionRequestBreadcrumbs.length - 1">
+                    <i class="ti ti-chevron-right"></i>
+                </span>
+            </template>
+        </div>
         <div v-if="options?.isAISummaryVisible" class="border border-info-soft rounded p-spacing-sm bg-interface-softer d-flex flex-column gap-xs">
             <div class="d-flex gap-xs align-items-center text-info">
                 <i class="ti ti-sparkles font-size-h4"></i>
@@ -30,10 +41,19 @@
             </div>
             <div class="d-flex flex-column gap-tiny">
                 <!-- TODO - remove this slice -->
-                <p v-for="additionalRequest in requestDetails?.additionalRequests?.slice(0, 5)" class="mb-0" :class="{ 'additional-request': dockedPanelWidthNumber < 350 }">
-                    <span class="text-link text-small pr-spacing-sm">{{ additionalRequest.connectionOpportunityName }} </span>
-                    <span class="text-interface-medium text-xs">{{ getRequestMeta(additionalRequest) }}</span>
-                </p>
+                <template v-for="additionalRequest in requestDetails?.additionalRequests?.slice(0, 5)">
+                    <p v-if="additionalRequest.requestIdKey"
+                       :key="additionalRequest.requestIdKey"
+                       class="mb-0" :class="{ 'additional-request': dockedPanelWidthNumber < 350 }">
+                        <span class="text-link text-small pr-spacing-sm cursor-pointer"
+                              @click="emit('navigateToAdditionalRequest', additionalRequest.requestIdKey)">
+                            {{ additionalRequest.connectionOpportunityName }}
+                        </span>
+                        <span class="text-interface-medium text-xs">
+                            {{ getRequestMeta(additionalRequest) }}
+                        </span>
+                    </p>
+                </template>
             </div>
         </div>
 
@@ -157,7 +177,7 @@
                     </div>
                     <div v-if="requestDetails?.actionItems && requestDetails.actionItems.length > 0">
                         <RockLabel class="mb-spacing-xs text-interface-strong">Available Actions</RockLabel>
-                        <ActionItems :actionItems="requestDetails.actionItems ?? []" />
+                        <ActionItems :actionItems="requestDetails.actionItems ?? []" @onActionClick="onActionItemClick" />
                     </div>
                     <div v-if="!isNullOrWhiteSpace(requestDetails?.comments)">
                         <RockLabel class="mb-spacing-xs text-interface-medium text-regular">Comments</RockLabel>
@@ -392,6 +412,11 @@
     height: fit-content;
 }
 
+.request-breadcrumb:hover {
+    color: var(--color-link);
+    text-decoration: underline;
+}
+
 /* Skeleton adjustments */
 .skeleton {
     background: var(--color-interface-soft);
@@ -448,13 +473,18 @@
     import CheckBox from "@Obsidian/Controls/checkBox.obs";
     import { UpdateGroupMemberRequirementBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/updateGroupMemberRequirementBag";
     import { ConnectionRequestDetailOptionsBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionRequestDetailOptionsBag";
-    import ConnectionOpportunityDetail from "../connectionOpportunityDetail.obs";
+    import { LaunchWorkflowBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/launchWorkflowBag";
     import { ConnectorItemBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectorItemBag";
     import { tooltip } from "@Obsidian/Utility/tooltip";
 
     const props = defineProps({
         requestDetails: {
             type: Object as PropType<ConnectionRequestDetailsBag | undefined>,
+            required: true
+        },
+
+        connectionRequestBreadcrumbs: {
+            type: Array as PropType<ListItemBag[]>,
             required: true
         },
 
@@ -489,6 +519,9 @@
         (e: "onCelebrationClick"): void;
         (e: "onReminderClick"): void;
         (e: "onReassignConnector", value: string): void;
+        (e: "launchWorkflow", value: LaunchWorkflowBag): void;
+        (e: "navigateToAdditionalRequest", value: string): void;
+        (e: "navigateToBreadcrumb", value: number): void;
     }>();
 
     const invokeBlockAction = useInvokeBlockAction();
@@ -860,6 +893,15 @@
         if (element) {
             tooltip(element);
         }
+    }
+
+    function onActionItemClick(workflowGuid: string): void {
+        const launchWorkflowBag = <LaunchWorkflowBag>{
+            connectionRequestIdKeys: [props.requestDetails?.connectionRequestIdKey],
+            connectionWorkflowGuid: workflowGuid
+        };
+
+        emit("launchWorkflow", launchWorkflowBag);
     }
 
     async function onAddRequestNote(): Promise<void> {

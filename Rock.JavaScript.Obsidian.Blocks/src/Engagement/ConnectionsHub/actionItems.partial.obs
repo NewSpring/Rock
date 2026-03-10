@@ -1,15 +1,21 @@
 <!-- Copyright by the Spark Development Network; Licensed under the Rock Community License -->
 <template>
     <div class="d-flex gap-xs align-items-start justify-content-between">
-        <div class="d-flex flex-column gap-xs w-100">
+        <div class="d-flex flex-column w-100">
             <div class="d-flex gap-xs flex-wrap w-100" ref="actionItemsContainer">
-                <RockButton v-for="actionItem in rowActions">{{ actionItem.text }}</RockButton>
+                <RockButton v-for="actionItem in rowActions"
+                            :btnSize="BtnSize.Small"
+                            @click="onActionClick(actionItem)">
+                    {{ actionItem.text }}
+                </RockButton>
             </div>
             <TransitionVerticalCollapse>
                 <div v-show="areActionItemsExpanded">
-                    <div class="d-flex gap-xs flex-wrap w-100">
-                        <RockButton v-for="action in hiddenActions">
-                            {{ action.text }}
+                    <div class="d-flex gap-xs flex-wrap w-100 mt-spacing-xs">
+                        <RockButton v-for="actionItem in hiddenActions"
+                                    :btnSize="BtnSize.Small"
+                                    @click="onActionClick(actionItem)">
+                            {{ actionItem.text }}
                         </RockButton>
                     </div>
                 </div>
@@ -36,6 +42,8 @@
     import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
     import TransitionVerticalCollapse from "@Obsidian/Controls/transitionVerticalCollapse.obs";
     import RockButton from "@Obsidian/Controls/rockButton.obs";
+    import { BtnSize } from "@Obsidian/Enums/Controls/btnSize";
+    import { isNullOrWhiteSpace } from "@Obsidian/Utility/stringUtils";
 
     const props = defineProps({
         actionItems: {
@@ -43,6 +51,10 @@
             default: []
         }
     });
+
+    const emit = defineEmits<{
+        (e: "onActionClick", value: string): void;
+    }>();
 
     const areActionItemsExpanded = ref<boolean>(false);
     const actionItemsContainer = ref();
@@ -123,6 +135,14 @@
 
         // Exit measurement mode: row will now render only the prefix.
         isMeasuring.value = false;
+    }
+
+    function onActionClick(actionItem: ListItemBag): void {
+        if (!actionItem.value || isNullOrWhiteSpace(actionItem.value)) {
+            return;
+        }
+
+        emit("onActionClick", actionItem.value);
     }
 
     watch(actionItemsContainer, el => {

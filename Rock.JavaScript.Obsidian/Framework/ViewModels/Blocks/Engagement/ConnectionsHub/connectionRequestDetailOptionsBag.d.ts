@@ -22,6 +22,7 @@
 //
 
 import { Guid } from "@Obsidian/Types";
+import { ConnectionActivityBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionActivityBag";
 import { ConnectionStatusBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionStatusBag";
 import { ConnectorItemBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectorItemBag";
 import { PlacementGroupDetailsBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/placementGroupDetailsBag";
@@ -35,6 +36,8 @@ export type ConnectionRequestDetailOptionsBag = {
     areRemindersEnabled: boolean;
 
     badgeGuids?: Guid[] | null;
+
+    connectionActivities?: ConnectionActivityBag[] | null;
 
     connectionStates?: ListItemBag[] | null;
 

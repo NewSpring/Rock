@@ -136,7 +136,6 @@
         },
     });
 
-
     const emit = defineEmits<{
         (e: "editNote", value: ConnectionRequestNoteBag): void;
         (e: "deleteNote", value: string): void;

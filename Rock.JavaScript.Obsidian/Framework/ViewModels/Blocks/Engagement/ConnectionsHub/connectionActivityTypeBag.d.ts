@@ -25,7 +25,7 @@ import { PersonNoteCreationBehavior } from "@Obsidian/Enums/Connection/personNot
 import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
 
 /** The additional configuration options for the Connections Hub block. */
-export type ConnectionActivityBag = {
+export type ConnectionActivityTypeBag = {
     activityType?: ListItemBag | null;
 
     personNoteCreationBehavior?: PersonNoteCreationBehavior | null;

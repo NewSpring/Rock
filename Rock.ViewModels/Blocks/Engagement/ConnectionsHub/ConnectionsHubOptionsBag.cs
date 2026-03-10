@@ -63,7 +63,7 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
 
         public List<ListItemBag> GridDataToShowItems { get; set; }
 
-        public List<ConnectionActivityBag> ConnectionActivities { get; set; }
+        public List<ConnectionActivityTypeBag> ConnectionActivities { get; set; }
 
         public ConnectionOpportunityDetailBag ConnectionOpportunityDetailsFromFilter { get; set; }
 

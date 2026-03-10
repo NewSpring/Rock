@@ -41,6 +41,8 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
 
         public List<PlacementGroupDetailsBag> PlacementGroups { get; set; }
 
+        public List<ConnectionActivityTypeBag> ConnectionActivities { get; set; }
+
         public List<ListItemBag> RequestSourceItems { get; set; }
 
         public string LavaHeadingTemplate { get; set; }

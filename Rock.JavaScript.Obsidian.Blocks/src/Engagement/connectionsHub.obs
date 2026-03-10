@@ -84,7 +84,7 @@
                             </li>
                             <li>
                                 <button type="button"
-                                        @click.stop="showDeleteRequestModal"
+                                        @click.stop="showDeleteRequestModal()"
                                         class="dropdown-item btn-link py-spacing-xs px-spacing-md font-weight-semibold text-danger">
                                     <i class="ti ti-trash pr-spacing-sm text-danger"></i>Delete
                                 </button>
@@ -356,7 +356,7 @@
                                 </li>
                                 <li>
                                     <button type="button"
-                                            @click.stop="showDeleteRequestModal"
+                                            @click.stop="showDeleteRequestModal(row)"
                                             class="dropdown-item btn-link py-spacing-xs px-spacing-md font-weight-semibold text-danger">
                                         <i class="ti ti-trash pr-spacing-sm text-danger"></i>Delete
                                     </button>
@@ -496,7 +496,7 @@
     <ActivityModal v-model:visible="isActivityModalVisible"
                    :connectorItems="allPossibleConnectors"
                    :requestDetails="requestDetailsForModal"
-                   :connectionActivities="box.options?.connectionActivities ?? []"
+                   :connectionActivities="connectionActivityItems ?? []"
                    :viewOptions="viewOptions"
                    :currentPerson="currentPerson"
                    :activityToEdit="activityToEdit"
@@ -534,20 +534,26 @@
     <ConnectionRequestDockedPanel v-model="isDockedPanelVisible"
                                   ref="connectionRequestDockedPanelRef"
                                   :currentKey="selectedRequestKey"
+                                  :connectionRequestBreadcrumbs="connectionRequestBreadcrumbs"
                                   :orderedKeys="orderedRequestKeys ?? []"
                                   :detailsBox="dockedPanelDetailsBox"
                                   :dockedPanelCloseOnOutsideClick="dockedPanelCloseOnOutsideClick"
                                   @navigate="updateSelectedRequestKey"
+                                  @navigateToBreadcrumb="navigateToBreadcrumb"
+                                  @navigateToAdditionalRequest="navigateToAdditionalRequest"
                                   @editActivity="onEditActivity"
                                   @editRequest="onEditRequest"
                                   @transferRequest="onTransferClick"
+                                  @addActivity="showAddActivityModal"
                                   @onCelebrationClick="box => showCelebrationModal(null, box)"
                                   @onReminderClick="box => showReminderModal(null, box)"
                                   @onSMSClick="showSMSModal(true)"
                                   @onEmailClick="showEmailModal(true)"
                                   @onReassignConnector="(connector) => reassignConnector([dockedPanelDetailsBox?.entity?.connectionRequestIdKey ?? ''], connector, true)"
                                   @onRequestStateChanged="updateRequestStates"
-                                  @onStatusButtonClick="onStatusClickFromDockedPanel" />
+                                  @onStatusButtonClick="onStatusClickFromDockedPanel"
+                                  @launchWorkflow="launchWorkflowForRequests"
+                                  @deleteRequest="showDeleteRequestModal()" />
 
     <TransferConnectionRequestModal v-model="isTransferModalVisible"
                                     :transferDetails="transferRequestDetails"
@@ -673,7 +679,7 @@
 <script setup lang="ts">
     import { onConfigurationValuesChanged, useBlockBrowserBus, useConfigurationValues, useInvokeBlockAction, usePersonPreferences, useReloadBlock } from "@Obsidian/Utility/block";
     import { GridDataBag } from "@Obsidian/ViewModels/Core/Grid/gridDataBag";
-    import { computed, reactive, Ref, ref, watch } from "vue";
+    import { computed, nextTick, reactive, Ref, ref, watch } from "vue";
     import { ListBlockBox } from "@Obsidian/ViewModels/Blocks/listBlockBox";
     import { ConnectionsHubOptionsBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionsHubOptionsBag";
     import Grid, { Column, PersonColumn, TextColumn, SelectColumn, AttributeColumns } from "@Obsidian/Controls/grid";
@@ -760,6 +766,8 @@
     import TransferConnectionRequestModal from "./ConnectionsHub/transferConnectionRequestModal.partial.obs";
     import { TransferConnectionRequestDetailsBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/transferConnectionRequestDetailsBag";
     import ConnectionStatusButton from "./ConnectionsHub/connectionStatusButton.partial.obs";
+    import { ConnectionActivityTypeBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionActivityTypeBag";
+    import { confirmDelete } from "@Obsidian/Utility/dialogs";
 
     /* =====================================================
      * Configuration & Data Loading
@@ -864,10 +872,10 @@
 
     const orderedRequestKeys = ref<string[]>([]);
     const isDockedPanelVisible = ref(false);
+    // Breadcrumbs are used when a user navigates to an "additional request"
+    const connectionRequestBreadcrumbs = ref<ListItemBag[]>([]);
     const selectedRequestKey = ref();
     const dockedPanelDetailsBox = ref<ConnectionRequestDetailBox>();
-    // const requestDetails = ref<ConnectionRequestDetailsBag | undefined>();
-    // const requestDetailOptions = ref<ConnectionRequestDetailOptionsBag | undefined>();
     const activityToEdit = ref<ActivityEntryBag | null>(null);
     const connectionRequestDockedPanelRef = ref<InstanceType<typeof ConnectionRequestDockedPanel>>();
     const dockedPanelCloseOnOutsideClick = ref<boolean>(true);
@@ -958,9 +966,11 @@
 
     // TODO - If we keep this than pass this into the change status modal.
     const connectionStatusItems = computed<ListItemBag[]>(() => {
+        const statuses = dockedPanelDetailsBox.value?.options?.connectionStatuses
+            ?? box.options?.connectionStatuses;
+
         return (
-            box.options?.connectionStatuses
-                ?.slice() // avoid mutating source
+            statuses?.slice() // avoid mutating source
                 .sort((a, b) => a.order - b.order)
                 .map(s => ({
                     value: s.guid,
@@ -969,6 +979,12 @@
         );
     });
 
+    const connectionActivityItems = computed<ConnectionActivityTypeBag[] | null | undefined>(() => {
+        const activities = dockedPanelDetailsBox.value?.options?.connectionActivities
+            ?? box.options?.connectionActivities;
+
+        return activities;
+    });
 
     // Computed setter normalizes v-model updates so the dropdown’s blank "All Opportunities" value is never stored in component state.
     const selectedOpportunity = computed({
@@ -1298,6 +1314,9 @@
      * @param key The key of the row that was selected.
      */
     function onSelectItem(key: string): void {
+        // When a new request is selected from the list we need to clear breadcrumbs.
+        connectionRequestBreadcrumbs.value = [];
+
         selectedRequestKey.value = key;
         isDockedPanelVisible.value = true;
     }
@@ -1497,8 +1516,8 @@
         isAssignRequestModalVisible.value = true;
     }
 
-    function showDeleteRequestModal(): void {
-        prepareRequestDetailsForModal();
+    function showDeleteRequestModal(row: Record<string, unknown> | null = null): void {
+        prepareRequestDetailsForModal(row, dockedPanelDetailsBox.value);
         isDeleteRequestModalVisible.value = true;
     }
 
@@ -1509,7 +1528,7 @@
     }
 
     function showAddActivityModal(): void {
-        prepareRequestDetailsForModal();
+        prepareRequestDetailsForModal(null, dockedPanelDetailsBox.value);
         isActivityModalVisible.value = true;
     }
 
@@ -1578,6 +1597,30 @@
         }
 
         updateRequestStatuses(statusUpdateBags, completedRequests);
+    }
+
+    function navigateToBreadcrumb(index: number): void {
+        const breadcrumb = connectionRequestBreadcrumbs.value[index];
+        if (!breadcrumb.value) {
+            return;
+        }
+
+        connectionRequestBreadcrumbs.value = connectionRequestBreadcrumbs.value.slice(0, index);
+        getConnectionRequestDetails(breadcrumb.value);
+    }
+
+    function navigateToAdditionalRequest(connectionRequestIdKey: string): void {
+        var currentRequest = dockedPanelDetailsBox.value?.entity;
+        if (!currentRequest) {
+            return;
+        }
+
+        connectionRequestBreadcrumbs.value.push(<ListItemBag>{
+            text: `${currentRequest.connectionOpportunityName} (${currentRequest.requesterPerson?.nickName} ${currentRequest.requesterPerson?.lastName})`,
+            value: currentRequest.connectionRequestIdKey
+        });
+
+        getConnectionRequestDetails(connectionRequestIdKey);
     }
 
     async function updateStateFromModal(bag: UpdateConnectionRequestStatesBag): Promise<void> {
@@ -1784,7 +1827,7 @@
     async function updateRequestStatuses(statusUpdateBags: ConnectionRequestUpdateBag[], completedRequestIdKeys: string[]): Promise<void> {
         const result = await invokeBlockAction<ConnectionListGridUpdateBag[]>("UpdateRequestStatuses", {
             statusUpdateBags: statusUpdateBags,
-            completedRequestIdKeys: completedRequestIdKeys
+            completedRequestIdKeys: completedRequestIdKeys,
         });
 
         if (result.isSuccess && result.data) {
@@ -1820,8 +1863,12 @@
     }
 
     async function changeRequestStatus(bag: ConnectionRequestUpdateBag): Promise<void> {
+        // If the action comes from a docked panel than the Connection Type could be different than the Connection Type of the List View.
+        const connectionTypeIdKey = dockedPanelDetailsBox.value?.options?.connectionTypeIdKey;
+
         const result = await invokeBlockAction<ConnectionListGridUpdateBag>("ChangeRequestStatus", {
-            bag
+            bag,
+            connectionTypeIdKey
         });
 
         if (result.isSuccess && result.data) {
@@ -1848,8 +1895,12 @@
     }
 
     async function updateRequestStates(bag: UpdateConnectionRequestStatesBag): Promise<boolean> {
+        // If the action comes from a docked panel than the Connection Type could be different than the Connection Type of the List View.
+        const connectionTypeIdKey = dockedPanelDetailsBox.value?.options?.connectionTypeIdKey;
+
         const result = await invokeBlockAction<ConnectionListGridUpdateBag[]>("UpdateRequestStates", {
-            bag: bag
+            bag: bag,
+            connectionTypeIdKey
         });
 
         if (result.isSuccess && result.data) {
@@ -1897,8 +1948,12 @@
     }
 
     async function launchWorkflowForRequests(bag: LaunchWorkflowBag): Promise<void> {
+        // If the action comes from a docked panel than the Connection Type could be different than the Connection Type of the List View.
+        const connectionTypeIdKey = dockedPanelDetailsBox.value?.options?.connectionTypeIdKey;
+
         const result = await invokeBlockAction<LaunchWorkflowResultBag>("LaunchWorkflowForRequests", {
-            bag: bag
+            bag: bag,
+            connectionTypeIdKey
         });
 
         if (result.isSuccess && result.data) {
@@ -1916,20 +1971,34 @@
             }
 
             isLaunchWorkflowModalVisible.value = false;
+
+            return;
         }
 
         console.error(result.errorMessage);
     }
 
     async function deleteRequests(connectionRequestIdKeys: string[]): Promise<boolean> {
+        // If the action comes from a docked panel than the Connection Type could be different than the Connection Type of the List View.
+        const connectionTypeIdKey = dockedPanelDetailsBox.value?.options?.connectionTypeIdKey;
+
         const result = await invokeBlockAction("DeleteRequests", {
-            connectionRequestIdKeys: connectionRequestIdKeys
+            connectionRequestIdKeys: connectionRequestIdKeys,
+            connectionTypeIdKey
         });
 
         if (result.isSuccess) {
             const idKeySet = new Set(connectionRequestIdKeys);
 
             gridData.value!.rows = gridData.value?.rows?.filter(r => !idKeySet.has(r.idKey as string));
+
+            // TODO - Find a better aproach to clearing the selected request
+            if (isDockedPanelVisible.value && connectionRequestIdKeys.length === 1 && dockedPanelDetailsBox.value?.entity?.connectionRequestIdKey === connectionRequestIdKeys[0]) {
+                selectedRequestKey.value = null;
+                isDockedPanelVisible.value = false;
+                dockedPanelDetailsBox.value = undefined;
+            }
+
             return true;
         }
         return false;
@@ -1942,19 +2011,21 @@
     }
 
     async function upsertActivity(bag: ActivityBag): Promise<void> {
-        console.log("here: ", bag);
+        // If the action comes from a docked panel than the Connection Type could be different than the Connection Type of the List View.
+        const connectionTypeIdKey = dockedPanelDetailsBox.value?.options?.connectionTypeIdKey;
+
         // If we have an activity Id Key then we are in update mode.
         if (bag.activityIdKey) {
-            await updateActivity(bag);
+            await updateActivity(bag, connectionTypeIdKey);
             return;
         }
 
         const result = await invokeBlockAction<ConnectionListGridUpdateBag[]>("AddActivityForRequests", {
-            bag: bag
+            bag: bag,
+            connectionTypeIdKey
         });
 
         if (result.isSuccess && result.data) {
-            console.log("Data: ", result.data);
             if (result.data.length === 1) {
                 const resultBag = result.data[0];
 
@@ -1963,6 +2034,10 @@
                 if (row) {
                     row.activityCount = resultBag.activityCount;
                     row.lastActivityDateTime = resultBag.lastActivityDateTime;
+                }
+
+                if (!!dockedPanelDetailsBox.value?.entity && dockedPanelDetailsBox.value.entity.connectionRequestIdKey === resultBag.idKey) {
+                    refreshActivityEntries(dockedPanelDetailsBox.value.entity.connectionRequestIdKey);
                 }
             }
             else {
@@ -1982,16 +2057,17 @@
             }
 
             isActivityModalVisible.value = false;
-            activityToEdit.value = null;
+            // activityToEdit.value = null;
             return;
         }
 
         console.error(result.errorMessage);
     }
 
-    async function updateActivity(bag: ActivityBag): Promise<void> {
+    async function updateActivity(bag: ActivityBag, connectionTypeIdKey: string | null | undefined): Promise<void> {
         const result = await invokeBlockAction<ActivityEntryBag>("UpdateActivity", {
-            bag
+            bag,
+            connectionTypeIdKey
         });
 
         if (result.isSuccess && result.data) {
@@ -2110,9 +2186,13 @@
     }
 
     async function reassignConnector(connectionRequestIdKeys: string[], connector: string, fromDockedPanel: boolean = false): Promise<void> {
+        // If the action comes from a docked panel than the Connection Type could be different than the Connection Type of the List View.
+        const connectionTypeIdKey = dockedPanelDetailsBox.value?.options?.connectionTypeIdKey;
+
         const result = await invokeBlockAction<ConnectionListGridUpdateBag[]>("ReassignConnector", {
             connectionRequestIdKeys: connectionRequestIdKeys,
-            connectorPersonAliasGuid: connector
+            connectorPersonAliasGuid: connector,
+            connectionTypeIdKey
         });
 
         if (result.isSuccess && result.data) {
@@ -2171,7 +2251,10 @@
     }
 
     async function upsertCelebration(bag: UpsertCelebrationBag): Promise<void> {
-        const result = await invokeBlockAction<ConnectionListGridUpdateBag>("UpsertCelebrationText", { bag });
+        // If the action comes from a docked panel than the Connection Type could be different than the Connection Type of the List View.
+        const connectionTypeIdKey = dockedPanelDetailsBox.value?.options?.connectionTypeIdKey;
+
+        const result = await invokeBlockAction<ConnectionListGridUpdateBag>("UpsertCelebrationText", { bag, connectionTypeIdKey });
 
         if (result.isSuccess && result.data) {
             const row = gridData.value?.rows?.find(r => r.idKey === result.data?.idKey);
@@ -2223,8 +2306,9 @@
 
     // When any modal is open, disable close-on-outside-click for the docked panel so that
     // clicking inside a modal doesn't accidentally close the panel behind it.
-    watch([isTransferModalVisible, isCelebrationModalVisible, isActivityModalVisible, isReminderModalVisible, isSendSMSModalVisible, isSendEmailModalVisible, isFlyoutOpen], (values) => {
+    watch([isTransferModalVisible, isCelebrationModalVisible, isActivityModalVisible, isReminderModalVisible, isSendSMSModalVisible, isSendEmailModalVisible, isFlyoutOpen, isModalAlertVisible, isDeleteRequestModalVisible], (values) => {
         handleClickOutsideSettingForDockedPanel(!values.some(Boolean));
+
     });
 
     watch(areOnlyMyRequestsVisible, async () => {

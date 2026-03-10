@@ -139,23 +139,15 @@
     import Modal from "@Obsidian/Controls/modal.obs";
     import NotificationBox from "@Obsidian/Controls/notificationBox.obs";
     import { ref, PropType, watch, computed } from "vue";
-    import { propertyRef, updateRefValue, useVModelPassthrough } from "@Obsidian/Utility/component";
-    import { deepEqual } from "@Obsidian/Utility/util";
-    import { ConnectionRequestBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionRequestBag";
-    import PersonPicker from "@Obsidian/Controls/personPicker.obs";
+    import { useVModelPassthrough } from "@Obsidian/Utility/component";
     import RadioButtonList from "@Obsidian/Controls/radioButtonList.obs";
     import DropDownList from "@Obsidian/Controls/dropDownList.obs";
     import TextBox from "@Obsidian/Controls/textBox.obs";
     import ConditionalWell from "@Obsidian/Controls/conditionalWell.obs";
     import AttributeValuesContainer from "@Obsidian/Controls/attributeValuesContainer.obs";
-    import { ConnectionsHubOptionsBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionsHubOptionsBag";
-    import { ConnectionState } from "@Obsidian/Enums/Connection/connectionState";
-    import { ConnectionOpportunityDetailBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionOpportunityDetailBag";
     import { PublicAttributeBag } from "@Obsidian/ViewModels/Utility/publicAttributeBag";
-    import { PlacementGroupDetailsBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/placementGroupDetailsBag";
     import { isNullOrWhiteSpace } from "@Obsidian/Utility/stringUtils";
     import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
-    import RockLabel from "@Obsidian/Controls/rockLabel.obs";
     import RockButton from "@Obsidian/Controls/rockButton.obs";
     import { TransferConnectionRequestBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/transferConnectionRequestBag";
     import { TransferConnectionRequestDetailsBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/transferConnectionRequestDetailsBag";
@@ -204,7 +196,6 @@
     const searchFilter = ref();
     const selectedCampusFilter = ref();
     const selectedAttributeValueFilters = ref();
-
 
     const isVisible = useVModelPassthrough(props, "modelValue", emit);
 
@@ -338,6 +329,24 @@
     function setSearchMode(value: boolean): void {
         isInSearchMode.value = value;
     }
+
+    function resetModal(): void {
+        errorMessage.value = undefined;
+        selectedConnectorOption.value = "default";
+        selectedDueDateOption.value = "current";
+        note.value = "";
+
+        isInSearchMode.value = false;
+        searchFilter.value = undefined;
+        selectedCampusFilter.value = undefined;
+        selectedAttributeValueFilters.value = undefined;
+    }
+
+    watch(isVisible, (visible) => {
+        if (!visible) {
+            resetModal();
+        }
+    });
 
     watch(() => props.transferDetails, () => {
         selectedOpportunity.value = props.transferDetails?.currentConnectionOpportunityGuid;

@@ -29,7 +29,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using AngleSharp.Dom;
 using Rock.AI.Classes.ChatCompletions;
-using Microsoft.Ajax.Utilities;
+using static Rock.Model.ConnectionType.ConnectionTypeAdditionalSettings;
 
 namespace Rock.Blocks.Engagement
 {
@@ -315,11 +315,12 @@ namespace Rock.Blocks.Engagement
                     } )
             );
 
-            options.ConnectionActivities = connectionType.ConnectionActivityTypes.Select( a => new ConnectionActivityBag
-            {
-                ActivityType = a.ToListItemBag(),
-                PersonNoteCreationBehavior = a.PersonNoteCreationBehavior
-            } ).ToList();
+            options.ConnectionActivities = connectionType.ConnectionActivityTypes.Where( at => at.IsActive )
+                .Select( a => new ConnectionActivityTypeBag
+                {
+                    ActivityType = a.ToListItemBag(),
+                    PersonNoteCreationBehavior = a.PersonNoteCreationBehavior
+                } ).ToList();
 
             return options;
         }
@@ -873,7 +874,6 @@ namespace Rock.Blocks.Engagement
         {
             ConnectionTypeCache connectionType;
 
-            // TODO - I may not need this. I will need it if a docked panel block action uses this method.
             if ( connectionTypeIdKey.IsNotNullOrWhiteSpace() )
             {
                 connectionType = ConnectionTypeCache.Get( connectionTypeIdKey, !PageCache.Layout.Site.DisablePredictableIds );
@@ -1103,6 +1103,13 @@ namespace Rock.Blocks.Engagement
                 AreGroupPlacementsEnabled = connectionRequest.ConnectionOpportunity.ConnectionType.EnabledFeatures.HasFlag( EnabledFeatureFlags.GroupPlacement ),
                 RequestSourceItems = connectionRequest.ConnectionOpportunity.ConnectionType.ConnectionTypeSources.ToListItemBagList()
             };
+
+            optionsBag.ConnectionActivities = connectionRequest.ConnectionOpportunity.ConnectionType.ConnectionActivityTypes.Where( at => at.IsActive )
+                .Select( a => new ConnectionActivityTypeBag
+                {
+                    ActivityType = a.ToListItemBag(),
+                    PersonNoteCreationBehavior = a.PersonNoteCreationBehavior
+                } ).ToList();
 
             var delimitedBadgeGuids = GetAttributeValue( AttributeKey.Badges );
             optionsBag.BadgeGuids = delimitedBadgeGuids.SplitDelimitedValues().AsGuidList();
@@ -1406,25 +1413,79 @@ namespace Rock.Blocks.Engagement
                 MaritalStatus = maritalStatus
             };
 
-            // TODO - Apply filtering when we have more details about additional settings JSON structure
-            var additionalRequestsProjection = new ConnectionRequestService( RockContext ).Queryable()
-                .AsNoTracking()
-                .Where( r => r.PersonAlias.PersonId == requesterPerson.Id )
-                .Select( r => new
-                {
-                    RequestId = r.Id,
-                    ConnectionOpportunityId = r.ConnectionOpportunity.Id,
-                    ConnectionOpportunityName = r.ConnectionOpportunity.Name,
-                    ConnectionStatus = r.ConnectionStatus.Name,
-                    r.ConnectorPersonAlias,
-                    ConnectorNickName = r.ConnectorPersonAlias != null ? r.ConnectorPersonAlias.Person.NickName : string.Empty,
-                    ConnectorLastName = r.ConnectorPersonAlias != null ? r.ConnectorPersonAlias.Person.LastName : string.Empty,
-                    RequestCreatedDateTime = r.CreatedDateTime,
-                    RequesterNickName = r.PersonAlias.Person.NickName,
-                    RequesterLastName = r.PersonAlias.Person.LastName
-                } ).ToList();
+            var additionalRequestSettings = connectionRequest.ConnectionOpportunity.ConnectionType.GetConnectionTypeAdditionalSettings()?.AdditionalRequestsToShow;
 
-            detailsBag.AdditionalRequests = additionalRequestsProjection.Select( r => new AdditionalRequestBag
+            detailsBag.AdditionalRequests = GetAdditionalConnectionRequests( additionalRequestSettings, requesterPerson );
+
+            detailsBag.PersonNotes = GetPersonNotesForPerson( connectionRequest.PersonAlias.PersonId );
+
+            detailsBag.ActivityEntries = GetActivityEntries( connectionRequest, mergeFields );
+
+            return detailsBag;
+        }
+
+        public List<AdditionalRequestBag> GetAdditionalConnectionRequests( List<AdditionalRequestToShowSettings> settingsList, Rock.Model.Person requesterPerson )
+        {
+            if ( settingsList == null || !settingsList.Any() )
+            {
+                return new List<AdditionalRequestBag>();
+            }
+
+            var familyMemberPersonIds = requesterPerson.GetFamilyMembers( includeSelf: true, RockContext )
+                .Select( gm => gm.PersonId )
+                .ToList();
+
+            var connectionRequestService = new ConnectionRequestService( RockContext );
+
+            IQueryable<ConnectionRequest> combinedQuery = null;
+
+            foreach ( var setting in settingsList )
+            {
+                var query = connectionRequestService
+                    .Queryable()
+                    .Where( r => r.ConnectionOpportunity.ConnectionType.Guid == setting.ConnectionTypeGuid );
+
+                if ( setting.StatesToShow.Any() )
+                {
+                    var states = setting.StatesToShow;
+                    query = query.Where( r => states.Contains( r.ConnectionState ) );
+                }
+
+                if ( setting.LimitToRecentRequestsDays.HasValue )
+                {
+                    var cutoff = RockDateTime.Now.AddDays( -setting.LimitToRecentRequestsDays.Value );
+                    query = query.Where( r => r.CreatedDateTime >= cutoff );
+                }
+
+                if ( setting.IncludeFamilyMemberRequests )
+                {
+                    query = query.Where( r => familyMemberPersonIds.Contains( r.PersonAlias.PersonId ) );
+                }
+                else
+                {
+                    query = query.Where( r => r.PersonAlias.PersonId == requesterPerson.Id );
+                }
+
+                combinedQuery = combinedQuery == null
+                    ? query
+                    : combinedQuery.Union( query );
+            }
+
+            var additionalRequestsProjection = combinedQuery.Select( r => new
+            {
+                RequestId = r.Id,
+                ConnectionOpportunityId = r.ConnectionOpportunity.Id,
+                ConnectionOpportunityName = r.ConnectionOpportunity.Name,
+                ConnectionStatus = r.ConnectionStatus.Name,
+                r.ConnectorPersonAlias,
+                ConnectorNickName = r.ConnectorPersonAlias != null ? r.ConnectorPersonAlias.Person.NickName : string.Empty,
+                ConnectorLastName = r.ConnectorPersonAlias != null ? r.ConnectorPersonAlias.Person.LastName : string.Empty,
+                RequestCreatedDateTime = r.CreatedDateTime,
+                RequesterNickName = r.PersonAlias.Person.NickName,
+                RequesterLastName = r.PersonAlias.Person.LastName
+            } ).ToList();
+
+            return additionalRequestsProjection.Select( r => new AdditionalRequestBag
             {
                 RequestIdKey = IdHasher.Instance.GetHash( r.RequestId ),
                 ConnectionOpportunityIdKey = IdHasher.Instance.GetHash( r.ConnectionOpportunityId ),
@@ -1434,12 +1495,6 @@ namespace Rock.Blocks.Engagement
                 RequestCreatedDateTime = r.RequestCreatedDateTime?.ToRockDateTimeOffset(),
                 Requester = r.RequesterNickName + " " + r.RequesterLastName
             } ).ToList();
-
-            detailsBag.PersonNotes = GetPersonNotesForPerson( connectionRequest.PersonAlias.PersonId );
-
-            detailsBag.ActivityEntries = GetActivityEntries( connectionRequest, mergeFields );
-
-            return detailsBag;
         }
 
         private List<ActivityEntryBag> GetActivityEntries( ConnectionRequest connectionRequest, Dictionary<string, object> mergeFields )
@@ -1858,6 +1913,62 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
             return $"Based on the following connection request data, write a 2-3 sentence human-friendly response following the instructions of the prompt. Prompt: {prompt}\n\n{sb}";
         }
 
+        private void LaunchWorkflowsInBackground( List<ConnectionRequest> eligibleRequests, ConnectionWorkflow connectionWorkflow, WorkflowTypeCache workflowType )
+        {
+            var requestIds = eligibleRequests.Select( r => r.Id ).ToList();
+            var connectionWorkflowId = connectionWorkflow.Id;
+            var workflowTypeId = workflowType.Id;
+            var triggerType = connectionWorkflow.TriggerType;
+            var qualifierValue = connectionWorkflow.QualifierValue;
+            var workTerm = connectionWorkflow.WorkflowType.WorkTerm;
+
+            Task.Run( () =>
+            {
+                foreach ( var requestId in requestIds )
+                {
+                    try
+                    {
+                        using ( var rockContext = new RockContext() )
+                        {
+                            var request = new ConnectionRequestService( rockContext ).Get( requestId );
+                            var wfType = WorkflowTypeCache.Get( workflowTypeId );
+                            var workflow = Rock.Model.Workflow.Activate( wfType, workTerm, rockContext );
+
+                            if ( workflow == null )
+                            {
+                                continue;
+                            }
+
+                            var bgWorkflowService = new WorkflowService( rockContext );
+
+                            if ( !bgWorkflowService.Process( workflow, request, out _ ) )
+                            {
+                                continue;
+                            }
+
+                            if ( workflow.Id != 0 )
+                            {
+                                new ConnectionRequestWorkflowService( rockContext ).Add( new ConnectionRequestWorkflow
+                                {
+                                    ConnectionRequestId = requestId,
+                                    WorkflowId = workflow.Id,
+                                    ConnectionWorkflowId = connectionWorkflowId,
+                                    TriggerType = triggerType,
+                                    TriggerQualifier = qualifierValue
+                                } );
+                            }
+
+                            rockContext.SaveChanges();
+                        }
+                    }
+                    catch ( Exception ex )
+                    {
+                        ExceptionLogService.LogException( ex );
+                    }
+                }
+            } );
+        }
+
         #endregion Methods
 
         #region Block Actions
@@ -2173,8 +2284,6 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
         [BlockAction]
         public BlockActionResult SaveConnectionRequest( ValidPropertiesBox<ConnectionRequestBag> box )
         {
-            var connectionType = GetConnectionTypeCacheFromPageParameters();
-
             if ( !TryGetEntityForEditAction( box.Bag.IdKey, out var entity, out var actionError ) )
             {
                 return actionError;
@@ -2208,9 +2317,9 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
         }
 
         [BlockAction]
-        public BlockActionResult ReassignConnector( List<string> connectionRequestIdKeys, string connectorPersonAliasGuid )
+        public BlockActionResult ReassignConnector( List<string> connectionRequestIdKeys, string connectorPersonAliasGuid, string connectionTypeIdKey = null )
         {
-            ConnectionTypeCache connectionType = GetConnectionTypeCacheFromPageParameters();
+            ConnectionTypeCache connectionType = GetConnectionTypeCacheFromPageParameters( connectionTypeIdKey );
 
             if ( connectionType == null )
             {
@@ -2384,9 +2493,9 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
         }
 
         [BlockAction]
-        public BlockActionResult ChangeRequestStatus( ConnectionRequestUpdateBag bag )
+        public BlockActionResult ChangeRequestStatus( ConnectionRequestUpdateBag bag, string connectionTypeIdKey = null )
         {
-            ConnectionTypeCache connectionType = GetConnectionTypeCacheFromPageParameters();
+            ConnectionTypeCache connectionType = GetConnectionTypeCacheFromPageParameters( connectionTypeIdKey );
             if ( connectionType == null )
             {
                 return ActionBadRequest( $"{Rock.Model.ConnectionType.FriendlyTypeName} not found." );
@@ -2444,9 +2553,9 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
         }
 
         [BlockAction]
-        public BlockActionResult UpdateRequestStates( UpdateConnectionRequestStatesBag bag )
+        public BlockActionResult UpdateRequestStates( UpdateConnectionRequestStatesBag bag, string connectionTypeIdKey = null )
         {
-            ConnectionTypeCache connectionType = GetConnectionTypeCacheFromPageParameters();
+            ConnectionTypeCache connectionType = GetConnectionTypeCacheFromPageParameters( connectionTypeIdKey );
             if ( connectionType == null )
             {
                 return ActionBadRequest( $"{Rock.Model.ConnectionType.FriendlyTypeName} not found." );
@@ -2496,9 +2605,9 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
         }
 
         [BlockAction]
-        public BlockActionResult UpsertCelebrationText( UpsertCelebrationBag bag )
+        public BlockActionResult UpsertCelebrationText( UpsertCelebrationBag bag, string connectionTypeIdKey = null )
         {
-            ConnectionTypeCache connectionType = GetConnectionTypeCacheFromPageParameters();
+            ConnectionTypeCache connectionType = GetConnectionTypeCacheFromPageParameters( connectionTypeIdKey );
             if ( connectionType == null )
             {
                 return ActionBadRequest( $"{Rock.Model.ConnectionType.FriendlyTypeName} not found." );
@@ -2524,9 +2633,9 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
         }
 
         [BlockAction]
-        public BlockActionResult DeleteRequests( List<string> connectionRequestIdKeys )
+        public BlockActionResult DeleteRequests( List<string> connectionRequestIdKeys, string connectionTypeIdKey = null )
         {
-            ConnectionTypeCache connectionType = GetConnectionTypeCacheFromPageParameters();
+            ConnectionTypeCache connectionType = GetConnectionTypeCacheFromPageParameters( connectionTypeIdKey );
             if ( connectionType == null )
             {
                 return ActionBadRequest( $"{Rock.Model.ConnectionType.FriendlyTypeName} not found." );
@@ -2560,9 +2669,9 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
         }
 
         [BlockAction]
-        public BlockActionResult AddActivityForRequests( ActivityBag bag )
+        public BlockActionResult AddActivityForRequests( ActivityBag bag, string connectionTypeIdKey = null )
         {
-            ConnectionTypeCache connectionType = GetConnectionTypeCacheFromPageParameters();
+            ConnectionTypeCache connectionType = GetConnectionTypeCacheFromPageParameters( connectionTypeIdKey );
             if ( connectionType == null )
             {
                 return ActionBadRequest( $"{Rock.Model.ConnectionType.FriendlyTypeName} not found." );
@@ -2632,8 +2741,21 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
         }
 
         [BlockAction]
-        public BlockActionResult UpdateActivity( ActivityBag bag )
+        public BlockActionResult UpdateActivity( ActivityBag bag, string connectionTypeIdKey = null )
         {
+            ConnectionTypeCache connectionType = GetConnectionTypeCacheFromPageParameters( connectionTypeIdKey );
+            if ( connectionType == null )
+            {
+                return ActionBadRequest( $"{Rock.Model.ConnectionType.FriendlyTypeName} not found." );
+            }
+
+            var canEditRequest = CanEditConnectionRequests( connectionType, bag.ConnectionRequestIdKeys, out var connectionRequests, out var actionError );
+
+            if ( !canEditRequest )
+            {
+                return actionError;
+            }
+
             var activityService = new ConnectionRequestActivityService( RockContext );
 
             var activity = activityService.Get( bag.ActivityIdKey, !PageCache.Layout.Site.DisablePredictableIds );
@@ -2691,9 +2813,10 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
         }
 
         [BlockAction]
-        public BlockActionResult LaunchWorkflowForRequests( LaunchWorkflowBag bag )
+        public BlockActionResult LaunchWorkflowForRequests( LaunchWorkflowBag bag, string connectionTypeIdKey = null )
         {
-            ConnectionTypeCache connectionType = GetConnectionTypeCacheFromPageParameters();
+            // TODO - is connection type needed here?
+            ConnectionTypeCache connectionType = GetConnectionTypeCacheFromPageParameters( connectionTypeIdKey );
             if ( connectionType == null )
             {
                 return ActionBadRequest( $"{Rock.Model.ConnectionType.FriendlyTypeName} not found." );
@@ -2708,7 +2831,7 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
 
             var workflowType = WorkflowTypeCache.Get( connectionWorkflow.WorkflowTypeId.Value );
 
-            if ( workflowType == null  )
+            if ( workflowType == null )
             {
                 return ActionBadRequest( "Invalid Workflow Type." );
             }
@@ -2718,21 +2841,13 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
                 return ActionBadRequest( "You are not authorized to launch the selected workflow." );
             }
 
-            if ( connectionWorkflow.TriggerType != ConnectionWorkflowTriggerType.Manual || !( connectionWorkflow.WorkflowType.IsActive ?? true ) ) // Mirroring Webforms by setting Is Active to true by default. TODO - Test Webforms.
+            if ( connectionWorkflow.TriggerType != ConnectionWorkflowTriggerType.Manual || !( connectionWorkflow.WorkflowType.IsActive ?? true ) )
             {
                 return ActionBadRequest( "The selected Workflow must be active with a Manual Trigger Type." );
             }
 
-            var workflow = Rock.Model.Workflow.Activate( workflowType, connectionWorkflow.WorkflowType.WorkTerm, RockContext );
-
-            if ( workflow == null )
-            {
-                return ActionBadRequest( "An error occurred while activating the Workflow." );
-            }
-
             var workflowService = new WorkflowService( RockContext );
             var connectionRequestWorkflowService = new ConnectionRequestWorkflowService( RockContext );
-            List<string> workflowErrors;
             List<int> includedDataViewValues = null;
             List<int> excludedDataViewValues = null;
 
@@ -2751,31 +2866,41 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
                 .ToList();
 
             var connectionRequests = new ConnectionRequestService( RockContext ).GetByIds( decodedIds ).Include( r => r.PersonAlias.Person ).ToList();
-            var isSingleRequest = connectionRequests.Count() == 1;
-            string statusMessage = string.Empty;
-            var launchWorkflowResultBag = new LaunchWorkflowResultBag();
-            var launchedWorkflowCount = 0;
+            var isSingleRequest = connectionRequests.Count == 1;
 
-            foreach ( var request in connectionRequests )
+            var eligibleRequests = connectionRequests
+                .Where( r => IsEligibleForWorkflow( connectionWorkflow, r, includedDataViewValues, excludedDataViewValues ) )
+                .ToList();
+
+            var launchWorkflowResultBag = new LaunchWorkflowResultBag();
+
+            if ( eligibleRequests.Count == 0 )
             {
-                if ( !IsEligibleForWorkflow( connectionWorkflow, request, includedDataViewValues, excludedDataViewValues ) )
+                launchWorkflowResultBag.StatusMessage = $"The '{workflowType.Name}' workflow was not started for any of the selected connection requests due to its configuration.";
+                return ActionOk( launchWorkflowResultBag );
+            }
+
+            // Single request: process synchronously so we can return an entry form URL if needed.
+            if ( isSingleRequest )
+            {
+                var workflow = Rock.Model.Workflow.Activate( workflowType, connectionWorkflow.WorkflowType.WorkTerm, RockContext );
+
+                if ( workflow == null )
                 {
-                    continue;
+                    return ActionBadRequest( "An error occurred while activating the Workflow." );
                 }
 
-                // TODO - Test this
-                // Process the workflow and exit if any errors occur.
-                if ( !workflowService.Process( workflow, request, out workflowErrors ) )
+                List<string> workflowErrors;
+                if ( !workflowService.Process( workflow, eligibleRequests[0], out workflowErrors ) )
                 {
                     return ActionBadRequest( "Workflow Processing Error(s):<ul><li>" + workflowErrors.AsDelimited( "</li><li>" ) + "</li></ul>" );
                 }
 
-                // If the workflow is persisted, create a link between the workflow and this connection request.
                 if ( workflow.Id != 0 )
                 {
                     connectionRequestWorkflowService.Add( new ConnectionRequestWorkflow
                     {
-                        ConnectionRequestId = request.Id,
+                        ConnectionRequestId = eligibleRequests[0].Id,
                         WorkflowId = workflow.Id,
                         ConnectionWorkflowId = connectionWorkflow.Id,
                         TriggerType = connectionWorkflow.TriggerType,
@@ -2783,7 +2908,7 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
                     } );
                 }
 
-                if ( isSingleRequest && workflow.HasActiveEntryForm( RequestContext.CurrentPerson ) )
+                if ( workflow.HasActiveEntryForm( RequestContext.CurrentPerson ) )
                 {
                     var qryParam = new Dictionary<string, string>
                     {
@@ -2792,31 +2917,20 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
                     };
 
                     launchWorkflowResultBag.WorkflowEntryPageUrl = this.GetLinkedPageUrl( AttributeKey.WorkflowEntryPage, qryParam );
+                    launchWorkflowResultBag.StatusMessage = $"A '{workflowType.Name}' workflow has been started. The new workflow has an active form that is ready for input.";
+                }
+                else
+                {
+                    launchWorkflowResultBag.StatusMessage = $"A '{workflowType.Name}' workflow has been started.";
                 }
 
-                launchedWorkflowCount++;
+                RockContext.SaveChanges();
+                return ActionOk( launchWorkflowResultBag );
             }
 
-            if ( launchedWorkflowCount == 0 )
-            {
-                statusMessage = $"The '{workflowType.Name}' workflow was not started for any of the selected connection requests due to its configuration.";
-            }
-            else if ( isSingleRequest )
-            {
-                statusMessage = $"A '{workflowType.Name}' workflow has been started. The new workflow has an active form that is ready for input.";
-            }
-            else if ( launchedWorkflowCount == connectionRequests.Count() )
-            {
-                statusMessage = $"The '{workflowType.Name}' workflow was successfully started for all selected connection requests.";
-            }
-            else
-            {
-                statusMessage = $"The '{workflowType.Name}' workflow was started for {launchedWorkflowCount} of the {connectionRequests.Count()} selected connection requests due to its configuration.";
-            }
+            LaunchWorkflowsInBackground( eligibleRequests, connectionWorkflow, workflowType );
 
-            launchWorkflowResultBag.StatusMessage = statusMessage;
-
-            RockContext.SaveChanges();
+            launchWorkflowResultBag.StatusMessage = $"The '{workflowType.Name}' workflow is being started for {eligibleRequests.Count} of the {connectionRequests.Count} selected connection requests.";
             return ActionOk( launchWorkflowResultBag );
         }
 
@@ -2906,6 +3020,7 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
                 return ActionBadRequest( "You are not authorized to view this Connection Request." );
             }
 
+            // TODO - I probably need to add several include statements.
             var box = GetConnectionRequestDetailBox( connectionRequest ); 
 
             return ActionOk( box );

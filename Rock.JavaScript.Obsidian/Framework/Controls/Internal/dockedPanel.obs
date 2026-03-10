@@ -28,6 +28,7 @@
             </transition>
 
             <div v-if="canResize && internalValue"
+                 ref="dockedPanelResizeHandleRef"
                  class="docked-panel-resize-handle"
                  @pointerdown="onResizeStart"></div>
         </div>
@@ -193,6 +194,7 @@
     const isRendered = ref(false);
 
     const dockedPanelRef = ref<HTMLElement | null>(null);
+    const dockedPanelResizeHandleRef = ref<HTMLElement | null>(null);
     const startX = ref(0);
     const startWidth = ref(0);
     const isResizing = ref(false);
@@ -236,7 +238,8 @@
             && props.closeOnOutsideClick
             && internalValue.value
             && dockedPanelRef.value
-            && !dockedPanelRef.value.contains(e.target)) {
+            && !dockedPanelRef.value.contains(e.target)
+            && !dockedPanelResizeHandleRef.value?.contains(e.target)) {
             internalValue.value = false;
         }
     }

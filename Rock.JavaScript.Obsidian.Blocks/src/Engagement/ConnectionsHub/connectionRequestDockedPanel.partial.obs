@@ -82,19 +82,19 @@
                             </div>
                         </div>
                     </template>
+                    <template v-if="requestDetails?.personNotes && requestDetails.personNotes.length > 0">
+                        <div class="bg-info-soft py-spacing-tiny">
+                            <div class="w-100 text-center cursor-pointer text-link text-small" @click="toggleVisibleNotes">
+                                {{ areNotesVisible ? "Hide" : "Show" }} {{ requestDetails.personNotes.length }} {{ pluralize("Note", requestDetails.personNotes.length) }}
+                            </div>
+                        </div>
+                        <TransitionVerticalCollapse>
+                            <div v-show="areNotesVisible" class="bg-interface-softest">
+                                <NoteItem v-for="note in requestDetails.personNotes" :note="note" />
+                            </div>
+                        </TransitionVerticalCollapse>
+                    </template>
                 </div>
-                <template v-if="requestDetails?.personNotes && requestDetails.personNotes.length > 0">
-                    <div class="bg-info-soft py-spacing-tiny">
-                        <div class="w-100 text-center cursor-pointer text-link text-small" @click="toggleVisibleNotes">
-                            {{ areNotesVisible ? "Hide" : "Show" }} {{ requestDetails.personNotes.length }} {{ pluralize("Note", requestDetails.personNotes.length) }}
-                        </div>
-                    </div>
-                    <TransitionVerticalCollapse>
-                        <div v-show="areNotesVisible">
-                            <NoteItem v-for="note in requestDetails.personNotes" :note="note" />
-                        </div>
-                    </TransitionVerticalCollapse>
-                </template>
             </div>
         </template>
         <template #default>
@@ -112,15 +112,19 @@
                                      :editConnectionRequestFormId="editConnectionRequestFormId" />
                 <ViewDockedPanelBody v-else
                                      :requestDetails="requestDetails"
+                                     :connectionRequestBreadcrumbs="connectionRequestBreadcrumbs"
                                      :aiSummary="aiSummary"
                                      :aiSummaryError="aiSummaryError"
                                      :isAiSummaryLoading="isAiSummaryLoading"
                                      :options="options"
                                      :dockedPanelWidthNumber="dockedPanelWidthNumber"
+                                     @navigateToBreadcrumb="(index) => emit('navigateToBreadcrumb', index)"
+                                     @navigateToAdditionalRequest="(key) => emit('navigateToAdditionalRequest', key)"
                                      @editActivity="(entry) => emit('editActivity', entry)"
                                      @onCelebrationClick="emit('onCelebrationClick', detailsBox)"
                                      @onReminderClick="emit('onReminderClick', detailsBox)"
-                                     @onReassignConnector="(connector) => emit('onReassignConnector', connector)" />
+                                     @onReassignConnector="(connector) => emit('onReassignConnector', connector)"
+                                     @launchWorkflow="(bag) => emit('launchWorkflow', bag)" />
             </template>
         </template>
         <template #footer>
@@ -142,11 +146,14 @@
                             </RockButton>
                         </div>
                         <div class="d-flex align-items-center gap-xs">
-                            <RockButton :btnType="BtnType.Default">
+                            <RockButton v-if="!isRequestComplete"
+                                        :btnType="BtnType.Default"
+                                        @click="changeRequestState(ConnectionState.Connected)">
                                 <i class="ti ti-circle-check"></i>
                                 Complete Request
                             </RockButton>
-                            <RockButton :btnType="BtnType.Link">
+                            <RockButton :btnType="BtnType.Link"
+                                        @click="emit('deleteRequest')">
                                 Delete
                             </RockButton>
                         </div>
@@ -168,12 +175,13 @@
                                 Complete
                             </RockButton>
                             <RockButton :btnType="BtnType.Link"
-                                        @click="onTransferClick">
+                                        @click="() => emit('transferRequest')">
                                 Transfer
                             </RockButton>
                         </div>
                         <div class="d-flex align-items-center gap-xs">
-                            <RockButton :btnType="BtnType.Default">
+                            <RockButton :btnType="BtnType.Default"
+                                        @click="() => emit('addActivity')">
                                 <i class="ti ti-activity"></i>
                                 Add Activity
                             </RockButton>
@@ -305,6 +313,8 @@
     import { GetAiSummaryResponseBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/getAiSummaryResponseBag";
     import NoteItem from "./noteItem.partial.obs";
     import ConnectionStatusButton from "./connectionStatusButton.partial.obs";
+    import { LaunchWorkflowBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/launchWorkflowBag";
+    import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
 
     const props = defineProps({
         modelValue: {
@@ -317,7 +327,11 @@
             required: true
         },
 
-        // TODO - order is messed up between grouped grids
+        connectionRequestBreadcrumbs: {
+            type: Array as PropType<ListItemBag[]>,
+            required: true
+        },
+
         orderedKeys: {
             type: Array as PropType<string[]>,
             required: true
@@ -337,9 +351,12 @@
     const emit = defineEmits<{
         (e: "update:modelValue", value: boolean): void;
         (e: "navigate", value: string | null): void;
+        (e: "navigateToBreadcrumb", value: number): void;
+        (e: "navigateToAdditionalRequest", value: string): void;
         (e: "editActivity", value: ActivityEntryBag): void;
         (e: "editRequest", value: ValidPropertiesBox<ConnectionRequestBag>): void;
         (e: "transferRequest"): void;
+        (e: "addActivity"): void;
         (e: "onCelebrationClick", value: ConnectionRequestDetailBox | undefined): void;
         (e: "onReminderClick", value: ConnectionRequestDetailBox | undefined): void;
         (e: "onSMSClick"): void;
@@ -347,10 +364,12 @@
         (e: "onReassignConnector", value: string): void;
         (e: "onRequestStateChanged", value: UpdateConnectionRequestStatesBag): void;
         (e: "onStatusButtonClick", value: MouseEvent): void;
+        (e: "launchWorkflow", value: LaunchWorkflowBag): void;
+        (e: "deleteRequest"): void;
     }>();
 
     defineExpose({
-        setEditMode
+        setEditMode,
     });
 
     const isVisible = useVModelPassthrough(props, "modelValue", emit);
@@ -512,10 +531,6 @@
         isAiSummaryLoading.value = false;
     }
 
-    function onTransferClick(): void {
-        emit("transferRequest");
-    }
-
     // watch(isFullWidth, () => {
     //     if (isFullWidth.value) {
     //         previousDockedPanelWidth = dockedPanelWidth.value;
@@ -526,6 +541,15 @@
     //     }
     // });
 
+    function resetDockedPanel(): void {
+        requestDetails.value = undefined;
+        options.value = undefined;
+        isInEditMode.value = false;
+        editConnectionRequestBox.value = {};
+        aiSummary.value = "";
+        aiSummaryError.value = "";
+    }
+
     /**
      * Handles case where the user manually resizes the panel out of "full width" mode.
      */
@@ -533,6 +557,10 @@
         if (width !== "100%") {
             isFullWidth.value = false;
         }
+    });
+
+    watch(() => props.currentKey, () => {
+        resetDockedPanel();
     });
 
     watch(() => props.detailsBox, () => {

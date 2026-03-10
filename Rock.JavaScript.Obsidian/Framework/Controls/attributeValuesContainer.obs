@@ -58,7 +58,8 @@
             </template>
 
             <template v-else-if="displayAsContentSection">
-                <ContentSection title="Attributes"
+                <ContentSection v-if="attributeCategories.length > 0"
+                                title="Attributes"
                                 icon="ti ti-binary-tree-2"
                                 :disableCollapse="isContentSectionCollapseDisabled">
                     <ContentStack v-for="cat in attributeCategories"

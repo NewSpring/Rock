@@ -25,7 +25,7 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
     /// <summary>
     /// The additional configuration options for the Connections Hub block.
     /// </summary>
-    public class ConnectionActivityBag
+    public class ConnectionActivityTypeBag
     {
         public ListItemBag ActivityType { get; set; }
 

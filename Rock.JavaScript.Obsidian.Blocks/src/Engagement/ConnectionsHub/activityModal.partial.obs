@@ -61,7 +61,7 @@
     import { BulkRequestViewBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/bulkRequestViewBag";
     import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
     import { ViewOptions } from "./types.partial";
-    import { ConnectionActivityBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionActivityBag";
+    import { ConnectionActivityTypeBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionActivityTypeBag";
     import { PersonNoteCreationBehavior } from "@Obsidian/Enums/Connection/personNoteCreationBehavior";
     import { CurrentPersonBag } from "@Obsidian/ViewModels/Crm/currentPersonBag";
     import { ActivityBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/activityBag";
@@ -80,7 +80,7 @@
         },
 
         connectionActivities: {
-            type: Array as PropType<ConnectionActivityBag[]>,
+            type: Array as PropType<ConnectionActivityTypeBag[]>,
             required: true
         },
 

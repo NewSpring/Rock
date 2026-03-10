@@ -73,6 +73,7 @@
     watch(isVisible, () => {
         errorMessage.value = "";
         if (!isVisible.value) {
+            connector.value = undefined;
             emit("close");
         }
     });
