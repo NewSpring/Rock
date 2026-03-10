@@ -55,7 +55,8 @@ namespace Rock.Blocks.Communication
 
     #region Block Attributes
 
-    [SecurityAction( Authorization.APPROVE, "The roles and/or users that have access to approve new communications." )]
+    [SecurityAction( Authorization.VIEW_ALL, @"The roles and/or individuals that have access to view all communications. Applies only when this block's Communication Access Mode is ""Strict""." )]
+    [SecurityAction( Authorization.APPROVE, "The roles and/or individuals that have access to approve new communications." )]
 
     [BooleanField( "Enable Personal Templates",
         Key = AttributeKey.EnablePersonalTemplates,
@@ -63,6 +64,14 @@ namespace Rock.Blocks.Communication
         DefaultBooleanValue = false,
         Order = 0,
         IsRequired = false )]
+
+    [CustomDropdownListField( "Communication Access Mode",
+        Key = AttributeKey.CommunicationAccessMode,
+        Description = @"Controls the level of visibility filtering applied to the communication. ""Lax"" allows all individuals to view all communications. ""Moderate"" only shows communications where the individual has ""View"" rights to the associated communication template or system communication. ""Strict"" limits visibility to communications the individual authored or is listed as the sender, unless they have ""View All"" security on this block.",
+        ListSource = "lax^Lax,moderate^Moderate,strict^Strict",
+        DefaultValue = "strict",
+        Order = 1,
+        IsRequired = true )]
 
     #endregion Block Attributes
 
@@ -75,15 +84,19 @@ namespace Rock.Blocks.Communication
         private static class AttributeKey
         {
             public const string EnablePersonalTemplates = "EnablePersonalTemplates";
+            public const string CommunicationAccessMode = "CommunicationAccessMode";
+        }
+
+        private static class CommunicationAccessModeValue
+        {
+            public const string Lax = "lax";
+            public const string Moderate = "moderate";
+            public const string Strict = "strict";
         }
 
         private static class PageParameterKey
         {
-            // "Communication" allows Communication Id, Guid, or IdKey values,
-            // while the older "CommunicationId" only supports Id.
             public const string Communication = "Communication";
-            public const string CommunicationId = "CommunicationId";
-
             public const string Edit = "Edit";
             public const string Tab = "tab";
         }
@@ -182,6 +195,11 @@ namespace Rock.Blocks.Communication
         #region Fields
 
         /// <summary>
+        /// The backing field for the <see cref="CommunicationAccessMode"/> property.
+        /// </summary>
+        private string _communicationAccessMode;
+
+        /// <summary>
         /// The backing field for the <see cref="CommunicationTypeByMediumEntityTypeId"/> property.
         /// </summary>
         private static readonly Lazy<Dictionary<int, CommunicationType>> _communicationTypeByMediumEntityTypeId = new Lazy<Dictionary<int, CommunicationType>>( () =>
@@ -219,6 +237,29 @@ namespace Rock.Blocks.Communication
         #endregion Fields
 
         #region Properties
+
+        /// <summary>
+        /// The level of visibility filtering applied to the communication.
+        /// </summary>
+        private string CommunicationAccessMode
+        {
+            get
+            {
+                if ( _communicationAccessMode.IsNullOrWhiteSpace() )
+                {
+                    _communicationAccessMode = GetAttributeValue( AttributeKey.CommunicationAccessMode );
+                    if ( _communicationAccessMode != CommunicationAccessModeValue.Lax
+                        && _communicationAccessMode != CommunicationAccessModeValue.Moderate
+                        && _communicationAccessMode != CommunicationAccessModeValue.Strict )
+                    {
+                        // Default to strict.
+                        _communicationAccessMode = CommunicationAccessModeValue.Strict;
+                    }
+                }
+
+                return _communicationAccessMode;
+            }
+        }
 
         /// <summary>
         /// Gets whether the current person can approve communications.
@@ -301,27 +342,6 @@ namespace Rock.Blocks.Communication
                 }
 
                 return _recipientGridAttributeColumns;
-            }
-        }
-
-        /// <summary>
-        /// Gets the Communication entity key passed to the "Communication" or "CommunicationId" page parameter.
-        /// </summary>
-        private string CommunicationOrCommunicationIdPageParameter
-        {
-            get
-            {
-                var communicationPageParameter = PageParameter( PageParameterKey.Communication );
-
-                if ( communicationPageParameter.IsNotNullOrWhiteSpace() )
-                {
-                    return communicationPageParameter;
-                }
-                else
-                {
-                    // Only allow the CommunicationId to contain an ID, but return it as a string so it can be used as an entity key.
-                    return PageParameter( PageParameterKey.CommunicationId ).AsIntegerOrNull()?.ToString();
-                }
             }
         }
 
@@ -1188,16 +1208,35 @@ namespace Rock.Blocks.Communication
         private IQueryable<Rock.Model.Communication> GetCommunicationQueryFromPageParameter()
         {
             // Check page parameter for existing communication.
-            var communicationKey = CommunicationOrCommunicationIdPageParameter;
+            var communicationKey = PageParameter( PageParameterKey.Communication );
             if ( communicationKey.IsNullOrWhiteSpace() )
             {
                 return null;
             }
 
-            return new CommunicationService( RockContext )
-                .GetQueryableByKey( communicationKey, !PageCache.Layout.Site.DisablePredictableIds )
+            /*
+                3/6/2026 - JPH
+
+                There are some in the community that have concerns that people can see communications that they should
+                not be able to see. To address this we are going to remove support for Ids.
+
+                Reason: Enforce No ID support for Loading Communications
+             */
+            var qry = new CommunicationService( RockContext )
+                .GetQueryableByKey( communicationKey, false )
                 .Include( c => c.CommunicationTemplate )
                 .Include( c => c.SystemCommunication );
+
+            // If communication access mode is not "lax", let's eager-load the supporting entities we'll need to
+            // to perform authorization checks.
+            if ( GetAttributeValue( AttributeKey.CommunicationAccessMode ) != CommunicationAccessModeValue.Lax )
+            {
+                qry = qry
+                    .Include( c => c.SenderPersonAlias )
+                    .Include( c => c.CreatedByPersonAlias );
+            }
+
+            return qry;
         }
 
         /// <summary>
@@ -1431,7 +1470,48 @@ namespace Rock.Blocks.Communication
         /// <returns>Whether the current person is authorized to view the communication.</returns>
         private bool GetIsAuthorizedToView( Rock.Model.Communication communication )
         {
-            return communication?.IsAuthorized( Authorization.VIEW, GetCurrentPerson() ) ?? false;
+            if ( communication == null )
+            {
+                return false;
+            }
+
+            var currentPerson = GetCurrentPerson();
+
+            bool IsCurrentPersonSender()
+            {
+                return currentPerson != null && communication.SenderPersonAlias?.PersonId == currentPerson.Id;
+            }
+
+            bool IsCurrentPersonCreator()
+            {
+                return currentPerson != null && communication.CreatedByPersonAlias?.PersonId == currentPerson.Id;
+            }
+
+            // In strict mode, the individual may view the communication if any of the following are true:
+            //  1. They are the sender person.
+            //  2. They are the "created by" person.
+            //  3. They have "View All" authorization to the block.
+            if ( CommunicationAccessMode == CommunicationAccessModeValue.Strict )
+            {
+                return IsCurrentPersonSender()
+                    || IsCurrentPersonCreator()
+                    || BlockCache.IsAuthorized( Authorization.VIEW_ALL, currentPerson );
+            }
+
+            // In moderate mode, the individual may view the communication if any of the following are true:
+            //  1. They are the sender person.
+            //  2. They are the "created by" person.
+            //  3. They have view authorization to the communication (which bubbles up to the communication's template
+            //     and/or system communication).
+            if ( CommunicationAccessMode == CommunicationAccessModeValue.Moderate )
+            {
+                return IsCurrentPersonSender()
+                    || IsCurrentPersonCreator()
+                    || communication.IsAuthorized( Authorization.VIEW, currentPerson );
+            }
+
+            // In lax mode, all individuals may view all communications.
+            return true;
         }
 
         /// <summary>
@@ -2626,7 +2706,6 @@ namespace Rock.Blocks.Communication
             // Redirect back to the same page with the provided communication identifier.
             var pageParams = RequestContext.GetPageParameters();
             pageParams.AddOrReplace( PageParameterKey.Communication, communicationId.AsIdKey() );
-            pageParams.Remove( PageParameterKey.CommunicationId );
             pageParams.Remove( "PageId" );
 
             return pageParams;
