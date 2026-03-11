@@ -33,27 +33,59 @@
         </div>
 
         <div v-if="!isNullOrWhiteSpace(options?.lavaHeadingTemplate)" v-html="options?.lavaHeadingTemplate"></div>
-        <div class="border rounded p-spacing-sm">
-            <div class="d-flex align-items-center gap-tiny text-interface-strong">
-                <i class="ti ti-plug-connected font-size-h4"></i>
-                <!-- TODO - Add logic to show additional requests for family members. -->
-                <div class="text-small text-semibold">Additional Requests</div>
+
+        <div v-if="props.requestDetails?.additionalRequests && props.requestDetails.additionalRequests.length > 0"
+             class="border rounded p-spacing-sm">
+            <div class="d-flex align-items-center gap-tiny justify-content-between">
+                <div class="d-flex align-items-center gap-tiny text-interface-strong">
+                    <i class="ti ti-plug-connected font-size-h4"></i>
+                    <div class="text-small text-semibold">Additional Requests</div>
+                </div>
+                <div v-if="hiddenAdditionalRequests > 0 || areAdditionalRequestsExpanded"
+                     class="d-flex align-items-center gap-xs">
+                    <div v-if="!areAdditionalRequestsExpanded" class="text-interface-medium">+{{ hiddenAdditionalRequests }}</div>
+                    <RockButton @click="toggleAdditionalRequests">
+                        <i v-if="areAdditionalRequestsExpanded" class="ti ti-chevrons-up"></i>
+                        <i v-else class="ti ti-chevrons-down"></i>
+                    </RockButton>
+                </div>
             </div>
-            <div class="d-flex flex-column gap-tiny">
-                <!-- TODO - remove this slice -->
-                <template v-for="additionalRequest in requestDetails?.additionalRequests?.slice(0, 5)">
-                    <p v-if="additionalRequest.requestIdKey"
-                       :key="additionalRequest.requestIdKey"
-                       class="mb-0" :class="{ 'additional-request': dockedPanelWidthNumber < 350 }">
-                        <span class="text-link text-small pr-spacing-sm cursor-pointer"
-                              @click="emit('navigateToAdditionalRequest', additionalRequest.requestIdKey)">
-                            {{ additionalRequest.connectionOpportunityName }}
-                        </span>
-                        <span class="text-interface-medium text-xs">
-                            {{ getRequestMeta(additionalRequest) }}
-                        </span>
-                    </p>
-                </template>
+            <div>
+                <div class="d-flex flex-column gap-tiny">
+                    <template v-for="(additionalRequest, index) in props.requestDetails.additionalRequests.slice(0, 5)">
+                        <div v-if="additionalRequest.requestIdKey"
+                             :key="additionalRequest.requestIdKey"
+                             :class="{ 'additional-request': dockedPanelWidthNumber < 350 }">
+                            <span class="text-link text-small pr-spacing-sm cursor-pointer"
+                                  @click="emit('navigateToAdditionalRequest', additionalRequest.requestIdKey)">
+                                {{ additionalRequest.connectionOpportunityName }}
+                            </span>
+                            <span class="text-interface-medium text-xs">
+                                {{ getRequestMeta(additionalRequest) }}
+                            </span>
+                        </div>
+                    </template>
+                </div>
+
+                <TransitionVerticalCollapse>
+                    <div v-show="areAdditionalRequestsExpanded">
+                        <div class="d-flex flex-column gap-tiny pt-spacing-tiny">
+                            <template v-for="(additionalRequest, index) in props.requestDetails.additionalRequests.slice(5)">
+                                <div v-if="additionalRequest.requestIdKey"
+                                     :key="additionalRequest.requestIdKey"
+                                     :class="{ 'additional-request': dockedPanelWidthNumber < 350 }">
+                                    <span class="text-link text-small pr-spacing-sm cursor-pointer"
+                                          @click="emit('navigateToAdditionalRequest', additionalRequest.requestIdKey)">
+                                        {{ additionalRequest.connectionOpportunityName }}
+                                    </span>
+                                    <span class="text-interface-medium text-xs">
+                                        {{ getRequestMeta(additionalRequest) }}
+                                    </span>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </TransitionVerticalCollapse>
             </div>
         </div>
 
@@ -571,6 +603,16 @@
     const addRequestNoteErrorMessage = ref();
     const connectionRequestNoteText = ref("");
 
+    const areAdditionalRequestsExpanded = ref(false);
+    // const additionalRequests = computed(() => {
+    //     if (props.requestDetails?.additionalRequests && props.requestDetails?.additionalRequests?.length > 5 && !areAdditionalRequestsExpanded.value) {
+    //         return props.requestDetails.additionalRequests.slice(0, 5);
+    //     }
+
+    //     return props.requestDetails?.additionalRequests;
+    // });
+    const hiddenAdditionalRequests = computed(() => Math.max(0, (props.requestDetails?.additionalRequests?.length ?? 0) - 5));
+
     const createdDateTimeElapsed = computed(() => {
         if (isNullOrWhiteSpace(props.requestDetails?.createdDateTime)) {
             return;
@@ -780,6 +822,10 @@
                 return "";
         }
     };
+
+    function toggleAdditionalRequests(): void {
+        areAdditionalRequestsExpanded.value = !areAdditionalRequestsExpanded.value;
+    }
 
     function getAttributeValueText(attributeValues: Record<string, string> | null, attribute: PublicAttributeBag, key: string): string {
         const fieldTypeGuid = toGuidOrNull(attribute.fieldTypeGuid);

@@ -113,9 +113,16 @@
         emit("updateStatus", bag);
     }
 
+    function resetModal(): void {
+        status.value = undefined;
+        note.value = undefined;
+        errorMessage.value = undefined;
+    }
+
     watch(isVisible, () => {
         errorMessage.value = "";
         if (!isVisible.value) {
+            resetModal();
             emit("close");
         }
     });

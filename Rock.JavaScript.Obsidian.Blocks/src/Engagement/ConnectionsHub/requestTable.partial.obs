@@ -31,13 +31,13 @@
                     <i class="ti ti-calendar pr-spacing-tiny"></i>
                     <span>{{ getDueDateElapsedString(request.dueDate) }}</span>
                 </template>
+                <div v-else>
+                    <i class="ti ti-minus"></i>
+                </div>
             </div>
             <div v-if="isConnectorVisible" class="d-flex align-items-center">
                 <i class="ti ti-user-circle pr-spacing-tiny"></i>
                 <span>{{ request.connector?.text }}</span>
-
-                <!-- <span v-if="!isNullOrWhiteSpace(request.connector?.idKey)">{{ getFormattedName(request.connector!) }}</span>
-                <span v-else>Unassigned</span> -->
             </div>
             <div class="d-flex align-items-center justify-content-end">
                 <div v-if="request.connectionStatus"

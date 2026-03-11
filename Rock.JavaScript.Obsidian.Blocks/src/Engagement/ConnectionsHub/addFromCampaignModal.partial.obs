@@ -189,6 +189,12 @@
         emit("assignRequests", bag);
     }
 
+    function resetModal(): void {
+        opportunity.value = undefined;
+        campaign.value = undefined;
+        numberOfRequests.value = undefined;
+    }
+
     watch(() => props.selectedOpportunityGuid, guid => {
         opportunity.value = isNullOrWhiteSpace(guid) ? "" : guid;
     }, { immediate: true });
@@ -218,6 +224,7 @@
     watch(isVisible, () => {
         errorMessage.value = "";
         if (!isVisible.value) {
+            resetModal();
             emit("close");
         }
     });

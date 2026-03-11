@@ -175,7 +175,10 @@ namespace Rock.Blocks.Engagement
             options.ConnectionTypeIdKey = connectionTypeIdKey;
             options.IsSequentialStatusMode = connectionType.IsSequentialStatusEnforced;
 
-            List<ConnectionState> ignoredConnectionStates = new List<ConnectionState>();
+            List<ConnectionState> ignoredConnectionStates = new List<ConnectionState>
+            {
+                ConnectionState.Connected
+            };
 
             if ( !connectionType.EnableFutureFollowup )
             {
@@ -937,6 +940,107 @@ namespace Rock.Blocks.Engagement
                 : Regex.Replace( value, @"\s*\[\d+\]\s*$", "" );
         }
 
+        private void AssignPlacementGroup( ConnectionRequest connectionRequest )
+        {
+            var group = connectionRequest.AssignedGroup;
+
+            // Only attempt group member placement if the request has an assigned placement group, role, and status.
+            if ( !connectionRequest.AssignedGroupId.HasValue ||
+                !connectionRequest.AssignedGroupMemberRoleId.HasValue ||
+                !connectionRequest.AssignedGroupMemberStatus.HasValue ||
+                group == null )
+            {
+                return;
+            }
+
+            var groupService = new GroupService( RockContext );
+            var groupMemberService = new GroupMemberService( RockContext );
+
+            // Does this person already exist in this group with the same role?
+            var groupMember = groupMemberService.GetByGroupIdAndPersonIdAndGroupRoleId(
+                connectionRequest.AssignedGroupId.Value,
+                connectionRequest.PersonAlias.PersonId,
+                connectionRequest.AssignedGroupMemberRoleId.Value );
+
+            if ( groupMember == null )
+            {
+                // Double-check to make sure they weren't previously archived; if so, restore them.
+                if ( groupService.ExistsAsArchived( group, connectionRequest.PersonAlias.PersonId, connectionRequest.AssignedGroupMemberRoleId.Value, out groupMember ) )
+                {
+                    groupMemberService.Restore( groupMember );
+                }
+                else
+                {
+                    // If we still don't have a group member, create a new one.
+                    groupMember = new GroupMember();
+                    groupMember.PersonId = connectionRequest.PersonAlias.PersonId;
+                    groupMember.GroupId = connectionRequest.AssignedGroupId.Value;
+                    groupMember.GroupRoleId = connectionRequest.AssignedGroupMemberRoleId.Value;
+                }
+            }
+
+            // Always set the assigned status, for both new and preexisting members.
+            groupMember.GroupMemberStatus = connectionRequest.AssignedGroupMemberStatus.Value;
+
+            // TODO - Group Member Requirements
+
+            // Ensure this person meets any manual group requirements (driven by checkboxes within this connection request).
+            //var groupRequirementLookup = group.GetGroupRequirements( RockContext )
+            //    .Where( k => k.GroupRequirementType.RequirementCheckType == RequirementCheckType.Manual )
+            //    .ToList()
+            //    .ToDictionary( k => k.Id );
+
+            //foreach ( var item in cblRequestModalViewModeManualRequirements.Items )
+            //{
+            //    var groupRequirementId = item.Value.AsInteger();
+            //    var groupRequirement = groupRequirementLookup[groupRequirementId];
+
+            //    if ( !item.Selected &&
+            //        ( groupRequirement == null || groupRequirement.MustMeetRequirementToAddMember ) )
+            //    {
+            //        ShowRequestModalNotification(
+            //            "Group Requirements have not been met. Please verify all of the requirements.",
+            //            NotificationBoxType.Validation );
+            //        return;
+            //    }
+
+            //    if ( groupRequirement != null )
+            //    {
+            //        var groupMemberRequirement = groupMember.GroupMemberRequirements.FirstOrDefault( r => r.GroupRequirementId == groupRequirementId )
+            //            ?? new GroupMemberRequirement
+            //            {
+            //                GroupRequirementId = groupRequirementId
+            //            };
+
+            //        groupMemberRequirement.RequirementMetDateTime = groupMemberRequirement.RequirementMetDateTime ?? RockDateTime.Now;
+            //        groupMemberRequirement.LastRequirementCheckDateTime = RockDateTime.Now;
+
+            //        if ( groupMemberRequirement.Id == 0 )
+            //        {
+            //            groupMember.GroupMemberRequirements.Add( groupMemberRequirement );
+            //        }
+            //    }
+            //}
+
+            if ( groupMember.Id == 0 )
+            {
+                groupMemberService.Add( groupMember );
+            }
+
+            if ( !string.IsNullOrWhiteSpace( connectionRequest.AssignedGroupMemberAttributeValues ) )
+            {
+                var savedValues = JsonConvert.DeserializeObject<Dictionary<string, string>>( connectionRequest.AssignedGroupMemberAttributeValues );
+                if ( savedValues != null )
+                {
+                    groupMember.LoadAttributes();
+                    foreach ( var kvp in savedValues )
+                    {
+                        groupMember.SetAttributeValue( kvp.Key, kvp.Value );
+                    }
+                }
+            }
+        }
+
         private ConnectionListUpdateBox GetConnectionListUpdateBox( int connectionRequestId, bool includeRequestDetails )
         {
             var box = new ConnectionListUpdateBox();
@@ -1094,7 +1198,6 @@ namespace Rock.Blocks.Engagement
                     Order = s.Order,
                     IsNoteRequiredOnCompletion = s.IsNoteRequiredOnCompletion
                 } ).ToList(),
-                ConnectionStates = typeof( ConnectionState ).ToEnumListItemBag(),
                 IsFutureFollowUpEnabled = connectionRequest.ConnectionOpportunity.ConnectionType.EnableFutureFollowup,
                 IsRequestSecurityEnabled = connectionRequest.ConnectionOpportunity.ConnectionType.EnableRequestSecurity,
                 IsSequentialStatusMode = connectionRequest.ConnectionOpportunity.ConnectionType.IsSequentialStatusEnforced,
@@ -1117,10 +1220,19 @@ namespace Rock.Blocks.Engagement
             optionsBag.IsAISummaryVisible = new AIProviderService( RockContext ).GetActiveProvider() != null
                 && ( connectionRequest.ConnectionOpportunity.ConnectionType.GetConnectionTypeAdditionalSettings()?.AIInsightsPrompt.IsNotNullOrWhiteSpace() == true );
 
-            if ( !optionsBag.IsFutureFollowUpEnabled )
+            List<ConnectionState> ignoredConnectionStates = new List<ConnectionState>
             {
-                optionsBag.ConnectionStates.RemoveAll( s => s.Value == ( ( int ) ConnectionState.FutureFollowUp ).ToString() );
+                ConnectionState.Connected
+            };
+
+            if ( !connectionRequest.ConnectionOpportunity.ConnectionType.EnableFutureFollowup )
+            {
+                ignoredConnectionStates.Add( ConnectionState.FutureFollowUp );
             }
+
+            optionsBag.ConnectionStates = typeof( ConnectionState ).ToEnumListItemBag()
+                .Where( i => !ignoredConnectionStates.Contains( ( ConnectionState ) i.Value.AsInteger() ) )
+                .ToList();
 
             if ( optionsBag.AreGroupPlacementsEnabled )
             {
@@ -1969,6 +2081,137 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
             } );
         }
 
+        /// <summary>
+        /// Builds a <see cref="BulkRequestViewBag"/> from a connection request.
+        /// </summary>
+        private BulkRequestViewBag BuildBulkRequestViewBag( ConnectionRequest request )
+        {
+            var requester = new PersonFieldBag
+            {
+                IdKey = request.PersonAlias.Person.IdKey,
+                NickName = request.PersonAlias.Person.NickName,
+                LastName = request.PersonAlias.Person.LastName,
+                PhotoUrl = request.PersonAlias.Person.PhotoUrl,
+            };
+
+            if ( request.PersonAlias.Person.ConnectionStatusValueId.HasValue )
+            {
+                var connectionStatusValue = DefinedValueCache.Get( request.PersonAlias.Person.ConnectionStatusValueId.Value );
+                if ( connectionStatusValue != null )
+                {
+                    requester.ConnectionStatus = connectionStatusValue.Value;
+                }
+            }
+
+            var connector = request.ConnectorPersonAliasId.HasValue
+                ? new ListItemBag
+                {
+                    Value = request.ConnectorPersonAlias.Person.IdKey,
+                    Text = request.ConnectorPersonAlias.Person.FullName
+                }
+                : null;
+
+            return new BulkRequestViewBag
+            {
+                IdKey = request.IdKey,
+                Requester = requester,
+                ConnectionOpportunity = request.ConnectionOpportunity.Name,
+                ConnectionTypeSource = request.ConnectionTypeSource?.Name,
+                Connector = connector,
+                DueDate = FormatDueDate( request.DueDate ),
+                ConnectionStatus = new ConnectionStatusBag
+                {
+                    Guid = request.ConnectionStatus.Guid,
+                    Name = request.ConnectionStatus.Name,
+                    Order = request.ConnectionStatus.Order,
+                    HighlightColor = request.ConnectionStatus.HighlightColor,
+                    IsNoteRequiredOnCompletion = request.ConnectionStatus.IsNoteRequiredOnCompletion
+                },
+                CelebrationText = request.CelebrationText
+            };
+        }
+
+        /// <summary>
+        /// Returns <c>true</c> if the connection request has placement group requirements
+        /// with <see cref="GroupRequirement.MustMeetRequirementToAddMember"/> that are not
+        /// currently met, which would block bulk completion.
+        /// </summary>
+        private bool HasUnmetPlacementGroupRequirements( ConnectionRequest request )
+        {
+            if ( !request.AssignedGroupId.HasValue || request.AssignedGroup == null )
+            {
+                return false;
+            }
+
+            var blockingRequirements = request.AssignedGroup
+                .GetGroupRequirements( RockContext )
+                .Where( r => r.MustMeetRequirementToAddMember )
+                .ToList();
+
+            if ( !blockingRequirements.Any() )
+            {
+                return false;
+            }
+
+            var existingMember = request.AssignedGroup.Members
+                .FirstOrDefault( m => m.PersonId == request.PersonAlias.PersonId );
+
+            // If the person is not yet in the placement group there is no way to
+            // verify the blocking requirements are met, so treat as ineligible.
+            if ( existingMember == null )
+            {
+                return true;
+            }
+
+            var requirementStatuses = existingMember.GetGroupRequirementsStatuses( RockContext );
+
+            return blockingRequirements.Any( req =>
+            {
+                var status = requirementStatuses.FirstOrDefault( s => s.GroupRequirement.Id == req.Id );
+                return status == null
+                    || ( status.MeetsGroupRequirement != MeetsGroupRequirement.Meets
+                        && status.MeetsGroupRequirement != MeetsGroupRequirement.MeetsWithWarning );
+            } );
+        }
+
+        /// <summary>
+        /// Formats a due date as a human-readable relative string
+        /// (e.g. "Due Today", "Due Yesterday", "Due in 3 days", "Due 2 days ago").
+        /// Returns <c>null</c> when no due date is set.
+        /// </summary>
+        private string FormatDueDate( DateTime? dueDate )
+        {
+            if ( !dueDate.HasValue )
+            {
+                return null;
+            }
+
+            var today = RockDateTime.Now.Date;
+            var due = dueDate.Value.Date;
+            var daysUntilDue = ( int ) ( due - today ).TotalDays;
+
+            if ( daysUntilDue < -1 )
+            {
+                return $"Due {Math.Abs( daysUntilDue )} days ago";
+            }
+            else if ( daysUntilDue == -1 )
+            {
+                return "Due Yesterday";
+            }
+            else if ( daysUntilDue == 0 )
+            {
+                return "Due Today";
+            }
+            else if ( daysUntilDue == 1 )
+            {
+                return "Due Tomorrow";
+            }
+            else
+            {
+                return $"Due in {daysUntilDue} days";
+            }
+        }
+
         #endregion Methods
 
         #region Block Actions
@@ -2281,6 +2524,25 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
             return ActionOk( bag );
         }
 
+        //[BlockAction]
+        // check if connection requests meet group requirements for placement group (if the placement group requires that the requirements are met).
+
+        [BlockAction]
+        public BlockActionResult CheckForActiveRequest( Guid requesterPersonAliasGuid )
+        {
+            var connectionType = GetConnectionTypeCacheFromPageParameters();
+            if ( connectionType == null )
+            {
+                return ActionBadRequest( $"{Rock.Model.ConnectionType.FriendlyTypeName} not found." );
+            }
+
+            var hasActiveRequests = new ConnectionRequestService( RockContext ).Queryable().Any( cr => cr.ConnectionState == ConnectionState.Active
+                && cr.ConnectionTypeId == connectionType.Id
+                && cr.PersonAlias.Guid == requesterPersonAliasGuid );
+
+            return ActionOk( hasActiveRequests );
+        }
+
         [BlockAction]
         public BlockActionResult SaveConnectionRequest( ValidPropertiesBox<ConnectionRequestBag> box )
         {
@@ -2412,6 +2674,7 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
                 if ( completedRequestIdKeys.Contains( request.IdKey ) )
                 {
                     request.ConnectionState = ConnectionState.Connected;
+                    AssignPlacementGroup( request );
 
                     gridUpdateBags.Add( new ConnectionListGridUpdateBag
                     {
@@ -2583,6 +2846,11 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
                 }
 
                 request.ConnectionState = bag.ConnectionState;
+
+                if ( bag.ConnectionState == ConnectionState.Connected )
+                {
+                    AssignPlacementGroup( request );
+                }
 
                 gridUpdateBags.Add( new ConnectionListGridUpdateBag
                 {

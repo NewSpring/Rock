@@ -91,7 +91,7 @@
         </ContentSection>
 
         <ContentSection title="Activity Types" icon="ti ti-activity">
-            <ActivitiesSection v-model:activityTypes="activityTypes" :workflows="workflows" />
+            <ActivitiesSection v-model:activityTypes="activityTypes" :personNoteTypeItems="options.personNoteTypeItems ?? []" :workflows="workflows" />
         </ContentSection>
 
         <ContentSection title="Statuses" icon="ti ti-select">

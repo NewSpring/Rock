@@ -22,7 +22,7 @@
 //
 
 import { Guid } from "@Obsidian/Types";
-import { ConnectionActivityBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionActivityBag";
+import { ConnectionActivityTypeBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionActivityTypeBag";
 import { ConnectionStatusBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionStatusBag";
 import { ConnectorItemBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectorItemBag";
 import { PlacementGroupDetailsBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/placementGroupDetailsBag";
@@ -37,7 +37,7 @@ export type ConnectionRequestDetailOptionsBag = {
 
     badgeGuids?: Guid[] | null;
 
-    connectionActivities?: ConnectionActivityBag[] | null;
+    connectionActivities?: ConnectionActivityTypeBag[] | null;
 
     connectionStates?: ListItemBag[] | null;
 

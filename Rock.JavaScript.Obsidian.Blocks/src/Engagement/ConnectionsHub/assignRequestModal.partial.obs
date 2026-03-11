@@ -70,10 +70,15 @@
         emit("updateConnector", connector.value);
     }
 
+    function resetModal(): void {
+        errorMessage.value = undefined;
+        connector.value = undefined;
+    }
+
     watch(isVisible, () => {
         errorMessage.value = "";
         if (!isVisible.value) {
-            connector.value = undefined;
+            resetModal();
             emit("close");
         }
     });

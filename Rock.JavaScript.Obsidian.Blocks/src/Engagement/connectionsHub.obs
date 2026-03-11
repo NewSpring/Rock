@@ -128,7 +128,6 @@
                   :ref="setGridRef"
                   :data="group.gridData"
                   keyField="idKey"
-
                   :isTitleHidden="true"
                   :isSearchVisible="false"
                   :isFooterHidden="true"
@@ -175,15 +174,33 @@
                     </template>
                 </Column>
 
-                <TextColumn v-if="selectedGrouping !== 'campusGrouping'"
-                            name="campus"
-                            title="Campus"
-                            field="campus" />
+                <Column v-if="selectedGrouping !== 'campusGrouping'"
+                        name="campus"
+                        title="Campus"
+                        field="campus">
+                    <template #format="{ row }">
+                        <div v-if="!!row.campus">
+                            {{ row.campus }}
+                        </div>
+                        <div v-else>
+                            <i class="ti ti-minus"></i>
+                        </div>
+                    </template>
+                </Column>
 
-                <TextColumn v-if="box.options?.areGroupPlacementsEnabled"
-                            name="group"
-                            title="Group"
-                            field="group" />
+                <Column v-if="box.options?.areGroupPlacementsEnabled"
+                        name="group"
+                        title="Group"
+                        field="group">
+                    <template #format="{ row }">
+                        <div v-if="!!row.group">
+                            {{ row.group }}
+                        </div>
+                        <div v-else>
+                            <i class="ti ti-minus"></i>
+                        </div>
+                    </template>
+                </Column>
 
                 <!-- TODO - handle case where no activity. -->
                 <Column v-if="viewOptions.gridDataToShow?.includes('activity')"
@@ -218,8 +235,11 @@
                         field="dueDate"
                         width="2%">
                     <template #format="{ row }">
-                        <div :class="getDueDateColor(row.dueStatus)">
+                        <div v-if="!!row.dueDate" :class="getDueDateColor(row.dueStatus)">
                             {{ formatDueDateShortLabel(row.dueDate) }}
+                        </div>
+                        <div v-else>
+                            <i class="ti ti-minus"></i>
                         </div>
                     </template>
                 </Column>
@@ -445,12 +465,16 @@
                         @updateState="updateStateFromFlyout"
                         @close="onFlyoutClose" />
 
-    <AddConnectionRequestModal v-model="newConnectionRequest"
+    <AddConnectionRequestModal :modelValue="newConnectionRequest"
                                v-model:visible="isAddConnectionRequestModalVisible"
                                :options="box.options"
                                :connectionOpportunityDetails="connectionOpportunityDetails"
                                :placementGroupDetails="placementGroupDetails"
                                :isConnectionOpportunityFilterSelected="hasSelectedOpportunity"
+                               :isExistingActiveRequesterOnConnectionType="isExistingActiveRequesterOnConnectionType"
+                               @checkForActiveRequester="checkForActiveRequester"
+                               @save="onAddRequest"
+                               @close="resetNewConnectionRequest"
                                @fetchConnectionOpportunityDetails="fetchConnectionOpportunityDetails"
                                @fetchPlacementGroupDetails="fetchPlacementGroupDetails" />
 
@@ -832,6 +856,7 @@
     const internalSelectedOpportunity = ref(box.options?.connectionOpportunityGuidFromPageParameter ?? preferences.getValue(getConnectionFilterKey(PreferenceKey.ConnectionmOpportunityFilterConnectionTypeIdKey)));
 
     const newConnectionRequest = ref<ValidPropertiesBox<ConnectionRequestBag>>({ bag: { connectionOpportunityGuid: internalSelectedOpportunity.value } as ConnectionRequestBag });
+    const isExistingActiveRequesterOnConnectionType = ref<boolean>(false);
     const isAddConnectionRequestModalVisible = ref(false);
     const connectionOpportunityDetails = ref<ConnectionOpportunityDetailBag>(box.options?.connectionOpportunityDetailsFromFilter ?? {});
     const placementGroupDetails = ref<PlacementGroupDetailsBag>();
@@ -1225,6 +1250,11 @@
 
         return rows;
     });
+
+    function resetNewConnectionRequest(): void {
+        newConnectionRequest.value = { bag: { connectionOpportunityGuid: internalSelectedOpportunity.value } as ConnectionRequestBag };
+        isExistingActiveRequesterOnConnectionType.value = false;
+    }
 
     /** The time elapsed since the specified date in a human-readable format. */
     function getElapsedShortTime(date: string | null | undefined): string {
@@ -2161,6 +2191,19 @@
         }
     }
 
+    async function checkForActiveRequester(requesterPersonAliasGuid: string): Promise<void> {
+        const result = await invokeBlockAction<boolean>("CheckForActiveRequest", {
+            requesterPersonAliasGuid,
+        });
+
+        if (result.isSuccess && result.data !== null) {
+            isExistingActiveRequesterOnConnectionType.value = result.data;
+        }
+        else {
+            console.error(result.errorMessage ?? "An error occurred while checking if the selected requester had any active requests.");
+        }
+    }
+
     async function onAddRequest(box: ValidPropertiesBox<ConnectionRequestBag>): Promise<void> {
         const result = await saveConnectionRequest(box);
 
@@ -2365,9 +2408,9 @@
         await preferences.save();
     });
 
-    watch(newConnectionRequest, () => {
-        onAddRequest(newConnectionRequest.value);
-    });
+    // watch(newConnectionRequest, () => {
+    //     onAddRequest(newConnectionRequest.value);
+    // });
 
     watch(selectedGrouping, async () => {
         preferences.setValue(PreferenceKey.SelectedGroupByMode, selectedGrouping.value);

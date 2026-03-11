@@ -4,6 +4,10 @@
            title="Add Connection Request"
            saveText="Save"
            @save="onSave">
+        <NotificationBox v-if="isExistingActiveRequesterOnConnectionType"
+                         alertType="warning">
+            The current requester already has an active request on this connection type.
+        </NotificationBox>
         <NotificationBox v-if="errorMessage"
                          alertType="warning">
             {{ errorMessage }}
@@ -38,7 +42,7 @@
         <div class="row">
             <div class="col-md-6">
                 <RadioButtonList v-model="connectionState"
-                                 :items="connectionStateItems"
+                                 :items="props.options?.connectionStates ?? []"
                                  label="State" />
             </div>
         </div>
@@ -149,7 +153,6 @@
     import NotificationBox from "@Obsidian/Controls/notificationBox.obs";
     import { ref, PropType, watch, computed } from "vue";
     import { propertyRef, updateRefValue, useVModelPassthrough } from "@Obsidian/Utility/component";
-    import { deepEqual } from "@Obsidian/Utility/util";
     import { ConnectionRequestBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionRequestBag";
     import PersonPicker from "@Obsidian/Controls/personPicker.obs";
     import RadioButtonList from "@Obsidian/Controls/radioButtonList.obs";
@@ -160,7 +163,6 @@
     import { ConnectionsHubOptionsBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionsHubOptionsBag";
     import { ConnectionState } from "@Obsidian/Enums/Connection/connectionState";
     import { ConnectionOpportunityDetailBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionOpportunityDetailBag";
-    import { PublicAttributeBag } from "@Obsidian/ViewModels/Utility/publicAttributeBag";
     import { PlacementGroupDetailsBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/placementGroupDetailsBag";
     import { isNullOrWhiteSpace } from "@Obsidian/Utility/stringUtils";
     import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
@@ -199,12 +201,18 @@
         placementGroupDetails: {
             type: Object as PropType<PlacementGroupDetailsBag>,
             required: false
+        },
+
+        isExistingActiveRequesterOnConnectionType: {
+            type: Boolean as PropType<boolean>,
+            required: true
         }
     });
 
     const emit = defineEmits<{
-        (e: "update:modelValue", value: ValidPropertiesBox<ConnectionRequestBag>): void;
+        (e: "save", value: ValidPropertiesBox<ConnectionRequestBag>): void;
         (e: "update:visible", value: boolean): void;
+        (e: "checkForActiveRequester", value: string): void;
         (e: "fetchConnectionOpportunityDetails", value: string): void;
         (e: "fetchPlacementGroupDetails", connectionOpportunityGuid: string, placementGroupGuid: string): void;
         (e: "close"): void;
@@ -227,13 +235,6 @@
     const comments = propertyRef(props.modelValue.bag?.comments ?? "", "Comments");
     const requestSourceGuid = propertyRef(props.modelValue.bag?.requestSourceGuid ?? "", "RequestSourceGuid");
     const connectionRequestAttributeValues = propertyRef(props.modelValue.bag?.connectionRequestAttributeValues ?? {}, "ConnectionRequestAttributeValues");
-
-    // Filter out "Connected" state when we are adding a new Connection Request
-    const connectionStateItems = props.options?.connectionStates?.filter(c =>
-        !isNullOrWhiteSpace(c.value) &&
-        (parseInt(c.value!) as ConnectionState) !== ConnectionState.Connected
-    );
-
 
     // The properties that are being edited. This should only contain
     // objects returned by propertyRef().
@@ -311,7 +312,7 @@
         setPropertiesBoxValue(newValue, "requestSourceGuid", requestSourceGuid.value);
         setPropertiesBoxValue(newValue, "requester", requester.value);
 
-        emit("update:modelValue", newValue);
+        emit("save", newValue);
 
         isVisible.value = false;
     }
@@ -371,6 +372,14 @@
         }
     });
 
+    watch(requester, () => {
+        if (!requester.value?.value || isNullOrWhiteSpace(requester.value.value)) {
+            return;
+        }
+
+        emit("checkForActiveRequester", requester.value.value);
+    });
+
     watch(() => props.connectionOpportunityDetails, () => {
         pruneAttributeValues();
 
@@ -380,6 +389,10 @@
     });
 
     watch(placementGroupGuid, () => {
+        if (!placementGroupGuid.value || isNullOrWhiteSpace(placementGroupGuid.value)) {
+            return;
+        }
+
         placementGroupMemberAttributeValues.value = {};
         groupMemberRoleGuid.value = "";
         groupMemberStatus.value = "";

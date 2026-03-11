@@ -21,7 +21,7 @@
                 </div>
             </TransitionVerticalCollapse>
         </div>
-        <div v-if="hiddenActions.length > 0" class="d-flex justify-content-between align-items-center gap-xs">
+        <div v-if="hiddenActions.length > 0" class="d-flex align-items-center gap-xs">
             <div v-if="!areActionItemsExpanded" class="text-interface-medium">+{{ hiddenActions.length }}</div>
             <RockButton @click="toggleActionItems">
                 <i v-if="areActionItemsExpanded" class="ti ti-chevrons-up"></i>

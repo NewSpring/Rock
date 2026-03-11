@@ -97,9 +97,15 @@
         emit("updateState", bag);
     }
 
+    function resetModal(): void {
+        errorMessage.value = undefined;
+        followUpDate.value = "";
+    }
+
     watch(isVisible, () => {
         errorMessage.value = "";
         if (!isVisible.value) {
+            resetModal();
             emit("close");
         }
     });

@@ -33,4 +33,7 @@ export type ConnectionTypeDetailOptionsBag = {
 
     /** Gets or sets a value indicating whether active AI providers exist. */
     hasActiveAIProvider: boolean;
+
+    /** Gets or sets the Person Note Type Items to be used when creating Connection Activity Types */
+    personNoteTypeItems?: ListItemBag[] | null;
 };

@@ -79,9 +79,15 @@
         emit("launchWorkflows", bag);
     }
 
+    function resetModal(): void {
+        errorMessage.value = undefined;
+        workflow.value = undefined;
+    }
+
     watch(isVisible, () => {
         errorMessage.value = "";
         if (!isVisible.value) {
+            resetModal();
             emit("close");
         }
     });
