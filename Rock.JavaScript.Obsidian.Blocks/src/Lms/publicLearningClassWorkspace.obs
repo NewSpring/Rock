@@ -470,7 +470,8 @@
         const classes = ["workspace-navigation-pane-container"];
 
         if (enableSmartScroll.value && !isMobile.value) {
-            classes.push("workspace-navigation-pane-container-smart-scroll");
+            classes.push("smart-scroll");
+            classes.push("styled-scroll");
         }
 
         return classes;
@@ -481,7 +482,7 @@
         const classes = ["workspace-main-content"];
 
         if (enableSmartScroll.value && !isMobile.value) {
-            classes.push("workspace-main-content-smart-scroll");
+            classes.push("smart-scroll");
         }
 
         return classes;
