@@ -21210,16 +21210,17 @@ h4.section-label {
   display: flex;
   align-items: center;
   width: 100%;
-  gap: var(--spacing-medium);
+  gap: var(--spacing-small);
 }
 
-.activity-item-content h5 {
+.activity-item-content h6 {
   margin: 0;
   font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-h6);
 }
 
-.activity-item-content .activity-item-icon .icon {
-  color: #fff;
+.activity-item-content i {
+  font-size: var(--font-size-h4);
 }
 
 .activity-time {

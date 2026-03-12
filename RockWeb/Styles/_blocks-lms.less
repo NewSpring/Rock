@@ -334,16 +334,17 @@
     display: flex;
     align-items: center;
     width: 100%;
-    gap: var(--spacing-medium);
+    gap: var(--spacing-small);
   }
 
-  .activity-item-content h5 {
+  .activity-item-content h6 {
     margin: 0;
     font-weight: var(--font-weight-semibold);
+    font-size: var(--font-size-h6);
   }
 
-  .activity-item-content .activity-item-icon .icon {
-    color: #fff;
+  .activity-item-content i {
+    font-size: var(--font-size-h4);
   }
 
   .activity-time {
@@ -792,7 +793,7 @@
   }
 
   .workspace-navigation-pane-container {
-    &.smart-scroll  .workspace-navigation-pane {
+    &.smart-scroll .workspace-navigation-pane {
       max-height: ~"calc(100vh - var(--spacing-medium) * 2)";
       overflow-y: auto;
     }
