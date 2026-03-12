@@ -291,7 +291,6 @@
       min-width: 300px;
       align-self: baseline;
       border-radius: var(--rounded-large) !important;
-      margin-bottom: var(--spacing-large);
   }
 
   .communication-preference-container {
@@ -301,6 +300,7 @@
       border: 1px solid var(--color-interface-soft);
       border-radius: var(--rounded-small);
       padding: var(--spacing-small);
+      margin-top: var(--spacing-large);
   }
 
   .workspace-main-content {
@@ -782,16 +782,20 @@
   // 2.3 Class Smart Scroll
   // -------------------------
 
-  .workspace-navigation-pane-container-smart-scroll,
-  .workspace-main-content-smart-scroll {
-    align-self: flex-start;
-    position: sticky;
-    top: var(--spacing-medium);
+  .workspace-navigation-pane-container,
+  .workspace-main-content {
+    &.smart-scroll {
+      align-self: flex-start;
+      position: sticky;
+      top: var(--spacing-medium);
+    }
   }
 
-  .workspace-navigation-pane-container-smart-scroll .workspace-navigation-pane {
-    max-height: ~"calc(100vh - var(--spacing-medium) * 2)";
-    overflow-y: auto;
+  .workspace-navigation-pane-container {
+    &.smart-scroll  .workspace-navigation-pane {
+      max-height: ~"calc(100vh - var(--spacing-medium) * 2)";
+      overflow-y: auto;
+    }
   }
 
   // 3. Course Detail (internal)
