@@ -32,5 +32,7 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
         public ConnectionState ConnectionState { get; set; }
 
         public DateTimeOffset? FollowUpDate { get; set; }
+
+        public List<GroupMemberRequirementBag> GroupMemberRequirements { get; set; }
     }
 }

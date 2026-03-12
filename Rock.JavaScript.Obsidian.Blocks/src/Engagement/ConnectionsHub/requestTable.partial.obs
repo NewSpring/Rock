@@ -1,6 +1,6 @@
 <!-- Copyright by the Spark Development Network; Licensed under the Rock Community License -->
 <template>
-    <RockLabel>{{ pluralize("Request", requestDetails.length) }}</RockLabel>
+    <RockLabel v-if="isLabelVisible">{{ pluralize("Request", requestDetails.length) }}</RockLabel>
     <div class="d-flex flex-column gap-xs">
         <div v-for="request in requestDetails" class="bg-interface-softer py-spacing-xs px-spacing-md border rounded request-row">
             <div class="d-flex align-items-center">
@@ -87,6 +87,10 @@
         isConnectorVisible: {
             type: Boolean as PropType<boolean>,
             default: false,
+        },
+        isLabelVisible: {
+            type: Boolean as PropType<boolean>,
+            default: true
         }
     });
 

@@ -9,7 +9,15 @@
                               marginRight="2" />
                 <div class="d-flex flex-column">
                     <div class="text-interface-strong"><span class="text-semibold">{{ activityEntry.createdBy }}</span> {{ actionText }} <span class="text-semibold">{{ activityEntry.cardEntry?.title }}</span>.</div>
-                    <div class="text-interface-medium">{{ entryDateTimeElapsed }}</div>
+                    <div class="text-interface-medium d-flex">
+                        <div>{{ entryDateTimeElapsed }}</div>
+                        <template v-if="activityEntry.cardEntry?.connectionRequestIdKey">
+                            <div class="px-spacing-tiny">•</div>
+                            <div>in <span class="text-link cursor-pointer" @click="navigateToConnectionRequest">{{ activityEntry.cardEntry.connectionOpportunityName }}</span></div>
+                            <div class="px-spacing-tiny">•</div>
+                            <div>{{ activityEntry.cardEntry.connectionRequestStatus }}</div>
+                        </template>
+                    </div>
                 </div>
             </div>
             <div class="d-flex gap-md  h-fit">
@@ -155,6 +163,18 @@
 
     const isErrorMessageVisible = ref(false);
     const errorMessage = ref();
+
+    function navigateToConnectionRequest(): void {
+        const cardEntry = props.activityEntry.cardEntry;
+        if (!cardEntry?.connectionOpportunityIdKey || !cardEntry?.connectionRequestIdKey) {
+            return;
+        }
+
+        const url = new URL(window.location.href);
+        url.searchParams.set("ConnectionOpportunity", cardEntry.connectionOpportunityIdKey);
+        url.searchParams.set("Request", cardEntry.connectionRequestIdKey);
+        window.location.href = url.toString();
+    }
 
     const actionText = computed(() => {
         switch (props.activityEntry.entryType) {

@@ -73,6 +73,14 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
         /// The GUID of the connector's person alias. Populated for Activity entries to support editing.
         /// </summary>
         public string ConnectorPersonAliasGuid { get; set; }
+
+        public string ConnectionOpportunityIdKey { get; set; }
+
+        public string ConnectionOpportunityName { get; set; }
+
+        public string ConnectionRequestStatus { get; set; }
+
+        public string ConnectionRequestIdKey { get; set; }
     }
 
     public class SystemUpdateBag

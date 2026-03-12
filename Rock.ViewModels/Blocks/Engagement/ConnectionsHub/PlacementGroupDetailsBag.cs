@@ -71,6 +71,8 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
 
         public MeetsGroupRequirement GroupMemberRequirementState { get; set; }
 
-        public bool? IsManualRequirement { get; set; }
+        public bool MustMeetRequirementToAddMember { get; set; }
+
+        public bool IsManualRequirement { get; set; }
     }
 }

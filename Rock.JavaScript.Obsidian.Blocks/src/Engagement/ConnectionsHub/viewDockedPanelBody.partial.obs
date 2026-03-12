@@ -989,14 +989,19 @@
             return;
         }
 
+        const previousState = requirement.groupMemberRequirementState;
+        // Have to keep the requirement state in sync with the checkbox since the checkbox's model value just watches the requirement state.
+        requirement.groupMemberRequirementState = isChecked ? MeetsGroupRequirement.Meets : MeetsGroupRequirement.NotMet;
+
+        // If this is only a pending group member then we can't actually save the group requirement, but we will update its value to be used
+        // if the user attempts to complete the request.
+        if (props.requestDetails?.placementGroup?.isPendingGroupMember) {
+            return;
+        }
 
         isManualRequirementSavedRecord.value[requirement.groupRequirementIdKey] = false;
         isManualRequirementErrorVisibleRecord.value[requirement.groupRequirementIdKey] = false;
         isManualRequirementLoadingRecord.value[requirement.groupRequirementIdKey] = true;
-
-        const previousState = requirement.groupMemberRequirementState;
-        // Have to keep the requirement state in sync with the checkbox since the checkbox's model value just watches the requirement state.
-        requirement.groupMemberRequirementState = isChecked ? MeetsGroupRequirement.Meets : MeetsGroupRequirement.NotMet;
 
         const bag: UpdateGroupMemberRequirementBag = {
             groupMemberRequirementIdKey: requirement.groupMemberRequirementIdKey,

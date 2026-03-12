@@ -148,6 +148,7 @@
                         <div class="d-flex align-items-center gap-xs">
                             <RockButton v-if="!isRequestComplete"
                                         :btnType="BtnType.Default"
+                                        :disabled="isCompleteButtonDisabled"
                                         @click="changeRequestState(ConnectionState.Connected)">
                                 <i class="ti ti-circle-check"></i>
                                 Complete Request
@@ -171,6 +172,7 @@
                             </RockButton>
                             <RockButton v-else
                                         :btnType="BtnType.Default"
+                                        :disabled="isCompleteButtonDisabled"
                                         @click="changeRequestState(ConnectionState.Connected)">
                                 Complete
                             </RockButton>
@@ -289,7 +291,7 @@
 
 <script setup lang="ts">
     import DockedPanel from "@Obsidian/Controls/Internal/dockedPanel.obs";
-    import { ref, PropType, watch, computed, shallowRef } from "vue";
+    import { ref, PropType, watch, computed } from "vue";
     import { useVModelPassthrough } from "@Obsidian/Utility/component";
     import { ConnectionRequestDetailsBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionRequestDetailsBag";
     import PersonAvatar from "@Obsidian/Controls/personAvatar.obs";
@@ -315,6 +317,7 @@
     import ConnectionStatusButton from "./connectionStatusButton.partial.obs";
     import { LaunchWorkflowBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/launchWorkflowBag";
     import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
+    import { MeetsGroupRequirement } from "@Obsidian/Enums/Group/meetsGroupRequirement";
 
     const props = defineProps({
         modelValue: {
@@ -426,6 +429,19 @@
 
     const isRequestComplete = computed(() => requestDetails.value?.connectionState === ConnectionState.Connected);
 
+    const isCompleteButtonDisabled = computed(() => {
+        const groupMemberRequirements = requestDetails.value?.placementGroup?.groupMemberRequirements;
+        if (groupMemberRequirements) {
+            const failingRequirmentsThatMustBeMet = groupMemberRequirements.filter(r => r.mustMeetRequirementToAddMember && (r.groupMemberRequirementState === MeetsGroupRequirement.NotMet || r.groupMemberRequirementState === MeetsGroupRequirement.Error));
+
+            if (failingRequirmentsThatMustBeMet.length > 0) {
+                return true;
+            }
+        }
+
+        return false;
+    });
+
     function setFullWidth(value: boolean): void {
         isFullWidth.value = value;
 
@@ -490,7 +506,8 @@
         var bag = <UpdateConnectionRequestStatesBag>{
             connectionRequestIdKeys: [requestDetails.value?.connectionRequestIdKey],
             connectionState: state,
-            followUpDate: followUpDate
+            followUpDate: followUpDate,
+            groupMemberRequirements: requestDetails.value?.placementGroup?.groupMemberRequirements
         };
 
         emit("onRequestStateChanged", bag);

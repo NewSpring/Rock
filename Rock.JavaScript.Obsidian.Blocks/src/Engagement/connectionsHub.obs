@@ -456,6 +456,7 @@
     </GroupedGridPanel>
 
     <ChangeStatusFlyout v-model="isFlyoutOpen"
+                        :errorMessage="flyoutErrorMessage"
                         :anchorEl="anchorEl"
                         :connectionRequestUpdateBag="connectionRequestUpdateBag"
                         :isNoteRequired="isNoteRequired"
@@ -463,6 +464,7 @@
                         :connectionStatusItems="connectionStatusItems"
                         @updateStatus="changeRequestStatus"
                         @updateState="updateStateFromFlyout"
+                        @dismissErrorMessage="flyoutErrorMessage = ''"
                         @close="onFlyoutClose" />
 
     <AddConnectionRequestModal :modelValue="newConnectionRequest"
@@ -509,8 +511,10 @@
                         :viewOptions="viewOptions"
                         @updateConnector="(connector) => reassignConnector(allSelectedKeys, connector)" />
     <ChangeStateModal v-model:visible="isChangeStateModalVisible"
+                      :isLoading="areRequestDetailsForModalLoading"
                       :connectionState="changeStateTo"
                       :requestDetails="requestDetailsForModal"
+                      :failingRequestDetails="failingRequestDetailsForModal"
                       :viewOptions="viewOptions"
                       @updateState="updateStateFromModal" />
     <DeleteRequestModal v-model:visible="isDeleteRequestModalVisible"
@@ -889,11 +893,14 @@
     const campaignRecordBags = ref();
 
     const isFlyoutOpen = ref(false);
+    const flyoutErrorMessage = ref<string>("");
     const anchorEl = ref<HTMLElement | null>(null);
     const connectionRequestUpdateBag = ref<ConnectionRequestUpdateBag>({} as ConnectionRequestUpdateBag);
     const isNoteRequired = ref(false);
 
     const requestDetailsForModal = ref<BulkRequestViewBag[]>([]);
+    const areRequestDetailsForModalLoading = ref<boolean>(false);
+    const failingRequestDetailsForModal = ref<BulkRequestViewBag[]>([]);
 
     const orderedRequestKeys = ref<string[]>([]);
     const isDockedPanelVisible = ref(false);
@@ -1348,6 +1355,7 @@
         connectionRequestBreadcrumbs.value = [];
 
         selectedRequestKey.value = key;
+        isFlyoutOpen.value = false;
         isDockedPanelVisible.value = true;
     }
 
@@ -1554,6 +1562,14 @@
     function showChangeStateModal(state: ConnectionState, row: Record<string, unknown> | null = null): void {
         prepareRequestDetailsForModal(row);
         changeStateTo.value = state;
+
+        if (state === ConnectionState.Connected) {
+            checkIfRequestsMeetRequirements();
+        }
+        else {
+            failingRequestDetailsForModal.value = [];
+        }
+
         isChangeStateModalVisible.value = true;
     }
 
@@ -1654,9 +1670,9 @@
     }
 
     async function updateStateFromModal(bag: UpdateConnectionRequestStatesBag): Promise<void> {
-        const result = await updateRequestStates(bag);
+        const errorMessage = await updateRequestStates(bag);
 
-        if (result) {
+        if (!errorMessage) {
             isChangeStateModalVisible.value = false;
 
             if (requestDetailsForModal.value.length > 1) {
@@ -1668,10 +1684,13 @@
     }
 
     async function updateStateFromFlyout(bag: UpdateConnectionRequestStatesBag): Promise<void> {
-        const result = await updateRequestStates(bag);
+        const errorMessage = await updateRequestStates(bag);
 
-        if (result) {
+        if (!errorMessage) {
             isFlyoutOpen.value = false;
+        }
+        else {
+            flyoutErrorMessage.value = errorMessage;
         }
     }
 
@@ -1698,7 +1717,7 @@
             return;
         }
 
-        if (isFlyoutOpen.value) {
+        if (isFlyoutOpen.value && connectionRequestUpdateBag.value.connectionRequestIdKey === key) {
             isFlyoutOpen.value = false;
             return;
         }
@@ -1924,7 +1943,40 @@
         // display error
     }
 
-    async function updateRequestStates(bag: UpdateConnectionRequestStatesBag): Promise<boolean> {
+    async function checkIfRequestsMeetRequirements(): Promise<void> {
+        areRequestDetailsForModalLoading.value = true;
+        const connectionRequestIdKeys = requestDetailsForModal.value.map(r => r.idKey ?? "");
+
+        const result = await invokeBlockAction<string[]>("CheckIfRequestsMeetRequirements", {
+            connectionRequestIdKeys
+        });
+
+        if (result.isSuccess && result.data) {
+            const notMeetingIdKeys = result.data;
+
+            const { meeting, notMeeting } = requestDetailsForModal.value.reduce(
+                (acc, request) => {
+                    if (notMeetingIdKeys.includes(request.idKey ?? "")) {
+                        acc.notMeeting.push(request);
+                    }
+                    else {
+                        acc.meeting.push(request);
+                    }
+                    return acc;
+                },
+                { meeting: [], notMeeting: [] } as { meeting: BulkRequestViewBag[], notMeeting: BulkRequestViewBag[] });
+
+            requestDetailsForModal.value = meeting;
+            failingRequestDetailsForModal.value = notMeeting;
+        }
+        else {
+            console.error("An error occurred while checking group requirements for requests");
+        }
+
+        areRequestDetailsForModalLoading.value = false;
+    }
+
+    async function updateRequestStates(bag: UpdateConnectionRequestStatesBag): Promise<string | null> {
         // If the action comes from a docked panel than the Connection Type could be different than the Connection Type of the List View.
         const connectionTypeIdKey = dockedPanelDetailsBox.value?.options?.connectionTypeIdKey;
 
@@ -1970,11 +2022,11 @@
                 }
             }
 
-            return true; // TODO - Maybe return string in case of error message needing to be displayed.
+            return null;
         }
 
         console.error(result.errorMessage);
-        return false;
+        return result.errorMessage ?? "An error occurred while updating the connection request state.";
     }
 
     async function launchWorkflowForRequests(bag: LaunchWorkflowBag): Promise<void> {
@@ -2351,7 +2403,6 @@
     // clicking inside a modal doesn't accidentally close the panel behind it.
     watch([isTransferModalVisible, isCelebrationModalVisible, isActivityModalVisible, isReminderModalVisible, isSendSMSModalVisible, isSendEmailModalVisible, isFlyoutOpen, isModalAlertVisible, isDeleteRequestModalVisible], (values) => {
         handleClickOutsideSettingForDockedPanel(!values.some(Boolean));
-
     });
 
     watch(areOnlyMyRequestsVisible, async () => {

@@ -32,6 +32,14 @@ export type CardEntryBag = {
 
     attachments?: ListItemBag[] | null;
 
+    connectionOpportunityIdKey?: string | null;
+
+    connectionOpportunityName?: string | null;
+
+    connectionRequestIdKey?: string | null;
+
+    connectionRequestStatus?: string | null;
+
     /** The GUID of the connector's person alias. Populated for Activity entries to support editing. */
     connectorPersonAliasGuid?: string | null;
 

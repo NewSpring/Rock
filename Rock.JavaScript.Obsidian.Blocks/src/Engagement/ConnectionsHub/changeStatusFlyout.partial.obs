@@ -4,7 +4,16 @@
             :anchorEl="anchorEl"
             :onSave="onFlyoutSubmit">
         <template #default>
-            <!-- TODO - Add Notification box for errors -->
+
+            <div>
+                <NotificationBox v-if="errorMessage"
+                                 alertType="danger"
+                                 dismissible
+                                 @dismiss="onErrorMessageDismissed">
+                    {{ errorMessage }}
+                </NotificationBox>
+            </div>
+
             <template v-if="isLastStatus">
                 <p class="text-interface-stronger mb-spacing-none">This request has reached its final status. Would you like to mark it as Complete?</p>
             </template>
@@ -112,6 +121,11 @@
             required: true
         },
 
+        errorMessage: {
+            type: String as PropType<string>,
+            required: true
+        },
+
         connectionRequestUpdateBag: {
             type: Object as PropType<ConnectionRequestUpdateBag>,
             required: true
@@ -142,10 +156,11 @@
         (e: "update:modelValue", value: boolean): void;
         (e: "updateStatus", value: ConnectionRequestUpdateBag): void;
         (e: "updateState", value: UpdateConnectionRequestStatesBag): void;
+        (e: "dismissErrorMessage"): void;
         (e: "close"): void;
     }>();
 
-    const errorMessage = ref();
+    const errorMessage = computed(() => props.errorMessage);
 
     const isVisible = useVModelPassthrough(props, "modelValue", emit);
 
@@ -189,6 +204,7 @@
     function resetFields(): void {
         status.value = "";
         note.value = "";
+        onErrorMessageDismissed();
     }
 
     function closeFlyout(): void {
@@ -214,8 +230,11 @@
         emit("updateStatus", updateBag);
     }
 
+    function onErrorMessageDismissed(): void {
+        emit("dismissErrorMessage");
+    }
+
     watch(isVisible, () => {
-        errorMessage.value = "";
         if (!isVisible.value) {
             emit("close");
             resetFields();

@@ -22,6 +22,7 @@
 //
 
 import { ConnectionState } from "@Obsidian/Enums/Connection/connectionState";
+import { GroupMemberRequirementBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/groupMemberRequirementBag";
 
 export type UpdateConnectionRequestStatesBag = {
     connectionRequestIdKeys?: string[] | null;
@@ -29,4 +30,6 @@ export type UpdateConnectionRequestStatesBag = {
     connectionState: ConnectionState;
 
     followUpDate?: string | null;
+
+    groupMemberRequirements?: GroupMemberRequirementBag[] | null;
 };

@@ -30,7 +30,9 @@ export type GroupMemberRequirementBag = {
 
     groupRequirementIdKey?: string | null;
 
-    isManualRequirement?: boolean | null;
+    isManualRequirement: boolean;
+
+    mustMeetRequirementToAddMember: boolean;
 
     requirementName?: string | null;
 };

@@ -26,9 +26,8 @@
 .flyout {
     border: 1px solid var(--color-interface-soft);
     border-radius: var(--rounded-large);
-    /* TODO - UI Team needs to look at min width */
-    min-width: 400px;
-    max-width: 500px;
+    /* TODO - UI Team needs to look at width */
+    width: 400px;
     box-shadow: var(--box-shadow-strong);
     overflow: hidden;
 }
@@ -81,6 +80,7 @@
     const slots = useSlots();
     const flyoutEl = ref<HTMLElement | null>(null);
     const style = ref<Record<string, string>>({});
+    let resizeObserver: ResizeObserver | null = null;
 
     const hasHeader = computed(() => !!slots.header);
     const fullscreenElement = ref<Element | null>(null);
@@ -138,17 +138,17 @@
             return;
         }
 
-        const target = event.target as Node;
+        const path = event.composedPath();
 
         // If click happened inside the flyout then ignore
-        if (flyoutEl.value?.contains(target)) {
+        if (flyoutEl.value && path.includes(flyoutEl.value)) {
             return;
         }
 
         // If click happened on the anchor button then ignore
-        if (props.anchorEl?.contains(target)) {
-            return;
-        }
+        // if (props.anchorEl && path.includes(props.anchorEl)) {
+        //     return;
+        // }
 
         // Otherwise close
         close();
@@ -175,6 +175,16 @@
         nextTick(() => updatePosition());
     });
 
+    watch(flyoutEl, (newEl) => {
+        resizeObserver?.disconnect();
+        resizeObserver = null;
+
+        if (newEl) {
+            resizeObserver = new ResizeObserver(() => updatePosition());
+            resizeObserver.observe(newEl);
+        }
+    });
+
     onMounted(() => {
         updatePosition();
         document.addEventListener("click", onDocumentClick);
@@ -188,6 +198,7 @@
         window.removeEventListener("scroll", updatePosition, true);
         window.removeEventListener("resize", updatePosition);
         document.removeEventListener("fullscreenchange", onFullscreenChange);
+        resizeObserver?.disconnect();
     });
 
 </script>
