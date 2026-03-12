@@ -90,6 +90,11 @@ export type CompletionExtraValues = {
  */
 type LearningActivityComponentBaseEmits = {
     /**
+     * Emitted when the component has loaded fully into the DOM.
+     */
+    loaded(): void;
+
+    /**
      * Emitted when the screen's complete or cancel button has been clicked.
      *
      * @param isSuccess True if the button click was for a completion; false if cancelled.
@@ -155,6 +160,7 @@ export const learningActivityProps: LearningActivityComponentBaseProps = {
  * Get the standard emits that all learning activity components must support.
  */
 export const learningActivityEmits: LearningActivityComponentBaseEmits = {
+    loaded(): void { },
     completed(_isSuccess: boolean): void { },
     closed(): void { },
     activitySettingsChanged(_settings: Record<string, string>): void { },
