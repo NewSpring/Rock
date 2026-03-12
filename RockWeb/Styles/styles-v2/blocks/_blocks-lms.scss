@@ -747,6 +747,21 @@ div.summary-sub-title {
     margin-bottom: var(--spacing-large);
 }
 
+// 2.3 Class Smart Scroll
+// -------------------------
+
+.workspace-navigation-pane-container-smart-scroll,
+.workspace-main-content-smart-scroll {
+    align-self: flex-start;
+    position: sticky;
+    top: var(--spacing-medium);
+}
+
+.workspace-navigation-pane-container-smart-scroll .workspace-navigation-pane {
+    max-height: calc(100vh - var(--spacing-medium) * 2);
+    overflow-y: auto;
+}
+
 
 // 3. Course Detail (internal)
 // -------------------------

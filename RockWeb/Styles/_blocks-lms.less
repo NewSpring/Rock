@@ -780,23 +780,37 @@
       margin-bottom: var(--spacing-large);
     }
 
+  // 2.3 Class Smart Scroll
+  // -------------------------
 
-    // 3. Course Detail (internal)
-    // -------------------------
-    .course-detail-content {
-        // Ensure there's enough height to push the Edit button below the billboard/image.
-        min-height: 240px;
-    }
+  .workspace-navigation-pane-container-smart-scroll,
+  .workspace-main-content-smart-scroll {
+    align-self: flex-start;
+    position: sticky;
+    top: var(--spacing-medium);
+  }
+
+  .workspace-navigation-pane-container-smart-scroll .workspace-navigation-pane {
+    max-height: ~"calc(100vh - var(--spacing-medium) * 2)";
+    overflow-y: auto;
+  }
+
+  // 3. Course Detail (internal)
+  // -------------------------
+  .course-detail-content {
+    // Ensure there's enough height to push the Edit button below the billboard/image.
+    min-height: 240px;
+  }
 
 
-    // 4. Learning Plan Grid (internal)
-    // -------------------------
-    .student-comments-icon {
-      color: var(--color-info-strong);
-      background-color: var(--color-info-soft);
-    }
+  // 4. Learning Plan Grid (internal)
+  // -------------------------
+  .student-comments-icon {
+    color: var(--color-info-strong);
+    background-color: var(--color-info-soft);
+  }
 
-    .attention-needed-icon {
-      color: var(--color-warning-strong);
-      background-color: var(--color-warning-soft);
-    }
+  .attention-needed-icon {
+    color: var(--color-warning-strong);
+    background-color: var(--color-warning-soft);
+  }

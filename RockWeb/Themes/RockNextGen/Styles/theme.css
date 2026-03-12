@@ -23224,6 +23224,18 @@ div.summary-sub-title {
   margin-bottom: var(--spacing-large);
 }
 
+.workspace-navigation-pane-container-smart-scroll,
+.workspace-main-content-smart-scroll {
+  align-self: flex-start;
+  position: sticky;
+  top: var(--spacing-medium);
+}
+
+.workspace-navigation-pane-container-smart-scroll .workspace-navigation-pane {
+  max-height: calc(100vh - var(--spacing-medium) * 2);
+  overflow-y: auto;
+}
+
 .course-detail-content {
   min-height: 240px;
 }
