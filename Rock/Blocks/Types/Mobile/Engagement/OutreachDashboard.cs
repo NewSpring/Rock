@@ -52,26 +52,33 @@ namespace Rock.Blocks.Types.Mobile.Engagement
         Key = AttributeKeys.MyContact,
         Order = 2 )]
 
+
+    [LinkedPage( "Add ContactPage",
+        Description = "The page to open when someone taps on add contact button.",
+        IsRequired = false,
+        Key = AttributeKeys.AddContact,
+        Order = 3 )]
+
     [TextField( "Toolbox Name",
         Description = "The public name of this experience.",
         IsRequired = false,
         DefaultValue = "Beacon",
         Key = AttributeKeys.ToolboxName,
-        Order = 3 )]
+        Order = 4 )]
 
     [TextField( "Toolbox Subtitle",
         Description = "The subtitle appears below the Toolbox name.",
         IsRequired = false,
         DefaultValue = "The subtitle that appears below the Toolbox Name.",
         Key = AttributeKeys.ToolboxSubtitle,
-        Order = 4 )]
+        Order = 5 )]
 
     [IntegerField(
         "Completion Lookback Period",
         Description = "The number of days to look back when calculating on-time completion.",
         IsRequired = true,
         DefaultValue = "30",
-        Order = 5,
+        Order = 6,
         Key = AttributeKeys.CompletionLookbackPeriod )]
 
     [SystemGuid.EntityTypeGuid( SystemGuid.EntityType.MOBILE_OUTREACH_OUTREACH_DASHBOARD_BLOCK_TYPE )]
@@ -85,6 +92,7 @@ namespace Rock.Blocks.Types.Mobile.Engagement
             public const string BaptismInfo = "BaptismInfo";
             public const string DetailPage = "DetailPage";
             public const string MyContact = "MyContact";
+            public const string AddContact = "AddContact";
             public const string ToolboxName = "ToolboxName";
             public const string ToolboxSubtitle = "ToolboxSubtitle";
             public const string CompletionLookbackPeriod = "CompletionLookbackPeriod";
@@ -397,6 +405,7 @@ namespace Rock.Blocks.Types.Mobile.Engagement
                 DetailPage = GetAttributeValue( AttributeKeys.DetailPage ).AsGuidOrNull(),
                 BaptismInfoUrl = ResolveURL( GetAttributeValue( AttributeKeys.BaptismInfo ) ),
                 MyContactPage = GetAttributeValue( AttributeKeys.MyContact ).AsGuidOrNull(),
+                AddContactPage = GetAttributeValue( AttributeKeys.AddContact ).AsGuidOrNull(),
                 ToolboxName = GetAttributeValue( AttributeKeys.ToolboxName ),
                 ToolboxSubtitle = GetAttributeValue( AttributeKeys.ToolboxSubtitle )
             };

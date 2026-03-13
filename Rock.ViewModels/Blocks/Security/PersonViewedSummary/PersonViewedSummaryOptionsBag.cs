@@ -22,6 +22,10 @@ namespace Rock.ViewModels.Blocks.Security.PersonViewedSummary
     /// </summary>
     public class PersonViewedSummaryOptionsBag
     {
+        /// <summary>
+        /// Determines if profiles that have been viewed by the person
+        /// should be displayed.
+        /// </summary>
         public bool SeeProfilesViewed { get; set; }
     }
 }

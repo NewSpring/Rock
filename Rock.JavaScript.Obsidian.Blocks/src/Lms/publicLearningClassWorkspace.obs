@@ -185,12 +185,12 @@
 
             </div>
 
-            <div class="workspace-block-content" v-if="selectedTab === activitiesTab">
+            <div ref="workspaceBlockContentElement" class="workspace-block-content" v-if="selectedTab === activitiesTab">
                 <div class="empty-activities-container" v-if="activities.length === 0">
 
                 </div>
                 <template v-if="activities.length > 0">
-                    <div class="workspace-navigation-pane-container">
+                    <div :class="navigationPaneContainerClass">
                         <CustomSelect
                                       v-model="viewingCompletionBag"
                                       :items="activities"
@@ -198,7 +198,7 @@
                                       itemKey="learningClassActivityIdKey"
                                       :itemClass="getActivityContainerClasses"
                                       :disabledKey="isActivityUnavailable"
-                                      :mobileThreshold="767"
+                                      :mobileThreshold="mobileThreshold"
                                       selectedClass="is-selected">
                             <template #placeholder>
                                 <p class="text-muted">Tap here to select an activity</p>
@@ -244,7 +244,7 @@
                         </div>
                     </div>
 
-                    <div class="workspace-main-content">
+                    <div :class="workspaceMainContentClass">
                         <div v-if="showCompletedScreen"
                              class="course-completed-content">
                             <div>
@@ -281,6 +281,7 @@
                                                    :activityBag="viewingCompletionBag.classActivityBag"
                                                    :completionBag="viewingCompletionBag"
                                                    :screenToShow="screenToShow"
+                                                   @loaded="onActivityLoaded"
                                                    @commentChanged="onCommentChanged"
                                                    @completionValuesChanged="onCompletionValuesChanged"
                                                    @closed="onClosed"
@@ -317,13 +318,20 @@
     import { useStore } from "@Obsidian/PageState";
     import { BtnSize } from "@Obsidian/Enums/Controls/btnSize";
     import { CommunicationType } from "@Obsidian/Enums/Communication/communicationType";
+    import { useViewportWidth } from "@Obsidian/Utility/screenSize";
+    import { getCssVariableValue } from "@Obsidian/Utility/cssUtils";
 
     const config = useConfigurationValues<PublicLearningClassWorkspaceBox>();
     const invokeBlockAction = useInvokeBlockAction();
     const store = useStore();
     onConfigurationValuesChanged(useReloadBlock());
 
+    const mobileThreshold = 767;
+    let isInitialLoad = true;
+
     // #region Values
+
+    const { isMobile } = useViewportWidth(mobileThreshold);
 
     const blockError = ref("");
     const errorMessage = ref("");
@@ -340,6 +348,8 @@
     const activities = ref<LearningClassActivityCompletionBag[]>(config.activities ?? []);
 
     const viewingCompletionBag = ref(getInitialActivitySelection());
+    const workspaceBlockContentElement = ref<HTMLElement | undefined>();
+    const enableSmartScroll = ref(config.enableSmartScroll);
 
     const announcements = ref(config.announcements ?? []);
     const isAcademicCalendarMode = ref(config.programConfigurationMode === ConfigurationMode.AcademicCalendar);
@@ -453,6 +463,29 @@
 
     const currentPersonNickName = computed((): string => {
         return store.state.currentPerson?.nickName ?? "";
+    });
+
+    /** The container classes used for the activity navigation pane. */
+    const navigationPaneContainerClass = computed(() => {
+        const classes = ["workspace-navigation-pane-container"];
+
+        if (enableSmartScroll.value && !isMobile.value) {
+            classes.push("smart-scroll");
+            classes.push("styled-scroll");
+        }
+
+        return classes;
+    });
+
+    /** The container classes used for the main content area. */
+    const workspaceMainContentClass = computed(() => {
+        const classes = ["workspace-main-content"];
+
+        if (enableSmartScroll.value && !isMobile.value) {
+            classes.push("smart-scroll");
+        }
+
+        return classes;
     });
 
     // #endregion
@@ -640,9 +673,45 @@
         return activity?.isAvailable !== true;
     }
 
+    /**
+     * Scrolls the activity into view. This is only applied for desktop view.
+     */
+    function scrollActivityIntoView(): void {
+        if (!workspaceBlockContentElement.value) {
+            return;
+        }
+
+        // Element's position relative to the top of the page.
+        const currentScrollPosition = window.pageYOffset;
+        const elementPosition = workspaceBlockContentElement.value
+            .getBoundingClientRect().top + currentScrollPosition;
+
+        // Scroll slightly higher so the activity is fully visible.
+        const extraPaddingPx = parseInt(getCssVariableValue("--spacing-medium", "16"));
+        const scrollToPosition = elementPosition - extraPaddingPx;
+
+        // Jump immediately to avoid sticky nav flicker.
+        window.scrollTo({
+            top: scrollToPosition,
+            behavior: "auto"
+        });
+    }
+
     // #endregion
 
     // #region Event Handlers
+
+    /**
+     * Called when the activity component emits the loaded event.
+     */
+    function onActivityLoaded(): void {
+        if (isInitialLoad || !enableSmartScroll.value || isMobile.value) {
+            isInitialLoad = false;
+            return;
+        }
+
+        scrollActivityIntoView();
+    }
 
     function onCommentChanged(comment: string): void {
         const newValue = { ...viewingCompletionBag.value };

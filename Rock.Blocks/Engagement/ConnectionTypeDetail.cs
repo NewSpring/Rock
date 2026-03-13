@@ -777,8 +777,6 @@ namespace Rock.Blocks.Engagement
                     attr.Order = attributeOrder++;
                 }
             }
-
-            RockContext.SaveChanges();
         }
 
 

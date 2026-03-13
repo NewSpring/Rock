@@ -1224,6 +1224,8 @@ ORDER BY ct.[Name], cs.[Name]",
         /// </summary>
         private void BindRequestModalViewMode()
         {
+            HideRequestModalNotification();
+
             mdRequest.Footer.Visible = false;
             var viewModel = GetConnectionRequestViewModel();
             var connectionRequest = GetConnectionRequest();
