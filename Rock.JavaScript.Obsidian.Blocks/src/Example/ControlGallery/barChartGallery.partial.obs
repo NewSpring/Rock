@@ -3,6 +3,7 @@
         <BarChart :appearance="appearance"
                   :labels="labels"
                   :series="series"
+                  :barBorderRadius="barBorderRadius"
                   :barLabels="barLabels"
                   :categoryLabel="categoryLabel"
                   :categoryHideAxisLabels="categoryHideAxisLabels"
@@ -102,8 +103,12 @@
                                        :maximumValue="20" />
 
                             <NumberBox v-model="minBarLength"
-                                       help="The minimum length in pixels that a bar should be drawn regardless of its value. This can be used to ensure that very small values are still visible on the chart, including zeroes."
+                                       help="The minimum length in pixels that a bar should be drawn regardless of its value. This can be used to ensure that very small values are still visible on the chart, including zeroes. Note that this may cause misalignment between the ends of some bars and value axis."
                                        label="Minimum Bar Length" />
+
+                            <NumberBox v-model="barBorderRadius"
+                                       help="Sets the border radius of the bars in pixels."
+                                       label="Bar Border Radius" />
 
                             <Switch :modelValue="isPercent ?? false"
                                     help="For 'percent', the data must be in decimal form (e.g., 0.1 for 10%)."
@@ -340,6 +345,7 @@
         }
     ]);
     const appearance = ref<BarChartAppearanceType>("default");
+    const barBorderRadius = ref<number | undefined>();
     const minValue = ref<number>(0);
     const maxValue = ref<number>(100);
     const categoryShowGridLines = ref<boolean | undefined>();
@@ -386,6 +392,9 @@
 
         if (appearance.value && appearance.value !== "default") {
             barChartProps.push(`appearance="${appearance.value}"`);
+        }
+        if (!isNullish(barBorderRadius.value)) {
+            barChartProps.push(`:barBorderRadius="${barBorderRadius.value}"`);
         }
         if (!isNullish(categoryHideAxisLabels.value)) {
             barChartProps.push(`:categoryHideAxisLabels="${categoryHideAxisLabels.value}"`);

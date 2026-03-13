@@ -71,6 +71,14 @@
             default: "default"
         },
 
+        /**
+         * The border radius to apply to the bars in the chart. This can be used to create rounded or flat bars.
+         */
+        barBorderRadius: {
+            type: Number as PropType<number | undefined>,
+            default: undefined
+        },
+
         /** The configuration for the bar labels for all series. */
         barLabels: {
             type: Object as PropType<BarLabelsConfig | undefined>,
@@ -755,7 +763,7 @@
                         const chart = ctx.chart;
                         const datasetIndex = ctx.datasetIndex;
                         const currentDataset = chart.data.datasets[datasetIndex];
-                        const rounded = parseInt(getCssVar("--rounded-xsmall")) ?? 0;
+                        const rounded = props.barBorderRadius ?? parseInt(getCssVar("--rounded-xsmall")) ?? 0;
                         const allRounded = {
                             topLeft: rounded,
                             topRight: rounded,
@@ -1774,13 +1782,21 @@
         refreshChartData();
     });
 
-    watch([() => props.unfilled], () => {
+    watch([
+        () => props.unfilled,
+        () => props.barBorderRadius
+    ], () => {
         // Never animate the chart data refresh when these props change.
         disableAnimationUntilUpdated.value = true;
         refreshChartData();
     });
 
-    watch([internalLabels, () => props.overlap, effectiveStack, () => props.minBarLength], () => {
+    watch([
+        internalLabels,
+        () => props.overlap,
+        effectiveStack,
+        () => props.minBarLength
+    ], () => {
         // Always animate the chart data refresh when these props change.
         refreshChartData();
     });
