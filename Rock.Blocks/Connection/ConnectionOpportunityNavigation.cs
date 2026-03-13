@@ -443,7 +443,7 @@ namespace Rock.Blocks.Connection
         }
 
         /// <summary>
-        /// Loads the counts of <see cref="ConnectionRequest"/>s per day for the past 30 days.
+        /// Loads the counts of <see cref="ConnectionRequest"/>s per day for the past 28 days.
         /// </summary>
         /// <param name="connectionType">
         /// The <see cref="ConnectionTypeCache"/> for which to load request counts.
@@ -454,7 +454,7 @@ namespace Rock.Blocks.Connection
             var connectionTypeId = connectionType.Id;
             var campusId = RequestContext.GetContextEntity<Campus>()?.Id;
 
-            var startDate = RockDateTime.Today.AddDays( -29 ); // 30 days including today.
+            var startDate = RockDateTime.Today.AddDays( -27 ); // 28 days including today.
             var endDate = RockDateTime.Today.AddDays( 1 );
 
             var connectionRequestQry = new ConnectionRequestService( RockContext )
