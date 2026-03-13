@@ -2,6 +2,7 @@
 <template>
     <Modal v-model="isVisible"
            :title="title"
+           :isSaveButtonDisabled="isSaving"
            saveText="Save"
            @save="onSave">
         <div class="row">
@@ -49,6 +50,11 @@
         viewOptions: {
             type: Object as PropType<ViewOptions>,
             required: true
+        },
+
+        isSaving: {
+            type: Boolean as PropType<boolean>,
+            default: false
         }
     });
 

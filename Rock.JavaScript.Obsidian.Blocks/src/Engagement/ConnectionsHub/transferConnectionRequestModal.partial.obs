@@ -2,6 +2,7 @@
 <template>
     <Modal v-model="isVisible"
            title="Transfer Request"
+           :isSaveButtonDisabled="isSaving"
            saveText="Save"
            @save="onSave">
         <NotificationBox v-if="errorMessage"
@@ -171,6 +172,11 @@
         transferDetails: {
             type: Object as PropType<TransferConnectionRequestDetailsBag | undefined>,
             required: true
+        },
+
+        isSaving: {
+            type: Boolean as PropType<boolean>,
+            default: false
         }
     });
 

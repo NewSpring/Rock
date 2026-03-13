@@ -2,6 +2,7 @@
 <template>
     <Modal v-model="isVisible"
            title="Launch Workflow"
+           :isSaveButtonDisabled="isSaving"
            saveText="Save"
            @save="onSave">
         <NotificationBox alertType="info">
@@ -55,6 +56,11 @@
         viewOptions: {
             type: Object as PropType<ViewOptions>,
             required: true
+        },
+
+        isSaving: {
+            type: Boolean as PropType<boolean>,
+            default: false
         }
     });
 

@@ -458,6 +458,7 @@
     <ChangeStatusFlyout v-model="isFlyoutOpen"
                         :errorMessage="flyoutErrorMessage"
                         :isCompletionButtonLoading="isFlyoutCompletionButtonLoading"
+                        :isSaving="isFlyoutSaving"
                         :anchorEl="anchorEl"
                         :connectionRequestUpdateBag="connectionRequestUpdateBag"
                         :isNoteRequired="isNoteRequired"
@@ -475,6 +476,7 @@
                                :placementGroupDetails="placementGroupDetails"
                                :isConnectionOpportunityFilterSelected="hasSelectedOpportunity"
                                :isExistingActiveRequesterOnConnectionType="isExistingActiveRequesterOnConnectionType"
+                               :isSaving="isModalSaving"
                                @checkForActiveRequester="checkForActiveRequester"
                                @save="onAddRequest"
                                @close="resetNewConnectionRequest"
@@ -485,12 +487,14 @@
                           :selectedOpportunityGuid="selectedOpportunity"
                           :allConnectionOpportunityItems="box.options?.connectionOpportunities ?? []"
                           :isLoading="areCampaignsLoading"
+                          :isSaving="isModalSaving"
                           :campaignRecordBags="campaignRecordBags"
                           @assignRequests="assignRequestsFromCampaign" />
 
     <CelebrationModal v-model:visible="isCelebrationModalVisible"
                       :requestDetails="requestDetailsForModal"
                       :viewOptions="viewOptions"
+                      :isSaving="isModalSaving"
                       @upsertCelebration="upsertCelebration" />
 
     <ReminderModal v-model="isReminderModalVisible"
@@ -510,9 +514,11 @@
                         :connectorItems="allPossibleConnectors"
                         :requestDetails="requestDetailsForModal"
                         :viewOptions="viewOptions"
-                        @updateConnector="(connector) => reassignConnector(allSelectedKeys, connector)" />
+                        :isSaving="isModalSaving"
+                        @updateConnector="updateConnectorFromModal" />
     <ChangeStateModal v-model:visible="isChangeStateModalVisible"
                       :isLoading="areRequestDetailsForModalLoading"
+                      :isSaving="isModalSaving"
                       :connectionState="changeStateTo"
                       :requestDetails="requestDetailsForModal"
                       :failingRequestDetails="failingRequestDetailsForModal"
@@ -521,6 +527,7 @@
     <DeleteRequestModal v-model:visible="isDeleteRequestModalVisible"
                         :requestDetails="requestDetailsForModal"
                         :viewOptions="viewOptions"
+                        :isSaving="isModalSaving"
                         @deleteRequests="deleteRequestsFromModal" />
     <ActivityModal v-model:visible="isActivityModalVisible"
                    :connectorItems="allPossibleConnectors"
@@ -529,10 +536,12 @@
                    :viewOptions="viewOptions"
                    :currentPerson="currentPerson"
                    :activityToEdit="activityToEdit"
+                   :isSaving="isModalSaving"
                    @upsertActivity="upsertActivity" />
     <ChangeStatusModal v-model:visible="isChangeStatusModalVisible"
                        :connectionStatuses="box.options?.connectionStatuses ?? []"
                        :isSequentialMode="box.options?.isSequentialStatusMode ?? false"
+                       :isSaving="isModalSaving"
                        :requestDetails="requestDetailsForModal"
                        :viewOptions="viewOptions"
                        @updateStatus="updateStatusFromModal" />
@@ -540,6 +549,7 @@
                          :workflowItems="box.options?.workflowItems ?? []"
                          :requestDetails="requestDetailsForModal"
                          :viewOptions="viewOptions"
+                         :isSaving="isModalSaving"
                          @launchWorkflows="launchWorkflowForRequests" />
     <SendSMSModal v-model:visible="isSendSMSModalVisible"
                   :communicationRecipients="communicationRecipients"
@@ -572,6 +582,7 @@
                                   @navigateToBreadcrumb="navigateToBreadcrumb"
                                   @navigateToAdditionalRequest="navigateToAdditionalRequest"
                                   @editActivity="onEditActivity"
+                                  :isSaving="isDockedPanelSaving"
                                   @editRequest="onEditRequest"
                                   @transferRequest="onTransferClick"
                                   @addActivity="showAddActivityModal"
@@ -587,6 +598,7 @@
 
     <TransferConnectionRequestModal v-model="isTransferModalVisible"
                                     :transferDetails="transferRequestDetails"
+                                    :isSaving="isModalSaving"
                                     @transfer="transferRequest" />
 </template>
 
@@ -891,6 +903,7 @@
     const isDeleteRequestModalVisible = ref(false);
     const isActivityModalVisible = ref(false);
     const isChangeStatusModalVisible = ref(false);
+    const isModalSaving = ref(false);
     const isLaunchWorkflowModalVisible = ref(false);
     const isChangeStateModalVisible = ref(false);
     const changeStateTo = ref<ConnectionState>(ConnectionState.Active);
@@ -901,6 +914,8 @@
 
     const isFlyoutOpen = ref(false);
     const flyoutErrorMessage = ref<string>("");
+    const isFlyoutSaving = ref<boolean>(false);
+    const isDockedPanelSaving = ref<boolean>(false);
     const isFlyoutCompletionButtonLoading = ref<boolean>(false);
     const anchorEl = ref<HTMLElement | null>(null);
     const connectionRequestUpdateBag = ref<ConnectionRequestUpdateBag>({} as ConnectionRequestUpdateBag);
@@ -1619,7 +1634,7 @@
         }
     }
 
-    function updateStatusFromModal(bag: ConnectionRequestUpdateBag): void {
+    async function updateStatusFromModal(bag: ConnectionRequestUpdateBag): Promise<void> {
         const statusUpdateBags: ConnectionRequestUpdateBag[] = [];
         const completedRequests: string[] = [];
 
@@ -1663,7 +1678,13 @@
             }
         }
 
-        updateRequestStatuses(statusUpdateBags, completedRequests);
+        try {
+            isModalSaving.value = true;
+            await updateRequestStatuses(statusUpdateBags, completedRequests);
+        }
+        finally {
+            isModalSaving.value = false;
+        }
     }
 
     function navigateToBreadcrumb(index: number): void {
@@ -1691,35 +1712,53 @@
     }
 
     async function updateStateFromModal(bag: UpdateConnectionRequestStatesBag): Promise<void> {
-        const errorMessage = await updateRequestStates(bag);
+        try {
+            isModalSaving.value = true;
+            const errorMessage = await updateRequestStates(bag);
 
-        if (!errorMessage) {
-            isChangeStateModalVisible.value = false;
+            if (!errorMessage) {
+                isChangeStateModalVisible.value = false;
 
-            if (requestDetailsForModal.value.length > 1) {
-                // clear selected keys
-                // TODO - Ask Jon if this should happen.
-                clearAllSelections();
+                if (requestDetailsForModal.value.length > 1) {
+                    // clear selected keys
+                    // TODO - Ask Jon if this should happen.
+                    clearAllSelections();
+                }
             }
+        }
+        finally {
+            isModalSaving.value = false;
         }
     }
 
     async function updateStateFromFlyout(bag: UpdateConnectionRequestStatesBag): Promise<void> {
-        const errorMessage = await updateRequestStates(bag);
+        try {
+            isFlyoutSaving.value = true;
+            const errorMessage = await updateRequestStates(bag);
 
-        if (!errorMessage) {
-            isFlyoutOpen.value = false;
+            if (!errorMessage) {
+                isFlyoutOpen.value = false;
+            }
+            else {
+                flyoutErrorMessage.value = errorMessage;
+            }
         }
-        else {
-            flyoutErrorMessage.value = errorMessage;
+        finally {
+            isFlyoutSaving.value = false;
         }
     }
 
     async function deleteRequestsFromModal(keys: string[]): Promise<void> {
-        const result = await deleteRequests(keys);
+        try {
+            isModalSaving.value = true;
+            const result = await deleteRequests(keys);
 
-        if (result) {
-            isDeleteRequestModalVisible.value = false;
+            if (result) {
+                isDeleteRequestModalVisible.value = false;
+            }
+        }
+        finally {
+            isModalSaving.value = false;
         }
     }
 
@@ -1969,35 +2008,42 @@
     }
 
     async function changeRequestStatus(bag: ConnectionRequestUpdateBag): Promise<void> {
-        // If the action comes from a docked panel than the Connection Type could be different than the Connection Type of the List View.
-        const connectionTypeIdKey = dockedPanelDetailsBox.value?.options?.connectionTypeIdKey;
+        try {
+            isFlyoutSaving.value = true;
 
-        const result = await invokeBlockAction<ConnectionListGridUpdateBag>("ChangeRequestStatus", {
-            bag,
-            connectionTypeIdKey
-        });
+            // If the action comes from a docked panel than the Connection Type could be different than the Connection Type of the List View.
+            const connectionTypeIdKey = dockedPanelDetailsBox.value?.options?.connectionTypeIdKey;
 
-        if (result.isSuccess && result.data) {
-            const row = gridData.value?.rows?.find(r => r.idKey === bag.connectionRequestIdKey);
-            if (row) {
-                row.statusGrouping = result.data.statusGrouping;
-                row.connectionStatus = result.data.connectionStatusBag;
-                row.dueStatusGrouping = result.data.dueStatusGrouping;
-                row.dueStatus = result.data.dueStatus;
-                row.dueDate = result.data.dueDate;
-                row.dueSoonDate = result.data.dueSoonDate;
+            const result = await invokeBlockAction<ConnectionListGridUpdateBag>("ChangeRequestStatus", {
+                bag,
+                connectionTypeIdKey
+            });
+
+            if (result.isSuccess && result.data) {
+                const row = gridData.value?.rows?.find(r => r.idKey === bag.connectionRequestIdKey);
+                if (row) {
+                    row.statusGrouping = result.data.statusGrouping;
+                    row.connectionStatus = result.data.connectionStatusBag;
+                    row.dueStatusGrouping = result.data.dueStatusGrouping;
+                    row.dueStatus = result.data.dueStatus;
+                    row.dueDate = result.data.dueDate;
+                    row.dueSoonDate = result.data.dueSoonDate;
+                }
+
+                if (!!dockedPanelDetailsBox.value?.entity && dockedPanelDetailsBox.value.entity.connectionRequestIdKey === bag.connectionRequestIdKey) {
+                    dockedPanelDetailsBox.value.entity.connectionStatus = result.data.connectionStatusBag;
+                    dockedPanelDetailsBox.value.entity.dueStatus = result.data.dueStatus;
+                    dockedPanelDetailsBox.value.entity.dueDate = result.data.dueDate;
+                    refreshActivityEntries(dockedPanelDetailsBox.value.entity.connectionRequestIdKey);
+                }
+
+                isFlyoutOpen.value = false;
             }
-
-            if (!!dockedPanelDetailsBox.value?.entity && dockedPanelDetailsBox.value.entity.connectionRequestIdKey === bag.connectionRequestIdKey) {
-                dockedPanelDetailsBox.value.entity.connectionStatus = result.data.connectionStatusBag;
-                dockedPanelDetailsBox.value.entity.dueStatus = result.data.dueStatus;
-                dockedPanelDetailsBox.value.entity.dueDate = result.data.dueDate;
-                refreshActivityEntries(dockedPanelDetailsBox.value.entity.connectionRequestIdKey);
-            }
-
-            isFlyoutOpen.value = false;
+            // display error
         }
-        // display error
+        finally {
+            isFlyoutSaving.value = false;
+        }
     }
 
     async function checkIfRequestsMeetRequirements(): Promise<void> {
@@ -2108,34 +2154,41 @@
     }
 
     async function launchWorkflowForRequests(bag: LaunchWorkflowBag): Promise<void> {
-        // If the action comes from a docked panel than the Connection Type could be different than the Connection Type of the List View.
-        const connectionTypeIdKey = dockedPanelDetailsBox.value?.options?.connectionTypeIdKey;
+        try {
+            isModalSaving.value = true;
 
-        const result = await invokeBlockAction<LaunchWorkflowResultBag>("LaunchWorkflowForRequests", {
-            bag: bag,
-            connectionTypeIdKey
-        });
+            // If the action comes from a docked panel than the Connection Type could be different than the Connection Type of the List View.
+            const connectionTypeIdKey = dockedPanelDetailsBox.value?.options?.connectionTypeIdKey;
 
-        if (result.isSuccess && result.data) {
-            isModalAlertVisible.value = true;
-            modalAlertText.value = result.data.statusMessage;
+            const result = await invokeBlockAction<LaunchWorkflowResultBag>("LaunchWorkflowForRequests", {
+                bag: bag,
+                connectionTypeIdKey
+            });
 
-            if (!isNullOrWhiteSpace(result.data.workflowEntryPageUrl) && typeof result.data.workflowEntryPageUrl === "string") {
-                const url = result.data.workflowEntryPageUrl;
-                const stop = watch(isModalAlertVisible, (isVisible) => {
-                    if (!isVisible) {
-                        window.open(url, "_blank");
-                        stop(); // tear down watcher
-                    }
-                });
+            if (result.isSuccess && result.data) {
+                isModalAlertVisible.value = true;
+                modalAlertText.value = result.data.statusMessage;
+
+                if (!isNullOrWhiteSpace(result.data.workflowEntryPageUrl) && typeof result.data.workflowEntryPageUrl === "string") {
+                    const url = result.data.workflowEntryPageUrl;
+                    const stop = watch(isModalAlertVisible, (isVisible) => {
+                        if (!isVisible) {
+                            window.open(url, "_blank");
+                            stop(); // tear down watcher
+                        }
+                    });
+                }
+
+                isLaunchWorkflowModalVisible.value = false;
+
+                return;
             }
 
-            isLaunchWorkflowModalVisible.value = false;
-
-            return;
+            console.error(result.errorMessage);
         }
-
-        console.error(result.errorMessage);
+        finally {
+            isModalSaving.value = false;
+        }
     }
 
     async function deleteRequests(connectionRequestIdKeys: string[]): Promise<boolean> {
@@ -2171,57 +2224,64 @@
     }
 
     async function upsertActivity(bag: ActivityBag): Promise<void> {
-        // If the action comes from a docked panel than the Connection Type could be different than the Connection Type of the List View.
-        const connectionTypeIdKey = dockedPanelDetailsBox.value?.options?.connectionTypeIdKey;
+        try {
+            isModalSaving.value = true;
 
-        // If we have an activity Id Key then we are in update mode.
-        if (bag.activityIdKey) {
-            await updateActivity(bag, connectionTypeIdKey);
-            return;
-        }
+            // If the action comes from a docked panel than the Connection Type could be different than the Connection Type of the List View.
+            const connectionTypeIdKey = dockedPanelDetailsBox.value?.options?.connectionTypeIdKey;
 
-        const result = await invokeBlockAction<ConnectionListGridUpdateBag[]>("AddActivityForRequests", {
-            bag: bag,
-            connectionTypeIdKey
-        });
-
-        if (result.isSuccess && result.data) {
-            if (result.data.length === 1) {
-                const resultBag = result.data[0];
-
-                const row = gridData.value?.rows?.find(r => r.idKey === resultBag.idKey);
-
-                if (row) {
-                    row.activityCount = resultBag.activityCount;
-                    row.lastActivityDateTime = resultBag.lastActivityDateTime;
-                }
-
-                if (!!dockedPanelDetailsBox.value?.entity && dockedPanelDetailsBox.value.entity.connectionRequestIdKey === resultBag.idKey) {
-                    refreshActivityEntries(dockedPanelDetailsBox.value.entity.connectionRequestIdKey);
-                }
+            // If we have an activity Id Key then we are in update mode.
+            if (bag.activityIdKey) {
+                await updateActivity(bag, connectionTypeIdKey);
+                return;
             }
-            else {
-                const rowsByIdKey = new Map(
-                    gridData.value?.rows?.map(r => [r.idKey, r])
-                );
 
-                for (const updateBag of result.data) {
-                    const row = rowsByIdKey.get(updateBag.idKey);
-                    if (!row) {
-                        continue;
+            const result = await invokeBlockAction<ConnectionListGridUpdateBag[]>("AddActivityForRequests", {
+                bag: bag,
+                connectionTypeIdKey
+            });
+
+            if (result.isSuccess && result.data) {
+                if (result.data.length === 1) {
+                    const resultBag = result.data[0];
+
+                    const row = gridData.value?.rows?.find(r => r.idKey === resultBag.idKey);
+
+                    if (row) {
+                        row.activityCount = resultBag.activityCount;
+                        row.lastActivityDateTime = resultBag.lastActivityDateTime;
                     }
 
-                    row.activityCount = updateBag.activityCount;
-                    row.lastActivityDateTime = updateBag.lastActivityDateTime;
+                    if (!!dockedPanelDetailsBox.value?.entity && dockedPanelDetailsBox.value.entity.connectionRequestIdKey === resultBag.idKey) {
+                        refreshActivityEntries(dockedPanelDetailsBox.value.entity.connectionRequestIdKey);
+                    }
                 }
+                else {
+                    const rowsByIdKey = new Map(
+                        gridData.value?.rows?.map(r => [r.idKey, r])
+                    );
+
+                    for (const updateBag of result.data) {
+                        const row = rowsByIdKey.get(updateBag.idKey);
+                        if (!row) {
+                            continue;
+                        }
+
+                        row.activityCount = updateBag.activityCount;
+                        row.lastActivityDateTime = updateBag.lastActivityDateTime;
+                    }
+                }
+
+                isActivityModalVisible.value = false;
+                // activityToEdit.value = null;
+                return;
             }
 
-            isActivityModalVisible.value = false;
-            // activityToEdit.value = null;
-            return;
+            console.error(result.errorMessage);
         }
-
-        console.error(result.errorMessage);
+        finally {
+            isModalSaving.value = false;
+        }
     }
 
     async function updateActivity(bag: ActivityBag, connectionTypeIdKey: string | null | undefined): Promise<void> {
@@ -2272,19 +2332,25 @@
     }
 
     async function onEditRequest(box: ValidPropertiesBox<ConnectionRequestBag>): Promise<void> {
-        const result = await saveConnectionRequest(box);
+        try {
+            isDockedPanelSaving.value = true;
+            const result = await saveConnectionRequest(box);
 
-        if (result.isSuccess && result.data && result.data.detailBox) {
-            if (result.data.gridRow) {
-                syncGridData(result.data.gridRow);
+            if (result.isSuccess && result.data && result.data.detailBox) {
+                if (result.data.gridRow) {
+                    syncGridData(result.data.gridRow);
+                }
+
+                dockedPanelDetailsBox.value = result.data.detailBox;
+
+                connectionRequestDockedPanelRef.value?.setEditMode(false);
             }
-
-            dockedPanelDetailsBox.value = result.data.detailBox;
-
-            connectionRequestDockedPanelRef.value?.setEditMode(false);
+            else {
+                console.error(result.errorMessage ?? "An unknown error occurred while editing the request.");
+            }
         }
-        else {
-            console.error(result.errorMessage ?? "An unknown error occurred while editing the request.");
+        finally {
+            isDockedPanelSaving.value = false;
         }
     }
 
@@ -2303,21 +2369,28 @@
     }
 
     async function transferRequest(bag: TransferConnectionRequestBag): Promise<void> {
-        const result = await invokeBlockAction<ConnectionListUpdateBox>("TransferConnectionRequest", {
-            bag
-        });
+        try {
+            isModalSaving.value = true;
 
-        if (result.isSuccess && result.data && result.data.detailBox) {
-            if (result.data.gridRow) {
-                syncGridData(result.data.gridRow);
+            const result = await invokeBlockAction<ConnectionListUpdateBox>("TransferConnectionRequest", {
+                bag
+            });
+
+            if (result.isSuccess && result.data && result.data.detailBox) {
+                if (result.data.gridRow) {
+                    syncGridData(result.data.gridRow);
+                }
+
+                dockedPanelDetailsBox.value = result.data.detailBox;
+
+                isTransferModalVisible.value = false;
             }
-
-            dockedPanelDetailsBox.value = result.data.detailBox;
-
-            isTransferModalVisible.value = false;
+            else {
+                transferErrorMessage.value = result.errorMessage ?? "An unknown error occurred while transferring the connection request.";
+            }
         }
-        else {
-            transferErrorMessage.value = result.errorMessage ?? "An unknown error occurred while transferring the connection request.";
+        finally {
+            isModalSaving.value = false;
         }
     }
 
@@ -2335,18 +2408,25 @@
     }
 
     async function onAddRequest(box: ValidPropertiesBox<ConnectionRequestBag>): Promise<void> {
-        const result = await saveConnectionRequest(box);
+        try {
+            isModalSaving.value = true;
 
-        if (result.isSuccess && result.data) {
-            if (result.data.gridRow) {
-                syncGridData(result.data.gridRow);
+            const result = await saveConnectionRequest(box);
+
+            if (result.isSuccess && result.data) {
+                if (result.data.gridRow) {
+                    syncGridData(result.data.gridRow);
+                }
+
+                isAddConnectionRequestModalVisible.value = false;
+                return;
             }
-
-            isAddConnectionRequestModalVisible.value = false;
-            return;
+            else {
+                console.error(result.errorMessage ?? "An unknown error occurred while adding the request.");
+            }
         }
-        else {
-            console.error(result.errorMessage ?? "An unknown error occurred while adding the request.");
+        finally {
+            isModalSaving.value = false;
         }
     }
 
@@ -2356,6 +2436,16 @@
         });
 
         return result;
+    }
+
+    async function updateConnectorFromModal(connector: string): Promise<void> {
+        try {
+            isModalSaving.value = true;
+            await reassignConnector(allSelectedKeys.value, connector);
+        }
+        finally {
+            isModalSaving.value = false;
+        }
     }
 
     async function reassignConnector(connectionRequestIdKeys: string[], connector: string, fromDockedPanel: boolean = false): Promise<void> {
@@ -2411,39 +2501,53 @@
     }
 
     async function assignRequestsFromCampaign(bag: AssignFromCampaignBag): Promise<void> {
-        const result = await invokeBlockAction("AssignConnectionRequestsFromCampaign", { bag });
+        try {
+            isModalSaving.value = true;
 
-        if (result.isSuccess) {
-            // TODO - this may be updated to insert updated/inserted values into the exisithing grid data rather than reloading.
-            loadGridData();
-            isAddFromCampaignModalVisible.value = false;
-            return;
+            const result = await invokeBlockAction("AssignConnectionRequestsFromCampaign", { bag });
+
+            if (result.isSuccess) {
+                // TODO - this may be updated to insert updated/inserted values into the exisithing grid data rather than reloading.
+                loadGridData();
+                isAddFromCampaignModalVisible.value = false;
+                return;
+            }
+
+            console.error(result.errorMessage);
         }
-
-        console.error(result.errorMessage);
+        finally {
+            isModalSaving.value = false;
+        }
     }
 
     async function upsertCelebration(bag: UpsertCelebrationBag): Promise<void> {
-        // If the action comes from a docked panel than the Connection Type could be different than the Connection Type of the List View.
-        const connectionTypeIdKey = dockedPanelDetailsBox.value?.options?.connectionTypeIdKey;
+        try {
+            isModalSaving.value = true;
 
-        const result = await invokeBlockAction<ConnectionListGridUpdateBag>("UpsertCelebrationText", { bag, connectionTypeIdKey });
+            // If the action comes from a docked panel than the Connection Type could be different than the Connection Type of the List View.
+            const connectionTypeIdKey = dockedPanelDetailsBox.value?.options?.connectionTypeIdKey;
 
-        if (result.isSuccess && result.data) {
-            const row = gridData.value?.rows?.find(r => r.idKey === result.data?.idKey);
+            const result = await invokeBlockAction<ConnectionListGridUpdateBag>("UpsertCelebrationText", { bag, connectionTypeIdKey });
 
-            if (row) {
-                row.celebrationText = result.data.celebrationText;
+            if (result.isSuccess && result.data) {
+                const row = gridData.value?.rows?.find(r => r.idKey === result.data?.idKey);
+
+                if (row) {
+                    row.celebrationText = result.data.celebrationText;
+                }
+                if (dockedPanelDetailsBox.value?.entity) {
+                    dockedPanelDetailsBox.value.entity.celebrationText = result.data.celebrationText;
+                }
+
+                isCelebrationModalVisible.value = false;
+                return;
             }
-            if (dockedPanelDetailsBox.value?.entity) {
-                dockedPanelDetailsBox.value.entity.celebrationText = result.data.celebrationText;
-            }
 
-            isCelebrationModalVisible.value = false;
-            return;
+            console.error(result.errorMessage);
         }
-
-        console.error(result.errorMessage);
+        finally {
+            isModalSaving.value = false;
+        }
     }
 
     async function getConnectionRequestDetails(requestIdKey: string): Promise<void> {

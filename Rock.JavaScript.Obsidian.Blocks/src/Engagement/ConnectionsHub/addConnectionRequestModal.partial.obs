@@ -2,6 +2,7 @@
 <template>
     <Modal v-model="isVisible"
            title="Add Connection Request"
+           :isSaveButtonDisabled="isSaving"
            saveText="Save"
            @save="onSave">
         <NotificationBox v-if="isExistingActiveRequesterOnConnectionType"
@@ -42,7 +43,7 @@
         <div class="row">
             <div class="col-md-6">
                 <RadioButtonList v-model="connectionState"
-                                 :items="props.options?.connectionStates ?? []"
+                                 :items="availableConnectionStates"
                                  label="State" />
             </div>
         </div>
@@ -206,6 +207,11 @@
         isExistingActiveRequesterOnConnectionType: {
             type: Boolean as PropType<boolean>,
             required: true
+        },
+
+        isSaving: {
+            type: Boolean as PropType<boolean>,
+            default: false
         }
     });
 
@@ -280,6 +286,10 @@
         return statuses[roleGuid] ?? [];
     });
 
+    const availableConnectionStates = computed<ListItemBag[]>(() => {
+        return (props.options?.connectionStates ?? []).filter(s => parseInt(s.value ?? "") !== ConnectionState.Connected);
+    });
+
     const connectionStatusItems = computed<ListItemBag[]>(() => {
         return (
             props.options?.connectionStatuses?.map(s => ({
@@ -313,8 +323,6 @@
         setPropertiesBoxValue(newValue, "requester", requester.value);
 
         emit("save", newValue);
-
-        isVisible.value = false;
     }
 
     /**

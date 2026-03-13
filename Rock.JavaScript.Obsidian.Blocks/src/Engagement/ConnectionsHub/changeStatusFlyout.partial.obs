@@ -61,7 +61,7 @@
                 <RockButton @click="completeRequest"
                             :btnSize="BtnSize.Small"
                             :btnType="BtnType.Primary"
-                            :disabled="!connectionRequestUpdateBag.canCompleteRequest"
+                            :disabled="!connectionRequestUpdateBag.canCompleteRequest || isSaving"
                             :isLoading="isCompletionButtonLoading"
                             :title="completeButtonTooltip">
                     Mark Complete
@@ -76,7 +76,7 @@
                  class="d-flex justify-content-between align-items-center">
                 <RockButton @click="completeRequest"
                             :btnSize="BtnSize.Small"
-                            :disabled="!connectionRequestUpdateBag.canCompleteRequest"
+                            :disabled="!connectionRequestUpdateBag.canCompleteRequest || isSaving"
                             :isLoading="isCompletionButtonLoading"
                             :title="completeButtonTooltip">
                     Mark Complete
@@ -84,7 +84,8 @@
                 <div>
                     <RockButton type="submit"
                                 :btnSize="BtnSize.Small"
-                                :btnType="BtnType.Primary">
+                                :btnType="BtnType.Primary"
+                                :disabled="isSaving">
                         {{ isSequentialMode ? "Confirm" : "Save" }}
                     </RockButton>
                     <RockButton @click="closeFlyout"
@@ -160,6 +161,11 @@
         connectionStatusItems: {
             type: Array as PropType<ListItemBag[]>,
             required: true
+        },
+
+        isSaving: {
+            type: Boolean as PropType<boolean>,
+            default: false
         }
     });
 

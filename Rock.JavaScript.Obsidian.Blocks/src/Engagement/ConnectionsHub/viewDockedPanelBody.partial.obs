@@ -239,7 +239,8 @@
                             None Assigned
                         </HighlightLabel>
                     </div>
-                    <AttributeValuesContainer :modelValue="requestDetails?.placementGroup?.groupMemberAttributeValues ?? {}"
+                    <AttributeValuesContainer v-if="requestDetails?.placementGroup?.groupMemberAttributeValues && Object.values(requestDetails.placementGroup.groupMemberAttributeValues).some(v => !!v)"
+                                              :modelValue="requestDetails.placementGroup.groupMemberAttributeValues"
                                               :attributes="requestDetails?.placementGroup?.groupMemberAttributes ?? {}"
                                               :numberOfColumns="2"
                                               :showCategoryLabel="false" />

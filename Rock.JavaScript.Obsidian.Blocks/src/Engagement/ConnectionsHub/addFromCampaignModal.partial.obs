@@ -2,6 +2,7 @@
 <template>
     <Modal v-model="isVisible"
            title="Get Connection Requests"
+           :isSaveButtonDisabled="isSaving"
            :saveText="areNoCampaigns && !isLoading ? 'OK' : 'Assign'"
            :cancelText="areNoCampaigns && !isLoading ? '' : 'Cancel'"
            @save="onSubmit">
@@ -95,6 +96,11 @@
         isLoading: {
             type: Boolean as PropType<boolean>,
             required: true
+        },
+
+        isSaving: {
+            type: Boolean as PropType<boolean>,
+            default: false
         },
 
         selectedOpportunityGuid: {

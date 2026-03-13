@@ -2,6 +2,7 @@
 <template>
     <Modal v-model="isVisible"
            :title="modalTitle"
+           :isSaveButtonDisabled="isSaving"
            saveText="Save"
            @save="onSave">
         <div class="row">
@@ -101,6 +102,11 @@
         activityToEdit: {
             type: Object as PropType<ActivityEntryBag | null>,
             default: null
+        },
+
+        isSaving: {
+            type: Boolean as PropType<boolean>,
+            default: false
         }
     });
 

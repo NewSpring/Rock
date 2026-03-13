@@ -2,7 +2,8 @@
 <template>
     <Modal v-model="isVisible"
            :title="title"
-           saveText="Save"
+           :isSaveButtonDisabled="isSaving"
+           saveText="Delete"
            @save="onSave">
         <NotificationBox alertType="danger">
             Are you sure you want to delete the following {{ pluralize("request", requestDetails.length) }} This action can’t be undone.
@@ -37,6 +38,11 @@
         viewOptions: {
             type: Object as PropType<ViewOptions>,
             required: true
+        },
+
+        isSaving: {
+            type: Boolean as PropType<boolean>,
+            default: false
         }
     });
 

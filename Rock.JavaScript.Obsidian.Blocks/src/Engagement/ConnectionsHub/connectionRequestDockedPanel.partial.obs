@@ -137,6 +137,7 @@
                         <div class="d-flex align-items-center gap-xs">
                             <RockButton :btnType="BtnType.Primary"
                                         :form="editConnectionRequestFormId"
+                                        :disabled="isSaving"
                                         type="submit">
                                 Save
                             </RockButton>
@@ -355,6 +356,11 @@
         isInSingleRequestMode: {
             type: Boolean as PropType<boolean>,
             required: true
+        },
+
+        isSaving: {
+            type: Boolean as PropType<boolean>,
+            default: false
         }
     });
 

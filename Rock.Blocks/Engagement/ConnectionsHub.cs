@@ -47,40 +47,56 @@ namespace Rock.Blocks.Engagement
     #region Block Attributes
 
     [LinkedPage(
+        "Person Profile Page",
+        Key = AttributeKey.PersonProfilePage,
+        Description = "Page used for viewing a person's profile. If set a view profile button will show for each grid item.",
+        Order = 0,
+        DefaultValue = Rock.SystemGuid.Page.PERSON_PROFILE_PERSON_PAGES )]
+
+    [LinkedPage(
+        "Group Detail Page",
+        Key = AttributeKey.GroupDetailPage,
+        Description = "Page used to display group details.",
+        IsRequired = true,
+        Order = 1,
+        DefaultValue = Rock.SystemGuid.Page.GROUP_VIEWER )]
+
+    [LinkedPage(
         "Workflow Detail Page",
-        Description = "Page used to display details about a workflow.",
-        Order = 3,
         Key = AttributeKey.WorkflowDetailPage,
+        Description = "Page used to display details about a workflow.",
+        Order = 2,
         DefaultValue = Rock.SystemGuid.Page.WORKFLOW_DETAIL )]
 
     [LinkedPage(
         "Workflow Entry Page",
-        Description = "Page used to launch a new workflow of the selected type.",
-        Order = 4,
         Key = AttributeKey.WorkflowEntryPage,
+        Description = "Page used to launch a new workflow of the selected type.",
+        Order = 3,
         DefaultValue = Rock.SystemGuid.Page.WORKFLOW_ENTRY )]
 
     [BadgesField(
         "Badges",
+        Key = AttributeKey.Badges,
         Description = "The badges to display in this block.",
         IsRequired = false,
-        Order = 5,
-        Key = AttributeKey.Badges )]
+        Order = 4 )]
+
     [CodeEditorField(
         "Lava Heading Template",
-        IsRequired = false,
         Key = AttributeKey.LavaHeadingTemplate,
-        EditorMode = CodeEditorMode.Lava,
         Description = "The HTML Content to render above the person’s name. Includes merge fields ConnectionRequest and Person. <span class='tip tip-lava'></span>",
-        Order = 6 )]
+        IsRequired = false,
+        EditorMode = CodeEditorMode.Lava,
+        Order = 5 )]
 
     [CodeEditorField(
         "Lava Badge Bar",
-        IsRequired = false,
         Key = AttributeKey.LavaBadgeBar,
-        EditorMode = CodeEditorMode.Lava,
         Description = "The HTML Content intended to be used as a kind of custom badge bar for the connection request. Includes merge fields ConnectionRequest and Person. <span class='tip tip-lava'></span>",
-        Order = 7 )]
+        IsRequired = false,
+        EditorMode = CodeEditorMode.Lava,
+        Order = 6 )]
     #endregion
 
     [Rock.SystemGuid.EntityTypeGuid( "CEE15B88-3B23-4378-9CB1-E59A97A94D1B" )]
@@ -91,11 +107,19 @@ namespace Rock.Blocks.Engagement
 
         private static class AttributeKey
         {
+            public const string PersonProfilePage = "PersonProfilePage";
+            public const string GroupDetailPage = "GroupDetailPage";
             public const string WorkflowDetailPage = "WorkflowDetailPage";
             public const string WorkflowEntryPage = "WorkflowEntryPage";
             public const string Badges = "Badges";
             public const string LavaHeadingTemplate = "LavaHeadingTemplate";
             public const string LavaBadgeBar = "LavaBadgeBar";
+        }
+
+        private static class NavigationUrlKey
+        {
+            public const string PersonProfilePage = "PersonProfilePage";
+            public const string GroupDetailPage = "GroupDetailPage";
         }
 
         private static class PageParameterKey
@@ -164,10 +188,23 @@ namespace Rock.Blocks.Engagement
             var box = new ListBlockBox<ConnectionsHubOptionsBag>();
             var builder = GetGridBuilder();
             box.Options = GetOptions();
-
+            box.NavigationUrls = GetBoxNavigationUrls();
             box.GridDefinition = builder.BuildDefinition();
 
             return box;
+        }
+
+        /// <summary>
+        /// Gets the box navigation URLs required for the page to operate.
+        /// </summary>
+        /// <returns>A dictionary of key names and URL values.</returns>
+        private Dictionary<string, string> GetBoxNavigationUrls()
+        {
+            return new Dictionary<string, string>
+            {
+                [NavigationUrlKey.PersonProfilePage] = this.GetLinkedPageUrl( AttributeKey.PersonProfilePage, "PersonId", "((Key))" ),
+                [NavigationUrlKey.GroupDetailPage] = this.GetLinkedPageUrl( AttributeKey.GroupDetailPage, "GroupId", "((Key))" )
+            };
         }
 
         private ConnectionsHubOptionsBag GetOptions()
@@ -230,10 +267,7 @@ namespace Rock.Blocks.Engagement
                 this.PersonPreferences.Save();
             }
 
-            List<ConnectionState> ignoredConnectionStates = new List<ConnectionState>
-            {
-                ConnectionState.Connected
-            };
+            List<ConnectionState> ignoredConnectionStates = new List<ConnectionState>();
 
             if ( !connectionType.EnableFutureFollowup )
             {
