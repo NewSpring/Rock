@@ -110,11 +110,11 @@
                                                 tooltipPlacement="top">
                                     {{ asFormattedString(summary.activeRequestCount) }}
                                 </HighlightLabel>
-                                <HighlightLabel iconCssClass="ti ti-exclamation-circle"
-                                                labelType="danger"
-                                                tooltip="Overdue Requests"
+                                <HighlightLabel iconCssClass="ti ti-user-off"
+                                                labelType="default"
+                                                tooltip="Unassigned Requests"
                                                 tooltipPlacement="top">
-                                    {{ asFormattedString(summary.overdueRequestCount) }}
+                                    {{ asFormattedString(summary.unassignedRequestCount) }}
                                 </HighlightLabel>
                                 <HighlightLabel iconCssClass="ti ti-calendar-due"
                                                 labelType="warning"
@@ -122,11 +122,11 @@
                                                 tooltipPlacement="top">
                                     {{ asFormattedString(summary.dueSoonRequestCount) }}
                                 </HighlightLabel>
-                                <HighlightLabel iconCssClass="ti ti-user-off"
-                                                labelType="default"
-                                                tooltip="Unassigned Requests"
+                                <HighlightLabel iconCssClass="ti ti-exclamation-circle"
+                                                labelType="danger"
+                                                tooltip="Overdue Requests"
                                                 tooltipPlacement="top">
-                                    {{ asFormattedString(summary.unassignedRequestCount) }}
+                                    {{ asFormattedString(summary.overdueRequestCount) }}
                                 </HighlightLabel>
                             </div>
                         </template>

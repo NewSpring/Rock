@@ -28,6 +28,7 @@ namespace Rock.Plugin.HotFixes
         /// </summary>
         public override void Up()
         {
+            JPH_SeedEnabledViewsAndFeaturesForExistingConnectionType_Up();
             JPH_AddConnectionsPages_Up();
             JPH_AddConnectionNavigationViewBlocks_Up();
             KH_AddConnectionsListBlockUp();
@@ -42,6 +43,29 @@ namespace Rock.Plugin.HotFixes
             JMH_AddConnectionOperationalSnapshotBlock_Down();
             JPH_AddConnectionNavigationViewBlocks_Down();
             JPH_AddConnectionsPages_Down();
+            JPH_SeedEnabledViewsAndFeaturesForExistingConnectionType_Down();
+        }
+
+        /// <summary>
+        /// JPH: Seed enabled views and features for all existing connection types - up.
+        /// </summary>
+        private void JPH_SeedEnabledViewsAndFeaturesForExistingConnectionType_Up()
+        {
+            Sql( @"
+UPDATE [ConnectionType]
+SET [EnabledFeatures] = 1 | 2 | 4
+    , [EnabledViews] = 1 | 2 | 4 | 8 | 16;" );
+        }
+
+        /// <summary>
+        /// JPH: Seed enabled views and features for all existing connection types - down.
+        /// </summary>
+        private void JPH_SeedEnabledViewsAndFeaturesForExistingConnectionType_Down()
+        {
+            Sql( @"
+UPDATE [ConnectionType]
+SET [EnabledFeatures] = 0
+    , [EnabledViews] = 0;" );
         }
 
         /// <summary>
