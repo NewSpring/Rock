@@ -58,9 +58,11 @@
                     <div class="connection-opportunity-navigation-metric connection-opportunity-navigation-metric-new-vs-completed">
                         <div class="connection-opportunity-navigation-metric-card">
                             <BarChart appearance="stylized"
+                                      :barBorderRadius="3"
                                       labelDateFormat="auto"
                                       :labels="requestsPerDayLabels"
                                       legendAlign="start"
+                                      :minBarLength="5"
                                       :series="requestsPerDaySeries"
                                       title="New vs. Completed Requests per Day"
                                       titleAlign="start"
