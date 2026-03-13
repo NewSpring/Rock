@@ -24,6 +24,8 @@
 import { ConnectionState } from "@Obsidian/Enums/Connection/connectionState";
 
 export type ConnectionRequestUpdateBag = {
+    canCompleteRequest?: boolean | null;
+
     connectionRequestIdKey?: string | null;
 
     connectionState?: ConnectionState | null;

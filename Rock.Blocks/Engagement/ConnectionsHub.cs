@@ -111,6 +111,7 @@ namespace Rock.Blocks.Engagement
             public const string ConnectionmOpportunityFilterConnectionTypeIdKey = "ConnectionOpportunityFilter_ConnectionTypeIdKey_{0}";
             public const string SelectedGroupByMode = "SelectedGroupByMode";
             public const string AreOnlyMyRequestsVisible = "AreOnlyMyRequestsVisible";
+            public const string SelectedConnector = "SelectedConnector";
         }
 
         private static class SqlParamKey
@@ -125,11 +126,34 @@ namespace Rock.Blocks.Engagement
 
         #endregion Keys
 
+        #region Fields
+
+        private PersonPreferenceCollection _personPreferences;
+
+        #endregion Fields
+
         #region Properties
 
         protected bool AreOnlyMyRequestsVisible => GetBlockPersonPreferences()
             .GetValue( PreferenceKey.AreOnlyMyRequestsVisible )
             .AsBoolean( true );
+
+        protected Guid? SelectedConnector => GetBlockPersonPreferences()
+            .GetValue( PreferenceKey.SelectedConnector )
+            .AsGuidOrNull();
+
+        public PersonPreferenceCollection PersonPreferences
+        {
+            get
+            {
+                if ( _personPreferences == null )
+                {
+                    _personPreferences = this.GetBlockPersonPreferences();
+                }
+
+                return _personPreferences;
+            }
+        }
 
         #endregion Properties
 
@@ -150,6 +174,12 @@ namespace Rock.Blocks.Engagement
         {
             var options = new ConnectionsHubOptionsBag();
             ConnectionType connectionType;
+
+            if ( PageParameter( PageParameterKey.ConnectionType ).IsNullOrWhiteSpace() && PageParameter( PageParameterKey.ConnectionOpportunity ).IsNullOrWhiteSpace() && PageParameter( PageParameterKey.Request ).IsNotNullOrWhiteSpace() )
+            {
+                options.ConnectionRequestIdKey = new ConnectionRequestService( RockContext ).Get( PageParameter( PageParameterKey.Request ), !PageCache.Layout.Site.DisablePredictableIds )?.IdKey ?? string.Empty;
+                return options;
+            }
 
             var connectionOpportunity = new ConnectionOpportunityService( RockContext ).GetInclude( PageParameter( PageParameterKey.ConnectionOpportunity ), o => o.ConnectionType, !PageCache.Layout.Site.DisablePredictableIds );
 
@@ -173,7 +203,32 @@ namespace Rock.Blocks.Engagement
 
             var connectionTypeIdKey = IdHasher.Instance.GetHash( connectionType.Id );
             options.ConnectionTypeIdKey = connectionTypeIdKey;
+            options.RequiresPlacementGroupToComplete = connectionType.RequiresPlacementGroupToConnect;
             options.IsSequentialStatusMode = connectionType.IsSequentialStatusEnforced;
+
+            // If a Connection Opportunity was provided as a page parameter, seed the person preference
+            // so that GetGridData only needs to read from the preference (not the page parameter).
+            // This allows the user to subsequently clear the filter and have the server respect that.
+            if ( connectionOpportunity != null )
+            {
+                this.PersonPreferences.SetValue( string.Format( PreferenceKey.ConnectionmOpportunityFilterConnectionTypeIdKey, connectionTypeIdKey ), connectionOpportunity.Guid.ToString() );
+                this.PersonPreferences.Save();
+            }
+
+            var connectorPerson = new PersonService( RockContext ).Get( PageParameter( PageParameterKey.Connector ), !PageCache.Layout.Site.DisablePredictableIds );
+            if ( connectorPerson != null )
+            {
+                var connectorListItemBag = new ListItemBag
+                {
+                    Text = $"{connectorPerson.FullName.ToPossessive()} Requests",
+                    Value = connectorPerson.PrimaryAliasGuid.ToString()
+                };
+
+                options.SelectedConnector = connectorListItemBag;
+                this.PersonPreferences.SetValue( PreferenceKey.SelectedConnector, connectorPerson.PrimaryAliasGuid.ToString() );
+                this.PersonPreferences.SetValue( PreferenceKey.SelectedGroupByMode, "connectorGrouping" ); // TODO - Confirm this is desired behavior
+                this.PersonPreferences.Save();
+            }
 
             List<ConnectionState> ignoredConnectionStates = new List<ConnectionState>
             {
@@ -1210,6 +1265,8 @@ namespace Rock.Blocks.Engagement
                 ConnectionState = connectionRequest.ConnectionState,
                 CelebrationText = connectionRequest.CelebrationText,
                 ReminderCount = reminderCount,
+                HasPlacementGroup = connectionRequest.AssignedGroup != null,
+                HasRequiredGroupRequirements = connectionRequest.AssignedGroup?.GroupRequirements?.Any( r => r.MustMeetRequirementToAddMember ) ?? false
             };
 
             var builder = GetGridBuilder();
@@ -1234,6 +1291,7 @@ namespace Rock.Blocks.Engagement
             var optionsBag = new ConnectionRequestDetailOptionsBag
             {
                 ConnectionTypeIdKey = connectionRequest.ConnectionOpportunity.ConnectionType.IdKey,
+                RequiresPlacementGroupToComplete = connectionRequest.ConnectionOpportunity.ConnectionType.RequiresPlacementGroupToConnect,
                 ConnectorItems = connectionRequest.ConnectionOpportunity.ConnectionOpportunityConnectorGroups
                     .SelectMany( cg => cg.ConnectorGroup.Members )
                     .Select( gm => gm.Person )
@@ -2215,12 +2273,10 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
             ConnectionType connectionType;
 
             var connectionOpportunity = new ConnectionOpportunityService( RockContext ).GetInclude( PageParameter( PageParameterKey.ConnectionOpportunity ), o => o.ConnectionType, !PageCache.Layout.Site.DisablePredictableIds );
-            bool isConnectionOpportunityPageParameterValid = false;
 
             if ( connectionOpportunity != null )
             {
                 connectionType = connectionOpportunity.ConnectionType;
-                isConnectionOpportunityPageParameterValid = true;
             }
             else
             {
@@ -2275,6 +2331,7 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
                         ConnectionStatusValueId = a.ConnectorPersonAlias.Person.ConnectionStatusValueId,
                         Id = a.ConnectorPersonAlias.Person.Id,
                     },
+                    ConnectorPersonAliasGuid = a.ConnectorPersonAlias != null ? a.ConnectorPersonAlias.Guid : ( Guid? ) null,
                     StatusGroupingProjection = new GroupingProjection
                     {
                         Id = a.ConnectionStatusId,
@@ -2288,7 +2345,7 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
                     ConnectionTypeSource = a.ConnectionTypeSource != null ? a.ConnectionTypeSource.Name : string.Empty,
                     CampusId = a.CampusId,
                     Campus = a.Campus != null ? a.Campus.Name : string.Empty,
-                    GroupId = a.AssignedGroupId,
+                    //GroupId = a.AssignedGroupId,
                     Group = a.AssignedGroup != null ? a.AssignedGroup.Name : string.Empty,
                     ConnectionStatusProjection = new ConnectionStatusProjection
                     {
@@ -2321,7 +2378,11 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
                         Id = a.PersonAlias.Person.Id,
                     },
                     RequesterPersonAliasGuid = a.PersonAlias.Guid,
-                    ReminderCount = reminderQry.Count( r => r.EntityId == a.PersonAliasId )
+                    ReminderCount = reminderQry.Count( r => r.EntityId == a.PersonAliasId ),
+                    HasPlacementGroup = a.AssignedGroupId != null,
+                    HasRequiredGroupRequirements = a.AssignedGroup != null
+                        //&& a.AssignedGroup.GroupRequirements != null
+                        && a.AssignedGroup.GroupRequirements.Any( r => r.MustMeetRequirementToAddMember ) // TODO - Does this significantly affect performance?
                 } );
 
             var campusContext = RequestContext.GetContextEntity<Campus>();
@@ -2331,13 +2392,17 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
             }
 
             var connectionOpportunityFilter = GetConnectionOpportunityFilter( IdHasher.Instance.GetHash( connectionType.Id ) );
-            if ( connectionOpportunityFilter.HasValue || isConnectionOpportunityPageParameterValid )
+            if ( connectionOpportunityFilter.HasValue )
             {
-                var connectionOpportunityGuid = connectionOpportunityFilter.HasValue ? connectionOpportunityFilter.Value : connectionOpportunity.Guid;
-                connectionRequestsQry = connectionRequestsQry.Where( c => c.ConnectionOpportunityGuid == connectionOpportunityGuid );
+                connectionRequestsQry = connectionRequestsQry.Where( c => c.ConnectionOpportunityGuid == connectionOpportunityFilter.Value );
             }
 
-            if ( AreOnlyMyRequestsVisible )
+            // If there is a page parameter for a selected connector and the Selected Connector person preference has a value then filter by connector.
+            if ( PageParameter( PageParameterKey.Connector ).IsNotNullOrWhiteSpace() && SelectedConnector.HasValue )
+            {
+                connectionRequestsQry = connectionRequestsQry.Where( c => c.ConnectorPersonAliasGuid == SelectedConnector.Value );
+            }
+            else if ( AreOnlyMyRequestsVisible )
             {
                 connectionRequestsQry = connectionRequestsQry.Where( c => c.ConnectorPersonProjection.Id == RequestContext.CurrentPerson.Id );
             }
@@ -2534,6 +2599,21 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
         }
 
         [BlockAction]
+        public BlockActionResult CheckIfRequestMeetsRequirements( string connectionRequestIdKey )
+        {
+            var connectionRequestId = IdHasher.Instance.GetId( connectionRequestIdKey );
+
+            if ( !connectionRequestId.HasValue )
+            {
+                return ActionBadRequest( "Connection Request not found." );
+            }
+
+            var isMeetingRequirements = ConnectionRequestMeetsGroupRequirements( connectionRequestId.Value );
+
+            return ActionOk( isMeetingRequirements );
+        }
+
+        [BlockAction]
         public BlockActionResult CheckForActiveRequest( Guid requesterPersonAliasGuid )
         {
             var connectionType = GetConnectionTypeCacheFromPageParameters();
@@ -2680,6 +2760,12 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
                 if ( completedRequestIdKeys.Contains( request.IdKey ) )
                 {
                     request.ConnectionState = ConnectionState.Connected;
+
+                    if ( request.ConnectionOpportunity.ConnectionType.RequiresPlacementGroupToConnect && !request.AssignedGroupId.HasValue )
+                    {
+                        return ActionBadRequest( "This Connection Type requires a Placemnt Group to be configured in order to complete the request." );
+                    }
+
                     if ( !TryAssignPlacementGroup( request, out var error ) )
                     {
                         return error;
@@ -2856,6 +2942,11 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
 
                 if ( request.ConnectionState != ConnectionState.Connected && bag.ConnectionState == ConnectionState.Connected )
                 {
+                    if ( request.ConnectionOpportunity.ConnectionType.RequiresPlacementGroupToConnect && !request.AssignedGroupId.HasValue )
+                    {
+                        return ActionBadRequest( "This Connection Type requires a Placemnt Group to be configured in order to complete the request." );
+                    }
+
                     if ( !TryAssignPlacementGroup( request, out var error, bag.GroupMemberRequirements ) )
                     {
                         return error;
@@ -4300,6 +4391,8 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
                 .AddField( "connectionState", a => a.ConnectionState )
                 .AddTextField( "celebrationText", a => a.CelebrationText )
                 .AddField( "reminderCount", a => a.ReminderCount )
+                .AddField( "hasPlacementGroup", a => a.HasPlacementGroup )
+                .AddField( "hasRequiredGroupRequirements", a => a.HasRequiredGroupRequirements )
                 .AddAttributeFieldsFrom( a => a.ConnectionRequest, GetGridAttributes() );
         }
 
@@ -4369,6 +4462,8 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
 
             public Guid RequesterPersonAliasGuid { get; set; }
 
+            public Guid? ConnectorPersonAliasGuid { get; set; }
+
             public int ConnectionOpportunityId { get; set; }
 
             public Guid ConnectionOpportunityGuid { get; set; }
@@ -4383,7 +4478,7 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
 
             public string Campus { get; set; }
 
-            public int? GroupId { get; set; }
+            //public int? GroupId { get; set; }
 
             public string Group { get; set; }
 
@@ -4410,6 +4505,17 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
             public string CelebrationText { get; set; }
 
             public int ReminderCount { get; set; }
+
+            /// <summary>
+            /// Gets or sets whether this Connection Request has a Placement Group.
+            /// </summary>
+            public bool HasPlacementGroup { get; set; }
+
+            /// <summary>
+            /// Gets or sets whether this Connection Request has a placement group that requires certain group requirements to be met
+            /// before the person can be added as a group member.
+            /// </summary>
+            public bool HasRequiredGroupRequirements { get; set; }
         }
 
         public class GroupingProjection

@@ -37,5 +37,7 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
         public DateTimeOffset? FollowUpDate { get; set; }
 
         public string ConnectorPersonAliasGuid { get; set; }
+
+        public bool? CanCompleteRequest { get; set; }
     }
 }

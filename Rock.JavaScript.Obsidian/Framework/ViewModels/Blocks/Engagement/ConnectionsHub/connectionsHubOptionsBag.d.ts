@@ -48,6 +48,8 @@ export type ConnectionsHubOptionsBag = {
 
     connectionOpportunityGuidFromPageParameter?: Guid | null;
 
+    connectionRequestIdKey?: string | null;
+
     connectionStates?: ListItemBag[] | null;
 
     connectionStatuses?: ConnectionStatusBag[] | null;
@@ -68,6 +70,10 @@ export type ConnectionsHubOptionsBag = {
     isSequentialStatusMode: boolean;
 
     requestSourceItems?: ListItemBag[] | null;
+
+    requiresPlacementGroupToComplete: boolean;
+
+    selectedConnector?: ListItemBag | null;
 
     title?: string | null;
 

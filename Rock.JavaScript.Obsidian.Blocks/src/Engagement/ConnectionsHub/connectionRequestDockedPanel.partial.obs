@@ -149,6 +149,7 @@
                             <RockButton v-if="!isRequestComplete"
                                         :btnType="BtnType.Default"
                                         :disabled="isCompleteButtonDisabled"
+                                        :title="completeButtonTooltip"
                                         @click="changeRequestState(ConnectionState.Connected)">
                                 <i class="ti ti-circle-check"></i>
                                 Complete Request
@@ -173,6 +174,7 @@
                             <RockButton v-else
                                         :btnType="BtnType.Default"
                                         :disabled="isCompleteButtonDisabled"
+                                        :title="completeButtonTooltip"
                                         @click="changeRequestState(ConnectionState.Connected)">
                                 Complete
                             </RockButton>
@@ -191,7 +193,7 @@
                                 <ConnectionStatusButton :isSequentialStatusMode="options?.isSequentialStatusMode"
                                                         :highlightColor="requestDetails?.connectionStatus?.highlightColor"
                                                         :currentStatusName="requestDetails?.connectionStatus?.name"
-                                                        @click="(e) => emit('onStatusButtonClick', e)" />
+                                                        @click="(e) => emit('onStatusButtonClick', e, !isCompleteButtonDisabled)" />
                             </div>
                         </div>
                     </template>
@@ -348,8 +350,21 @@
         dockedPanelCloseOnOutsideClick: {
             type: Boolean as PropType<boolean>,
             default: true
+        },
+
+        isInSingleRequestMode: {
+            type: Boolean as PropType<boolean>,
+            required: true
         }
     });
+
+    /*
+    When in single request mode:
+     - Force full width
+     - Hide navigation arrows
+     - Hide close button
+     - Disable resize?
+    */
 
     const emit = defineEmits<{
         (e: "update:modelValue", value: boolean): void;
@@ -366,7 +381,7 @@
         (e: "onEmailClick"): void;
         (e: "onReassignConnector", value: string): void;
         (e: "onRequestStateChanged", value: UpdateConnectionRequestStatesBag): void;
-        (e: "onStatusButtonClick", value: MouseEvent): void;
+        (e: "onStatusButtonClick", event: MouseEvent, canCompleteRequest: boolean): void;
         (e: "launchWorkflow", value: LaunchWorkflowBag): void;
         (e: "deleteRequest"): void;
     }>();
@@ -430,6 +445,10 @@
     const isRequestComplete = computed(() => requestDetails.value?.connectionState === ConnectionState.Connected);
 
     const isCompleteButtonDisabled = computed(() => {
+        if (options.value?.requiresPlacementGroupToComplete && !requestDetails.value?.placementGroup) {
+            return true;
+        }
+
         const groupMemberRequirements = requestDetails.value?.placementGroup?.groupMemberRequirements;
         if (groupMemberRequirements) {
             const failingRequirmentsThatMustBeMet = groupMemberRequirements.filter(r => r.mustMeetRequirementToAddMember && (r.groupMemberRequirementState === MeetsGroupRequirement.NotMet || r.groupMemberRequirementState === MeetsGroupRequirement.Error));
@@ -440,6 +459,13 @@
         }
 
         return false;
+    });
+
+    const completeButtonTooltip = computed(() => {
+        if (isCompleteButtonDisabled.value) {
+            return "Missing Placement Group Requirements.";
+        }
+        return "";
     });
 
     function setFullWidth(value: boolean): void {
@@ -484,8 +510,6 @@
     }
 
     function onEditClick(): void {
-        // Fetch edit bag
-
         //Set edit mode
         isLoading.value = true;
         setEditMode(true);
@@ -594,6 +618,4 @@
             }
         }
     });
-
-    // TODO - I need to reset state on close/navigate
 </script>

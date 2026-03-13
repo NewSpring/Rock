@@ -306,7 +306,7 @@
                                 <ConnectionStatusButton :isSequentialStatusMode="box.options?.isSequentialStatusMode"
                                                         :highlightColor="row.connectionStatus.highlightColor"
                                                         :currentStatusName="row.connectionStatus.name"
-                                                        @click.stop="(e) => onStatusClick(row.idKey, row.connectionStatus, row.connectionState, e)" />
+                                                        @click.stop="(e) => onStatusClick(row, e)" />
                             </template>
                             <div v-else-if="row.connectionState === ConnectionState.Inactive"
                                  class="text-center text-semibold text-slate">
@@ -457,6 +457,7 @@
 
     <ChangeStatusFlyout v-model="isFlyoutOpen"
                         :errorMessage="flyoutErrorMessage"
+                        :isCompletionButtonLoading="isFlyoutCompletionButtonLoading"
                         :anchorEl="anchorEl"
                         :connectionRequestUpdateBag="connectionRequestUpdateBag"
                         :isNoteRequired="isNoteRequired"
@@ -566,6 +567,7 @@
                                   :orderedKeys="orderedRequestKeys ?? []"
                                   :detailsBox="dockedPanelDetailsBox"
                                   :dockedPanelCloseOnOutsideClick="dockedPanelCloseOnOutsideClick"
+                                  :isInSingleRequestMode="isInSingleRequestMode"
                                   @navigate="updateSelectedRequestKey"
                                   @navigateToBreadcrumb="navigateToBreadcrumb"
                                   @navigateToAdditionalRequest="navigateToAdditionalRequest"
@@ -843,7 +845,12 @@
         },
     ];
 
-    const requestToggleItems = <ListItemBag[]>[
+    // Setting default value to connector grouping
+    const selectedGrouping = ref<string>(isNullOrWhiteSpace(preferences.getValue(PreferenceKey.SelectedGroupByMode)) ? "connectorGrouping" : preferences.getValue(PreferenceKey.SelectedGroupByMode));
+    const areOnlyMyRequestsVisible = ref<string>(isNullOrWhiteSpace(preferences.getValue(PreferenceKey.AreOnlyMyRequestsVisible)) ? "true" : preferences.getValue(PreferenceKey.AreOnlyMyRequestsVisible));
+    const internalSelectedOpportunity = ref(box.options?.connectionOpportunityGuidFromPageParameter ?? preferences.getValue(getConnectionFilterKey(PreferenceKey.ConnectionmOpportunityFilterConnectionTypeIdKey)));
+    const internalSelectedConnector = ref<ListItemBag | null | undefined>(box.options?.selectedConnector);
+    const requestToggleItems = ref<ListItemBag[]>([
         {
             text: "My Requests",
             value: "true"
@@ -852,12 +859,12 @@
             text: "All Requests",
             value: "false"
         }
-    ];
+    ]);
 
-    // Setting default value to connector grouping
-    const selectedGrouping = ref<string>(isNullOrWhiteSpace(preferences.getValue(PreferenceKey.SelectedGroupByMode)) ? "connectorGrouping" : preferences.getValue(PreferenceKey.SelectedGroupByMode));
-    const areOnlyMyRequestsVisible = ref<string>(isNullOrWhiteSpace(preferences.getValue(PreferenceKey.AreOnlyMyRequestsVisible)) ? "true" : preferences.getValue(PreferenceKey.AreOnlyMyRequestsVisible));
-    const internalSelectedOpportunity = ref(box.options?.connectionOpportunityGuidFromPageParameter ?? preferences.getValue(getConnectionFilterKey(PreferenceKey.ConnectionmOpportunityFilterConnectionTypeIdKey)));
+    if (internalSelectedConnector.value?.value && !isNullOrWhiteSpace(internalSelectedConnector.value.value)) {
+        requestToggleItems.value.push(internalSelectedConnector.value);
+        areOnlyMyRequestsVisible.value = internalSelectedConnector.value.value;
+    }
 
     const newConnectionRequest = ref<ValidPropertiesBox<ConnectionRequestBag>>({ bag: { connectionOpportunityGuid: internalSelectedOpportunity.value } as ConnectionRequestBag });
     const isExistingActiveRequesterOnConnectionType = ref<boolean>(false);
@@ -894,6 +901,7 @@
 
     const isFlyoutOpen = ref(false);
     const flyoutErrorMessage = ref<string>("");
+    const isFlyoutCompletionButtonLoading = ref<boolean>(false);
     const anchorEl = ref<HTMLElement | null>(null);
     const connectionRequestUpdateBag = ref<ConnectionRequestUpdateBag>({} as ConnectionRequestUpdateBag);
     const isNoteRequired = ref(false);
@@ -911,6 +919,7 @@
     const activityToEdit = ref<ActivityEntryBag | null>(null);
     const connectionRequestDockedPanelRef = ref<InstanceType<typeof ConnectionRequestDockedPanel>>();
     const dockedPanelCloseOnOutsideClick = ref<boolean>(true);
+    const isInSingleRequestMode = ref<boolean>(false);
 
     const isTransferModalVisible = ref<boolean>(false);
     const transferErrorMessage = ref();
@@ -944,15 +953,23 @@
     const debouncedQuickFilter = ref(rawQuickFilter.value);
 
 
-    async function loadGridData(): Promise<GridDataBag> {
+    async function loadGridData(): Promise<void> {
+        if (!isNullOrWhiteSpace(box?.options?.connectionRequestIdKey)) {
+            return;
+        }
+
         const result = await invokeBlockAction<GridDataBag>("GetGridData");
 
         if (result.isSuccess && result.data) {
             gridData.value = reactive(result.data);
-            return result.data;
+            return;
         }
 
         throw new Error(result.errorMessage ?? "Error loading grid data.");
+    }
+
+    async function loadConnectionRequest(): Promise<void> {
+
     }
 
     const currentPerson = computed((): CurrentPersonBag | null => {
@@ -1468,6 +1485,7 @@
         const dueDate = row["dueDate"] as string | null | undefined;
         const requester = row["requestDetails"] as PersonFieldBag | null | undefined;
         const celebrationText = row["celebrationText"] as string | null | undefined;
+        const hasPlacementGroup = row["hasPlacementGroup"] as boolean | null | undefined;
 
         return {
             idKey,
@@ -1477,7 +1495,8 @@
             connector,
             dueDate,
             requester,
-            celebrationText
+            celebrationText,
+            hasPlacementGroup
         } as BulkRequestViewBag;
     }
 
@@ -1487,6 +1506,7 @@
         }
 
         const connector = box.options.connectorItems?.find(c => c.listItemBag?.value === box.entity?.connectorPerson)?.listItemBag;
+        const hasPlacementGroup = !!box.entity?.placementGroup;
 
         const bag = <BulkRequestViewBag>{
             idKey: box.entity.connectionRequestIdKey,
@@ -1496,7 +1516,8 @@
             connector: connector,
             dueDate: box.entity.dueDate,
             requester: box.entity.requesterPerson,
-            celebrationText: box.entity.celebrationText
+            celebrationText: box.entity.celebrationText,
+            hasPlacementGroup
         };
 
         return bag;
@@ -1712,8 +1733,24 @@
         }
     }
 
-    function onStatusClick(key: string | null | undefined, status: ConnectionStatusBag | null | undefined, state: ConnectionState | null | undefined, event: MouseEvent): void {
-        if (!status || !key || state === null || state === undefined || typeof status !== "object" || typeof key !== "string" || typeof state !== "number") {
+    function onStatusClick(row: Record<string, unknown>, event: MouseEvent): void {
+        const key = row["idKey"] as string | null | undefined;
+        const state = row["connectionState"] as ConnectionState | undefined;
+        const status = row["connectionStatus"] as ConnectionStatusBag | undefined;
+        const hasPlacementGroup = row["hasPlacementGroup"] as boolean | undefined;
+        const hasRequiredGroupRequirements = row["hasRequiredGroupRequirements"] as boolean | undefined;
+
+        if (!status
+            || !key
+            || state === null
+            || state === undefined
+            || hasPlacementGroup === undefined
+            || hasRequiredGroupRequirements === undefined
+            || typeof status !== "object"
+            || typeof key !== "string"
+            || typeof state !== "number"
+            || typeof hasPlacementGroup !== "boolean"
+            || typeof hasRequiredGroupRequirements !== "boolean") {
             return;
         }
 
@@ -1727,12 +1764,23 @@
             connectionStatusGuid: status.guid,
             connectionState: state
         };
+
+        if (box?.options?.requiresPlacementGroupToComplete && !hasPlacementGroup) {
+            connectionRequestUpdateBag.value.canCompleteRequest = false;
+        }
+        else if (hasRequiredGroupRequirements) {
+            fetchGroupRequirementDetailsForFlyout();
+        }
+        else {
+            connectionRequestUpdateBag.value.canCompleteRequest = true;
+        }
+
         isNoteRequired.value = status.isNoteRequiredOnCompletion;
         anchorEl.value = event.currentTarget as HTMLElement;
         isFlyoutOpen.value = true;
     }
 
-    function onStatusClickFromDockedPanel(event: MouseEvent): void {
+    function onStatusClickFromDockedPanel(event: MouseEvent, canCompleteRequest: boolean): void {
         if (isFlyoutOpen.value) {
             isFlyoutOpen.value = false;
             return;
@@ -1741,12 +1789,21 @@
         connectionRequestUpdateBag.value = {
             connectionRequestIdKey: dockedPanelDetailsBox.value?.entity?.connectionRequestIdKey,
             connectionStatusGuid: dockedPanelDetailsBox.value?.entity?.connectionStatus?.guid,
-            connectionState: dockedPanelDetailsBox.value?.entity?.connectionState
+            connectionState: dockedPanelDetailsBox.value?.entity?.connectionState,
+            canCompleteRequest
         };
 
         isNoteRequired.value = dockedPanelDetailsBox.value?.entity?.connectionStatus?.isNoteRequiredOnCompletion ?? false;
         anchorEl.value = event.currentTarget as HTMLElement;
         isFlyoutOpen.value = true;
+    }
+
+    async function fetchGroupRequirementDetailsForFlyout(): Promise<void> {
+        isFlyoutCompletionButtonLoading.value = true;
+
+        connectionRequestUpdateBag.value.canCompleteRequest = await checkIfRequestMeetsRequirements(connectionRequestUpdateBag.value.connectionRequestIdKey ?? "");
+
+        isFlyoutCompletionButtonLoading.value = false;
     }
 
     function onFlyoutClose(): void {
@@ -1954,8 +2011,14 @@
         if (result.isSuccess && result.data) {
             const notMeetingIdKeys = result.data;
 
+            const isPlacementGroupRequired = box.options?.requiresPlacementGroupToComplete;
+
             const { meeting, notMeeting } = requestDetailsForModal.value.reduce(
                 (acc, request) => {
+                    if (isPlacementGroupRequired && !request.hasPlacementGroup) {
+                        acc.notMeeting.push(request);
+                    }
+
                     if (notMeetingIdKeys.includes(request.idKey ?? "")) {
                         acc.notMeeting.push(request);
                     }
@@ -1974,6 +2037,21 @@
         }
 
         areRequestDetailsForModalLoading.value = false;
+    }
+
+    async function checkIfRequestMeetsRequirements(connectionRequestIdKey: string): Promise<boolean> {
+        const result = await invokeBlockAction<boolean>("CheckIfRequestMeetsRequirements", {
+            connectionRequestIdKey
+        });
+
+        if (result.isSuccess) {
+            return result.data ?? false;
+        }
+        else {
+            console.error("An error occurred while checking group requirements for requests");
+        }
+
+        return false;
     }
 
     async function updateRequestStates(bag: UpdateConnectionRequestStatesBag): Promise<string | null> {
@@ -2406,7 +2484,20 @@
     });
 
     watch(areOnlyMyRequestsVisible, async () => {
+        // This prevents saving a "Selected Connector" as this person prefernce
+        if (areOnlyMyRequestsVisible.value !== "true" && areOnlyMyRequestsVisible.value !== "false") {
+            return;
+        }
+
         preferences.setValue(PreferenceKey.AreOnlyMyRequestsVisible, areOnlyMyRequestsVisible.value);
+
+        const connectorIndex = requestToggleItems.value.findIndex(i => i.value !== "true" && i.value !== "false");
+        if (connectorIndex !== -1) {
+            // Clears the selected connector person preference, removes their item from the dropdown, and clears the query param.
+            preferences.setValue(PreferenceKey.SelectedConnector, "");
+            requestToggleItems.value.splice(connectorIndex, 1);
+            removeCurrentUrlQueryParams("Connector");
+        }
 
         await preferences.save();
 
@@ -2428,8 +2519,18 @@
             connectionOpportunityDetails.value = {};
         }
 
-        // Remove the Connection Opportunity query param.
+        // Remove the Connection Opportunity query param and ensure ConnectionType is present.
         removeCurrentUrlQueryParams("ConnectionOpportunity");
+
+        // If there is no connection type query string parameter present, we need to add it
+        // because we've just removed the Connection Opportunity query string parameter.
+        if (box.options?.connectionTypeIdKey) {
+            const url = new URL(window.location.href);
+            if (!url.searchParams.has("ConnectionType")) {
+                url.searchParams.set("ConnectionType", box.options.connectionTypeIdKey);
+                history.replaceState(null, "", url.toString());
+            }
+        }
 
         // TODO - client side filter?
         loadGridData();
@@ -2486,5 +2587,9 @@
     }, 150));
 
     loadGridData();
+    if (!isNullOrWhiteSpace(box.options?.connectionRequestIdKey)) {
+        loadConnectionRequest();
+    }
+
     onConfigurationValuesChanged(useReloadBlock());
 </script>

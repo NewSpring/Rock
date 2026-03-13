@@ -33,6 +33,10 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
 
         public string ConnectionTypeIdKey { get; set; }
 
+        public string ConnectionRequestIdKey { get; set; }
+
+        public bool RequiresPlacementGroupToComplete { get; set; }
+
         public Guid? ConnectionOpportunityGuidFromPageParameter { get; set; }
 
         public bool IsFutureFollowUpEnabled { get; set; }
@@ -46,6 +50,8 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
         public bool AreGroupPlacementsEnabled { get; set; }
 
         public bool IsSequentialStatusMode { get; set; }
+
+        public ListItemBag SelectedConnector { get; set; }
 
         public List<Guid> BadgeGuids { get; set; }
 

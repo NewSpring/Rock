@@ -63,4 +63,6 @@ export type ConnectionRequestDetailOptionsBag = {
     placementGroups?: PlacementGroupDetailsBag[] | null;
 
     requestSourceItems?: ListItemBag[] | null;
+
+    requiresPlacementGroupToComplete: boolean;
 };

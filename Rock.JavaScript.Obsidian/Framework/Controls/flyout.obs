@@ -96,9 +96,6 @@
         const viewportHeight = window.innerHeight;
         const viewportWidth = window.innerWidth;
 
-        console.log("Anchor: ", anchorRect);
-        console.log("viewport height: ", viewportHeight);
-
         const spaceBelow = viewportHeight - anchorRect.bottom;
         const spaceAbove = anchorRect.top;
         const flyoutGap = 8;
@@ -125,7 +122,7 @@
             position: "fixed",
             top: `${top}px`,
             right: `${viewportWidth - anchorRect.right}px`,
-            zIndex: "1100" // Needs to be above 1050 because the flyout can appear in the docked panel.
+            zIndex: "1060" // Needs to be above 1050 because the flyout can appear in the docked panel.
         };
     }
 
@@ -134,10 +131,6 @@
     }
 
     function onDocumentClick(event: MouseEvent): void {
-        if (!props.modelValue) {
-            return;
-        }
-
         const path = event.composedPath();
 
         // If click happened inside the flyout then ignore
@@ -146,9 +139,9 @@
         }
 
         // If click happened on the anchor button then ignore
-        // if (props.anchorEl && path.includes(props.anchorEl)) {
-        //     return;
-        // }
+        if (props.anchorEl && path.includes(props.anchorEl)) {
+            return;
+        }
 
         // Otherwise close
         close();
@@ -171,6 +164,20 @@
         }
     }
 
+    watch(() => props.modelValue, (isOpen) => {
+        if (isOpen) {
+            document.addEventListener("click", onDocumentClick);
+            window.addEventListener("scroll", updatePosition, true);
+            window.addEventListener("resize", updatePosition);
+            nextTick(() => updatePosition());
+        }
+        else {
+            document.removeEventListener("click", onDocumentClick);
+            window.removeEventListener("scroll", updatePosition, true);
+            window.removeEventListener("resize", updatePosition);
+        }
+    }, { immediate: true });
+
     watch(() => props.anchorEl, () => {
         nextTick(() => updatePosition());
     });
@@ -186,10 +193,6 @@
     });
 
     onMounted(() => {
-        updatePosition();
-        document.addEventListener("click", onDocumentClick);
-        window.addEventListener("scroll", updatePosition, true);
-        window.addEventListener("resize", updatePosition);
         document.addEventListener("fullscreenchange", onFullscreenChange);
     });
 

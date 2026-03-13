@@ -64,7 +64,8 @@
                                 :disableCollapse="isContentSectionCollapseDisabled">
                     <ContentStack v-for="cat in attributeCategories"
                                   :key="cat.guid"
-                                  :title="cat.name ?? ''">
+                                  :title="cat.name ?? ''"
+                                  :description="cat.description ?? ''">
                         <div :class="{ 'attributevaluescontainer-category-content': true, 'row': numberOfColumns > 1 }">
                             <div v-for="a in getCategoryAttributes(cat.name ?? '')" :key="a.attributeGuid" :class="columnClass">
                                 <RockField :isEditMode="isEditMode"

@@ -45,5 +45,7 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
         public ConnectionStatusBag ConnectionStatus { get; set; }
 
         public string CelebrationText { get; set; }
+
+        public bool? HasPlacementGroup { get; set; }
     }
 }

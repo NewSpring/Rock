@@ -60,7 +60,10 @@
                  class="d-flex justify-content-end align-items-center">
                 <RockButton @click="completeRequest"
                             :btnSize="BtnSize.Small"
-                            :btnType="BtnType.Primary">
+                            :btnType="BtnType.Primary"
+                            :disabled="!connectionRequestUpdateBag.canCompleteRequest"
+                            :isLoading="isCompletionButtonLoading"
+                            :title="completeButtonTooltip">
                     Mark Complete
                 </RockButton>
                 <RockButton @click="closeFlyout"
@@ -72,7 +75,10 @@
             <div v-else
                  class="d-flex justify-content-between align-items-center">
                 <RockButton @click="completeRequest"
-                            :btnSize="BtnSize.Small">
+                            :btnSize="BtnSize.Small"
+                            :disabled="!connectionRequestUpdateBag.canCompleteRequest"
+                            :isLoading="isCompletionButtonLoading"
+                            :title="completeButtonTooltip">
                     Mark Complete
                 </RockButton>
                 <div>
@@ -123,6 +129,11 @@
 
         errorMessage: {
             type: String as PropType<string>,
+            required: true
+        },
+
+        isCompletionButtonLoading: {
+            type: Boolean as PropType<boolean>,
             required: true
         },
 
@@ -200,6 +211,12 @@
         return props.connectionStatusItems[currentStatusIndex.value + 1];
     });
 
+    const completeButtonTooltip = computed(() => {
+        if (!props.connectionRequestUpdateBag.canCompleteRequest) {
+            return "Missing Placement Group Requirements.";
+        }
+        return "";
+    });
 
     function resetFields(): void {
         status.value = "";

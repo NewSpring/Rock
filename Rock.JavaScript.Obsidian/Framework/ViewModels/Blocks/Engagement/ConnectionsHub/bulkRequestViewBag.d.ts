@@ -38,6 +38,8 @@ export type BulkRequestViewBag = {
 
     dueDate?: string | null;
 
+    hasPlacementGroup?: boolean | null;
+
     idKey?: string | null;
 
     requester?: PersonFieldBag | null;

@@ -33,6 +33,8 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
     {
         public string ConnectionTypeIdKey { get; set; }
 
+        public bool RequiresPlacementGroupToComplete { get; set; }
+
         public List<ConnectorItemBag> ConnectorItems { get; set; }
 
         public List<ConnectionStatusBag> ConnectionStatuses { get; set; }
