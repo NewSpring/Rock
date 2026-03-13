@@ -32,6 +32,8 @@ namespace Rock.Plugin.HotFixes
             JPH_AddConnectionsPages_Up();
             JPH_AddConnectionNavigationViewBlocks_Up();
             KH_AddConnectionsListBlockUp();
+            KH_AddConnectionRequestNoteType_Up();
+            KH_UpdateConnectionProperties();
             JMH_AddConnectionOperationalSnapshotBlock_Up();
         }
 
@@ -502,6 +504,48 @@ END" );
             //   EntityType:Rock.Blocks.Engagement.ConnectionsHub
             RockMigrationHelper.AddOrUpdateEntityBlockType( "Connections Hub", "Displays the Connections Hub.", "Rock.Blocks.Engagement.ConnectionsHub", "Engagement", "8674FB3A-9E0E-421C-821C-2DA862A20ED2" );
 
+            // Attribute for BlockType
+            //   BlockType: Connections Hub
+            //   Category: Engagement
+            //   Attribute: Person Profile Page
+            RockMigrationHelper.AddOrUpdateBlockTypeAttribute( "8674FB3A-9E0E-421C-821C-2DA862A20ED2", "BD53F9C9-EBA9-4D3F-82EA-DE5DD34A8108", "Person Profile Page", "PersonProfilePage", "Person Profile Page", @"Page used for viewing a person's profile. If set a view profile button will show for each grid item.", 0, @"08DBD8A5-2C35-4146-B4A8-0F7652348B25", "47675A23-7999-4111-A5F9-7D650E0814F1" );
+
+            // Attribute for BlockType
+            //   BlockType: Connections Hub
+            //   Category: Engagement
+            //   Attribute: Group Detail Page
+            RockMigrationHelper.AddOrUpdateBlockTypeAttribute( "8674FB3A-9E0E-421C-821C-2DA862A20ED2", "BD53F9C9-EBA9-4D3F-82EA-DE5DD34A8108", "Group Detail Page", "GroupDetailPage", "Group Detail Page", @"Page used to display group details.", 1, @"4E237286-B715-4109-A578-C1445EC02707", "B80C5CE4-01C2-48E7-90CD-1612615E33CE" );
+
+            // Attribute for BlockType
+            //   BlockType: Connections Hub
+            //   Category: Engagement
+            //   Attribute: Workflow Detail Page
+            RockMigrationHelper.AddOrUpdateBlockTypeAttribute( "8674FB3A-9E0E-421C-821C-2DA862A20ED2", "BD53F9C9-EBA9-4D3F-82EA-DE5DD34A8108", "Workflow Detail Page", "WorkflowDetailPage", "Workflow Detail Page", @"Page used to display details about a workflow.", 2, @"BA547EED-5537-49CF-BD4E-C583D760788C", "E57C4C30-0956-46B6-9DE0-E1B8A493A56D" );
+
+            // Attribute for BlockType
+            //   BlockType: Connections Hub
+            //   Category: Engagement
+            //   Attribute: Workflow Entry Page
+            RockMigrationHelper.AddOrUpdateBlockTypeAttribute( "8674FB3A-9E0E-421C-821C-2DA862A20ED2", "BD53F9C9-EBA9-4D3F-82EA-DE5DD34A8108", "Workflow Entry Page", "WorkflowEntryPage", "Workflow Entry Page", @"Page used to launch a new workflow of the selected type.", 3, @"0550D2AA-A705-4400-81FF-AB124FDF83D7", "E9642065-A794-413C-9B86-D3854C6FE8AA" );
+
+            // Attribute for BlockType
+            //   BlockType: Connections Hub
+            //   Category: Engagement
+            //   Attribute: Lava Heading Template
+            RockMigrationHelper.AddOrUpdateBlockTypeAttribute( "8674FB3A-9E0E-421C-821C-2DA862A20ED2", "1D0D3794-C210-48A8-8C68-3FBEC08A6BA5", "Lava Heading Template", "LavaHeadingTemplate", "Lava Heading Template", @"The HTML Content to render above the person’s name. Includes merge fields ConnectionRequest and Person. <span class='tip tip-lava'></span>", 5, @"", "34F63F4B-67A6-4C63-B9AE-57D7C1D6A577" );
+
+            // Attribute for BlockType
+            //   BlockType: Connections Hub
+            //   Category: Engagement
+            //   Attribute: Lava Badge Bar
+            RockMigrationHelper.AddOrUpdateBlockTypeAttribute( "8674FB3A-9E0E-421C-821C-2DA862A20ED2", "1D0D3794-C210-48A8-8C68-3FBEC08A6BA5", "Lava Badge Bar", "LavaBadgeBar", "Lava Badge Bar", @"The HTML Content intended to be used as a kind of custom badge bar for the connection request. Includes merge fields ConnectionRequest and Person. <span class='tip tip-lava'></span>", 6, @"", "EEFAE946-C1B0-4FB0-A17A-BEA1BB4E4C60" );
+
+            // Attribute for BlockType
+            //   BlockType: Connections Hub
+            //   Category: Engagement
+            //   Attribute: Badges
+            RockMigrationHelper.AddOrUpdateBlockTypeAttribute( "8674FB3A-9E0E-421C-821C-2DA862A20ED2", "602F273B-7EC2-42E6-9AA7-A36A268192A3", "Badges", "Badges", "Badges", @"The badges to display in this block.", 4, @"", "F3627C9A-A65B-4AB3-83D7-387FC781571C" );
+
             // Add Block 
             //  Block Name: Connections List
             //  Page Name: Connections List
@@ -509,6 +553,44 @@ END" );
             //  Site: Rock RMS
             RockMigrationHelper.AddBlock( true, "8B5F2875-0D36-4625-8EE4-B738AE8E12F5".AsGuid(), null, "C2D29296-6A87-47A9-A753-EE4E9159C4C4".AsGuid(), "8674FB3A-9E0E-421C-821C-2DA862A20ED2".AsGuid(), "Connections List", "Main", @"", @"", 0, "1422636F-548F-4F50-BF2A-D494FB936A5C" );
 		}
+
+        /// <summary>
+        /// KH: Adds the Connection Request note type.
+        /// </summary>
+        private void KH_AddConnectionRequestNoteType_Up()
+        {
+            RockMigrationHelper.AddOrUpdateNoteTypeByMatchingNameAndEntityType(
+                "Connection Request Note",
+                "Rock.Model.ConnectionRequest",
+                true,
+                Rock.SystemGuid.NoteType.CONNECTION_REQUEST_NOTE,
+                true,
+                "ti ti-clipboard-list",
+                false );
+        }
+
+        private void KH_UpdateConnectionProperties()
+        {
+            // Update Due Offset Days for all Connection Types.
+            Sql( @"UPDATE [ConnectionType]
+SET [RequestDueDateOffsetInDays] = 7,
+    [RequestDueSoonOffsetInDays] = 5" );
+
+            // Update Due Offset Days for all Connection Opportunities.
+            Sql( @"UPDATE [ConnectionOpportunity]
+SET [RequestDueDateOffsetInDays] = 7,
+    [RequestDueSoonOffsetInDays] = 5" );
+
+            // Update Due Offset Days for all Connection Statuses.
+            Sql( @"UPDATE [ConnectionStatus]
+SET [RequestStatusDueDateOffsetInDays] = 7,
+    [RequestStatusDueSoonOffsetInDays] = 5" );
+
+            // Update Connection Status Highlight Color if NULL.
+            Sql( @"UPDATE [ConnectionStatus]
+SET [HighlightColor] = '#00a6f4'
+WHERE [HighlightColor] IS NULL" );
+        }
             
         private void JMH_AddConnectionOperationalSnapshotBlock_Up()
         {
