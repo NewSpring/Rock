@@ -63,28 +63,28 @@
                         <ul class="dropdown-menu">
                             <li>
                                 <button type="button"
-                                        @click.stop="showChangeStateModal(ConnectionState.Active)"
+                                        @click="showChangeStateModal(ConnectionState.Active)"
                                         class="dropdown-item btn-link py-spacing-xs px-spacing-md font-weight-semibold">
                                     <i class="ti ti-user pr-spacing-sm text-interface-medium"></i>Set as Active
                                 </button>
                             </li>
                             <li>
                                 <button type="button"
-                                        @click.stop="showChangeStateModal(ConnectionState.Inactive)"
+                                        @click="showChangeStateModal(ConnectionState.Inactive)"
                                         class="dropdown-item btn-link py-spacing-xs px-spacing-md font-weight-semibold">
                                     <i class="ti ti-user-off pr-spacing-sm text-interface-medium"></i>Set as Inactive
                                 </button>
                             </li>
                             <li v-if="box.options?.isFutureFollowUpEnabled">
                                 <button type="button"
-                                        @click.stop="showChangeStateModal(ConnectionState.FutureFollowUp)"
+                                        @click="showChangeStateModal(ConnectionState.FutureFollowUp)"
                                         class="dropdown-item btn-link py-spacing-xs px-spacing-md font-weight-semibold">
                                     <i class="ti ti-calendar pr-spacing-sm text-interface-medium"></i>Set as Future Follow-Up
                                 </button>
                             </li>
                             <li>
                                 <button type="button"
-                                        @click.stop="showDeleteRequestModal()"
+                                        @click="showDeleteRequestModal()"
                                         class="dropdown-item btn-link py-spacing-xs px-spacing-md font-weight-semibold text-danger">
                                     <i class="ti ti-trash pr-spacing-sm text-danger"></i>Delete
                                 </button>
@@ -369,7 +369,7 @@
                                 </li>
                                 <li v-if="box.options?.isRequestSecurityEnabled">
                                     <button type="button"
-                                            @click.stop="showSecurity(EntityType.ConnectionRequest, row.idKey)"
+                                            @click.stop="showSecurityModal(row.idKey)"
                                             class="dropdown-item btn-link py-spacing-xs px-spacing-md font-weight-semibold">
                                         <i class="ti ti-lock pr-spacing-sm text-interface-medium"></i>Security
                                     </button>
@@ -1590,12 +1590,22 @@
         isAssignRequestModalVisible.value = true;
     }
 
+    function showSecurityModal(key: string | null | undefined): void {
+        openDropdownIndex.value = null;
+        if (!key) {
+            return;
+        }
+        showSecurity(EntityType.ConnectionRequest, key);
+    }
+
     function showDeleteRequestModal(row: Record<string, unknown> | null = null): void {
+        openDropdownIndex.value = null;
         prepareRequestDetailsForModal(row, dockedPanelDetailsBox.value);
         isDeleteRequestModalVisible.value = true;
     }
 
     function showChangeStateModal(state: ConnectionState, row: Record<string, unknown> | null = null): void {
+        openDropdownIndex.value = null;
         prepareRequestDetailsForModal(row);
         changeStateTo.value = state;
 
@@ -1620,6 +1630,7 @@
     }
 
     function showLaunchWorkflowModal(row: Record<string, unknown> | null = null): void {
+        openDropdownIndex.value = null;
         prepareRequestDetailsForModal(row);
         isLaunchWorkflowModalVisible.value = true;
     }

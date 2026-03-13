@@ -430,7 +430,7 @@
         updateRefValue(connectionOpportunityGuid, props.modelValue.bag?.connectionOpportunityGuid ?? "");
         updateRefValue(connectionRequestAttributeValues, props.modelValue.bag?.connectionRequestAttributeValues ?? {});
         updateRefValue(connectionState, props.modelValue.bag?.connectionState?.toString() ?? ConnectionState.Active.toString());
-        updateRefValue(connectionStatusGuid, props.modelValue.bag?.connectionStatusGuid ?? "");
+        updateRefValue(connectionStatusGuid, isNullOrWhiteSpace(props.modelValue.bag?.connectionStatusGuid) ? (props.options?.connectionStatuses ? props.options.connectionStatuses[0].guid : "") : (props.modelValue.bag?.connectionStatusGuid ?? ""));
         updateRefValue(connectorPersonAliasGuid, props.modelValue.bag?.connectorPersonAliasGuid ?? "");
         updateRefValue(groupMemberRoleGuid, props.modelValue.bag?.groupMemberRoleGuid ?? "");
         updateRefValue(groupMemberStatus, props.modelValue.bag?.groupMemberStatus?.toString() ?? "");

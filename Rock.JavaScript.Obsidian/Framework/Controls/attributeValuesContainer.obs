@@ -37,10 +37,12 @@
                             </div>
                         </template>
                         <template #default>
-                            <div v-for="categoryName in attributeCategoryNames"
-                                 class="dropdown-content-item py-spacing-sm px-spacing-md bg-interface-softest"
-                                 @click.stop="updateSelectedCategory(categoryName)">
-                                {{ categoryName }}
+                            <div class="bg-interface-softest dropdown-content">
+                                <div v-for="categoryName in attributeCategoryNames"
+                                     class="dropdown-content-item py-spacing-sm px-spacing-md text-small text-semibold"
+                                     @click.stop="updateSelectedCategory(categoryName)">
+                                    {{ categoryName }}
+                                </div>
                             </div>
                         </template>
                     </DropDownContent>
@@ -120,6 +122,11 @@
 <style scoped>
 .gap-tiny {
     gap: var(--spacing-tiny);
+}
+
+/* text-sm is incorrectly returning xsmall at the moment in develop */
+.text-small {
+    font-size: var(--font-size-small);
 }
 </style>
 
