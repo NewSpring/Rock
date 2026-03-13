@@ -188,6 +188,16 @@
         },
 
         /**
+         * The minimum length in pixels that a bar should be drawn regardless of its value.
+         * This can be used to ensure that very small values are still visible on the chart,
+         * including zeroes.
+         */
+        minBarLength: {
+            type: Number as PropType<number | undefined>,
+            default: undefined
+        },
+
+        /**
          * When `true`, bars from multiple datasets are drawn in the same position
          * and overlap each other rather than being shown side-by-side (grouped)
          * or stacked.
@@ -719,6 +729,8 @@
                     // Override the global datalabels for this series if necessary.
                     datalabels: labels ? { labels } : undefined,
 
+                    minBarLength: props.minBarLength,
+
                     _seriesColor: resolveSeriesColor(series, index)
                 };
                 return ds;
@@ -743,7 +755,7 @@
                         const chart = ctx.chart;
                         const datasetIndex = ctx.datasetIndex;
                         const currentDataset = chart.data.datasets[datasetIndex];
-                        const rounded = parseInt(getCssVar("--rounded-small")) ?? 0;
+                        const rounded = parseInt(getCssVar("--rounded-xsmall")) ?? 0;
                         const allRounded = {
                             topLeft: rounded,
                             topRight: rounded,
@@ -848,7 +860,7 @@
                             return positiveEndRounded;
                         }
                     },
-                    
+
                     borderSkipped: false
                 }
             },
@@ -1768,7 +1780,7 @@
         refreshChartData();
     });
 
-    watch([internalLabels, () => props.overlap, effectiveStack], () => {
+    watch([internalLabels, () => props.overlap, effectiveStack, () => props.minBarLength], () => {
         // Always animate the chart data refresh when these props change.
         refreshChartData();
     });

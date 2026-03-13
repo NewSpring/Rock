@@ -16,6 +16,7 @@
                   :labelDateFormat="labelDateFormat"
                   :legendAlign="legendAlign"
                   :legendPosition="legendPosition"
+                  :minBarLength="minBarLength"
                   :overlap="isOverlapped"
                   :stack="isStacked"
                   :title="title"
@@ -99,6 +100,10 @@
                                        help="Sets the number of decimal places to display. Actual values may be rounded automatically and may not always show the exact precision. Leave blank to use default formatting for ticks and tooltips."
                                        label="Precision"
                                        :maximumValue="20" />
+
+                            <NumberBox v-model="minBarLength"
+                                       help="The minimum length in pixels that a bar should be drawn regardless of its value. This can be used to ensure that very small values are still visible on the chart, including zeroes."
+                                       label="Minimum Bar Length" />
 
                             <Switch :modelValue="isPercent ?? false"
                                     help="For 'percent', the data must be in decimal form (e.g., 0.1 for 10%)."
@@ -358,6 +363,7 @@
     const isHorizontal = ref<boolean | undefined>();
     const labelDateFormat = ref<LabelDateFormat | undefined>(LabelDateFormat.Auto);
     const isPercent = ref<boolean | undefined>();
+    const minBarLength = ref<number | undefined>();
     const valueTickCount = ref<number | undefined>();
     const categoryLabel = ref<string | undefined>("Category Label");
     const valueLabel = ref<string | undefined>("Value Label");
@@ -417,6 +423,9 @@
         }
         if (legendPosition.value) {
             barChartProps.push(`legendPosition="${legendPosition.value}"`);
+        }
+        if (!isNullish(minBarLength.value)) {
+            barChartProps.push(`:minBarLength="${minBarLength.value}"`);
         }
         if (!isNullish(isOverlapped.value)) {
             barChartProps.push(`:overlap="${isOverlapped.value}"`);
