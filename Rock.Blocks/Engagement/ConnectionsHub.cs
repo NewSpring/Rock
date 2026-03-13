@@ -27,7 +27,6 @@ using System.Data.SqlClient;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using AngleSharp.Dom;
 using Rock.AI.Classes.ChatCompletions;
 using static Rock.Model.ConnectionType.ConnectionTypeAdditionalSettings;
 
@@ -207,6 +206,10 @@ namespace Rock.Blocks.Engagement
             };
         }
 
+        /// <summary>
+        /// Gets the various options needed to display the Connections Hub Block.
+        /// </summary>
+        /// <returns></returns>
         private ConnectionsHubOptionsBag GetOptions()
         {
             var options = new ConnectionsHubOptionsBag();
@@ -417,6 +420,13 @@ namespace Rock.Blocks.Engagement
             return options;
         }
 
+        #region Helper Methods
+
+        /// <summary>
+        /// Gets the Connection Opportunity Filter from the Person Preference
+        /// </summary>
+        /// <param name="connectionTypeIdKey">The conneciton type that the preference is set on</param>
+        /// <returns>A nullable Connection Opportunity Guid</returns>
         private Guid? GetConnectionOpportunityFilter( string connectionTypeIdKey )
         {
             var preferences = GetBlockPersonPreferences();
@@ -424,6 +434,553 @@ namespace Rock.Blocks.Engagement
             return preferences.GetValue( string.Format( PreferenceKey.ConnectionmOpportunityFilterConnectionTypeIdKey, connectionTypeIdKey ) ).AsGuidOrNull();
         }
 
+        /// <summary>
+        /// Gets a Grouping Field Bag for the specified entity. If the ID is null,
+        /// returns an "Unassigned" bag with a default no-picture URL for person types.
+        /// </summary>
+        /// <param name="id">The ID of the entity to create the bag for. If null, an unassigned bag is returned.</param>
+        /// <param name="type">The type of the grouping field (e.g. "person", "group").</param>
+        /// <param name="label">The display label for the grouping field.</param>
+        /// <param name="order">The optional sort order of the grouping field.</param>
+        /// <param name="iconCssClass">The optional CSS class for the icon associated with the grouping field.</param>
+        /// <param name="photoUrl">The optional URL of the photo for the grouping field. Overridden with a default no-picture URL for unassigned persons.</param>
+        /// <param name="textColorCssClass">The optional CSS class used to set the text color of the grouping field.</param>
+        /// <returns>A <see cref="GroupingFieldBag"/> populated with either the entity's details or unassigned defaults.</returns>
+        private GroupingFieldBag GetGroupingFieldBag( int? id, string type, string label, int? order = null, string iconCssClass = null, string photoUrl = null, string textColorCssClass = null )
+        {
+            if ( !id.HasValue )
+            {
+                if ( type == "person" )
+                {
+                    photoUrl = Rock.Model.Person.GetPersonNoPictureUrl( new Rock.Model.Person() );
+                }
+
+                return new GroupingFieldBag
+                {
+                    Key = "unassigned",
+                    Type = type,
+                    Label = "Unassigned",
+                    PhotoUrl = photoUrl,
+                    Order = order,
+                    TextColorCssClass = textColorCssClass
+                };
+            }
+
+            return new GroupingFieldBag
+            {
+                Key = IdHasher.Instance.GetHash( id.Value ),
+                Type = type,
+                Label = label,
+                IconCssClass = iconCssClass,
+                PhotoUrl = photoUrl,
+                Order = order,
+                TextColorCssClass = textColorCssClass
+            };
+        }
+
+        /// <summary>
+        /// Gets the text color CSS class corresponding to the given due status.
+        /// </summary>
+        /// <param name="dueStatus">The due status to get the text color CSS class for.</param>
+        /// <returns>A CSS class string representing the text color for the given due status.</returns>
+        private string GetDueStatusTextColorCssClass( DueStatus dueStatus )
+        {
+            switch ( dueStatus )
+            {
+                case DueStatus.DueLater:
+                    return "text-interface-strong";
+                case DueStatus.DueSoon:
+                    return "text-warning-strong";
+                case DueStatus.Overdue:
+                    return "text-danger-strong";
+                default:
+                    return "text-interface-strong";
+            }
+        }
+
+        /// <summary>
+        /// Gets the icon CSS class corresponding to the given connection state.
+        /// </summary>
+        /// <param name="state">The connection state to get the icon CSS class for.</param>
+        /// <returns>A CSS class string representing the icon for the given connection state.</returns>
+        private string GetStateIconCssClass( ConnectionState state )
+        {
+            switch ( state )
+            {
+                case ConnectionState.Active:
+                    return "ti ti-bolt";
+                case ConnectionState.Inactive:
+                    return "ti ti-bolt-off";
+                case ConnectionState.FutureFollowUp:
+                    return "ti ti-calendar-clock";
+                case ConnectionState.Connected:
+                    return "ti ti-circle-check-filled";
+                default:
+                    return "ti ti-bolt";
+            }
+        }
+
+        /// <summary>
+        /// Determines the due status of a request based on its due date and optional due-soon threshold date.
+        /// Returns <see cref="DueStatus.Overdue"/> if past due, <see cref="DueStatus.DueSoon"/> if within
+        /// the due-soon window, and <see cref="DueStatus.DueLater"/> if not yet approaching or if no due date is set.
+        /// </summary>
+        /// <param name="dueDate">The date the item is due. If null, the status defaults to DueLater.</param>
+        /// <param name="dueSoonDate">The optional date from which the item is considered due soon. If null, DueSoon will never be returned.</param>
+        /// <returns>A <see cref="DueStatus"/> indicating whether the item is overdue, due soon, or due later.</returns>
+        private DueStatus GetDueStatus( DateTime? dueDate, DateTime? dueSoonDate )
+        {
+            var now = RockDateTime.Now.Date;
+
+            if ( !dueDate.HasValue )
+            {
+                return DueStatus.DueLater;
+            }
+
+            var due = dueDate.Value.Date;
+
+            if ( now > due )
+            {
+                return DueStatus.Overdue;
+            }
+
+            if ( dueSoonDate.HasValue && now >= dueSoonDate.Value.Date )
+            {
+                return DueStatus.DueSoon;
+            }
+
+            return DueStatus.DueLater;
+        }
+
+        /// <summary>
+        /// Gets the Connection Type Cache from the current page parameters.
+        /// If a Connection Type IdKey is provided directly, it is used first. Otherwise,
+        /// the Connection Opportunity page parameter is resolved to derive the Connection Type.
+        /// Falls back to the Connection Type page parameter if no opportunity is found.
+        /// </summary>
+        /// <param name="connectionTypeIdKey">An optional Connection Type IdKey to look up directly, bypassing page parameter resolution.</param>
+        /// <returns>The <see cref="ConnectionTypeCache"/> resolved from the available page parameters, or null if none could be found.</returns>
+        private ConnectionTypeCache GetConnectionTypeCacheFromPageParameters( string connectionTypeIdKey = null )
+        {
+            ConnectionTypeCache connectionType;
+
+            if ( connectionTypeIdKey.IsNotNullOrWhiteSpace() )
+            {
+                connectionType = ConnectionTypeCache.Get( connectionTypeIdKey, !PageCache.Layout.Site.DisablePredictableIds );
+                return connectionType;
+            }
+
+            var connectionOpportunity = new ConnectionOpportunityService( RockContext ).Get( PageParameter( PageParameterKey.ConnectionOpportunity ), !PageCache.Layout.Site.DisablePredictableIds );
+
+            if ( connectionOpportunity != null )
+            {
+                connectionType = ConnectionTypeCache.Get( connectionOpportunity.ConnectionTypeId );
+            }
+            else
+            {
+                connectionType = ConnectionTypeCache.Get( PageParameter( PageParameterKey.ConnectionType ), !PageCache.Layout.Site.DisablePredictableIds );
+            }
+
+            return connectionType;
+        }
+
+        /// <summary>
+        /// Strips a trailing bracketed numeric ID from a string, returning the clean text value.
+        /// </summary>
+        /// <remarks>
+        /// Used when processing History values for the Connection Request activity feed, where
+        /// entity references are stored with a trailing bracketed ID (e.g. "In Progress [5]").
+        /// This method removes that suffix so only the human-readable label is displayed.
+        /// </remarks>
+        /// <param name="value">The string to strip the bracketed ID from.</param>
+        /// <returns>The string with the trailing bracketed ID removed, or null if the input is null or whitespace.</returns>
+        private string StripBracketId( string value )
+        {
+            return value.IsNullOrWhiteSpace()
+                ? null
+                : Regex.Replace( value, @"\s*\[\d+\]\s*$", "" );
+        }
+
+        #endregion Helper Methods
+
+        #region Connection Workflow Methods
+
+        /// <summary>
+        /// Gets the list of entity IDs returned by the specified Data View.
+        /// If the Data View is persisted and has been refreshed, the persisted values are used
+        /// for performance; otherwise the Data View query is executed directly with a 30-second timeout.
+        /// Returns an empty list if the Data View cannot be found.
+        /// </summary>
+        /// <remarks>
+        /// This method is intended for use with the include and exclude Data Views associated
+        /// with connection workflows, to determine which Connection Requests should be included
+        /// in or excluded from workflow processing.
+        /// </remarks>
+        /// <param name="dataViewId">The ID of the Data View to retrieve entity IDs from.</param>
+        /// <returns>A list of entity IDs returned by the Data View, or an empty list if the Data View could not be found.</returns>
+        private List<int> GetDataViewValues( int dataViewId )
+        {
+            var dataView = DataViewCache.Get( dataViewId );
+            if ( dataView == null )
+            {
+                return new List<int>();
+            }
+
+            if ( dataView.IsPersisted() && dataView.PersistedLastRefreshDateTime.HasValue )
+            {
+                return RockContext.Set<DataViewPersistedValue>().Select( e => e.EntityId ).ToList();
+            }
+            else
+            {
+                var dataViewGetQueryArgs = new Rock.Reporting.GetQueryableOptions { DbContext = RockContext, DatabaseTimeoutSeconds = 30 };
+                return dataView.GetQuery( dataViewGetQueryArgs ).Select( e => e.Id ).ToList();
+            }
+        }
+
+        /// <summary>
+        /// Determines whether a Connection Request is eligible to trigger the given Connection Workflow.
+        /// Checks the workflow's manual trigger status filter, age classification filter,
+        /// and include/exclude Data View membership of the requester.
+        /// </summary>
+        /// <param name="cw">The Connection Workflow to evaluate eligibility for.</param>
+        /// <param name="request">The Connection Request being evaluated.</param>
+        /// <param name="includeIds">An optional list of Person IDs from the include Data View. If provided, the requester must be in this list to be eligible.</param>
+        /// <param name="excludeIds">An optional list of Person IDs from the exclude Data View. If provided, the requester must not be in this list to be eligible.</param>
+        /// <returns>True if the Connection Request meets all criteria for the Connection Workflow; otherwise false.</returns>
+        private bool IsEligibleForWorkflow( ConnectionWorkflow cw, ConnectionRequest request, List<int> includeIds, List<int> excludeIds )
+        {
+            if ( cw.ManualTriggerFilterConnectionStatusId.HasValue && cw.ManualTriggerFilterConnectionStatusId != request.ConnectionStatusId )
+            {
+                return false;
+            }
+
+            var person = request.PersonAlias?.Person;
+            if ( person == null )
+            {
+                return false;
+            }
+
+            if ( cw.AppliesToAgeClassification == AppliesToAgeClassification.Adults && person.AgeClassification != AgeClassification.Adult )
+            {
+                return false;
+            }
+
+            if ( cw.AppliesToAgeClassification == AppliesToAgeClassification.Children && person.AgeClassification != AgeClassification.Child )
+            {
+                return false;
+            }
+
+            if ( includeIds != null && !includeIds.Contains( person.Id ) )
+            {
+                return false;
+            }
+
+            if ( excludeIds != null && excludeIds.Contains( person.Id ) )
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Launches workflows for a list of eligible Connection Requests in a background thread,
+        /// activating and processing the specified workflow type for each request. Persisted workflows
+        /// are recorded as Connection Request Workflows with the trigger type and qualifier.
+        /// Each request is processed in its own Rock Context to ensure proper isolation,
+        /// and any per-request exceptions are logged without interrupting the remaining requests.
+        /// </summary>
+        /// <param name="eligibleRequests">The list of Connection Requests to launch the workflow for.</param>
+        /// <param name="connectionWorkflow">The Connection Workflow definition providing the trigger type, qualifier value, and workflow type.</param>
+        /// <param name="workflowType">The Workflow Type Cache entry used to activate each workflow instance.</param>
+        private void LaunchWorkflowsInBackground( List<ConnectionRequest> eligibleRequests, ConnectionWorkflow connectionWorkflow, WorkflowTypeCache workflowType )
+        {
+            var requestIds = eligibleRequests.Select( r => r.Id ).ToList();
+            var connectionWorkflowId = connectionWorkflow.Id;
+            var workflowTypeId = workflowType.Id;
+            var triggerType = connectionWorkflow.TriggerType;
+            var qualifierValue = connectionWorkflow.QualifierValue;
+            var workTerm = connectionWorkflow.WorkflowType.WorkTerm;
+
+            Task.Run( () =>
+            {
+                foreach ( var requestId in requestIds )
+                {
+                    try
+                    {
+                        using ( var rockContext = new RockContext() )
+                        {
+                            var request = new ConnectionRequestService( rockContext ).Get( requestId );
+                            var wfType = WorkflowTypeCache.Get( workflowTypeId );
+                            var workflow = Rock.Model.Workflow.Activate( wfType, workTerm, rockContext );
+
+                            if ( workflow == null )
+                            {
+                                continue;
+                            }
+
+                            var bgWorkflowService = new WorkflowService( rockContext );
+
+                            if ( !bgWorkflowService.Process( workflow, request, out _ ) )
+                            {
+                                continue;
+                            }
+
+                            if ( workflow.Id != 0 )
+                            {
+                                new ConnectionRequestWorkflowService( rockContext ).Add( new ConnectionRequestWorkflow
+                                {
+                                    ConnectionRequestId = requestId,
+                                    WorkflowId = workflow.Id,
+                                    ConnectionWorkflowId = connectionWorkflowId,
+                                    TriggerType = triggerType,
+                                    TriggerQualifier = qualifierValue
+                                } );
+                            }
+
+                            rockContext.SaveChanges();
+                        }
+                    }
+                    catch ( Exception ex )
+                    {
+                        ExceptionLogService.LogException( ex );
+                    }
+                }
+            } );
+        }
+
+        #endregion Connection Workflow Methods
+
+        #region Placement Group Methods
+
+        /// <summary>
+        /// Serializes the Placement Group Member Attribute values into a JSON string and returns it
+        /// </summary>
+        /// <returns>A JSON string of the Placement Group Member Attribute Values</returns>
+        private string GetGroupMemberAttributeValuesFromBag( Dictionary<string, string> attributeValues, int? groupId, int? groupMemberRoleId, GroupMemberStatus? groupMemberStatus )
+        {
+            var values = new Dictionary<string, string>();
+
+            if ( !groupId.HasValue || !groupMemberRoleId.HasValue || !groupMemberStatus.HasValue )
+            {
+                return string.Empty;
+            }
+
+            var groupMember = new Rock.Model.GroupMember
+            {
+                GroupId = groupId.Value,
+                GroupRoleId = groupMemberRoleId.Value,
+                GroupMemberStatus = groupMemberStatus.Value
+            };
+
+            groupMember.LoadAttributes();
+            groupMember.SetPublicAttributeValues( attributeValues, RequestContext.CurrentPerson );
+
+            foreach ( var attrValue in groupMember.AttributeValues )
+            {
+                values.Add( attrValue.Key, attrValue.Value.Value );
+            }
+
+            return JsonConvert.SerializeObject( values, Formatting.None );
+        }
+
+        /// <summary>
+        /// Attempts to place the requester into the assigned placement group for the given Connection Request.
+        /// Handles new group member creation, restoration of archived members, group requirement validation,
+        /// and assignment of any saved group member attribute values.
+        /// </summary>
+        /// <remarks>
+        /// This method is called whenever a Connection Request moves to a Connected (completed) state and
+        /// has an assigned placement group, role, and status. If any of those three assignments are missing,
+        /// the method returns true without attempting placement.
+        /// </remarks>
+        /// <param name="connectionRequest">The Connection Request containing the placement group, role, status, and attribute value assignments.</param>
+        /// <param name="error">When this method returns, contains a Block Action Result error if any group requirements were not met; otherwise null.</param>
+        /// <param name="groupMemberRequirements">An optional list of manually checked group member requirement states passed in from the client, used to validate manual group requirements.</param>
+        /// <returns>True if placement was successful or no placement was needed; false if any group requirements were not met.</returns>
+        private bool TryAssignPlacementGroup( ConnectionRequest connectionRequest, out BlockActionResult error, List<GroupMemberRequirementBag> groupMemberRequirements = null )
+        {
+            error = null;
+            var group = connectionRequest.AssignedGroup;
+
+            // Only attempt group member placement if the request has an assigned placement group, role, and status.
+            if ( !connectionRequest.AssignedGroupId.HasValue ||
+                !connectionRequest.AssignedGroupMemberRoleId.HasValue ||
+                !connectionRequest.AssignedGroupMemberStatus.HasValue ||
+                group == null )
+            {
+                return true;
+            }
+
+            var groupService = new GroupService( RockContext );
+            var groupMemberService = new GroupMemberService( RockContext );
+
+            // Does this person already exist in this group with the same role?
+            var groupMember = groupMemberService.GetByGroupIdAndPersonIdAndGroupRoleId(
+                connectionRequest.AssignedGroupId.Value,
+                connectionRequest.PersonAlias.PersonId,
+                connectionRequest.AssignedGroupMemberRoleId.Value );
+
+            if ( groupMember == null )
+            {
+                // Double-check to make sure they weren't previously archived; if so, restore them.
+                if ( groupService.ExistsAsArchived( group, connectionRequest.PersonAlias.PersonId, connectionRequest.AssignedGroupMemberRoleId.Value, out groupMember ) )
+                {
+                    groupMemberService.Restore( groupMember );
+                }
+                else
+                {
+                    // If we still don't have a group member, create a new one.
+                    groupMember = new GroupMember();
+                    groupMember.PersonId = connectionRequest.PersonAlias.PersonId;
+                    groupMember.GroupId = connectionRequest.AssignedGroupId.Value;
+                    groupMember.GroupRoleId = connectionRequest.AssignedGroupMemberRoleId.Value;
+                }
+            }
+
+            // Always set the assigned status, for both new and preexisting members.
+            groupMember.GroupMemberStatus = connectionRequest.AssignedGroupMemberStatus.Value;
+
+            var requirementsToCheck = connectionRequest.AssignedGroup.GroupRequirements.Where( gr => gr.MustMeetRequirementToAddMember ).ToList();
+            var manualRequirements = requirementsToCheck.Where( gr => gr.GroupRequirementType.RequirementCheckType == RequirementCheckType.Manual );
+            var nonManualRequirements = requirementsToCheck.Where( gr => gr.GroupRequirementType.RequirementCheckType != RequirementCheckType.Manual );
+
+            var meetsAllNonManualRequirements = nonManualRequirements.All( gr =>
+            {
+                var status = gr.PersonMeetsGroupRequirement( RockContext, connectionRequest.PersonAlias.PersonId, connectionRequest.AssignedGroup.Id, connectionRequest.AssignedGroupMemberRoleId );
+                return status.MeetsGroupRequirement == MeetsGroupRequirement.Meets
+                    || status.MeetsGroupRequirement == MeetsGroupRequirement.MeetsWithWarning
+                    || status.MeetsGroupRequirement == MeetsGroupRequirement.NotApplicable;
+            } );
+
+            if ( !meetsAllNonManualRequirements )
+            {
+                error = ActionBadRequest( "Group Requirements have not been met. Please verify all of the requirements." );
+                return false;
+            }
+
+            // Ensure this person meets any manual group requirements (driven by checkboxes passed in from the client).
+            foreach ( var manualRequirement in manualRequirements )
+            {
+                var bagEntry = groupMemberRequirements?.FirstOrDefault( r => r.GroupRequirementIdKey == manualRequirement.IdKey );
+                var isMet = bagEntry != null
+                    && ( bagEntry.GroupMemberRequirementState == MeetsGroupRequirement.Meets
+                        || bagEntry.GroupMemberRequirementState == MeetsGroupRequirement.MeetsWithWarning );
+
+                if ( !isMet && manualRequirement.MustMeetRequirementToAddMember )
+                {
+                    error = ActionBadRequest( "Group Requirements have not been met. Please verify all of the requirements." );
+                    return false;
+                }
+
+                if ( isMet )
+                {
+                    var groupMemberRequirement = groupMember.GroupMemberRequirements.FirstOrDefault( r => r.GroupRequirementId == manualRequirement.Id )
+                        ?? new GroupMemberRequirement
+                        {
+                            GroupRequirementId = manualRequirement.Id
+                        };
+
+                    groupMemberRequirement.RequirementMetDateTime = groupMemberRequirement.RequirementMetDateTime ?? RockDateTime.Now;
+                    groupMemberRequirement.LastRequirementCheckDateTime = RockDateTime.Now;
+
+                    if ( groupMemberRequirement.Id == 0 )
+                    {
+                        groupMember.GroupMemberRequirements.Add( groupMemberRequirement );
+                    }
+                }
+            }
+
+            if ( groupMember.Id == 0 )
+            {
+                groupMemberService.Add( groupMember );
+            }
+
+            if ( !string.IsNullOrWhiteSpace( connectionRequest.AssignedGroupMemberAttributeValues ) )
+            {
+                var savedValues = JsonConvert.DeserializeObject<Dictionary<string, string>>( connectionRequest.AssignedGroupMemberAttributeValues );
+                if ( savedValues != null )
+                {
+                    groupMember.LoadAttributes();
+                    foreach ( var kvp in savedValues )
+                    {
+                        groupMember.SetAttributeValue( kvp.Key, kvp.Value );
+                    }
+                }
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Gets the IDs of Connection Requests whose requesters do not meet the mandatory requirements
+        /// of their assigned placement group. Only evaluates requests that are not yet in a Connected
+        /// state and have an assigned placement group.
+        /// </summary>
+        /// <param name="connectionRequestIds">The list of Connection Request IDs to evaluate against their assigned placement group requirements.</param>
+        /// <returns>A list of Connection Request IDs where the requester fails to meet one or more mandatory group requirements.</returns>
+        private List<int> GetConnectionRequestIdsNotMeetingGroupRequirements( List<int> connectionRequestIds )
+        {
+            var requestsToCheck = new ConnectionRequestService( RockContext ).Queryable()
+                .Where( cr => connectionRequestIds.Contains( cr.Id )
+                    && cr.ConnectionState != ConnectionState.Connected
+                    && cr.AssignedGroup != null )
+                .Select( cr => new
+                {
+                    cr.Id,
+                    cr.AssignedGroup,
+                    cr.AssignedGroupMemberRoleId,
+                    cr.PersonAlias.PersonId,
+                    GroupRequirements = cr.AssignedGroup.GroupRequirements
+                        .Where( gr => gr.MustMeetRequirementToAddMember )
+                        .ToList()
+                } )
+                .ToList();
+
+            var idsNotMeeting = new List<int>();
+
+            foreach ( var request in requestsToCheck )
+            {
+                var meetsAllRequirements = request.GroupRequirements.All( gr =>
+                {
+                    var status = gr.PersonMeetsGroupRequirement( RockContext, request.PersonId, request.AssignedGroup.Id, request.AssignedGroupMemberRoleId );
+                    return status.MeetsGroupRequirement == MeetsGroupRequirement.Meets
+                        || status.MeetsGroupRequirement == MeetsGroupRequirement.MeetsWithWarning
+                        || status.MeetsGroupRequirement == MeetsGroupRequirement.NotApplicable;
+                } );
+
+                if ( !meetsAllRequirements )
+                {
+                    idsNotMeeting.Add( request.Id );
+                }
+            }
+
+            return idsNotMeeting;
+        }
+
+        /// <summary>
+        /// Determines whether the requester of a single Connection Request meets all mandatory
+        /// requirements of their assigned placement group.
+        /// </summary>
+        /// <param name="connectionRequestId">The ID of the Connection Request to evaluate.</param>
+        /// <returns>True if the requester meets all mandatory group requirements or no evaluation was needed; otherwise false.</returns>
+        private bool ConnectionRequestMeetsGroupRequirements( int connectionRequestId )
+        {
+            return !GetConnectionRequestIdsNotMeetingGroupRequirements( new List<int> { connectionRequestId } ).Any();
+        }
+
+        #endregion Placement Group Methods
+
+        /// <summary>
+        /// Gets the Connection Opportunity Detail Bag.
+        /// </summary>
+        /// <remarks>
+        /// This method is used to fetch Connection Opportunity specific details needed in the Client. Currently this is being used
+        /// when fetching Options for the Block if there is a connection opportunity filter set and when we need to fetch Opportunity
+        /// details on Opportunity selection in the add connection request modal.
+        /// </remarks>
+        /// <param name="connectionOpportunity">The Connection Opportunity we get the bag from</param>
+        /// <returns>A Connection Opportunity Details Bag</returns>
         private ConnectionOpportunityDetailBag GetConnectionOpportunityDetailBag( ConnectionOpportunity connectionOpportunity )
         {
             var campusContext = RequestContext.GetContextEntity<Campus>();
@@ -493,94 +1050,11 @@ namespace Rock.Blocks.Engagement
             };
         }
 
-        private GroupingFieldBag GetGroupingFieldBag( int? id, string type, string label, int? order = null, string iconCssClass = null, string photoUrl = null, string textColorCssClass = null )
-        {
-            if ( !id.HasValue )
-            {
-                if ( type == "person" )
-                {
-                    photoUrl = Rock.Model.Person.GetPersonNoPictureUrl( new Rock.Model.Person() );
-                }
-
-                return new GroupingFieldBag
-                {
-                    Key = "unassigned",
-                    Type = type,
-                    Label = "Unassigned",
-                    PhotoUrl = photoUrl,
-                    Order = order,
-                    TextColorCssClass = textColorCssClass
-                };
-            }
-
-            return new GroupingFieldBag
-            {
-                Key = IdHasher.Instance.GetHash( id.Value ),
-                Type = type,
-                Label = label,
-                IconCssClass = iconCssClass,
-                PhotoUrl = photoUrl,
-                Order = order,
-                TextColorCssClass = textColorCssClass
-            };
-        }
-
-        private string GetDueStatusTextColorCssClass( DueStatus dueStatus )
-        {
-            switch ( dueStatus )
-            {
-                case DueStatus.DueLater:
-                    return "text-interface-strong";
-                case DueStatus.DueSoon:
-                    return "text-warning-strong";
-                case DueStatus.Overdue:
-                    return "text-danger-strong";
-                default:
-                    return "text-interface-strong";
-            }
-        }
-
-        private string GetStateIconCssClass( ConnectionState state )
-        {
-            switch ( state )
-            {
-                case ConnectionState.Active:
-                    return "ti ti-bolt";
-                case ConnectionState.Inactive:
-                    return "ti ti-bolt-off";
-                case ConnectionState.FutureFollowUp:
-                    return "ti ti-calendar-clock";
-                case ConnectionState.Connected:
-                    return "ti ti-circle-check-filled";
-                default:
-                    return "ti ti-bolt";
-            }
-        }
-
-        private DueStatus GetDueStatus( DateTime? dueDate, DateTime? dueSoonDate )
-        {
-            var now = RockDateTime.Now.Date;
-
-            if ( !dueDate.HasValue )
-            {
-                return DueStatus.DueLater;
-            }
-
-            var due = dueDate.Value.Date;
-
-            if ( now > due )
-            {
-                return DueStatus.Overdue;
-            }
-
-            if ( dueSoonDate.HasValue && now >= dueSoonDate.Value.Date )
-            {
-                return DueStatus.DueSoon;
-            }
-
-            return DueStatus.DueLater;
-        }
-
+        /// <summary>
+        /// Gets the Connection Request Bag for Edit Mode
+        /// </summary>
+        /// <param name="entity">The Connection Request entity</param>
+        /// <returns>The Connection Request Bag</returns>
         private ConnectionRequestBag GetEntityBagForEdit( ConnectionRequest entity )
         {
             if ( entity == null )
@@ -684,6 +1158,12 @@ namespace Rock.Blocks.Engagement
             return true;
         }
 
+        /// <summary>
+        /// Updates the Conneciton Request entity
+        /// </summary>
+        /// <param name="entity">The Connection Request entity that is being updated</param>
+        /// <param name="box">The properties box we are using to update the Connection Request</param>
+        /// <returns></returns>
         private bool UpdateEntityFromBox( ConnectionRequest entity, ValidPropertiesBox<ConnectionRequestBag> box )
         {
             if ( box?.Bag == null || box.ValidProperties == null )
@@ -790,36 +1270,13 @@ namespace Rock.Blocks.Engagement
         }
 
         /// <summary>
-        /// Gets the group member attribute values.
+        /// Determines if the logged in user can edit a specific Connection Request.
         /// </summary>
-        /// <returns></returns>
-        private string GetGroupMemberAttributeValuesFromBag( Dictionary<string, string> attributeValues, int? groupId, int? groupMemberRoleId, GroupMemberStatus? groupMemberStatus )
-        {
-            var values = new Dictionary<string, string>();
-
-            if ( !groupId.HasValue || !groupMemberRoleId.HasValue || !groupMemberStatus.HasValue )
-            {
-                return string.Empty;
-            }
-
-            var groupMember = new Rock.Model.GroupMember
-            {
-                GroupId = groupId.Value,
-                GroupRoleId = groupMemberRoleId.Value,
-                GroupMemberStatus = groupMemberStatus.Value
-            };
-
-            groupMember.LoadAttributes();
-            groupMember.SetPublicAttributeValues( attributeValues, RequestContext.CurrentPerson );
-
-            foreach ( var attrValue in groupMember.AttributeValues )
-            {
-                values.Add( attrValue.Key, attrValue.Value.Value );
-            }
-
-            return JsonConvert.SerializeObject( values, Formatting.None );
-        }
-
+        /// <param name="connectionType">The Connection Type Cache tied to the Connection Request.</param>
+        /// <param name="connectionRequestIdKey">The Connection Request IdKey that we check edit permissions for.</param>
+        /// <param name="connectionRequest">When this method returns, contains the resolved Connection Request, or null if it could not be found.</param>
+        /// <param name="error">When this method returns, contains a Block Action Result error if the user lacks permission or the request could not be found; otherwise null.</param>
+        /// <returns>True if the logged in user has edit permissions for the Connection Request; otherwise false.</returns>
         private bool CanEditConnectionRequest( ConnectionTypeCache connectionType, string connectionRequestIdKey, out ConnectionRequest connectionRequest, out BlockActionResult error )
         {
             var canEdit = CanEditConnectionRequests( connectionType, new List<string> { connectionRequestIdKey }, out var connectionRequests, out error );
@@ -827,6 +1284,19 @@ namespace Rock.Blocks.Engagement
             return canEdit;
         }
 
+        /// <summary>
+        /// Determines if the logged in user can edit a list of Connection Requests.
+        /// Checks edit authorization either at the request level (if EnableRequestSecurity is set on
+        /// the Connection Type) or at the opportunity level. Also grants edit access if the current
+        /// user is the assigned connector or is a member of an applicable connector group for the
+        /// request's campus.
+        /// </summary>
+        /// <param name="connectionType">The Connection Type Cache tied to the Connection Requests, used to determine the security model and validate that all requests belong to this type.</param>
+        /// <param name="connectionRequestIdKeys">The list of IdKeys for the Connection Requests to check edit permissions for.</param>
+        /// <param name="connectionRequests">When this method returns, contains the resolved list of Connection Requests; empty if any IdKeys could not be resolved.</param>
+        /// <param name="error">When this method returns, contains a Block Action Result error if any requests could not be found or the user lacks permission; otherwise null.</param>
+        /// <param name="queryModifier">An optional function to apply additional filtering or modification to the Connection Request query before it is executed.</param>
+        /// <returns>True if the logged in user has edit permissions for all specified Connection Requests; otherwise false.</returns>
         private bool CanEditConnectionRequests( ConnectionTypeCache connectionType, List<string> connectionRequestIdKeys, out List<ConnectionRequest> connectionRequests, out BlockActionResult error, Func<IQueryable<ConnectionRequest>, IQueryable<ConnectionRequest>> queryModifier = null )
         {
             error = null;
@@ -943,250 +1413,15 @@ namespace Rock.Blocks.Engagement
             return userCanEditConnectionRequest;
         }
 
-        private List<int> GetDataViewValues( int dataViewId )
-        {
-            var dataView = DataViewCache.Get( dataViewId );
-            if ( dataView == null )
-            {
-                return new List<int>();
-            }
+        #region UI Refresh Helpers
 
-            if ( dataView.IsPersisted() && dataView.PersistedLastRefreshDateTime.HasValue )
-            {
-                return RockContext.Set<DataViewPersistedValue>().Select( e => e.EntityId ).ToList();
-            }
-            else
-            {
-                var dataViewGetQueryArgs = new Rock.Reporting.GetQueryableOptions { DbContext = RockContext, DatabaseTimeoutSeconds = 30 };
-                return dataView.GetQuery( dataViewGetQueryArgs ).Select( e => e.Id ).ToList();
-            }
-        }
-
-        private ConnectionTypeCache GetConnectionTypeCacheFromPageParameters( string connectionTypeIdKey = null )
-        {
-            ConnectionTypeCache connectionType;
-
-            if ( connectionTypeIdKey.IsNotNullOrWhiteSpace() )
-            {
-                connectionType = ConnectionTypeCache.Get( connectionTypeIdKey, !PageCache.Layout.Site.DisablePredictableIds );
-                return connectionType;
-            }
-
-            var connectionOpportunity = new ConnectionOpportunityService( RockContext ).Get( PageParameter( PageParameterKey.ConnectionOpportunity ), !PageCache.Layout.Site.DisablePredictableIds );
-
-            if ( connectionOpportunity != null )
-            {
-                connectionType = ConnectionTypeCache.Get( connectionOpportunity.ConnectionTypeId );
-            }
-            else
-            {
-                connectionType = ConnectionTypeCache.Get( PageParameter( PageParameterKey.ConnectionType ), !PageCache.Layout.Site.DisablePredictableIds );
-            }
-
-            return connectionType;
-        }
-
-        private bool IsEligibleForWorkflow( ConnectionWorkflow cw, ConnectionRequest request, List<int> includeIds, List<int> excludeIds )
-        {
-            if ( cw.ManualTriggerFilterConnectionStatusId.HasValue && cw.ManualTriggerFilterConnectionStatusId != request.ConnectionStatusId )
-            {
-                return false;
-            }
-
-            var person = request.PersonAlias?.Person;
-            if ( person == null )
-            {
-                return false;
-            }
-
-            if ( cw.AppliesToAgeClassification == AppliesToAgeClassification.Adults && person.AgeClassification != AgeClassification.Adult )
-            {
-                return false;
-            }
-
-            if ( cw.AppliesToAgeClassification == AppliesToAgeClassification.Children && person.AgeClassification != AgeClassification.Child )
-            {
-                return false;
-            }
-
-            if ( includeIds != null && !includeIds.Contains( person.Id ) )
-            {
-                return false;
-            }
-
-            if ( excludeIds != null && excludeIds.Contains( person.Id ) )
-            {
-                return false;
-            }
-
-            return true;
-        }
-
-        private string StripBracketId( string value )
-        {
-            return value.IsNullOrWhiteSpace()
-                ? null
-                : Regex.Replace( value, @"\s*\[\d+\]\s*$", "" );
-        }
-
-        private bool TryAssignPlacementGroup( ConnectionRequest connectionRequest, out BlockActionResult error, List<GroupMemberRequirementBag> groupMemberRequirements = null)
-        {
-            error = null;
-            var group = connectionRequest.AssignedGroup;
-
-            // Only attempt group member placement if the request has an assigned placement group, role, and status.
-            if ( !connectionRequest.AssignedGroupId.HasValue ||
-                !connectionRequest.AssignedGroupMemberRoleId.HasValue ||
-                !connectionRequest.AssignedGroupMemberStatus.HasValue ||
-                group == null )
-            {
-                return true;
-            }
-
-            var groupService = new GroupService( RockContext );
-            var groupMemberService = new GroupMemberService( RockContext );
-
-            // Does this person already exist in this group with the same role?
-            var groupMember = groupMemberService.GetByGroupIdAndPersonIdAndGroupRoleId(
-                connectionRequest.AssignedGroupId.Value,
-                connectionRequest.PersonAlias.PersonId,
-                connectionRequest.AssignedGroupMemberRoleId.Value );
-
-            if ( groupMember == null )
-            {
-                // Double-check to make sure they weren't previously archived; if so, restore them.
-                if ( groupService.ExistsAsArchived( group, connectionRequest.PersonAlias.PersonId, connectionRequest.AssignedGroupMemberRoleId.Value, out groupMember ) )
-                {
-                    groupMemberService.Restore( groupMember );
-                }
-                else
-                {
-                    // If we still don't have a group member, create a new one.
-                    groupMember = new GroupMember();
-                    groupMember.PersonId = connectionRequest.PersonAlias.PersonId;
-                    groupMember.GroupId = connectionRequest.AssignedGroupId.Value;
-                    groupMember.GroupRoleId = connectionRequest.AssignedGroupMemberRoleId.Value;
-                }
-            }
-
-            // Always set the assigned status, for both new and preexisting members.
-            groupMember.GroupMemberStatus = connectionRequest.AssignedGroupMemberStatus.Value;
-
-            var requirementsToCheck = connectionRequest.AssignedGroup.GroupRequirements.Where( gr => gr.MustMeetRequirementToAddMember ).ToList();
-            var manualRequirements = requirementsToCheck.Where( gr => gr.GroupRequirementType.RequirementCheckType == RequirementCheckType.Manual );
-            var nonManualRequirements = requirementsToCheck.Where( gr => gr.GroupRequirementType.RequirementCheckType != RequirementCheckType.Manual );
-
-            var meetsAllNonManualRequirements = nonManualRequirements.All( gr =>
-            {
-                var status = gr.PersonMeetsGroupRequirement( RockContext, connectionRequest.PersonAlias.PersonId, connectionRequest.AssignedGroup.Id, connectionRequest.AssignedGroupMemberRoleId );
-                return status.MeetsGroupRequirement == MeetsGroupRequirement.Meets
-                    || status.MeetsGroupRequirement == MeetsGroupRequirement.MeetsWithWarning
-                    || status.MeetsGroupRequirement == MeetsGroupRequirement.NotApplicable;
-            } );
-
-            if (!meetsAllNonManualRequirements)
-            {
-                error = ActionBadRequest( "Group Requirements have not been met. Please verify all of the requirements." );
-                return false;
-            }
-
-            // Ensure this person meets any manual group requirements (driven by checkboxes passed in from the client).
-            foreach ( var manualRequirement in manualRequirements )
-            {
-                var bagEntry = groupMemberRequirements?.FirstOrDefault( r => r.GroupRequirementIdKey == manualRequirement.IdKey );
-                var isMet = bagEntry != null
-                    && ( bagEntry.GroupMemberRequirementState == MeetsGroupRequirement.Meets
-                        || bagEntry.GroupMemberRequirementState == MeetsGroupRequirement.MeetsWithWarning );
-
-                if ( !isMet && manualRequirement.MustMeetRequirementToAddMember )
-                {
-                    error = ActionBadRequest( "Group Requirements have not been met. Please verify all of the requirements." );
-                    return false;
-                }
-
-                if ( isMet )
-                {
-                    var groupMemberRequirement = groupMember.GroupMemberRequirements.FirstOrDefault( r => r.GroupRequirementId == manualRequirement.Id )
-                        ?? new GroupMemberRequirement
-                        {
-                            GroupRequirementId = manualRequirement.Id
-                        };
-
-                    groupMemberRequirement.RequirementMetDateTime = groupMemberRequirement.RequirementMetDateTime ?? RockDateTime.Now;
-                    groupMemberRequirement.LastRequirementCheckDateTime = RockDateTime.Now;
-
-                    if ( groupMemberRequirement.Id == 0 )
-                    {
-                        groupMember.GroupMemberRequirements.Add( groupMemberRequirement );
-                    }
-                }
-            }
-
-            if ( groupMember.Id == 0 )
-            {
-                groupMemberService.Add( groupMember );
-            }
-
-            if ( !string.IsNullOrWhiteSpace( connectionRequest.AssignedGroupMemberAttributeValues ) )
-            {
-                var savedValues = JsonConvert.DeserializeObject<Dictionary<string, string>>( connectionRequest.AssignedGroupMemberAttributeValues );
-                if ( savedValues != null )
-                {
-                    groupMember.LoadAttributes();
-                    foreach ( var kvp in savedValues )
-                    {
-                        groupMember.SetAttributeValue( kvp.Key, kvp.Value );
-                    }
-                }
-            }
-
-            return true;
-        }
-
-        private List<int> GetConnectionRequestIdsNotMeetingGroupRequirements( List<int> connectionRequestIds )
-        {
-            var requestsToCheck = new ConnectionRequestService( RockContext ).Queryable()
-                .Where( cr => connectionRequestIds.Contains( cr.Id )
-                    && cr.ConnectionState != ConnectionState.Connected
-                    && cr.AssignedGroup != null )
-                .Select( cr => new
-                {
-                    cr.Id,
-                    cr.AssignedGroup,
-                    cr.AssignedGroupMemberRoleId,
-                    cr.PersonAlias.PersonId,
-                    GroupRequirements = cr.AssignedGroup.GroupRequirements
-                        .Where( gr => gr.MustMeetRequirementToAddMember )
-                        .ToList()
-                } )
-                .ToList();
-
-            var idsNotMeeting = new List<int>();
-
-            foreach ( var request in requestsToCheck )
-            {
-                var meetsAllRequirements = request.GroupRequirements.All( gr =>
-                {
-                    var status = gr.PersonMeetsGroupRequirement( RockContext, request.PersonId, request.AssignedGroup.Id, request.AssignedGroupMemberRoleId );
-                    return status.MeetsGroupRequirement == MeetsGroupRequirement.Meets
-                        || status.MeetsGroupRequirement == MeetsGroupRequirement.MeetsWithWarning
-                        || status.MeetsGroupRequirement == MeetsGroupRequirement.NotApplicable;
-                } );
-
-                if ( !meetsAllRequirements )
-                {
-                    idsNotMeeting.Add( request.Id );
-                }
-            }
-
-            return idsNotMeeting;
-        }
-
-        private bool ConnectionRequestMeetsGroupRequirements( int connectionRequestId )
-        {
-            return !GetConnectionRequestIdsNotMeetingGroupRequirements( new List<int> { connectionRequestId } ).Any();
-        }
-
+        /// <summary>
+        /// Gets a Connection List Update Box for the specified Connection Request, containing
+        /// the updated grid row data and optionally the full request detail box.
+        /// </summary>
+        /// <param name="connectionRequestId">The ID of the Connection Request to build the update box for.</param>
+        /// <param name="includeRequestDetails">If true, the detail box is populated in addition to the grid row; used when the request detail panel is currently visible.</param>
+        /// <returns>A <see cref="ConnectionListUpdateBox"/> containing the refreshed grid row and, if requested, the full detail box for the Connection Request.</returns>
         private ConnectionListUpdateBox GetConnectionListUpdateBox( int connectionRequestId, bool includeRequestDetails )
         {
             var box = new ConnectionListUpdateBox();
@@ -1212,6 +1447,14 @@ namespace Rock.Blocks.Engagement
             return box;
         }
 
+        /// <summary>
+        /// Builds a single grid row dictionary for the given Connection Request, containing
+        /// all display fields needed to render or refresh the request's row in the connection list grid.
+        /// Includes grouping fields for connector, opportunity, campus, status, due status, and state,
+        /// as well as requester details, activity counts, placement group info, and reminder count.
+        /// </summary>
+        /// <param name="connectionRequest">The Connection Request to build the grid row for. Must have related entities eager-loaded, including PersonAlias, ConnectorPersonAlias, ConnectionOpportunity, ConnectionStatus, Campus, AssignedGroup, and ConnectionRequestActivities.</param>
+        /// <returns>A dictionary representing the grid row data for the Connection Request, keyed by field name.</returns>
         private Dictionary<string, object> GetConnectionRequestGridRow( ConnectionRequest connectionRequest )
         {
             // TODO - Add server side filters
@@ -1309,6 +1552,13 @@ namespace Rock.Blocks.Engagement
             return row;
         }
 
+        /// <summary>
+        /// Gets a Connection Request Detail Box for the given Connection Request,
+        /// containing both the detail options and the fully populated entity bag
+        /// needed to render the request detail panel.
+        /// </summary>
+        /// <param name="connectionRequest">The Connection Request to build the detail box for.</param>
+        /// <returns>A <see cref="ConnectionRequestDetailBox"/> containing the options and entity bag for the Connection Request detail panel.</returns>
         private ConnectionRequestDetailBox GetConnectionRequestDetailBox( ConnectionRequest connectionRequest )
         {
             var box = new ConnectionRequestDetailBox
@@ -1320,6 +1570,22 @@ namespace Rock.Blocks.Engagement
             return box;
         }
 
+        /// <summary>
+        /// Builds the Connection Request Detail Options Bag for the given Connection Request,
+        /// containing all configuration and display options needed to render the request detail panel.
+        /// This includes connection type settings, available connectors, statuses, activity types,
+        /// connection states, placement group configurations, badge guids, AI summary visibility,
+        /// and resolved Lava templates.
+        /// </summary>
+        /// <remarks>
+        /// Connector items are built from the opportunity's connector groups, with the unassigned option,
+        /// the request's current connector, and the current user each guaranteed to be present in the list.
+        /// Placement group details — including available roles, statuses per role, and group member attributes
+        /// — are only populated if group placements are enabled on the Connection Type.
+        /// </remarks>
+        /// <param name="connectionRequest">The Connection Request to build the options bag for. Must have related entities eager-loaded, including ConnectionOpportunity, ConnectionType, and ConnectionOpportunityGroups.</param>
+        /// <param name="mergeFields">When this method returns, contains the Lava merge fields resolved for the request, including the Connection Request and requester Person.</param>
+        /// <returns>A <see cref="ConnectionRequestDetailOptionsBag"/> populated with all options required to render the Connection Request detail panel.</returns>
         private ConnectionRequestDetailOptionsBag GetConnectionRequestDetailOptionsBag( ConnectionRequest connectionRequest, out Dictionary<string, object> mergeFields )
         {
             var optionsBag = new ConnectionRequestDetailOptionsBag
@@ -1491,6 +1757,24 @@ namespace Rock.Blocks.Engagement
             return optionsBag;
         }
 
+        /// <summary>
+        /// Builds the Connection Request Details Bag for the given Connection Request,
+        /// containing all data needed to render the request detail panel. This includes
+        /// request state and status, requester and connector details, placement group
+        /// membership and requirements, eligible manual workflows, person notes,
+        /// activity entries, additional connection requests, and public attributes.
+        /// </summary>
+        /// <remarks>
+        /// Placement group details are only populated if group placements are enabled on the
+        /// Connection Type. If the requester is not yet a member of the assigned placement group,
+        /// a pending member is constructed to derive attribute definitions and requirement statuses.
+        /// Manual workflows are filtered by eligibility, active status, view authorization, and
+        /// optional include/exclude Data Views, and ordered according to the opportunity's saved
+        /// workflow type order.
+        /// </remarks>
+        /// <param name="connectionRequest">The Connection Request to build the details bag for. Must have related entities eager-loaded and attributes will be loaded internally.</param>
+        /// <param name="mergeFields">The Lava merge fields to use when resolving activity entry templates, typically obtained from <see cref="GetConnectionRequestDetailOptionsBag"/>.</param>
+        /// <returns>A <see cref="ConnectionRequestDetailsBag"/> populated with all data required to render the Connection Request detail panel.</returns>
         private ConnectionRequestDetailsBag GetConnectionRequestDetailsBag( ConnectionRequest connectionRequest, Dictionary<string, object> mergeFields )
         {
             connectionRequest.LoadAttributes();
@@ -1702,6 +1986,19 @@ namespace Rock.Blocks.Engagement
             return detailsBag;
         }
 
+        /// <summary>
+        /// Gets a list of additional Connection Requests to display in the request detail panel,
+        /// based on a list of configured display settings. Each setting defines a Connection Type,
+        /// optional state filters, an optional recency cutoff, and whether to include requests
+        /// from family members of the requester.
+        /// </summary>
+        /// <remarks>
+        /// Each settings entry is queried independently and the results are combined via union.
+        /// Returns an empty list if no settings are provided.
+        /// </remarks>
+        /// <param name="settingsList">The list of additional request display settings that define which Connection Types, states, and persons to include.</param>
+        /// <param name="requesterPerson">The requester person whose Connection Requests (and optionally their family members') are retrieved.</param>
+        /// <returns>A list of <see cref="AdditionalRequestBag"/> objects representing the matching Connection Requests across all configured settings.</returns>
         public List<AdditionalRequestBag> GetAdditionalConnectionRequests( List<AdditionalRequestToShowSettings> settingsList, Rock.Model.Person requesterPerson )
         {
             if ( settingsList == null || !settingsList.Any() )
@@ -1775,11 +2072,29 @@ namespace Rock.Blocks.Engagement
             } ).ToList();
         }
 
+        /// <summary>
+        /// Builds the chronologically ordered list of activity feed entries for the given Connection
+        /// Request. Aggregates entries from four sources: Connection Request Activities, History records,
+        /// related Communications (Email and SMS), and Request Notes.
+        /// </summary>
+        /// <remarks>
+        /// If the Connection Type has the full activity list enabled, activities from all other
+        /// Connection Requests of the same type for the same person are also included, with their
+        /// originating opportunity and status indicated on the entry.
+        /// History entries are retrieved via raw SQL for performance and mapped to a
+        /// <see cref="SystemUpdateType"/> based on the verb and value name of each record.
+        /// Bracketed IDs are stripped from history values using <see cref="StripBracketId"/> before display.
+        /// Communication entries are grouped by communication ID to deduplicate attachment rows
+        /// returned by the join, and SMS content is resolved against the provided merge fields.
+        /// Only notes viewable and authorized for the current person are included.
+        /// </remarks>
+        /// <param name="connectionRequest">The Connection Request to retrieve activity entries for. Must have ConnectionRequestActivities and related entities loaded.</param>
+        /// <param name="mergeFields">The Lava merge fields used to resolve SMS message content, typically obtained from <see cref="GetConnectionRequestDetailOptionsBag"/>.</param>
+        /// <returns>A list of <see cref="ActivityEntryBag"/> objects representing all activity feed entries, ordered by entry date descending.</returns>
         private List<ActivityEntryBag> GetActivityEntries( ConnectionRequest connectionRequest, Dictionary<string, object> mergeFields )
         {
             // Filters out Connection Request Activities that do not have a created by person alias id or created date time. -- TODO - determine if we should do this. Currently inconsistent.
-            var validActivities = connectionRequest.ConnectionRequestActivities.Where( a => a.CreatedByPersonAliasId.HasValue && a.ModifiedDateTime.HasValue ).ToList();
-            //var validConnectionStatusHistories = connectionRequest.ConnectionRequestStatusHistories.OrderBy( h => h.EndDateTime ).ToList();
+            var validActivities = connectionRequest.ConnectionRequestActivities.Where( a => a.CreatedByPersonAliasId.HasValue && a.CreatedDateTime.HasValue ).ToList();
 
             var entries = new List<ActivityEntryBag>();
 
@@ -1787,7 +2102,7 @@ namespace Rock.Blocks.Engagement
             {
                 Key = $"{ActivityEntryType.Activity}_{IdHasher.Instance.GetHash( a.Id )}",
                 EntryType = ActivityEntryType.Activity,
-                EntryDateTime = a.ModifiedDateTime.Value.ToRockDateTimeOffset(),
+                EntryDateTime = a.CreatedDateTime.Value.ToRockDateTimeOffset(),
                 CreatedBy = a.CreatedByPersonAlias?.Person?.FullName,
                 CardEntry = new CardEntryBag
                 {
@@ -1808,13 +2123,13 @@ namespace Rock.Blocks.Engagement
                     .Where( c => c.ConnectionTypeId == connectionRequest.ConnectionTypeId
                         && c.Id != connectionRequest.Id
                         && c.PersonAlias.PersonId == connectionRequest.PersonAlias.PersonId
-                        && c.ConnectionRequestActivities.Any( a => a.CreatedByPersonAlias != null && a.ModifiedDateTime != null ) )
+                        && c.ConnectionRequestActivities.Any( a => a.CreatedByPersonAlias != null && a.CreatedDateTime != null ) )
                     .SelectMany( c => c.ConnectionRequestActivities
-                        .Where( a => a.CreatedByPersonAlias != null && a.ModifiedDateTime != null )
+                        .Where( a => a.CreatedByPersonAlias != null && a.CreatedDateTime != null )
                         .Select( a => new
                         {
                             ActivityId = a.Id,
-                            EntryDateTime = a.ModifiedDateTime,
+                            EntryDateTime = a.CreatedDateTime,
                             Content = a.Note,
                             CreatedByPerson = a.CreatedByPersonAlias.Person,
                             ActivityTypeGuid = a.ConnectionActivityType.Guid,
@@ -1851,29 +2166,9 @@ namespace Rock.Blocks.Engagement
                 } ) );
             }
 
-            //entries.AddRange( validConnectionStatusHistories.Select( (h, i) => new ActivityEntryBag
-            //{
-            //    EntryType = ActivityEntryType.SystemUpdate,
-            //    EntryDateTime = h.EndDateTime.ToRockDateTimeOffset(),
-            //    CreatedBy = h.CreatedByPersonAlias?.Person?.FullName,
-            //    SystemUpdate = new SystemUpdateBag
-            //    {
-            //        SystemUpdateType = SystemUpdateType.StatusChange,
-            //        PreviousValue = h.ConnectionStatus.Name,
-            //        // "NewValue" is the status the request transitioned to at this point in the timeline.
-            //        // For most history rows, that is simply the next history row's status (i.e., the status that followed).
-            //        // For the final history row, there is no "next" history record, so we fall back to the request's current status.
-            //        NewValue = ( i + 1 < validConnectionStatusHistories.Count ) ? validConnectionStatusHistories[i + 1].ConnectionStatus.Name : connectionRequest.ConnectionStatus.Name
-            //    },
-            //} ) );
-
             var categoryId = CategoryCache.Get( Rock.SystemGuid.Category.HISTORY_CONNECTION_REQUEST.AsGuid() ).Id;
             var connectionRequestEntityTypeId = EntityTypeCache.Get( SystemGuid.EntityType.CONNECTION_REQUEST.AsGuid() ).Id;
             var communicationEntityTypeId = EntityTypeCache.Get( SystemGuid.EntityType.COMMUNICATION.AsGuid() ).Id;
-
-            //var connectionRequestHistoryEntries = new HistoryService( RockContext ).Queryable()
-            //    .Where( h => h.CategoryId == categoryId && h.EntityTypeId == connectionRequestEntityTypeId && h.EntityId == connectionRequest.Id )
-            //    .ToList();
 
             var historySQL = @"
 SELECT
@@ -2128,7 +2423,7 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
             {
                 Key = $"{ActivityEntryType.RequestNote}_{IdHasher.Instance.GetHash( n.Id )}",
                 EntryType = ActivityEntryType.RequestNote,
-                EntryDateTime = n.ModifiedDateTime?.ToRockDateTimeOffset(),
+                EntryDateTime = n.CreatedDateTime?.ToRockDateTimeOffset(),
                 CreatedBy = n.CreatedByPersonAlias?.Person?.FullName,
                 CardEntry = new CardEntryBag
                 {
@@ -2141,6 +2436,13 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
             return new List<ActivityEntryBag>( entries.OrderByDescending( e => e.EntryDateTime ) );
         }
 
+        /// <summary>
+        /// Gets the list of Person Notes for the specified person that are viewable
+        /// by the current user, used to display the person's notes in the Connection
+        /// Request detail panel.
+        /// </summary>
+        /// <param name="personId">The ID of the person whose notes should be retrieved.</param>
+        /// <returns>A list of <see cref="PersonNoteBag"/> objects representing the viewable notes for the person, ordered by the underlying query's default ordering.</returns>
         private List<PersonNoteBag> GetPersonNotesForPerson( int personId )
         {
             var personEntityTypeId = EntityTypeCache.Get( SystemGuid.EntityType.PERSON ).Id;
@@ -2148,8 +2450,8 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
             var noteQry = new NoteService( RockContext ).Queryable()
                 .AsNoTracking()
                 .Include( n => n.NoteType )
-                .Include( n => n.CreatedByPersonAlias.Person)
-                .Where( n => n.NoteType.EntityTypeId == personEntityTypeId && n.EntityId == personId);
+                .Include( n => n.CreatedByPersonAlias.Person )
+                .Where( n => n.NoteType.EntityTypeId == personEntityTypeId && n.EntityId == personId );
 
             noteQry = noteQry.AreViewableBy( RequestContext.CurrentPerson.Id );
 
@@ -2169,6 +2471,8 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
 
             return personNotes;
         }
+
+        #endregion UI Refresh Helpers
 
         private string AttachAIPromptContext( string prompt, ConnectionRequest connectionRequest )
         {
@@ -2239,62 +2543,6 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
             }
 
             return $"Based on the following connection request data, write a 2-3 sentence human-friendly response following the instructions of the prompt. Prompt: {prompt}\n\n{sb}";
-        }
-
-        private void LaunchWorkflowsInBackground( List<ConnectionRequest> eligibleRequests, ConnectionWorkflow connectionWorkflow, WorkflowTypeCache workflowType )
-        {
-            var requestIds = eligibleRequests.Select( r => r.Id ).ToList();
-            var connectionWorkflowId = connectionWorkflow.Id;
-            var workflowTypeId = workflowType.Id;
-            var triggerType = connectionWorkflow.TriggerType;
-            var qualifierValue = connectionWorkflow.QualifierValue;
-            var workTerm = connectionWorkflow.WorkflowType.WorkTerm;
-
-            Task.Run( () =>
-            {
-                foreach ( var requestId in requestIds )
-                {
-                    try
-                    {
-                        using ( var rockContext = new RockContext() )
-                        {
-                            var request = new ConnectionRequestService( rockContext ).Get( requestId );
-                            var wfType = WorkflowTypeCache.Get( workflowTypeId );
-                            var workflow = Rock.Model.Workflow.Activate( wfType, workTerm, rockContext );
-
-                            if ( workflow == null )
-                            {
-                                continue;
-                            }
-
-                            var bgWorkflowService = new WorkflowService( rockContext );
-
-                            if ( !bgWorkflowService.Process( workflow, request, out _ ) )
-                            {
-                                continue;
-                            }
-
-                            if ( workflow.Id != 0 )
-                            {
-                                new ConnectionRequestWorkflowService( rockContext ).Add( new ConnectionRequestWorkflow
-                                {
-                                    ConnectionRequestId = requestId,
-                                    WorkflowId = workflow.Id,
-                                    ConnectionWorkflowId = connectionWorkflowId,
-                                    TriggerType = triggerType,
-                                    TriggerQualifier = qualifierValue
-                                } );
-                            }
-
-                            rockContext.SaveChanges();
-                        }
-                    }
-                    catch ( Exception ex )
-                    {
-                        ExceptionLogService.LogException( ex );
-                    }
-                }
-            } );
         }
 
         #endregion Methods
@@ -2538,6 +2786,12 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
             return ActionOk( gridDataBag );
         }
 
+        /// <summary>
+        /// Gets the Connection Opportunity Detail Bag for the specified Connection Opportunity,
+        /// used to populate the opportunity details without a full page reload.
+        /// </summary>
+        /// <param name="connectionOpportunityGuid">The GUID of the Connection Opportunity to retrieve details for.</param>
+        /// <returns>A Block Action Result containing the <see cref="ConnectionOpportunityDetailBag"/> if found; otherwise a not found result.</returns>
         [BlockAction]
         public BlockActionResult FetchConnectionOpportunityDetails( string connectionOpportunityGuid )
         {
@@ -2559,6 +2813,16 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
             return ActionOk( bag );
         }
 
+        #region Placement Group Block Actions
+
+        /// <summary>
+        /// Gets the Placement Group Details Bag for the specified Connection Opportunity and placement
+        /// group, containing the available member roles, statuses per role, and group member attributes.
+        /// Used to populate placement group configuration in the detail panel without a full page reload.
+        /// </summary>
+        /// <param name="connectionOpportunityGuid">The GUID of the Connection Opportunity used to look up the applicable group configs.</param>
+        /// <param name="placementGroupGuid">The GUID of the placement group to retrieve role, status, and attribute details for.</param>
+        /// <returns>A Block Action Result containing the <see cref="PlacementGroupDetailsBag"/> if both the opportunity and group are found; otherwise a not found result.</returns>
         [BlockAction]
         public BlockActionResult FetchPlacementGroupDetails( string connectionOpportunityGuid, string placementGroupGuid )
         {
@@ -2616,6 +2880,12 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
             return ActionOk( bag );
         }
 
+        /// <summary>
+        /// Checks whether the specified Connection Requests meet the mandatory group requirements
+        /// of their assigned placement groups, returning the IdKeys of any requests that do not.
+        /// </summary>
+        /// <param name="connectionRequestIdKeys">The list of Connection Request IdKeys to evaluate against their assigned placement group requirements.</param>
+        /// <returns>A Block Action Result containing a list of IdKeys for the Connection Requests whose requesters do not meet one or more mandatory group requirements.</returns>
         [BlockAction]
         public BlockActionResult CheckIfRequestsMeetRequirements( List<string> connectionRequestIdKeys )
         {
@@ -2632,6 +2902,12 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
             return ActionOk( idKeysNotMeeting );
         }
 
+        /// <summary>
+        /// Checks whether a single Connection Request meets the mandatory group requirements
+        /// of its assigned placement group.
+        /// </summary>
+        /// <param name="connectionRequestIdKey">The IdKey of the Connection Request to evaluate against its assigned placement group requirements.</param>
+        /// <returns>A Block Action Result containing true if the requester meets all mandatory group requirements; otherwise false. Returns a bad request result if the IdKey cannot be resolved.</returns>
         [BlockAction]
         public BlockActionResult CheckIfRequestMeetsRequirements( string connectionRequestIdKey )
         {
@@ -2647,57 +2923,94 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
             return ActionOk( isMeetingRequirements );
         }
 
+        /// <summary>
+        /// Inserts or updates a manual Group Member Requirement, marking it as met or unmet
+        /// for the specified group member. If no existing requirement IdKey is provided, a new
+        /// requirement is created using the supplied Group Member and Group Requirement IdKeys.
+        /// Returns the saved requirement's IdKey and current state to update the client,
+        /// since a newly created requirement will not yet be present on the client.
+        /// </summary>
+        /// <param name="bag">A bag containing the optional Group Member Requirement IdKey, Group Member IdKey, Group Requirement IdKey, and whether the requirement is met.</param>
+        /// <returns>A Block Action Result containing a <see cref="GroupMemberRequirementBag"/> with the saved IdKey and updated requirement state. Returns a bad request result if the requirement cannot be found or created, or if the current user is not authorized to edit it.</returns>
         [BlockAction]
-        public BlockActionResult CheckForActiveRequest( Guid requesterPersonAliasGuid )
+        public BlockActionResult UpdateManualRequirement( UpdateGroupMemberRequirementBag bag )
         {
-            var connectionType = GetConnectionTypeCacheFromPageParameters();
-            if ( connectionType == null )
+            GroupMemberRequirement groupMemberRequirement;
+            var groupMemberRequirementService = new GroupMemberRequirementService( RockContext );
+
+            if ( bag.GroupMemberRequirementIdKey.IsNullOrWhiteSpace() )
             {
-                return ActionBadRequest( $"{Rock.Model.ConnectionType.FriendlyTypeName} not found." );
+                if ( bag.GroupMemberIdKey.IsNullOrWhiteSpace() || bag.GroupRequirementIdKey.IsNullOrWhiteSpace() )
+                {
+                    return ActionBadRequest( $"{Rock.Model.GroupMemberRequirement.FriendlyTypeName} not found." );
+                }
+
+                groupMemberRequirement = new GroupMemberRequirement
+                {
+                    GroupMemberId = IdHasher.Instance.GetId( bag.GroupMemberIdKey ).Value,
+                    GroupRequirementId = IdHasher.Instance.GetId( bag.GroupRequirementIdKey ).Value,
+                };
+
+                groupMemberRequirementService.Add( groupMemberRequirement );
+            }
+            else
+            {
+                groupMemberRequirement = groupMemberRequirementService.Get( bag.GroupMemberRequirementIdKey, !PageCache.Layout.Site.DisablePredictableIds );
+                if ( groupMemberRequirement == null )
+                {
+                    return ActionBadRequest( $"{Rock.Model.GroupMemberRequirement.FriendlyTypeName} not found." );
+                }
             }
 
-            var hasActiveRequests = new ConnectionRequestService( RockContext ).Queryable().Any( cr => cr.ConnectionState == ConnectionState.Active
-                && cr.ConnectionTypeId == connectionType.Id
-                && cr.PersonAlias.Guid == requesterPersonAliasGuid );
+            if ( !groupMemberRequirement.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson ) )
+            {
+                return ActionBadRequest( "You are not authorized to edit this Group Member Requirement." );
+            }
 
-            return ActionOk( hasActiveRequests );
+            groupMemberRequirement.WasManuallyCompleted = bag.IsMet;
+
+            if ( bag.IsMet )
+            {
+                groupMemberRequirement.ManuallyCompletedByPersonAliasId = RequestContext.CurrentPerson.PrimaryAliasId;
+                groupMemberRequirement.ManuallyCompletedDateTime = RockDateTime.Now;
+                groupMemberRequirement.RequirementMetDateTime = RockDateTime.Now;
+            }
+            else
+            {
+                groupMemberRequirement.ManuallyCompletedByPersonAliasId = null;
+                groupMemberRequirement.ManuallyCompletedDateTime = null;
+                groupMemberRequirement.RequirementMetDateTime = null;
+            }
+
+            RockContext.SaveChanges();
+
+            // We'll need to return the new state along with the group member requirement id key because it may have just been created, and therfore not present on the client.
+            var result = new GroupMemberRequirementBag
+            {
+                GroupMemberRequirementIdKey = groupMemberRequirement.IdKey,
+                GroupMemberRequirementState = groupMemberRequirement.GroupMemberRequirementState
+            };
+
+            return ActionOk( result );
         }
 
-        [BlockAction]
-        public BlockActionResult SaveConnectionRequest( ValidPropertiesBox<ConnectionRequestBag> box )
-        {
-            if ( !TryGetEntityForEditAction( box.Bag.IdKey, out var entity, out var actionError ) )
-            {
-                return actionError;
-            }
+        #endregion Placement Group Block Actions
 
-            var isInEditMode = entity.Id != 0;
+        #region Bulk Update Block Actions
 
-            // Update the entity instance from the information in the bag.
-            if ( !UpdateEntityFromBox( entity, box ) )
-            {
-                return ActionBadRequest( "Invalid data." );
-            }
-
-            // TODO - Fix this to use a campus picker
-            // If there is a campus filter then set the new Connection Request to that campus.
-            var campusContext = RequestContext.GetContextEntity<Campus>();
-            if ( campusContext != null )
-            {
-                entity.CampusId = campusContext.Id;
-            }
-
-            RockContext.WrapTransaction( () =>
-            {
-                RockContext.SaveChanges();
-                entity.SaveAttributeValues( RockContext );
-            } );
-
-            var updateBox = GetConnectionListUpdateBox( entity.Id, isInEditMode );
-
-            return ActionOk( updateBox );
-        }
-
+        /// <summary>
+        /// Reassigns the connector for a list of Connection Requests to the specified person,
+        /// or clears the connector if no valid Person Alias GUID is provided.
+        /// Returns updated grid data for each affected request to refresh the UI without a full page reload.
+        /// </summary>
+        /// <remarks>
+        /// Bulk update is intentionally avoided here so that each Connection Request's save hook
+        /// logic is executed individually during the save.
+        /// </remarks>
+        /// <param name="connectionRequestIdKeys">The list of IdKeys of the Connection Requests to reassign.</param>
+        /// <param name="connectorPersonAliasGuid">The GUID of the Person Alias to assign as the new connector, or an empty/invalid GUID to clear the connector.</param>
+        /// <param name="connectionTypeIdKey">An optional Connection Type IdKey used to resolve the Connection Type, in addition to the standard page parameter resolution.</param>
+        /// <returns>A Block Action Result containing a list of <see cref="ConnectionListGridUpdateBag"/> objects to refresh the connector columns in the grid. Returns a bad request result if the Connection Type cannot be resolved or the current user lacks edit permissions.</returns>
         [BlockAction]
         public BlockActionResult ReassignConnector( List<string> connectionRequestIdKeys, string connectorPersonAliasGuid, string connectionTypeIdKey = null )
         {
@@ -2737,24 +3050,39 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
                 };
             }
 
-                // Can't use Bulk Update becase we need the Save Hook logic to run.
-                foreach ( var connectionRequest in connectionRequests )
-                {
-                    connectionRequest.ConnectorPersonAliasId = newConnectorPersonAlias?.Id;
+            // Can't use Bulk Update becase we need the Save Hook logic to run.
+            foreach ( var connectionRequest in connectionRequests )
+            {
+                connectionRequest.ConnectorPersonAliasId = newConnectorPersonAlias?.Id;
 
-                    gridUpdateBags.Add( new ConnectionListGridUpdateBag
-                    {
-                        IdKey = connectionRequest.IdKey,
-                        ConnectorGrouping = GetGroupingFieldBag( newConnectorPersonAlias?.Id, "person", newConnectorPersonAlias?.Person?.FullName, null, null, newConnectorPersonAlias?.Person?.PhotoUrl ),
-                        ConnectorDetails = connectorItem
-                    } );
-                }
+                gridUpdateBags.Add( new ConnectionListGridUpdateBag
+                {
+                    IdKey = connectionRequest.IdKey,
+                    ConnectorGrouping = GetGroupingFieldBag( newConnectorPersonAlias?.Id, "person", newConnectorPersonAlias?.Person?.FullName, null, null, newConnectorPersonAlias?.Person?.PhotoUrl ),
+                    ConnectorDetails = connectorItem
+                } );
+            }
 
             RockContext.SaveChanges();
 
             return ActionOk( gridUpdateBags );
         }
 
+        /// <summary>
+        /// Updates the statuses of a list of Connection Requests, and optionally marks a separate
+        /// list of requests as Connected (completed). For completed requests, placement group
+        /// assignment is attempted and the connection state is set to Connected. For status updates,
+        /// the new status is validated and a note is required if the current status mandates it.
+        /// Returns updated grid data for all affected requests to refresh the UI without a full page reload.
+        /// </summary>
+        /// <remarks>
+        /// Both status update and completion requests are authorized together in a single edit
+        /// permission check before any changes are applied. Completed requests are processed first
+        /// in the loop via a continue, skipping the status update logic for those requests.
+        /// </remarks>
+        /// <param name="statusUpdateBags">A list of status update bags, each pairing a Connection Request IdKey with its new status GUID and an optional note.</param>
+        /// <param name="completedRequestIdKeys">A list of Connection Request IdKeys to mark as Connected (completed), triggering placement group assignment if configured.</param>
+        /// <returns>A Block Action Result containing a list of <see cref="ConnectionListGridUpdateBag"/> objects to refresh the state, status, and due status columns in the grid. Returns a bad request result if the Connection Type cannot be resolved, the user lacks edit permissions, a required note is missing, or placement group assignment fails.</returns>
         [BlockAction]
         public BlockActionResult UpdateRequestStatuses( List<ConnectionRequestUpdateBag> statusUpdateBags, List<string> completedRequestIdKeys )
         {
@@ -2884,66 +3212,16 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
             return ActionOk( gridUpdateBags );
         }
 
-        [BlockAction]
-        public BlockActionResult ChangeRequestStatus( ConnectionRequestUpdateBag bag, string connectionTypeIdKey = null )
-        {
-            ConnectionTypeCache connectionType = GetConnectionTypeCacheFromPageParameters( connectionTypeIdKey );
-            if ( connectionType == null )
-            {
-                return ActionBadRequest( $"{Rock.Model.ConnectionType.FriendlyTypeName} not found." );
-            }
-
-            var canEditRequest = CanEditConnectionRequest( connectionType, bag.ConnectionRequestIdKey, out var connectionRequest, out var actionError );
-
-            if ( !canEditRequest )
-            {
-                return actionError;
-            }
-
-            var connectionRequestStatus = new ConnectionStatusService( RockContext ).Get( bag.ConnectionStatusGuid );
-            if ( connectionRequestStatus == null || connectionRequestStatus.ConnectionTypeId != connectionRequest.ConnectionTypeId )
-            {
-                return ActionBadRequest( "Invalid Connection Status" );
-            }
-
-            if ( connectionRequest.ConnectionStatus.IsNoteRequiredOnCompletion && bag.Note.IsNullOrWhiteSpace() )
-            {
-                return ActionBadRequest( "A note is required." );
-            }
-
-            // Save status history for previous status
-
-            var connectionRequestStatusHistoryService = new ConnectionRequestStatusHistoryService( RockContext );
-
-            // Update to new status
-            connectionRequest.ConnectionStatusId = connectionRequestStatus.Id;
-            connectionRequest.ConnectionStatusHistoryNote = bag.Note;
-
-            RockContext.SaveChanges();
-
-            var dueStatus = GetDueStatus( connectionRequest.DueDate, connectionRequest.DueSoonDate );
-
-            var gridUpdateBag = new ConnectionListGridUpdateBag
-            {
-                IdKey = connectionRequest.IdKey,
-                StatusGrouping = GetGroupingFieldBag( connectionRequestStatus.Id, "text", connectionRequestStatus.Name, connectionRequestStatus.Order ),
-                ConnectionStatusBag = new ConnectionStatusBag
-                {
-                    Guid = connectionRequestStatus.Guid,
-                    Order = connectionRequestStatus.Order,
-                    Name = connectionRequestStatus.Name,
-                    HighlightColor = connectionRequestStatus.HighlightColor,
-                    IsNoteRequiredOnCompletion = connectionRequestStatus.IsNoteRequiredOnCompletion
-                },
-                DueStatusGrouping = GetGroupingFieldBag( ( int ) dueStatus, "text", dueStatus.ToString(), dueStatus.GetOrder(), "ti ti-calendar", null, GetDueStatusTextColorCssClass( dueStatus ) ),
-                DueStatus = dueStatus,
-                DueDate = connectionRequest.DueDate,
-                DueSoonDate = connectionRequest.DueSoonDate
-            };
-
-            return ActionOk( gridUpdateBag );
-        }
-
+        /// <summary>
+        /// Updates the connection state of one or more Connection Requests to the specified state.
+        /// For Future Follow-Up transitions, a follow-up date is required. For Connected (completed)
+        /// transitions, placement group assignment is attempted if a group is configured, and a
+        /// placement group is required if the Connection Type mandates it.
+        /// Returns updated grid data for all affected requests to refresh the UI without a full page reload.
+        /// </summary>
+        /// <param name="bag">A bag containing the target Connection State, the list of Connection Request IdKeys to update, an optional follow-up date, and optional group member requirements for placement validation.</param>
+        /// <param name="connectionTypeIdKey">An optional Connection Type IdKey used to resolve the Connection Type, in addition to the standard page parameter resolution.</param>
+        /// <returns>A Block Action Result containing a list of <see cref="ConnectionListGridUpdateBag"/> objects to refresh the state and follow-up date columns in the grid. Returns a bad request result if the Connection Type cannot be resolved, the user lacks edit permissions, a required follow-up date is missing, a required placement group is not assigned, or placement group assignment fails.</returns>
         [BlockAction]
         public BlockActionResult UpdateRequestStates( UpdateConnectionRequestStatesBag bag, string connectionTypeIdKey = null )
         {
@@ -3009,34 +3287,14 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
             return ActionOk( gridUpdateBags );
         }
 
-        [BlockAction]
-        public BlockActionResult UpsertCelebrationText( UpsertCelebrationBag bag, string connectionTypeIdKey = null )
-        {
-            ConnectionTypeCache connectionType = GetConnectionTypeCacheFromPageParameters( connectionTypeIdKey );
-            if ( connectionType == null )
-            {
-                return ActionBadRequest( $"{Rock.Model.ConnectionType.FriendlyTypeName} not found." );
-            }
-
-            var canEditRequest = CanEditConnectionRequest( connectionType, bag.ConnectionRequestIdKey, out var connectionRequest, out var actionError );
-
-            if ( !canEditRequest )
-            {
-                return actionError;
-            }
-
-            connectionRequest.CelebrationText = bag.CelebrationText;
-
-            var gridUpdateBag = new ConnectionListGridUpdateBag
-            {
-                IdKey = connectionRequest.IdKey,
-                CelebrationText = connectionRequest.CelebrationText
-            };
-
-            RockContext.SaveChanges();
-            return ActionOk( gridUpdateBag );
-        }
-
+        /// <summary>
+        /// Deletes the specified Connection Requests after verifying that the current user
+        /// has edit permissions for each request and that each request is eligible for deletion.
+        /// Activities are deleted alongside each request within a wrapped transaction.
+        /// </summary>
+        /// <param name="connectionRequestIdKeys">The list of IdKeys of the Connection Requests to delete.</param>
+        /// <param name="connectionTypeIdKey">An optional Connection Type IdKey used to resolve the Connection Type, in addition to the standard page parameter resolution.</param>
+        /// <returns>A Block Action Result indicating success if all requests were deleted. Returns a bad request result if the Connection Type cannot be resolved, the user lacks edit permissions, or any request cannot be deleted.</returns>
         [BlockAction]
         public BlockActionResult DeleteRequests( List<string> connectionRequestIdKeys, string connectionTypeIdKey = null )
         {
@@ -3073,6 +3331,22 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
             return ActionOk();
         }
 
+        /// <summary>
+        /// Adds a Connection Request Activity to one or more Connection Requests, optionally
+        /// creating a Person Note on the requester if the selected activity type requires it
+        /// or the user has opted in. Returns updated grid data to refresh the activity count
+        /// and last activity date columns without a full page reload.
+        /// </summary>
+        /// <remarks>
+        /// Person Note creation is driven by the activity type's <see cref="PersonNoteCreationBehavior"/>:
+        /// notes are always created if set to <see cref="PersonNoteCreationBehavior.AlwaysCreateAPersonNote"/>,
+        /// and conditionally created if set to <see cref="PersonNoteCreationBehavior.AskAtActivityCreation"/>
+        /// based on the <see cref="ActivityBag.AddPersonNote"/> flag. A Person Note Type must be configured
+        /// on the activity type if note creation is required.
+        /// </remarks>
+        /// <param name="bag">A bag containing the activity type, connector, note text, optional person note flag, and the list of Connection Request IdKeys to add the activity to.</param>
+        /// <param name="connectionTypeIdKey">An optional Connection Type IdKey used to resolve the Connection Type, in addition to the standard page parameter resolution.</param>
+        /// <returns>A Block Action Result containing a list of <see cref="ConnectionListGridUpdateBag"/> objects to refresh the activity count and last activity date columns in the grid. Returns a bad request result if the Connection Type cannot be resolved, the user lacks edit permissions, the activity type is invalid, or a required Person Note Type is not configured.</returns>
         [BlockAction]
         public BlockActionResult AddActivityForRequests( ActivityBag bag, string connectionTypeIdKey = null )
         {
@@ -3145,78 +3419,22 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
             return ActionOk( gridUpdateBags );
         }
 
-        [BlockAction]
-        public BlockActionResult UpdateActivity( ActivityBag bag, string connectionTypeIdKey = null )
-        {
-            ConnectionTypeCache connectionType = GetConnectionTypeCacheFromPageParameters( connectionTypeIdKey );
-            if ( connectionType == null )
-            {
-                return ActionBadRequest( $"{Rock.Model.ConnectionType.FriendlyTypeName} not found." );
-            }
-
-            var canEditRequest = CanEditConnectionRequests( connectionType, bag.ConnectionRequestIdKeys, out var connectionRequests, out var actionError );
-
-            if ( !canEditRequest )
-            {
-                return actionError;
-            }
-
-            var activityService = new ConnectionRequestActivityService( RockContext );
-
-            var activity = activityService.Get( bag.ActivityIdKey, !PageCache.Layout.Site.DisablePredictableIds );
-            if ( activity == null )
-            {
-                return ActionBadRequest( $"{ConnectionRequestActivity.FriendlyTypeName} not found." );
-            }
-
-            if ( !activity.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson ) )
-            {
-                return ActionBadRequest( "You are not authorized to edit this Activity." );
-            }
-
-            var activityType = new ConnectionActivityTypeService( RockContext ).Get( bag.ActivityTypeGuid.AsGuid() );
-            if ( activityType == null )
-            {
-                return ActionBadRequest( "Invalid Activity Type." );
-            }
-
-            var connectorPersonAlias = bag.ConnectorPersonAliasGuid.IsNullOrWhiteSpace()
-                ? null
-                : new PersonAliasService( RockContext ).GetInclude( bag.ConnectorPersonAliasGuid.AsGuid(), c => c.Person );
-
-            activity.Note = bag.Note;
-            activity.ConnectorPersonAliasId = connectorPersonAlias?.Id;
-
-            // The activity type can only be updated if it is not a "system activity type"
-            if ( activity.ConnectionActivityType != null && activity.ConnectionActivityType.ConnectionTypeId.HasValue )
-            {
-                activity.ConnectionActivityTypeId = activityType.Id;
-            }
-
-            RockContext.SaveChanges();
-
-            var updatedEntry = new ActivityEntryBag
-            {
-                Key = $"{ActivityEntryType.Activity}_{bag.ActivityIdKey}",
-                EntryType = ActivityEntryType.Activity,
-                EntryDateTime = activity.ModifiedDateTime?.ToRockDateTimeOffset(),
-                CreatedBy = activity.CreatedByPersonAlias?.Person?.FullName,
-                CardEntry = new CardEntryBag
-                {
-                    Title = string.Format( "Activity: {0}", activityType.Name ),
-                    Content = bag.Note,
-                    PhotoUrl = activity.CreatedByPersonAlias?.Person?.PhotoUrl,
-
-                    ActivityTypeGuid = activityType.Guid.ToString(),
-                    ActivityTypeName = activityType.Name,
-                    IsSystemActivityType = activityType.ConnectionTypeId == null,
-                    ConnectorPersonAliasGuid = connectorPersonAlias?.Guid.ToString()
-                }
-            };
-
-            return ActionOk( updatedEntry );
-        }
-
+        /// <summary>
+        /// Launches a manual Connection Workflow for one or more Connection Requests.
+        /// For a single request, the workflow is processed synchronously and a workflow
+        /// entry form URL is returned if the activated workflow has an active entry form.
+        /// For multiple requests, eligible requests are processed in a background thread
+        /// via <see cref="LaunchWorkflowsInBackground"/>. In both cases, requests are
+        /// pre-filtered for eligibility against the workflow's include and exclude Data Views.
+        /// </summary>
+        /// <remarks>
+        /// Only workflows with a Manual trigger type and an active Workflow Type are permitted.
+        /// If none of the provided requests are eligible after Data View filtering, a status
+        /// message is returned without launching any workflows.
+        /// </remarks>
+        /// <param name="bag">A bag containing the Connection Workflow GUID and the list of Connection Request IdKeys to launch the workflow for.</param>
+        /// <param name="connectionTypeIdKey">An optional Connection Type IdKey used to resolve the Connection Type, in addition to the standard page parameter resolution.</param>
+        /// <returns>A Block Action Result containing a <see cref="LaunchWorkflowResultBag"/> with a status message and, for single requests with an active entry form, a workflow entry page URL. Returns a bad request result if the Connection Type cannot be resolved, the workflow is invalid or inactive, the trigger type is not manual, or the current user is not authorized to view the workflow type.</returns>
         [BlockAction]
         public BlockActionResult LaunchWorkflowForRequests( LaunchWorkflowBag bag, string connectionTypeIdKey = null )
         {
@@ -3339,6 +3557,270 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
             return ActionOk( launchWorkflowResultBag );
         }
 
+        #endregion Bulk Update Block Actions
+
+        /// <summary>
+        /// Checks whether the specified person has any active Connection Requests
+        /// within the Connection Type resolved from the current page parameters.
+        /// </summary>
+        /// <param name="requesterPersonAliasGuid">The GUID of the Person Alias to check for active Connection Requests.</param>
+        /// <returns>A Block Action Result containing true if the person has at least one active Connection Request for the resolved Connection Type; otherwise false. Returns a bad request result if the Connection Type cannot be resolved.</returns>
+        [BlockAction]
+        public BlockActionResult CheckForActiveRequest( Guid requesterPersonAliasGuid )
+        {
+            var connectionType = GetConnectionTypeCacheFromPageParameters();
+            if ( connectionType == null )
+            {
+                return ActionBadRequest( $"{Rock.Model.ConnectionType.FriendlyTypeName} not found." );
+            }
+
+            var hasActiveRequests = new ConnectionRequestService( RockContext ).Queryable().Any( cr => cr.ConnectionState == ConnectionState.Active
+                && cr.ConnectionTypeId == connectionType.Id
+                && cr.PersonAlias.Guid == requesterPersonAliasGuid );
+
+            return ActionOk( hasActiveRequests );
+        }
+
+        /// <summary>
+        /// Saves a Connection Request from the provided valid properties box, handling both
+        /// creation of new requests and updates to existing ones. If a campus context is present
+        /// on the page, it is applied to new requests. After saving, a Connection List Update Box
+        /// is returned to refresh the grid row and, for existing requests, the detail panel.
+        /// </summary>
+        /// <param name="box">A valid properties box containing the Connection Request Bag with the data to save.</param>
+        /// <returns>A Block Action Result containing a <see cref="ConnectionListUpdateBox"/> to update the UI without a full page reload. Returns a bad request result if the entity cannot be found or the provided data is invalid.</returns>
+        [BlockAction]
+        public BlockActionResult SaveConnectionRequest( ValidPropertiesBox<ConnectionRequestBag> box )
+        {
+            if ( !TryGetEntityForEditAction( box.Bag.IdKey, out var entity, out var actionError ) )
+            {
+                return actionError;
+            }
+
+            var isInEditMode = entity.Id != 0;
+
+            // Update the entity instance from the information in the bag.
+            if ( !UpdateEntityFromBox( entity, box ) )
+            {
+                return ActionBadRequest( "Invalid data." );
+            }
+
+            // TODO - Fix this to use a campus picker
+            // If there is a campus filter then set the new Connection Request to that campus.
+            var campusContext = RequestContext.GetContextEntity<Campus>();
+            if ( campusContext != null )
+            {
+                entity.CampusId = campusContext.Id;
+            }
+
+            RockContext.WrapTransaction( () =>
+            {
+                RockContext.SaveChanges();
+                entity.SaveAttributeValues( RockContext );
+            } );
+
+            var updateBox = GetConnectionListUpdateBox( entity.Id, isInEditMode );
+
+            return ActionOk( updateBox );
+        }
+
+        /// <summary>
+        /// Updates the status of a single Connection Request, validating that the new status
+        /// belongs to the same Connection Type and that a note is provided if the current
+        /// status requires one. Returns updated grid data to refresh the request's status
+        /// and due status columns without a full page reload.
+        /// </summary>
+        /// <param name="bag">A status update bag containing the Connection Request IdKey, the new status GUID, and an optional note.</param>
+        /// <param name="connectionTypeIdKey">An optional Connection Type IdKey used to resolve the Connection Type, in addition to the standard page parameter resolution.</param>
+        /// <returns>A Block Action Result containing a <see cref="ConnectionListGridUpdateBag"/> to refresh the status and due status columns in the grid. Returns a bad request result if the Connection Type cannot be resolved, the user lacks edit permissions, the status is invalid, or a required note is missing.</returns>
+        [BlockAction]
+        public BlockActionResult ChangeRequestStatus( ConnectionRequestUpdateBag bag, string connectionTypeIdKey = null )
+        {
+            ConnectionTypeCache connectionType = GetConnectionTypeCacheFromPageParameters( connectionTypeIdKey );
+            if ( connectionType == null )
+            {
+                return ActionBadRequest( $"{Rock.Model.ConnectionType.FriendlyTypeName} not found." );
+            }
+
+            var canEditRequest = CanEditConnectionRequest( connectionType, bag.ConnectionRequestIdKey, out var connectionRequest, out var actionError );
+
+            if ( !canEditRequest )
+            {
+                return actionError;
+            }
+
+            var connectionRequestStatus = new ConnectionStatusService( RockContext ).Get( bag.ConnectionStatusGuid );
+            if ( connectionRequestStatus == null || connectionRequestStatus.ConnectionTypeId != connectionRequest.ConnectionTypeId )
+            {
+                return ActionBadRequest( "Invalid Connection Status" );
+            }
+
+            if ( connectionRequest.ConnectionStatus.IsNoteRequiredOnCompletion && bag.Note.IsNullOrWhiteSpace() )
+            {
+                return ActionBadRequest( "A note is required." );
+            }
+
+            // Save status history for previous status
+
+            var connectionRequestStatusHistoryService = new ConnectionRequestStatusHistoryService( RockContext );
+
+            // Update to new status
+            connectionRequest.ConnectionStatusId = connectionRequestStatus.Id;
+            connectionRequest.ConnectionStatusHistoryNote = bag.Note;
+
+            RockContext.SaveChanges();
+
+            var dueStatus = GetDueStatus( connectionRequest.DueDate, connectionRequest.DueSoonDate );
+
+            var gridUpdateBag = new ConnectionListGridUpdateBag
+            {
+                IdKey = connectionRequest.IdKey,
+                StatusGrouping = GetGroupingFieldBag( connectionRequestStatus.Id, "text", connectionRequestStatus.Name, connectionRequestStatus.Order ),
+                ConnectionStatusBag = new ConnectionStatusBag
+                {
+                    Guid = connectionRequestStatus.Guid,
+                    Order = connectionRequestStatus.Order,
+                    Name = connectionRequestStatus.Name,
+                    HighlightColor = connectionRequestStatus.HighlightColor,
+                    IsNoteRequiredOnCompletion = connectionRequestStatus.IsNoteRequiredOnCompletion
+                },
+                DueStatusGrouping = GetGroupingFieldBag( ( int ) dueStatus, "text", dueStatus.ToString(), dueStatus.GetOrder(), "ti ti-calendar", null, GetDueStatusTextColorCssClass( dueStatus ) ),
+                DueStatus = dueStatus,
+                DueDate = connectionRequest.DueDate,
+                DueSoonDate = connectionRequest.DueSoonDate
+            };
+
+            return ActionOk( gridUpdateBag );
+        }
+
+        /// <summary>
+        /// Inserts or updates the celebration text on a single Connection Request.
+        /// Returns updated grid data to refresh the celebration text column
+        /// without a full page reload.
+        /// </summary>
+        /// <param name="bag">A bag containing the Connection Request IdKey and the celebration text to save.</param>
+        /// <param name="connectionTypeIdKey">An optional Connection Type IdKey used to resolve the Connection Type, in addition to the standard page parameter resolution.</param>
+        /// <returns>A Block Action Result containing a <see cref="ConnectionListGridUpdateBag"/> to refresh the celebration text column in the grid. Returns a bad request result if the Connection Type cannot be resolved or the user lacks edit permissions.</returns>
+        [BlockAction]
+        public BlockActionResult UpsertCelebrationText( UpsertCelebrationBag bag, string connectionTypeIdKey = null )
+        {
+            ConnectionTypeCache connectionType = GetConnectionTypeCacheFromPageParameters( connectionTypeIdKey );
+            if ( connectionType == null )
+            {
+                return ActionBadRequest( $"{Rock.Model.ConnectionType.FriendlyTypeName} not found." );
+            }
+
+            var canEditRequest = CanEditConnectionRequest( connectionType, bag.ConnectionRequestIdKey, out var connectionRequest, out var actionError );
+
+            if ( !canEditRequest )
+            {
+                return actionError;
+            }
+
+            connectionRequest.CelebrationText = bag.CelebrationText;
+
+            var gridUpdateBag = new ConnectionListGridUpdateBag
+            {
+                IdKey = connectionRequest.IdKey,
+                CelebrationText = connectionRequest.CelebrationText
+            };
+
+            RockContext.SaveChanges();
+            return ActionOk( gridUpdateBag );
+        }
+
+        /// <summary>
+        /// Updates an existing Connection Request Activity's note, connector, and activity type.
+        /// The activity type may only be changed if it is not a system activity type.
+        /// Returns an updated activity entry bag to refresh the activity in the detail panel
+        /// without a full page reload.
+        /// </summary>
+        /// <remarks>
+        /// Edit authorization is checked both at the Connection Request level via
+        /// <see cref="CanEditConnectionRequests"/> and at the activity level via Rock's
+        /// standard authorization check, requiring both to pass before any changes are applied.
+        /// </remarks>
+        /// <param name="bag">A bag containing the Activity IdKey, updated note, connector Person Alias GUID, activity type GUID, and the associated Connection Request IdKeys.</param>
+        /// <param name="connectionTypeIdKey">An optional Connection Type IdKey used to resolve the Connection Type, in addition to the standard page parameter resolution.</param>
+        /// <returns>A Block Action Result containing an updated <see cref="ActivityEntryBag"/> to refresh the activity entry in the detail panel. Returns a bad request result if the Connection Type cannot be resolved, the user lacks edit permissions on the request or activity, the activity cannot be found, or the activity type is invalid.</returns>
+        [BlockAction]
+        public BlockActionResult UpdateActivity( ActivityBag bag, string connectionTypeIdKey = null )
+        {
+            ConnectionTypeCache connectionType = GetConnectionTypeCacheFromPageParameters( connectionTypeIdKey );
+            if ( connectionType == null )
+            {
+                return ActionBadRequest( $"{Rock.Model.ConnectionType.FriendlyTypeName} not found." );
+            }
+
+            var canEditRequest = CanEditConnectionRequests( connectionType, bag.ConnectionRequestIdKeys, out var connectionRequests, out var actionError );
+
+            if ( !canEditRequest )
+            {
+                return actionError;
+            }
+
+            var activityService = new ConnectionRequestActivityService( RockContext );
+
+            var activity = activityService.Get( bag.ActivityIdKey, !PageCache.Layout.Site.DisablePredictableIds );
+            if ( activity == null )
+            {
+                return ActionBadRequest( $"{ConnectionRequestActivity.FriendlyTypeName} not found." );
+            }
+
+            if ( !activity.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson ) )
+            {
+                return ActionBadRequest( "You are not authorized to edit this Activity." );
+            }
+
+            var activityType = new ConnectionActivityTypeService( RockContext ).Get( bag.ActivityTypeGuid.AsGuid() );
+            if ( activityType == null )
+            {
+                return ActionBadRequest( "Invalid Activity Type." );
+            }
+
+            var connectorPersonAlias = bag.ConnectorPersonAliasGuid.IsNullOrWhiteSpace()
+                ? null
+                : new PersonAliasService( RockContext ).GetInclude( bag.ConnectorPersonAliasGuid.AsGuid(), c => c.Person );
+
+            activity.Note = bag.Note;
+            activity.ConnectorPersonAliasId = connectorPersonAlias?.Id;
+
+            // The activity type can only be updated if it is not a "system activity type"
+            if ( activity.ConnectionActivityType != null && activity.ConnectionActivityType.ConnectionTypeId.HasValue )
+            {
+                activity.ConnectionActivityTypeId = activityType.Id;
+            }
+
+            RockContext.SaveChanges();
+
+            var updatedEntry = new ActivityEntryBag
+            {
+                Key = $"{ActivityEntryType.Activity}_{bag.ActivityIdKey}",
+                EntryType = ActivityEntryType.Activity,
+                EntryDateTime = activity.CreatedDateTime?.ToRockDateTimeOffset(),
+                CreatedBy = activity.CreatedByPersonAlias?.Person?.FullName,
+                CardEntry = new CardEntryBag
+                {
+                    Title = string.Format( "Activity: {0}", activityType.Name ),
+                    Content = bag.Note,
+                    PhotoUrl = activity.CreatedByPersonAlias?.Person?.PhotoUrl,
+
+                    ActivityTypeGuid = activityType.Guid.ToString(),
+                    ActivityTypeName = activityType.Name,
+                    IsSystemActivityType = activityType.ConnectionTypeId == null,
+                    ConnectorPersonAliasGuid = connectorPersonAlias?.Guid.ToString()
+                }
+            };
+
+            return ActionOk( updatedEntry );
+        }
+
+        /// <summary>
+        /// Gets the active Campaign Connection items available to the current user,
+        /// partitioned by Connection Opportunity GUID. Only campaigns associated with
+        /// opportunities where the current user is a connector group member are returned.
+        /// </summary>
+        /// <returns>A Block Action Result containing a dictionary of Connection Opportunity GUIDs mapped to their list of <see cref="ConnectionCampaignBag"/> objects, each including the pending request count and default daily limit. Returns an empty OK result if the Connection Type cannot be resolved.</returns>
         [BlockAction]
         public BlockActionResult FetchConnectionCampaigns()
         {
@@ -3384,6 +3866,13 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
             return ActionOk( opportunityPartitionedCampaigns );
         }
 
+        /// <summary>
+        /// Assigns Connection Requests from a Campaign Connection item to the current user,
+        /// updating existing unassigned requests and creating new ones as needed via
+        /// <see cref="CampaignConnectionHelper.AddConnectionRequestsForPerson"/> up to the requested count.
+        /// </summary>
+        /// <param name="bag">A bag containing the Campaign Connection GUID and the number of requests to assign to the current user.</param>
+        /// <returns>A Block Action Result indicating success once the requests have been assigned. Returns null if the specified campaign cannot be found.</returns>
         [BlockAction]
         public BlockActionResult AssignConnectionRequestsFromCampaign( AssignFromCampaignBag bag )
         {
@@ -3410,6 +3899,12 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
 
         #region Detail View Block Actions
 
+        /// <summary>
+        /// Gets the Connection Request Detail Box for the specified Connection Request,
+        /// used to populate the request detail panel without a full page reload.
+        /// </summary>
+        /// <param name="connectionRequestIdKey">The IdKey of the Connection Request to retrieve details for.</param>
+        /// <returns>A Block Action Result containing the <see cref="ConnectionRequestDetailBox"/> if the request is found and the current user is authorized to view it; otherwise a bad request result.</returns>
         [BlockAction]
         public BlockActionResult GetConnectionRequestDetails( string connectionRequestIdKey )
         {
@@ -3480,68 +3975,16 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
             return ActionOk( new GetAiSummaryResponseBag { Summary = summary } );
         }
 
-        [BlockAction]
-        public BlockActionResult UpdateManualRequirement( UpdateGroupMemberRequirementBag bag )
-        {
-            GroupMemberRequirement groupMemberRequirement;
-            var groupMemberRequirementService = new GroupMemberRequirementService( RockContext );
-
-            if ( bag.GroupMemberRequirementIdKey.IsNullOrWhiteSpace() )
-            {
-                if ( bag.GroupMemberIdKey.IsNullOrWhiteSpace() || bag.GroupRequirementIdKey.IsNullOrWhiteSpace() )
-                {
-                    return ActionBadRequest( $"{Rock.Model.GroupMemberRequirement.FriendlyTypeName} not found." );
-                }
-
-                groupMemberRequirement = new GroupMemberRequirement
-                {
-                    GroupMemberId = IdHasher.Instance.GetId( bag.GroupMemberIdKey ).Value,
-                    GroupRequirementId = IdHasher.Instance.GetId( bag.GroupRequirementIdKey ).Value,
-                };
-
-                groupMemberRequirementService.Add( groupMemberRequirement );
-            }
-            else
-            {
-                groupMemberRequirement = groupMemberRequirementService.Get( bag.GroupMemberRequirementIdKey, !PageCache.Layout.Site.DisablePredictableIds );
-                if ( groupMemberRequirement == null )
-                {
-                    return ActionBadRequest( $"{Rock.Model.GroupMemberRequirement.FriendlyTypeName} not found." );
-                }
-            }
-
-            if ( !groupMemberRequirement.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson ) )
-            {
-                return ActionBadRequest( "You are not authorized to edit this Group Member Requirement." );
-            }
-
-            groupMemberRequirement.WasManuallyCompleted = bag.IsMet;
-
-            if ( bag.IsMet )
-            {
-                groupMemberRequirement.ManuallyCompletedByPersonAliasId = RequestContext.CurrentPerson.PrimaryAliasId;
-                groupMemberRequirement.ManuallyCompletedDateTime = RockDateTime.Now;
-                groupMemberRequirement.RequirementMetDateTime = RockDateTime.Now;
-            }
-            else
-            {
-                groupMemberRequirement.ManuallyCompletedByPersonAliasId = null;
-                groupMemberRequirement.ManuallyCompletedDateTime = null;
-                groupMemberRequirement.RequirementMetDateTime = null;
-            }
-
-            RockContext.SaveChanges();
-
-            // We'll need to return the new state along with the group member requirement id key because it may have just been created, and therfore not present on the client.
-            var result = new GroupMemberRequirementBag
-            {
-                GroupMemberRequirementIdKey = groupMemberRequirement.IdKey,
-                GroupMemberRequirementState = groupMemberRequirement.GroupMemberRequirementState
-            };
-            
-            return ActionOk( result );
-        }
-
+        /// <summary>
+        /// Inserts or updates a Connection Request Note. If no Note IdKey is provided, a new note
+        /// is created on the Connection Request for the current user. If an existing Note IdKey is
+        /// provided, that note is updated. Edit authorization is checked on both the note and the
+        /// Connection Request before any changes are applied.
+        /// Returns an updated activity entry bag to add or refresh the note in the activity feed
+        /// without a full page reload.
+        /// </summary>
+        /// <param name="bag">A bag containing the Connection Request IdKey, optional Note IdKey, and the note text to save.</param>
+        /// <returns>A Block Action Result containing an <see cref="ActivityEntryBag"/> representing the saved note for display in the activity feed. Returns a bad request result if the Connection Request or Note cannot be found, or if the current user is not authorized to view the request or edit the note.</returns>
         [BlockAction]
         public BlockActionResult SaveNote( ConnectionRequestNoteBag bag )
         {
@@ -3601,7 +4044,7 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
             {
                 Key = $"{ActivityEntryType.RequestNote}_{IdHasher.Instance.GetHash( note.Id )}",
                 EntryType = ActivityEntryType.RequestNote,
-                EntryDateTime = note.ModifiedDateTime?.ToRockDateTimeOffset(),
+                EntryDateTime = note.CreatedDateTime?.ToRockDateTimeOffset(),
                 CreatedBy = note.CreatedByPersonName,
                 CardEntry = new CardEntryBag
                 {
@@ -3614,6 +4057,13 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
             return ActionOk( activityEntryBag );
         }
 
+        /// <summary>
+        /// Deletes the specified Connection Request Note after verifying that the current user
+        /// is authorized to edit it. Returns the activity feed entry key of the deleted note
+        /// so the client can remove it from the activity feed without a full page reload.
+        /// </summary>
+        /// <param name="noteIdKey">The IdKey of the Note to delete.</param>
+        /// <returns>A Block Action Result containing the activity feed entry key of the deleted note. Returns a bad request result if the note cannot be found or the current user is not authorized to edit it.</returns>
         [BlockAction]
         public BlockActionResult DeleteNote( string noteIdKey )
         {
@@ -3639,6 +4089,14 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
             return ActionOk( key );
         }
 
+        /// <summary>
+        /// Deletes the specified Connection Request Activity after verifying that the current user
+        /// is authorized to edit the associated Connection Request. Returns the activity feed entry
+        /// key of the deleted activity so the client can remove it from the activity feed
+        /// without a full page reload.
+        /// </summary>
+        /// <param name="activityIdKey">The IdKey of the Connection Request Activity to delete.</param>
+        /// <returns>A Block Action Result containing the activity feed entry key of the deleted activity. Returns a bad request result if the activity cannot be found or the current user is not authorized to edit the associated Connection Request.</returns>
         [BlockAction]
         public BlockActionResult DeleteActivity( string activityIdKey )
         {
@@ -3664,6 +4122,13 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
             return ActionOk( key );
         }
 
+        /// <summary>
+        /// Gets the Connection Request entity bag for editing the specified Connection Request,
+        /// loading all attributes and returning a valid properties box populated with all
+        /// editable fields.
+        /// </summary>
+        /// <param name="key">The IdKey of the Connection Request to retrieve for editing.</param>
+        /// <returns>A Block Action Result containing a <see cref="ValidPropertiesBox{ConnectionRequestBag}"/> with all editable properties populated. Returns a bad request result if the entity cannot be found or the current user is not authorized to edit it.</returns>
         [BlockAction]
         public BlockActionResult Edit( string key )
         {
@@ -3683,6 +4148,21 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
             } );
         }
 
+        /// <summary>
+        /// Gets the transfer details for the specified Connection Request, including the current
+        /// request state, available campuses, connection statuses, and all Connection Opportunities
+        /// within the same Connection Type. Each opportunity is populated with its available
+        /// connectors, campuses, and attribute values to support the transfer workflow.
+        /// </summary>
+        /// <remarks>
+        /// Connector lists for each opportunity are built from connector group members, with the
+        /// request's current connector and the current user each guaranteed to be present.
+        /// Opportunity attributes are filtered to only those that are searchable and authorized
+        /// for the current user. The current request's connector is carried forward as the default
+        /// connector selection on the transfer form.
+        /// </remarks>
+        /// <param name="key">The IdKey of the Connection Request to retrieve transfer details for.</param>
+        /// <returns>A Block Action Result containing a <see cref="TransferConnectionRequestDetailsBag"/> with all data needed to render the transfer form. Returns a bad request result if the Connection Request cannot be found or the current user is not authorized to edit it.</returns>
         [BlockAction]
         public BlockActionResult GetTransferDetails( string key )
         {
@@ -3803,6 +4283,24 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
             return ActionOk( transferDetailsBag );
         }
 
+        /// <summary>
+        /// Transfers a Connection Request to a new Connection Opportunity, optionally updating
+        /// the status, campus, connector, and due date based on the new opportunity's transfer
+        /// configuration and the provided bag values. Placement group assignments are cleared
+        /// on transfer. A transfer activity is logged if the standard Transferred activity type
+        /// is configured. Returns an updated Connection List Update Box to refresh both the
+        /// grid row and detail panel without a full page reload.
+        /// </summary>
+        /// <remarks>
+        /// Connector assignment is driven by the <see cref="TransferConnectionRequestBag.ConnectorOption"/>
+        /// value: "default" assigns the opportunity's default connector for the selected campus,
+        /// "none" clears the connector, and "select" assigns the explicitly chosen connector.
+        /// Campus and status updates are only applied if the new opportunity has
+        /// <see cref="ConnectionOpportunity.ShowCampusOnTransfer"/> or
+        /// <see cref="ConnectionOpportunity.ShowStatusOnTransfer"/> enabled respectively.
+        /// </remarks>
+        /// <param name="bag">A bag containing the Connection Request IdKey, target opportunity GUID, connector option, optional campus, status, connector, due date, and transfer note.</param>
+        /// <returns>A Block Action Result containing a <see cref="ConnectionListUpdateBox"/> to refresh the grid row and detail panel. Returns a bad request result if the Connection Request or target opportunity cannot be found, the request is already assigned to the selected opportunity, the current user is not authorized to edit the request, or any selected status, campus, or connector is invalid.</returns>
         [BlockAction]
         public BlockActionResult TransferConnectionRequest( TransferConnectionRequestBag bag )
         {
@@ -3954,6 +4452,13 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
             return ActionOk( updateBox );
         }
 
+        /// <summary>
+        /// Gets the full list of activity feed entries for the specified Connection Request,
+        /// including activities, history records, communications, and request notes,
+        /// used to populate or refresh the activity feed in the detail panel without a full page reload.
+        /// </summary>
+        /// <param name="connectionRequestIdKey">The IdKey of the Connection Request to retrieve activity entries for.</param>
+        /// <returns>A Block Action Result containing a list of <see cref="ActivityEntryBag"/> objects ordered by entry date descending. Returns a bad request result if the Connection Request cannot be found or the current user is not authorized to view it.</returns>
         [BlockAction]
         public BlockActionResult GetActivityEntries( string connectionRequestIdKey )
         {
@@ -3979,6 +4484,8 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
         }
 
         #endregion Detail View Block Actions
+
+        #region Communication Block Actions
 
         [BlockAction]
         public BlockActionResult GetSmsConfiguration( GetSmsConfigurationRequestBag bag )
@@ -4211,6 +4718,8 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
 
             return ActionOk();
         }
+
+        #endregion Communication Block Actions
 
         #endregion Block Actions
 
