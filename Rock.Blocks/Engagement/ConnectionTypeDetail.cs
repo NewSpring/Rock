@@ -120,11 +120,15 @@ namespace Rock.Blocks.Engagement
                 .ThenBy( ct => ct.Name )
                 .ToListItemBagList();
 
+            var personEntityTypeId = EntityTypeCache.Get( SystemGuid.EntityType.PERSON ).Id;
+            var personNoteTypeItems = new NoteTypeService( RockContext ).Queryable().Where( nt => nt.EntityTypeId == personEntityTypeId && nt.UserSelectable ).ToListItemBagList();
+
             var options = new ConnectionTypeDetailOptionsBag
             {
                 CommunicationTemplateOptions = communicationTemplates,
                 ConnectionTypeOptions = connectionTypes,
-                HasActiveAIProvider = AIProviderCache.All( RockContext ).Any( a => a.IsActive )
+                HasActiveAIProvider = AIProviderCache.All( RockContext ).Any( a => a.IsActive ),
+                PersonNoteTypeItems = personNoteTypeItems
             };
 
             return options;
@@ -165,6 +169,20 @@ namespace Rock.Blocks.Engagement
                 {
                     errorMessage = "At least one activity type is required.";
                     return false;
+                }
+
+                foreach ( var activityType in bag.ActivityTypes )
+                {
+                    if ( activityType.PersonNoteCreationBehavior == PersonNoteCreationBehavior.DoNotCreatePersonNote )
+                    {
+                        continue;
+                    }
+
+                    if ( activityType.PersonNoteType?.Value == null || activityType.PersonNoteType.Value.IsNullOrWhiteSpace()  )
+                    {
+                        errorMessage = "A Person Note Type is required for the selected activity type configuration.";
+                        return false;
+                    }
                 }
 
                 var statusGuids = statuses
@@ -794,7 +812,8 @@ namespace Rock.Blocks.Engagement
                     Guid = activityType.Guid,
                     Name = activityType.Name,
                     IsActive = activityType.IsActive,
-                    PersonNoteCreationBehavior = activityType.PersonNoteCreationBehavior
+                    PersonNoteCreationBehavior = activityType.PersonNoteCreationBehavior ?? PersonNoteCreationBehavior.DoNotCreatePersonNote,
+                    PersonNoteType = activityType.PersonNoteType?.ToListItemBag()
                 };
 
                 bag.LoadAttributesAndValuesForPublicEdit( activityType, RequestContext.CurrentPerson, enforceSecurity: true );
@@ -1410,6 +1429,7 @@ namespace Rock.Blocks.Engagement
                             activityType.Name = bag.Name;
                             activityType.IsActive = bag.IsActive;
                             activityType.PersonNoteCreationBehavior = bag.PersonNoteCreationBehavior;
+                            activityType.PersonNoteTypeId = bag.PersonNoteType?.GetEntityId<NoteType>( RockContext );
                         } );
                 } );
 
