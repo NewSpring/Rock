@@ -20,20 +20,35 @@ using System.Collections.Generic;
 namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
 {
     /// <summary>
-    ///
+    /// Represents the data required to log an activity against one or more connection requests.
     /// </summary>
     public class ActivityBag
     {
+        /// <summary>
+        /// Gets or sets the encrypted identifier keys of the connection requests to log the activity against.
+        /// </summary>
         public List<string> ConnectionRequestIdKeys { get; set; }
 
         //public string ConnectionTypeIdKey { get; set; }
 
+        /// <summary>
+        /// Gets or sets the GUID of the activity type to log.
+        /// </summary>
         public string ActivityTypeGuid { get; set; }
 
+        /// <summary>
+        /// Gets or sets the GUID of the person alias to assign as the connector for this activity.
+        /// </summary>
         public string ConnectorPersonAliasGuid { get; set; }
 
+        /// <summary>
+        /// Gets or sets the note text to associate with this activity.
+        /// </summary>
         public string Note { get; set; }
 
+        /// <summary>
+        /// Gets or sets a value indicating whether a person note should also be created when saving this activity.
+        /// </summary>
         public bool AddPersonNote { get; set; }
 
         /// <summary>

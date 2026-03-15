@@ -21,7 +21,6 @@
     import { useVModelPassthrough } from "@Obsidian/Utility/component";
     import { pluralize } from "@Obsidian/Utility/stringUtils";
     import { BulkRequestViewBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/bulkRequestViewBag";
-    import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
     import { ViewOptions } from "./types.partial";
 
     const props = defineProps({

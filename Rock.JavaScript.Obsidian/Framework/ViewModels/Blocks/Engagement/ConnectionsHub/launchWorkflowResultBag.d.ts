@@ -21,8 +21,11 @@
 // </copyright>
 //
 
+/** Represents the result of a workflow launch action on one or more connection requests. */
 export type LaunchWorkflowResultBag = {
+    /** Gets or sets a status message describing the result of the workflow launch. */
     statusMessage?: string | null;
 
+    /** Gets or sets the URL of the workflow entry page to redirect to, if the launched workflow requires user interaction. */
     workflowEntryPageUrl?: string | null;
 };

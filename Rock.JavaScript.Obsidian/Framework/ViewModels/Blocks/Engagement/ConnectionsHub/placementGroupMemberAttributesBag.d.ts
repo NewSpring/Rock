@@ -23,6 +23,7 @@
 
 import { PublicAttributeBag } from "@Obsidian/ViewModels/Utility/publicAttributeBag";
 
+/** Represents the public attribute definitions for a placement group member, returned when a placement group is selected. */
 export type PlacementGroupMemberAttributesBag = {
     /** Gets or sets the attributes. */
     attributes?: Record<string, PublicAttributeBag> | null;

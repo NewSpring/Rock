@@ -25,16 +25,23 @@ import { ActivityEntryType } from "@Obsidian/Enums/Connection/activityEntryType"
 import { CardEntryBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/cardEntryBag";
 import { SystemUpdateBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/systemUpdateBag";
 
+/** Represents a single entry in the connection request activity feed, which may be a card-style activity or a system-generated status update. */
 export type ActivityEntryBag = {
+    /** Gets or sets the card entry data when this entry is of a card-style type (e.g., an activity or communication). */
     cardEntry?: CardEntryBag | null;
 
+    /** Gets or sets the name of the person who created this entry. */
     createdBy?: string | null;
 
+    /** Gets or sets the date and time this entry was created. */
     entryDateTime?: string | null;
 
+    /** Gets or sets the type of this activity entry, determining how it is rendered in the feed. */
     entryType: ActivityEntryType;
 
+    /** Gets or sets the unique key identifying this activity entry. */
     key?: string | null;
 
+    /** Gets or sets the system update data when this entry represents an automated system change (e.g., a status transition). */
     systemUpdate?: SystemUpdateBag | null;
 };

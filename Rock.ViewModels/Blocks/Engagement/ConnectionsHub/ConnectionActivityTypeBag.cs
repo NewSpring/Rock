@@ -23,12 +23,18 @@ using Rock.ViewModels.Utility;
 namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
 {
     /// <summary>
-    /// The additional configuration options for the Connections Hub block.
+    /// Represents an activity type available for logging against connection requests, including its person note creation behavior.
     /// </summary>
     public class ConnectionActivityTypeBag
     {
+        /// <summary>
+        /// Gets or sets the activity type as a list item containing its value and display text.
+        /// </summary>
         public ListItemBag ActivityType { get; set; }
 
+        /// <summary>
+        /// Gets or sets the behavior that controls whether a person note is automatically created when this activity type is logged.
+        /// </summary>
         public PersonNoteCreationBehavior? PersonNoteCreationBehavior { get; set; }
     }
 }

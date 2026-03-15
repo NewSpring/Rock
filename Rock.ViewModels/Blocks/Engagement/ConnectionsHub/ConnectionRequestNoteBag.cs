@@ -18,14 +18,23 @@
 namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
 {
     /// <summary>
-    /// 
+    /// Represents the data required to create or update a note on a connection request.
     /// </summary>
     public class ConnectionRequestNoteBag
     {
+        /// <summary>
+        /// Gets or sets the encrypted identifier key of the connection request to add or update the note on.
+        /// </summary>
         public string ConnectionRequestIdKey { get; set; }
 
+        /// <summary>
+        /// Gets or sets the encrypted identifier key of an existing note to update, or <c>null</c> to create a new note.
+        /// </summary>
         public string NoteIdKey { get; set; }
 
+        /// <summary>
+        /// Gets or sets the text content of the note.
+        /// </summary>
         public string NoteText { get; set; }
     }
 }

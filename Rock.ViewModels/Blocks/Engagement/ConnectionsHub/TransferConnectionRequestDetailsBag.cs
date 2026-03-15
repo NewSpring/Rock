@@ -25,30 +25,63 @@ using Rock.ViewModels.Utility;
 namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
 {
     /// <summary>
-    /// 
+    /// Represents the data returned when opening the transfer dialog for a connection request, including the current values and available transfer options.
     /// </summary>
     public class TransferConnectionRequestDetailsBag
     {
+        /// <summary>
+        /// Gets or sets the encrypted identifier key of the connection request being transferred.
+        /// </summary>
         public string ConnectionRequestIdKey { get; set; }
 
+        /// <summary>
+        /// Gets or sets the GUID of the connection opportunity this request currently belongs to.
+        /// </summary>
         public Guid CurrentConnectionOpportunityGuid { get; set; }
 
+        /// <summary>
+        /// Gets or sets the name of the connector currently assigned to this request.
+        /// </summary>
         public string CurrentConnectorName { get; set; }
 
+        /// <summary>
+        /// Gets or sets the GUID of the current connector's person alias.
+        /// </summary>
         public Guid? CurrentConnectorPersonAliasGuid { get; set; }
 
+        /// <summary>
+        /// Gets or sets the GUID of the campus currently assigned to this request.
+        /// </summary>
         public Guid? CurrentCampusGuid { get; set; }
 
+        /// <summary>
+        /// Gets or sets the GUID of the connection status currently assigned to this request.
+        /// </summary>
         public Guid CurrentConnectionStatusGuid { get; set; }
 
+        /// <summary>
+        /// Gets or sets the current due date of this request.
+        /// </summary>
         public DateTimeOffset? CurrentDueDate { get; set; }
 
+        /// <summary>
+        /// Gets or sets the list of connection opportunities available as transfer targets.
+        /// </summary>
         public List<ConnectionOpportunityBag> ConnectionOpportunities { get; set; }
 
+        /// <summary>
+        /// Gets or sets the list of campuses available for selection during the transfer.
+        /// </summary>
         public List<ListItemBag> Campuses { get; set; }
 
+        /// <summary>
+        /// Gets or sets the list of connection statuses available for selection during the transfer.
+        /// </summary>
         public List<ListItemBag> Statuses { get; set; }
 
+        /// <summary>
+        /// Gets or sets the public attribute definitions for the connection request, used to display attribute fields during transfer.
+        /// </summary>
         public Dictionary<string, PublicAttributeBag> Attributes { get; set; }
     }
 }

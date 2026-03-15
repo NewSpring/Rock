@@ -24,9 +24,11 @@
 import { PersonNoteCreationBehavior } from "@Obsidian/Enums/Connection/personNoteCreationBehavior";
 import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
 
-/** The additional configuration options for the Connections Hub block. */
+/** Represents an activity type available for logging against connection requests, including its person note creation behavior. */
 export type ConnectionActivityTypeBag = {
+    /** Gets or sets the activity type as a list item containing its value and display text. */
     activityType?: ListItemBag | null;
 
+    /** Gets or sets the behavior that controls whether a person note is automatically created when this activity type is logged. */
     personNoteCreationBehavior?: PersonNoteCreationBehavior | null;
 };

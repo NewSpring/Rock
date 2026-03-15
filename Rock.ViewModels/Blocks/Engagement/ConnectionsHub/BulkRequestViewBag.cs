@@ -26,26 +26,53 @@ using Rock.ViewModels.Utility;
 namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
 {
     /// <summary>
-    /// 
+    /// Represents a summary view of a connection request as displayed in the bulk action grid.
     /// </summary>
     public class BulkRequestViewBag
     {
+        /// <summary>
+        /// Gets or sets the encrypted identifier key of this connection request.
+        /// </summary>
         public string IdKey { get; set; }
 
+        /// <summary>
+        /// Gets or sets the person field data for the requester.
+        /// </summary>
         public PersonFieldBag Requester { get; set; }
 
+        /// <summary>
+        /// Gets or sets the name of the connection opportunity this request is associated with.
+        /// </summary>
         public string ConnectionOpportunity { get; set; }
 
+        /// <summary>
+        /// Gets or sets the display value of the request source (e.g., a defined value description).
+        /// </summary>
         public string ConnectionTypeSource { get; set; }
 
+        /// <summary>
+        /// Gets or sets the currently assigned connector for this request.
+        /// </summary>
         public ListItemBag Connector { get; set; }
 
+        /// <summary>
+        /// Gets or sets the formatted due date for this request.
+        /// </summary>
         public string DueDate { get; set; }
 
+        /// <summary>
+        /// Gets or sets the current connection status of this request.
+        /// </summary>
         public ConnectionStatusBag ConnectionStatus { get; set; }
 
+        /// <summary>
+        /// Gets or sets the celebration text to display for this request, if applicable.
+        /// </summary>
         public string CelebrationText { get; set; }
 
+        /// <summary>
+        /// Gets or sets a value indicating whether this request has a placement group assigned.
+        /// </summary>
         public bool? HasPlacementGroup { get; set; }
     }
 }

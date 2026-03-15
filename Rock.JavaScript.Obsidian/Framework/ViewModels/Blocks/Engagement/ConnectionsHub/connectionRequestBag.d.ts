@@ -26,40 +26,56 @@ import { GroupMemberStatus } from "@Obsidian/Enums/Group/groupMemberStatus";
 import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
 import { PublicAttributeBag } from "@Obsidian/ViewModels/Utility/publicAttributeBag";
 
+/** Represents the data required to create or update a connection request. */
 export type ConnectionRequestBag = {
+    /** Gets or sets the comments or notes on this connection request. */
     comments?: string | null;
 
+    /** Gets or sets the GUID of the connection opportunity this request belongs to. */
     connectionOpportunityGuid?: string | null;
 
+    /** Gets or sets the public attribute definitions for the connection request attributes. */
     connectionRequestAttributes?: Record<string, PublicAttributeBag> | null;
 
     /** Gets or sets the attribute values for the Connection Request. */
     connectionRequestAttributeValues?: Record<string, string> | null;
 
+    /** Gets or sets the connection state (e.g., Active, Inactive, Future Follow-up) of this request. */
     connectionState?: ConnectionState | null;
 
+    /** Gets or sets the GUID of the connection status to assign to this request. */
     connectionStatusGuid?: string | null;
 
+    /** Gets or sets the note to record when the connection status history is updated. */
     connectionStatusHistoryNote?: string | null;
 
+    /** Gets or sets the GUID of the connector's person alias assigned to this request. */
     connectorPersonAliasGuid?: string | null;
 
+    /** Gets or sets the follow-up date for this request when it is in the Future Follow-up state. */
     followUpDate?: string | null;
 
+    /** Gets or sets the GUID of the group member role to assign when placing the requester in the placement group. */
     groupMemberRoleGuid?: string | null;
 
+    /** Gets or sets the group member status to assign when placing the requester in the placement group. */
     groupMemberStatus?: GroupMemberStatus | null;
 
+    /** Gets or sets the encrypted identifier key of this connection request. */
     idKey?: string | null;
 
+    /** Gets or sets the GUID of the placement group assigned to this request. */
     placementGroupGuid?: string | null;
 
+    /** Gets or sets the public attribute definitions for the placement group member attributes. */
     placementGroupMemberAttributes?: Record<string, PublicAttributeBag> | null;
 
     /** Gets or sets the attribute values for the placement group member. */
     placementGroupMemberAttributeValues?: Record<string, string> | null;
 
+    /** Gets or sets the requester as a list item containing the person's value and display name. */
     requester?: ListItemBag | null;
 
+    /** Gets or sets the GUID of the request source defined value for this connection request. */
     requestSourceGuid?: string | null;
 };

@@ -23,12 +23,18 @@ using Rock.ViewModels.Utility;
 namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
 {
     /// <summary>
-    /// 
+    /// Represents the data required to manually update the fulfillment state of a group member requirement.
     /// </summary>
     public class UpdateGroupMemberRequirementBag
     {
+        /// <summary>
+        /// Gets or sets the encrypted identifier key of the group requirement definition.
+        /// </summary>
         public string GroupRequirementIdKey { get; set; }
 
+        /// <summary>
+        /// Gets or sets the encrypted identifier key of the group member requirement record to update.
+        /// </summary>
         public string GroupMemberRequirementIdKey { get; set; }
 
         /// <summary>
@@ -36,6 +42,9 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
         /// </summary>
         public string GroupMemberIdKey { get; set; }
 
+        /// <summary>
+        /// Gets or sets a value indicating whether the group member requirement should be marked as met.
+        /// </summary>
         public bool IsMet { get; set; }
     }
 }

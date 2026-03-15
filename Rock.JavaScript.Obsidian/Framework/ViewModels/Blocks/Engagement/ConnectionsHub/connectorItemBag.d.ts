@@ -23,8 +23,11 @@
 
 import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
 
+/** Represents a connector option for selection in the Connections Hub, including a profile photo for display in the connector picker. */
 export type ConnectorItemBag = {
+    /** Gets or sets the list item containing the connector's identifier value and display name. */
     listItemBag?: ListItemBag | null;
 
+    /** Gets or sets the URL of the connector's profile photo. */
     photoUrl?: string | null;
 };

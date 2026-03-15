@@ -23,22 +23,32 @@
 
 import { Guid } from "@Obsidian/Types";
 
+/** Represents the data required to transfer a connection request to a different connection opportunity. */
 export type TransferConnectionRequestBag = {
+    /** Gets or sets the GUID of the campus to assign after the transfer. */
     campusGuid?: Guid | null;
 
+    /** Gets or sets the encrypted identifier key of the connection request to transfer. */
     connectionRequestIdKey?: string | null;
 
+    /** Gets or sets the connector assignment option (e.g., keep current, assign default, assign specific person). */
     connectorOption?: string | null;
 
+    /** Gets or sets the GUID of the person alias to assign as the connector after the transfer, when a specific connector is selected. */
     connectorPersonAliasGuid?: Guid | null;
 
+    /** Gets or sets the due date to assign after the transfer, when a specific date is selected. */
     dueDate?: string | null;
 
+    /** Gets or sets the due date assignment option (e.g., keep current, clear, assign specific date). */
     dueDateOption?: string | null;
 
+    /** Gets or sets the GUID of the connection opportunity to transfer this request to. */
     newConnectionOpportunityGuid: Guid;
 
+    /** Gets or sets an optional note to record with the transfer activity. */
     note?: string | null;
 
+    /** Gets or sets the GUID of the connection status to assign after the transfer. */
     statusGuid?: Guid | null;
 };

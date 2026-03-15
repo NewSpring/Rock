@@ -23,6 +23,7 @@
 
 import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
 
+/** Represents the display data for a card-style activity feed entry, including content, author photo, and editing metadata. */
 export type CardEntryBag = {
     /** The GUID of the activity type. Populated for Activity entries to support editing. */
     activityTypeGuid?: string | null;
@@ -30,25 +31,33 @@ export type CardEntryBag = {
     /** The Name of the activity type. Populated for Activity entries to support editing. */
     activityTypeName?: string | null;
 
+    /** Gets or sets the list of file attachments associated with this card entry. */
     attachments?: ListItemBag[] | null;
 
+    /** Gets or sets the encrypted identifier key of the connection opportunity associated with this entry. */
     connectionOpportunityIdKey?: string | null;
 
+    /** Gets or sets the name of the connection opportunity associated with this entry. */
     connectionOpportunityName?: string | null;
 
+    /** Gets or sets the encrypted identifier key of the connection request this entry belongs to. */
     connectionRequestIdKey?: string | null;
 
+    /** Gets or sets the display name of the connection request's current status at the time of this entry. */
     connectionRequestStatus?: string | null;
 
     /** The GUID of the connector's person alias. Populated for Activity entries to support editing. */
     connectorPersonAliasGuid?: string | null;
 
+    /** Gets or sets the main content body of this card entry. */
     content?: string | null;
 
     /** Gets or sets whether or not the activity type for this entry is a system activity type. Populated for Activity entries to support editing. */
     isSystemActivityType?: boolean | null;
 
+    /** Gets or sets the URL of the author's profile photo. */
     photoUrl?: string | null;
 
+    /** Gets or sets the title of this card entry. */
     title?: string | null;
 };

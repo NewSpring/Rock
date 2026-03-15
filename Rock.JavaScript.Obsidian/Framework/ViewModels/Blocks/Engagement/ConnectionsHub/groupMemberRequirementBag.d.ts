@@ -23,16 +23,23 @@
 
 import { MeetsGroupRequirement } from "@Obsidian/Enums/Group/meetsGroupRequirement";
 
+/** Represents a single group member requirement and its current fulfillment state for a placement group member. */
 export type GroupMemberRequirementBag = {
+    /** Gets or sets the encrypted identifier key of the group member requirement record tracking fulfillment for this member. */
     groupMemberRequirementIdKey?: string | null;
 
+    /** Gets or sets the current state indicating whether the group member meets this requirement. */
     groupMemberRequirementState: MeetsGroupRequirement;
 
+    /** Gets or sets the encrypted identifier key of the group requirement definition. */
     groupRequirementIdKey?: string | null;
 
+    /** Gets or sets a value indicating whether this is a manually verified requirement (as opposed to one checked automatically). */
     isManualRequirement: boolean;
 
+    /** Gets or sets a value indicating whether this requirement must be met before the member can be added to the group. */
     mustMeetRequirementToAddMember: boolean;
 
+    /** Gets or sets the display name of this group requirement. */
     requirementName?: string | null;
 };

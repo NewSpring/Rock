@@ -26,26 +26,38 @@ import { ConnectionOpportunityBag } from "@Obsidian/ViewModels/Blocks/Engagement
 import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
 import { PublicAttributeBag } from "@Obsidian/ViewModels/Utility/publicAttributeBag";
 
+/** Represents the data returned when opening the transfer dialog for a connection request, including the current values and available transfer options. */
 export type TransferConnectionRequestDetailsBag = {
+    /** Gets or sets the public attribute definitions for the connection request, used to display attribute fields during transfer. */
     attributes?: Record<string, PublicAttributeBag> | null;
 
+    /** Gets or sets the list of campuses available for selection during the transfer. */
     campuses?: ListItemBag[] | null;
 
+    /** Gets or sets the list of connection opportunities available as transfer targets. */
     connectionOpportunities?: ConnectionOpportunityBag[] | null;
 
+    /** Gets or sets the encrypted identifier key of the connection request being transferred. */
     connectionRequestIdKey?: string | null;
 
+    /** Gets or sets the GUID of the campus currently assigned to this request. */
     currentCampusGuid?: Guid | null;
 
+    /** Gets or sets the GUID of the connection opportunity this request currently belongs to. */
     currentConnectionOpportunityGuid: Guid;
 
+    /** Gets or sets the GUID of the connection status currently assigned to this request. */
     currentConnectionStatusGuid: Guid;
 
+    /** Gets or sets the name of the connector currently assigned to this request. */
     currentConnectorName?: string | null;
 
+    /** Gets or sets the GUID of the current connector's person alias. */
     currentConnectorPersonAliasGuid?: Guid | null;
 
+    /** Gets or sets the current due date of this request. */
     currentDueDate?: string | null;
 
+    /** Gets or sets the list of connection statuses available for selection during the transfer. */
     statuses?: ListItemBag[] | null;
 };

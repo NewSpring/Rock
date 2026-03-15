@@ -22,22 +22,43 @@ using Rock.Model;
 namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
 {
     /// <summary>
-    /// 
+    /// Represents the data required to update the state, status, connector, or follow-up date of a connection request.
     /// </summary>
     public class ConnectionRequestUpdateBag
     {
+        /// <summary>
+        /// Gets or sets the encrypted identifier key of the connection request to update.
+        /// </summary>
         public string ConnectionRequestIdKey { get; set; }
 
+        /// <summary>
+        /// Gets or sets the GUID of the connection status to assign to this request.
+        /// </summary>
         public string ConnectionStatusGuid { get; set; }
 
+        /// <summary>
+        /// Gets or sets an optional note to record with this update.
+        /// </summary>
         public string Note { get; set; }
 
+        /// <summary>
+        /// Gets or sets the connection state to apply (e.g., Active, Inactive, Future Follow-up).
+        /// </summary>
         public ConnectionState? ConnectionState { get; set; }
 
+        /// <summary>
+        /// Gets or sets the follow-up date for this request when transitioning to the Future Follow-up state.
+        /// </summary>
         public DateTimeOffset? FollowUpDate { get; set; }
 
+        /// <summary>
+        /// Gets or sets the GUID of the connector's person alias to assign to this request.
+        /// </summary>
         public string ConnectorPersonAliasGuid { get; set; }
 
+        /// <summary>
+        /// Gets or sets a value indicating whether this update includes completing the request.
+        /// </summary>
         public bool? CanCompleteRequest { get; set; }
     }
 }

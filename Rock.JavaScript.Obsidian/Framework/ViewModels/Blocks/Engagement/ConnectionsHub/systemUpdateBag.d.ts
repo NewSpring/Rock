@@ -23,10 +23,14 @@
 
 import { SystemUpdateType } from "@Obsidian/Enums/Connection/systemUpdateType";
 
+/** Represents a system-generated update entry in the activity feed, describing a field value change made automatically. */
 export type SystemUpdateBag = {
+    /** Gets or sets the display value of the field after the system update was applied. */
     newValue?: string | null;
 
+    /** Gets or sets the display value of the field before the system update was applied. */
     previousValue?: string | null;
 
+    /** Gets or sets the type of system update that occurred. */
     systemUpdateType: SystemUpdateType;
 };

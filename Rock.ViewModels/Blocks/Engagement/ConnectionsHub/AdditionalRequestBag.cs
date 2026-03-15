@@ -23,22 +23,43 @@ using Rock.ViewModels.Utility;
 namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
 {
     /// <summary>
-    /// The additional configuration options for the Connections Hub block.
+    /// Represents a summary of an additional connection request associated with the same requester person.
     /// </summary>
     public class AdditionalRequestBag
     {
+        /// <summary>
+        /// Gets or sets the encrypted identifier key of this connection request.
+        /// </summary>
         public string RequestIdKey { get; set; }
 
+        /// <summary>
+        /// Gets or sets the encrypted identifier key of the connection opportunity this request belongs to.
+        /// </summary>
         public string ConnectionOpportunityIdKey { get; set; }
 
+        /// <summary>
+        /// Gets or sets the name of the connection opportunity this request belongs to.
+        /// </summary>
         public string ConnectionOpportunityName { get; set; }
 
+        /// <summary>
+        /// Gets or sets the display name of the current connection status for this request.
+        /// </summary>
         public string ConnectionStatus { get; set; }
 
+        /// <summary>
+        /// Gets or sets the name of the connector assigned to this request.
+        /// </summary>
         public string Connector { get; set; }
 
+        /// <summary>
+        /// Gets or sets the date and time this connection request was created.
+        /// </summary>
         public DateTimeOffset? RequestCreatedDateTime { get; set; }
 
+        /// <summary>
+        /// Gets or sets the name of the person who submitted this connection request.
+        /// </summary>
         public string Requester { get; set; }
     }
 }

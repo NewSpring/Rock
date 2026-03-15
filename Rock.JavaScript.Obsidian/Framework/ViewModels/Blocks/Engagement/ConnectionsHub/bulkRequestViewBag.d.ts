@@ -25,22 +25,32 @@ import { ConnectionStatusBag } from "@Obsidian/ViewModels/Blocks/Engagement/Conn
 import { PersonFieldBag } from "@Obsidian/ViewModels/Core/Grid/personFieldBag";
 import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
 
+/** Represents a summary view of a connection request as displayed in the bulk action grid. */
 export type BulkRequestViewBag = {
+    /** Gets or sets the celebration text to display for this request, if applicable. */
     celebrationText?: string | null;
 
+    /** Gets or sets the name of the connection opportunity this request is associated with. */
     connectionOpportunity?: string | null;
 
+    /** Gets or sets the current connection status of this request. */
     connectionStatus?: ConnectionStatusBag | null;
 
+    /** Gets or sets the display value of the request source (e.g., a defined value description). */
     connectionTypeSource?: string | null;
 
+    /** Gets or sets the currently assigned connector for this request. */
     connector?: ListItemBag | null;
 
+    /** Gets or sets the formatted due date for this request. */
     dueDate?: string | null;
 
+    /** Gets or sets a value indicating whether this request has a placement group assigned. */
     hasPlacementGroup?: boolean | null;
 
+    /** Gets or sets the encrypted identifier key of this connection request. */
     idKey?: string | null;
 
+    /** Gets or sets the person field data for the requester. */
     requester?: PersonFieldBag | null;
 };

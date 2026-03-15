@@ -25,6 +25,7 @@ import { GroupMemberRequirementBag } from "@Obsidian/ViewModels/Blocks/Engagemen
 import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
 import { PublicAttributeBag } from "@Obsidian/ViewModels/Utility/publicAttributeBag";
 
+/** Represents the details of a placement group available for assignment to a connection request. */
 export type PlacementGroupDetailsBag = {
     /** Gets or sets the group member attributes for the selected placement group. */
     groupMemberAttributes?: Record<string, PublicAttributeBag> | null;
@@ -35,16 +36,21 @@ export type PlacementGroupDetailsBag = {
     /** The Group Member IdKey of the placed group member. */
     groupMemberIdKey?: string | null;
 
+    /** Gets or sets the list of group member requirements and their current fulfillment state for this placement group. */
     groupMemberRequirements?: GroupMemberRequirementBag[] | null;
 
+    /** Gets or sets the list of available group member roles in this placement group. */
     groupMemberRoles?: ListItemBag[] | null;
 
+    /** Gets or sets the available group member statuses keyed by group member role identifier. */
     groupMemberStatuses?: Record<string, ListItemBag[]> | null;
 
+    /** Gets or sets the CSS icon class associated with this placement group. */
     iconCssClass?: string | null;
 
-    /** True if the requester already exists as a GroupMember in the placement group */
+    /** Gets or sets a value indicating whether the requester already exists as a pending group member in this placement group. */
     isPendingGroupMember?: boolean | null;
 
+    /** Gets or sets the group as a list item containing its identifier value and display name. */
     listItemBag?: ListItemBag | null;
 };

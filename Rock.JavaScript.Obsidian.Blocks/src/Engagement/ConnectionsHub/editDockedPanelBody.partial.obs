@@ -344,7 +344,6 @@
     });
 
     function onSave(): void {
-        console.log("On Save");
         errorMessage.value = "";
 
         const newValue: ValidPropertiesBox<ConnectionRequestBag> = {

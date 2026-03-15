@@ -24,12 +24,17 @@
 import { ConnectionState } from "@Obsidian/Enums/Connection/connectionState";
 import { GroupMemberRequirementBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/groupMemberRequirementBag";
 
+/** Represents the data required to bulk-update the connection state of one or more connection requests. */
 export type UpdateConnectionRequestStatesBag = {
+    /** Gets or sets the encrypted identifier keys of the connection requests to update. */
     connectionRequestIdKeys?: string[] | null;
 
+    /** Gets or sets the connection state (e.g., Active, Inactive, Future Follow-up) to apply to all specified requests. */
     connectionState: ConnectionState;
 
+    /** Gets or sets the follow-up date to assign when transitioning requests to the Future Follow-up state. */
     followUpDate?: string | null;
 
+    /** Gets or sets the group member requirements to update when completing requests that have placement groups. */
     groupMemberRequirements?: GroupMemberRequirementBag[] | null;
 };

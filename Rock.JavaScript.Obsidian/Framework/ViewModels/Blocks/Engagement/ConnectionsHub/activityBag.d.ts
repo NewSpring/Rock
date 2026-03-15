@@ -21,17 +21,23 @@
 // </copyright>
 //
 
+/** Represents the data required to log an activity against one or more connection requests. */
 export type ActivityBag = {
     /** If set, the activity with this ID key will be updated instead of creating a new one. */
     activityIdKey?: string | null;
 
+    /** Gets or sets the GUID of the activity type to log. */
     activityTypeGuid?: string | null;
 
+    /** Gets or sets a value indicating whether a person note should also be created when saving this activity. */
     addPersonNote: boolean;
 
+    /** Gets or sets the encrypted identifier keys of the connection requests to log the activity against. */
     connectionRequestIdKeys?: string[] | null;
 
+    /** Gets or sets the GUID of the person alias to assign as the connector for this activity. */
     connectorPersonAliasGuid?: string | null;
 
+    /** Gets or sets the note text to associate with this activity. */
     note?: string | null;
 };

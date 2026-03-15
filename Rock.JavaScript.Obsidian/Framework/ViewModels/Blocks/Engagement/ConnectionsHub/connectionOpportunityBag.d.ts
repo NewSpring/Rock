@@ -24,24 +24,35 @@
 import { Guid } from "@Obsidian/Types";
 import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
 
+/** Represents a connection opportunity and the data needed to display and interact with it during a transfer. */
 export type ConnectionOpportunityBag = {
+    /** Gets or sets the attribute values for this connection opportunity. */
     attributeValues?: Record<string, string> | null;
 
+    /** Gets or sets the list of campuses available for selection when transferring to this opportunity. */
     campuses?: ListItemBag[] | null;
 
+    /** Gets or sets the description of this connection opportunity. */
     description?: string | null;
 
+    /** Gets or sets the unique identifier of this connection opportunity. */
     guid: Guid;
 
+    /** Gets or sets the CSS class for the icon representing this connection opportunity. */
     iconCssClass?: string | null;
 
+    /** Gets or sets the name of this connection opportunity. */
     name?: string | null;
 
+    /** Gets or sets the URL of the photo associated with this connection opportunity. */
     photoUrl?: string | null;
 
+    /** Gets or sets the list of connectors available for assignment within this opportunity. */
     potentialConnectors?: ListItemBag[] | null;
 
+    /** Gets or sets a value indicating whether the campus selector should be shown during a transfer to this opportunity. */
     showCampusOnTransfer: boolean;
 
+    /** Gets or sets a value indicating whether the status selector should be shown during a transfer to this opportunity. */
     showStatusOnTransfer: boolean;
 };

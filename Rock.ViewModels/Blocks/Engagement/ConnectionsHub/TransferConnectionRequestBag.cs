@@ -25,26 +25,53 @@ using Rock.ViewModels.Utility;
 namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
 {
     /// <summary>
-    /// 
+    /// Represents the data required to transfer a connection request to a different connection opportunity.
     /// </summary>
     public class TransferConnectionRequestBag
     {
+        /// <summary>
+        /// Gets or sets the encrypted identifier key of the connection request to transfer.
+        /// </summary>
         public string ConnectionRequestIdKey { get; set; }
 
+        /// <summary>
+        /// Gets or sets the GUID of the connection opportunity to transfer this request to.
+        /// </summary>
         public Guid NewConnectionOpportunityGuid { get; set; }
 
+        /// <summary>
+        /// Gets or sets the connector assignment option (e.g., keep current, assign default, assign specific person).
+        /// </summary>
         public string ConnectorOption { get; set; }
 
+        /// <summary>
+        /// Gets or sets the GUID of the person alias to assign as the connector after the transfer, when a specific connector is selected.
+        /// </summary>
         public Guid? ConnectorPersonAliasGuid { get; set; }
 
+        /// <summary>
+        /// Gets or sets the GUID of the connection status to assign after the transfer.
+        /// </summary>
         public Guid? StatusGuid { get; set; }
 
+        /// <summary>
+        /// Gets or sets the GUID of the campus to assign after the transfer.
+        /// </summary>
         public Guid? CampusGuid { get; set; }
 
+        /// <summary>
+        /// Gets or sets the due date assignment option (e.g., keep current, clear, assign specific date).
+        /// </summary>
         public string DueDateOption { get; set; }
 
+        /// <summary>
+        /// Gets or sets the due date to assign after the transfer, when a specific date is selected.
+        /// </summary>
         public DateTimeOffset? DueDate { get; set; }
 
+        /// <summary>
+        /// Gets or sets an optional note to record with the transfer activity.
+        /// </summary>
         public string Note { get; set; }
     }
 }

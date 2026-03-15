@@ -28,41 +28,59 @@ import { ConnectorItemBag } from "@Obsidian/ViewModels/Blocks/Engagement/Connect
 import { PlacementGroupDetailsBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/placementGroupDetailsBag";
 import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
 
+/** Represents the configuration options used to render the connection request detail panel. */
 export type ConnectionRequestDetailOptionsBag = {
+    /** Gets or sets a value indicating whether celebrations are enabled for connection requests. */
     areCelebrationsEnabled: boolean;
 
+    /** Gets or sets a value indicating whether group placements are enabled for this Connection Type. */
     areGroupPlacementsEnabled: boolean;
 
+    /** Gets or sets a value indicating whether reminders are enabled for connection requests. */
     areRemindersEnabled: boolean;
 
+    /** Gets or sets the GUIDs of the person profile badges to display on the request detail panel. */
     badgeGuids?: Guid[] | null;
 
+    /** Gets or sets the list of activity types available for logging against this request. */
     connectionActivities?: ConnectionActivityTypeBag[] | null;
 
+    /** Gets or sets the list of connection states (e.g., Active, Inactive, Future Follow-up) available for selection. */
     connectionStates?: ListItemBag[] | null;
 
+    /** Gets or sets the list of connection statuses available for this Connection Type. */
     connectionStatuses?: ConnectionStatusBag[] | null;
 
+    /** Gets or sets the encrypted identifier key of the Connection Type this request belongs to. */
     connectionTypeIdKey?: string | null;
 
+    /** Gets or sets the list of connectors (with photo URLs) available for assignment to the request. */
     connectorItems?: ConnectorItemBag[] | null;
 
     /** Gets or sets a value indicating whether an active AI provider is configured. */
     isAISummaryVisible: boolean;
 
+    /** Gets or sets a value indicating whether the future follow-up feature is enabled for this Connection Type. */
     isFutureFollowUpEnabled: boolean;
 
+    /** Gets or sets a value indicating whether per-request security is enabled. */
     isRequestSecurityEnabled: boolean;
 
+    /** Gets or sets a value indicating whether connection statuses must be progressed sequentially. */
     isSequentialStatusMode: boolean;
 
+    /** Gets or sets the Lava template used to render the badge bar in the request detail panel. */
     lavaBadgeBar?: string | null;
 
+    /** Gets or sets the Lava template used to render the heading section of the request detail panel. */
     lavaHeadingTemplate?: string | null;
 
+    /** Gets or sets the list of placement groups available for this connection opportunity. */
     placementGroups?: PlacementGroupDetailsBag[] | null;
 
+    /** Gets or sets the list of request source items available for selection. */
     requestSourceItems?: ListItemBag[] | null;
 
+    /** Gets or sets a value indicating whether a placement group must be assigned before a request can be completed. */
     requiresPlacementGroupToComplete: boolean;
 };

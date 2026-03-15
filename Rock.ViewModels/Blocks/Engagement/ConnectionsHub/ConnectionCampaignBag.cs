@@ -24,16 +24,28 @@ using Rock.ViewModels.Utility;
 namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
 {
     /// <summary>
-    /// 
+    /// Represents a connection campaign and its current pending request count for use in the assign-from-campaign flow.
     /// </summary>
     public class ConnectionCampaignBag
     {
+        /// <summary>
+        /// Gets or sets the unique identifier of this connection campaign.
+        /// </summary>
         public Guid Guid { get; set; }
 
+        /// <summary>
+        /// Gets or sets the name of this connection campaign.
+        /// </summary>
         public string Name { get; set; }
 
+        /// <summary>
+        /// Gets or sets the number of connection requests currently pending assignment in this campaign.
+        /// </summary>
         public int PendingCount { get; set; }
 
+        /// <summary>
+        /// Gets or sets the default number of requests to assign per connector when pulling from this campaign.
+        /// </summary>
         public int? DefaultNumberOfRequests { get; set; }
     }
 }

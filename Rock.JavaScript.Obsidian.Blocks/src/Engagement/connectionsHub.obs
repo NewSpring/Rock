@@ -169,8 +169,6 @@
                         field="connectorDetails">
                     <template #format="{ row }">
                         {{ row.connectorDetails?.text }}
-                        <!-- <span v-if="!isNullOrWhiteSpace(row.connectorDetails?.idKey)">{{ getFormattedName(row.connectorDetails!) }}</span>
-                        <span v-else>Unassigned</span> -->
                     </template>
                 </Column>
 
@@ -385,72 +383,6 @@
                         </div>
                     </template>
                 </Column>
-
-                <!-- <Column name="options"
-                        field="options"
-                        width="52"
-                        itemClass="grid-cell-overflow">
-                    <template #format="{ row }">
-                        <DropDownContent v-model="isRowDropdownOpen[row.idKey]">
-                            <template #default>
-                                <div class="open dropdown-right">
-                                    <ul class="dropdown-menu">
-                                        <li>
-                                            <button type="button"
-                                                    @click.stop="showChangeStateModal(ConnectionState.Active, row)"
-                                                    class="dropdown-item btn-link py-spacing-xs px-spacing-md font-weight-semibold">
-                                                <i class="ti ti-user pr-spacing-sm text-interface-medium"></i>Set as Active
-                                            </button>
-                                        </li>
-                                        <li>
-                                            <button type="button"
-                                                    @click.stop="showChangeStateModal(ConnectionState.Inactive, row)"
-                                                    class="dropdown-item btn-link py-spacing-xs px-spacing-md font-weight-semibold">
-                                                <i class="ti ti-user-off pr-spacing-sm text-interface-medium"></i>Set as Inactive
-                                            </button>
-                                        </li>
-                                        <li v-if="box.options?.isFutureFollowUpEnabled">
-                                            <button type="button"
-                                                    @click.stop="showChangeStateModal(ConnectionState.FutureFollowUp, row)"
-                                                    class="dropdown-item btn-link py-spacing-xs px-spacing-md font-weight-semibold">
-                                                <i class="ti ti-calendar pr-spacing-sm text-interface-medium"></i>Set as Future Follow-Up
-                                            </button>
-                                        </li>
-                                        <li>
-                                            <button type="button"
-                                                    @click.stop="showChangeStateModal(ConnectionState.Connected, row)"
-                                                    class="dropdown-item btn-link py-spacing-xs px-spacing-md font-weight-semibold">
-                                                <i class="ti ti-circle-check pr-spacing-sm text-interface-medium"></i>Mark Complete
-                                            </button>
-                                        </li>
-                                        <li>
-                                            <button type="button"
-                                                    @click.stop="showLaunchWorkflowModal(row)"
-                                                    class="dropdown-item btn-link py-spacing-xs px-spacing-md font-weight-semibold">
-                                                <i class="ti ti-settings-cog pr-spacing-sm text-interface-medium"></i>Launch Workflow
-                                            </button>
-                                        </li>
-                                        <li v-if="box.options?.isRequestSecurityEnabled">
-                                            <button type="button"
-                                                    @click.stop="showSecurity(EntityType.ConnectionRequest, row.idKey)"
-                                                    class="dropdown-item btn-link py-spacing-xs px-spacing-md font-weight-semibold">
-                                                <i class="ti ti-lock pr-spacing-sm text-interface-medium"></i>Security
-                                            </button>
-                                        </li>
-                                        <li>
-                                            <button type="button"
-                                                    @click.stop="showDeleteRequestModal"
-                                                    class="dropdown-item btn-link py-spacing-xs px-spacing-md font-weight-semibold text-danger">
-                                                <i class="ti ti-trash pr-spacing-sm text-danger"></i>Delete
-                                            </button>
-                                        </li>
-                                    </ul>
-                                </div>
-                            </template>
-                        </DropDownContent>
-                    </template>
-                </Column> -->
-
             </Grid>
         </template>
     </GroupedGridPanel>
@@ -671,27 +603,9 @@
     width: 230px;
 }
 
-/* .dropdown-menu-btn {
-    padding: 10px var(--spacing-medium);
-    font-size: var(--font-size-small);
-    font-weight: var(--font-weight-semibold);
-    color: var(--color-interface-strong);
-}
-
-.dropdown-menu-btn i {
-    color: var(--color-interface-medium);
-    padding-right: var(--spacing-xsmall);
-} */
-
 :deep(.dropdown-min-width) {
     min-width: var(--vs-dropdown-min-width);
 }
-
-/* .activity-btn {
-    padding: var(--spacing-tiny) var(--spacing-xsmall);
-    font-size: var(--font-size-xsmall);
-    font-weight: var(--font-weight-semibold);
-} */
 
 .activity-btn i {
     padding-right: var(--spacing-tiny);
@@ -721,10 +635,10 @@
 <script setup lang="ts">
     import { onConfigurationValuesChanged, useBlockBrowserBus, useConfigurationValues, useInvokeBlockAction, usePersonPreferences, useReloadBlock } from "@Obsidian/Utility/block";
     import { GridDataBag } from "@Obsidian/ViewModels/Core/Grid/gridDataBag";
-    import { computed, nextTick, reactive, Ref, ref, watch } from "vue";
+    import { computed, reactive, ref, watch } from "vue";
     import { ListBlockBox } from "@Obsidian/ViewModels/Blocks/listBlockBox";
     import { ConnectionsHubOptionsBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionsHubOptionsBag";
-    import Grid, { Column, PersonColumn, TextColumn, SelectColumn, AttributeColumns } from "@Obsidian/Controls/grid";
+    import Grid, { Column, PersonColumn, SelectColumn, AttributeColumns } from "@Obsidian/Controls/grid";
     import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
     import DropDownList from "@Obsidian/Controls/dropDownList.obs";
     import HighlightLabel from "@Obsidian/Controls/highlightLabel.obs";
@@ -737,7 +651,7 @@
     import { PersonFieldBag } from "@Obsidian/ViewModels/Core/Grid/personFieldBag";
     import ContextSlicer from "@Obsidian/Controls/contextSlicer.obs";
     import { ContextEntityChangedData, Message } from "@Obsidian/Types/Utility/browserBus";
-    import { useContextEntities } from "@Obsidian/Core/Utilities/contextEntity";
+    // import { useContextEntities } from "@Obsidian/Core/Utilities/contextEntity";
     import { PageMessages } from "@Obsidian/Utility/browserBus";
     import { areEqual, toGuidOrNull } from "@Obsidian/Utility/guid";
     import { EntityType } from "@Obsidian/SystemGuids/entityType";
@@ -750,12 +664,11 @@
     import { GetSmsConfigurationRequestBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/getSmsConfigurationRequestBag";
     import { GetSmsConfigurationResponseBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/getSmsConfigurationResponseBag";
     import { PlacementGroupDetailsBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/placementGroupDetailsBag";
-    import { PublicAttributeBag } from "@Obsidian/ViewModels/Utility/publicAttributeBag";
     import { ValidPropertiesBox } from "@Obsidian/ViewModels/Utility/validPropertiesBox";
     import { PreferenceKey, ViewOptions } from "./ConnectionsHub/types.partial";
     import { IGridState } from "@Obsidian/Types/Controls/grid";
     import { HttpResult } from "@Obsidian/Types/Utility/http";
-    import { asBoolean, asBooleanOrNull } from "@Obsidian/Utility/booleanUtils";
+    import { asBoolean } from "@Obsidian/Utility/booleanUtils";
     import RockLabel from "@Obsidian/Controls/rockLabel.obs";
     import Badge from "@Obsidian/Controls/badge.obs";
     import RockButton from "@Obsidian/Controls/rockButton.obs";
@@ -772,12 +685,7 @@
     import ActivityModal from "./ConnectionsHub/activityModal.partial.obs";
     import ChangeStatusModal from "./ConnectionsHub/changeStatusModal.partial.obs";
     import LaunchWorkflowModal from "./ConnectionsHub/launchWorkflowModal.partial.obs";
-    import ButtonDropdownList from "@Obsidian/Controls/buttonDropDownList.obs";
     import { PanelAction } from "@Obsidian/Types/Controls/panelAction";
-    import Flyout from "@Obsidian/Controls/flyout.obs";
-    import TextBox from "@Obsidian/Controls/textBox.obs";
-    import { BtnType } from "@Obsidian/Enums/Controls/btnType";
-    import { BtnSize } from "@Obsidian/Enums/Controls/btnSize";
     import { ConnectionListGridUpdateBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionListGridUpdateBag";
     import ChangeStatusFlyout from "./ConnectionsHub/changeStatusFlyout.partial.obs";
     import { ConnectionRequestUpdateBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionRequestUpdateBag";
@@ -797,30 +705,25 @@
     import ReminderModal from "@Obsidian/Controls/Internal/reminderModal.obs";
     import RequestTable from "./ConnectionsHub/requestTable.partial.obs";
     import ConnectionRequestDockedPanel from "./ConnectionsHub/connectionRequestDockedPanel.partial.obs";
-    import { ConnectionRequestDetailsBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionRequestDetailsBag";
     import { debounce } from "@Obsidian/Utility/util";
-    import DropDownContent from "@Obsidian/Controls/dropDownContent.obs";
     import { removeCurrentUrlQueryParams } from "@Obsidian/Utility/url";
     import { ConnectionRequestDetailBox } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionRequestDetailBox";
-    import { ConnectionRequestDetailOptionsBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionRequestDetailOptionsBag";
     import { ConnectionListUpdateBox } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionListUpdateBox";
     import { TransferConnectionRequestBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/transferConnectionRequestBag";
     import TransferConnectionRequestModal from "./ConnectionsHub/transferConnectionRequestModal.partial.obs";
     import { TransferConnectionRequestDetailsBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/transferConnectionRequestDetailsBag";
     import ConnectionStatusButton from "./ConnectionsHub/connectionStatusButton.partial.obs";
     import { ConnectionActivityTypeBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionActivityTypeBag";
-    import { confirmDelete } from "@Obsidian/Utility/dialogs";
 
     /* =====================================================
      * Configuration & Data Loading
      * ===================================================== */
 
     const box = useConfigurationValues<ListBlockBox<ConnectionsHubOptionsBag>>();
-    console.log("box: ", box);
     const invokeBlockAction = useInvokeBlockAction();
     const preferences = usePersonPreferences().blockPreferences;
     const browserBus = useBlockBrowserBus();
-    const contextEntities = useContextEntities();
+    // const contextEntities = useContextEntities();
     const store = useStore();
 
     browserBus.subscribe(PageMessages.ContextEntityChanged, async (message: Message<ContextEntityChangedData>) => {
@@ -940,7 +843,7 @@
     const transferErrorMessage = ref();
     const transferRequestDetails = ref<TransferConnectionRequestDetailsBag>();
 
-    const isRowDropdownOpen = ref<Record<string, boolean>>({});
+    // const isRowDropdownOpen = ref<Record<string, boolean>>({});
 
     const viewOptions = ref<ViewOptions>({
         sortBy: preferences.getValue(getConnectionFilterKey(PreferenceKey.FilterSortByConnectionTypIdKey)),
@@ -983,9 +886,9 @@
         throw new Error(result.errorMessage ?? "Error loading grid data.");
     }
 
-    async function loadConnectionRequest(): Promise<void> {
+    // async function loadConnectionRequest(): Promise<void> {
 
-    }
+    // }
 
     const currentPerson = computed((): CurrentPersonBag | null => {
         return store.state.currentPerson;
@@ -1111,8 +1014,6 @@
             || !!viewOptions.value.dueFilter?.length;
     });
 
-    console.log("View Options: ", viewOptions.value.stateFilter, " = ", !!viewOptions.value.stateFilter?.length);
-
     const normalizedQuickFilter = computed(() => debouncedQuickFilter.value.toLowerCase());
 
     function filterRows(rows: Record<string, unknown>[]): Record<string, unknown>[] {
@@ -1131,7 +1032,7 @@
                     return false;
                 }
 
-                // TODO - I could convert stateFilter to numbers.
+                // TODO - Consider converting stateFilter to numbers.
                 if (!viewOptions.value.stateFilter.includes(stateValue.toString())) {
                     return false;
                 }
@@ -1355,9 +1256,9 @@
     }
 
     // TODO - consider exporting this from a partial file.
-    function getFormattedName(person: PersonFieldBag): string {
-        return `${person.nickName ?? ""} ${person.lastName ?? ""}`;
-    }
+    // function getFormattedName(person: PersonFieldBag): string {
+    //     return `${person.nickName ?? ""} ${person.lastName ?? ""}`;
+    // }
 
     function getOverdueCount(rows: Record<string, unknown>[]): number {
         return rows.filter(r => r["dueStatus"] === DueStatus.Overdue).length;
@@ -1732,7 +1633,7 @@
 
                 if (requestDetailsForModal.value.length > 1) {
                     // clear selected keys
-                    // TODO - Ask Jon if this should happen.
+                    // TODO - Come back to this after the clear keys bug is fixed.
                     clearAllSelections();
                 }
             }
@@ -1945,8 +1846,7 @@
         }
     }
 
-    function clearAllSelections() {
-        console.log("clearing: ", groupedGridPanel.value);
+    function clearAllSelections(): void {
         groupedGridPanel.value.clearSelectedKeys();
         // gridRefs.value.forEach(grid => {
         //     console.log("clearning for grid: ", grid);
@@ -2008,7 +1908,6 @@
             }
 
             // clear selected keys
-            // TODO - Ask Jon if this should happen.
             clearAllSelections();
 
             isChangeStatusModalVisible.value = false;
@@ -2302,7 +2201,6 @@
         });
 
         if (result.isSuccess && result.data) {
-            console.log("result: ", result.data);
             if (dockedPanelDetailsBox.value?.entity?.activityEntries) {
                 const index = dockedPanelDetailsBox.value.entity.activityEntries.findIndex(a => a.key === result.data?.key);
 
@@ -2490,7 +2388,6 @@
             }
             else {
                 // clear selected keys
-                // TODO - Ask Jon if this should happen.
                 clearAllSelections();
             }
 
@@ -2702,9 +2599,11 @@
     }, 150));
 
     loadGridData();
-    if (!isNullOrWhiteSpace(box.options?.connectionRequestIdKey)) {
-        loadConnectionRequest();
-    }
+
+    // TODO - Load a single request at full width.
+    // if (!isNullOrWhiteSpace(box.options?.connectionRequestIdKey)) {
+    //     loadConnectionRequest();
+    // }
 
     onConfigurationValuesChanged(useReloadBlock());
 </script>

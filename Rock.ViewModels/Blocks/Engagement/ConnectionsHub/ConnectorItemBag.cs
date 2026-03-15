@@ -20,12 +20,18 @@ using Rock.ViewModels.Utility;
 namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
 {
     /// <summary>
-    /// 
+    /// Represents a connector option for selection in the Connections Hub, including a profile photo for display in the connector picker.
     /// </summary>
     public class ConnectorItemBag
     {
+        /// <summary>
+        /// Gets or sets the list item containing the connector's identifier value and display name.
+        /// </summary>
         public ListItemBag ListItemBag { get; set; }
 
+        /// <summary>
+        /// Gets or sets the URL of the connector's profile photo.
+        /// </summary>
         public string PhotoUrl { get; set; }
     }
 }

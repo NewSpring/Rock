@@ -21,10 +21,14 @@
 // </copyright>
 //
 
+/** Represents the data required to create or update a note on a connection request. */
 export type ConnectionRequestNoteBag = {
+    /** Gets or sets the encrypted identifier key of the connection request to add or update the note on. */
     connectionRequestIdKey?: string | null;
 
+    /** Gets or sets the encrypted identifier key of an existing note to update, or null to create a new note. */
     noteIdKey?: string | null;
 
+    /** Gets or sets the text content of the note. */
     noteText?: string | null;
 };

@@ -21,8 +21,11 @@
 // </copyright>
 //
 
+/** Represents the data required to launch a workflow against one or more connection requests. */
 export type LaunchWorkflowBag = {
+    /** Gets or sets the encrypted identifier keys of the connection requests to launch the workflow against. */
     connectionRequestIdKeys?: string[] | null;
 
+    /** Gets or sets the GUID of the connection workflow configuration to launch. */
     connectionWorkflowGuid?: string | null;
 };

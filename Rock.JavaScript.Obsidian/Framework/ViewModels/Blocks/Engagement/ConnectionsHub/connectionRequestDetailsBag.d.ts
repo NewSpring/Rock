@@ -33,11 +33,15 @@ import { RequesterPersonBag } from "@Obsidian/ViewModels/Blocks/Engagement/Conne
 import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
 import { PublicAttributeBag } from "@Obsidian/ViewModels/Utility/publicAttributeBag";
 
+/** Represents the full detail data for a connection request as displayed in the request detail panel. */
 export type ConnectionRequestDetailsBag = {
+    /** Gets or sets the list of action items (e.g., workflows) available for this connection request. */
     actionItems?: ListItemBag[] | null;
 
+    /** Gets or sets the list of activity feed entries for this connection request. */
     activityEntries?: ActivityEntryBag[] | null;
 
+    /** Gets or sets the list of other open connection requests associated with the same requester. */
     additionalRequests?: AdditionalRequestBag[] | null;
 
     /** The attributes for the selected Connection Request. */
@@ -46,42 +50,60 @@ export type ConnectionRequestDetailsBag = {
     /** The attribute values for the selected Connection Request. */
     attributeValues?: Record<string, string> | null;
 
-    /** The selected Campus on the Connection Request */
+    /** Gets or sets the name of the campus selected on this connection request. */
     campus?: string | null;
 
+    /** Gets or sets the celebration text to display for this request, if applicable. */
     celebrationText?: string | null;
 
+    /** Gets or sets the comments or notes on this connection request. */
     comments?: string | null;
 
+    /** Gets or sets the CSS icon class for the connection opportunity this request belongs to. */
     connectionOpportunityIcon?: string | null;
 
+    /** Gets or sets the name of the connection opportunity this request belongs to. */
     connectionOpportunityName?: string | null;
 
+    /** Gets or sets the encrypted identifier key of this connection request. */
     connectionRequestIdKey?: string | null;
 
+    /** Gets or sets the current connection state (e.g., Active, Inactive, Future Follow-up) of this request. */
     connectionState: ConnectionState;
 
+    /** Gets or sets the current connection status of this request. */
     connectionStatus?: ConnectionStatusBag | null;
 
+    /** Gets or sets the display value of the request source defined value for this request. */
     connectionTypeSource?: string | null;
 
+    /** Gets or sets the name of the connector person assigned to this request. */
     connectorPerson?: string | null;
 
+    /** Gets or sets the date and time this connection request was created. */
     createdDateTime?: string | null;
 
+    /** Gets or sets the date by which this request should be completed. */
     dueDate?: string | null;
 
+    /** Gets or sets the due status indicating whether this request is on time, due soon, or overdue. */
     dueStatus: DueStatus;
 
+    /** Gets or sets the follow-up date for this request when it is in the Future Follow-up state. */
     followUpDate?: string | null;
 
+    /** Gets or sets the list of person notes associated with the requester. */
     personNotes?: PersonNoteBag[] | null;
 
+    /** Gets or sets the placement group details for the group assigned to this request. */
     placementGroup?: PlacementGroupDetailsBag | null;
 
+    /** Gets or sets the number of active reminders set on this connection request. */
     reminderCount: number;
 
+    /** Gets or sets the profile data for the person who submitted this connection request. */
     requesterPerson?: RequesterPersonBag | null;
 
+    /** Gets or sets the unique identifier of the requester's person alias. */
     requesterPersonAliasGuid: Guid;
 };

@@ -28,7 +28,7 @@ using Rock.ViewModels.Utility;
 namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
 {
     /// <summary>
-    /// 
+    /// Represents the profile data for the person who submitted a connection request, used to populate the requester section of the detail panel.
     /// </summary>
     public class RequesterPersonBag
     {
@@ -62,10 +62,19 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
         /// <value>The connection status.</value>
         public string ConnectionStatus { get; set; }
 
+        /// <summary>
+        /// Gets or sets the age of the requester.
+        /// </summary>
         public int? Age { get; set; }
 
+        /// <summary>
+        /// Gets or sets the display value of the requester's gender.
+        /// </summary>
         public string Gender { get; set; }
 
+        /// <summary>
+        /// Gets or sets the display value of the requester's marital status.
+        /// </summary>
         public string MaritalStatus { get; set; }
     }
 }

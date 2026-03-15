@@ -21,13 +21,18 @@
 // </copyright>
 //
 
+/** Represents a person note associated with the requester of a connection request, for display in the request detail panel. */
 export type PersonNoteBag = {
+    /** Gets or sets the name of the person who created this note. */
     createdByName?: string | null;
 
+    /** Gets or sets the URL of the profile photo of the person who created this note. */
     createdByPhotoUrl?: string | null;
 
+    /** Gets or sets the date and time this note was created. */
     createdDateTime?: string | null;
 
+    /** Gets or sets the encrypted identifier key of this note. */
     idKey?: string | null;
 
     /** Gets or sets a value indicating whether this note is an alert note. */
@@ -36,6 +41,7 @@ export type PersonNoteBag = {
     /** Gets or sets a value indicating whether this note should be pinned to top */
     isPinned: boolean;
 
+    /** Gets or sets the name of the note type this note belongs to. */
     noteTypeName?: string | null;
 
     /** Gets or sets the text of the note. */

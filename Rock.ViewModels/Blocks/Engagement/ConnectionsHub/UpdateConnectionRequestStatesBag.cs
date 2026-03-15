@@ -23,16 +23,28 @@ using Rock.Model;
 namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
 {
     /// <summary>
-    /// 
+    /// Represents the data required to bulk-update the connection state of one or more connection requests.
     /// </summary>
     public class UpdateConnectionRequestStatesBag
     {
+        /// <summary>
+        /// Gets or sets the encrypted identifier keys of the connection requests to update.
+        /// </summary>
         public List<string> ConnectionRequestIdKeys { get; set; }
 
+        /// <summary>
+        /// Gets or sets the connection state (e.g., Active, Inactive, Future Follow-up) to apply to all specified requests.
+        /// </summary>
         public ConnectionState ConnectionState { get; set; }
 
+        /// <summary>
+        /// Gets or sets the follow-up date to assign when transitioning requests to the Future Follow-up state.
+        /// </summary>
         public DateTimeOffset? FollowUpDate { get; set; }
 
+        /// <summary>
+        /// Gets or sets the group member requirements to update when completing requests that have placement groups.
+        /// </summary>
         public List<GroupMemberRequirementBag> GroupMemberRequirements { get; set; }
     }
 }

@@ -486,13 +486,13 @@
         }
     }
 
-    function goPrevious() {
+    function goPrevious(): void {
         if (hasPrevious.value) {
             emit("navigate", previousKey.value);
         }
     }
 
-    function goNext() {
+    function goNext(): void {
         if (hasNext.value) {
             emit("navigate", nextKey.value);
         }

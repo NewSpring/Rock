@@ -21,12 +21,18 @@ using System.Security.Permissions;
 namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
 {
     /// <summary>
-    /// 
+    /// Represents the result of a workflow launch action on one or more connection requests.
     /// </summary>
     public class LaunchWorkflowResultBag
     {
+        /// <summary>
+        /// Gets or sets a status message describing the result of the workflow launch.
+        /// </summary>
         public string StatusMessage { get; set; }
 
+        /// <summary>
+        /// Gets or sets the URL of the workflow entry page to redirect to, if the launched workflow requires user interaction.
+        /// </summary>
         public string WorkflowEntryPageUrl { get; set; }
     }
 }

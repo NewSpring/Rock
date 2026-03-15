@@ -24,15 +24,20 @@
 import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
 import { PublicAttributeBag } from "@Obsidian/ViewModels/Utility/publicAttributeBag";
 
+/** Represents the detail data for a connection opportunity that is used to populate the request panel when an opportunity is selected. */
 export type ConnectionOpportunityDetailBag = {
     /** Gets or sets the attributes for Connection Request attributes specified at the Connection Opportunity level. */
     connectionOpportunityRequestAttributes?: Record<string, PublicAttributeBag> | null;
 
+    /** Gets or sets the list of connectors available for assignment within this opportunity. */
     connectors?: ListItemBag[] | null;
 
+    /** Gets or sets the GUID of the default connector's person alias for this opportunity. */
     defaultConnectorPersonAliasGuid?: string | null;
 
+    /** Gets or sets the encrypted identifier key of this connection opportunity. */
     idKey?: string | null;
 
+    /** Gets or sets the list of placement groups available for this opportunity. */
     placementGroups?: ListItemBag[] | null;
 };

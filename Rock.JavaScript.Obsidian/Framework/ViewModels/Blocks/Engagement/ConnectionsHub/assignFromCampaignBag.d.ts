@@ -21,10 +21,14 @@
 // </copyright>
 //
 
+/** Represents the parameters for assigning connection requests to a connector from a campaign. */
 export type AssignFromCampaignBag = {
+    /** Gets or sets the GUID of the connection campaign to pull requests from. */
     connectionCampaignGuid?: string | null;
 
+    /** Gets or sets the GUID of the connection opportunity to assign requests for. */
     connectionOpportunityGuid?: string | null;
 
+    /** Gets or sets the number of connection requests to assign from the campaign. */
     numberOfRequests: number;
 };

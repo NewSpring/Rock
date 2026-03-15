@@ -22,16 +22,28 @@ using Rock.ViewModels.Utility;
 namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
 {
     /// <summary>
-    /// 
+    /// Represents the detail data for a connection opportunity that is used to populate the request panel when an opportunity is selected.
     /// </summary>
     public class ConnectionOpportunityDetailBag
     {
+        /// <summary>
+        /// Gets or sets the encrypted identifier key of this connection opportunity.
+        /// </summary>
         public string IdKey { get; set; }
 
+        /// <summary>
+        /// Gets or sets the GUID of the default connector's person alias for this opportunity.
+        /// </summary>
         public string DefaultConnectorPersonAliasGuid { get; set; }
 
+        /// <summary>
+        /// Gets or sets the list of connectors available for assignment within this opportunity.
+        /// </summary>
         public List<ListItemBag> Connectors { get; set; }
 
+        /// <summary>
+        /// Gets or sets the list of placement groups available for this opportunity.
+        /// </summary>
         public List<ListItemBag> PlacementGroups { get; set; }
 
         /// <summary>

@@ -23,7 +23,7 @@ using Rock.ViewModels.Utility;
 namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
 {
     /// <summary>
-    /// 
+    /// Represents the public attribute definitions for a placement group member, returned when a placement group is selected.
     /// </summary>
     public class PlacementGroupMemberAttributesBag
     {

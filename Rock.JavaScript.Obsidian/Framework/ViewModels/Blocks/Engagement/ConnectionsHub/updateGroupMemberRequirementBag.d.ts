@@ -21,13 +21,17 @@
 // </copyright>
 //
 
+/** Represents the data required to manually update the fulfillment state of a group member requirement. */
 export type UpdateGroupMemberRequirementBag = {
     /** The Group Member IdKey of the placed group member. */
     groupMemberIdKey?: string | null;
 
+    /** Gets or sets the encrypted identifier key of the group member requirement record to update. */
     groupMemberRequirementIdKey?: string | null;
 
+    /** Gets or sets the encrypted identifier key of the group requirement definition. */
     groupRequirementIdKey?: string | null;
 
+    /** Gets or sets a value indicating whether the group member requirement should be marked as met. */
     isMet: boolean;
 };

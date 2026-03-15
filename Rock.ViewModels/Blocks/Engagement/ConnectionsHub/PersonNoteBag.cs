@@ -21,18 +21,33 @@ using System.Collections.Generic;
 namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
 {
     /// <summary>
-    /// 
+    /// Represents a person note associated with the requester of a connection request, for display in the request detail panel.
     /// </summary>
     public class PersonNoteBag
     {
+        /// <summary>
+        /// Gets or sets the encrypted identifier key of this note.
+        /// </summary>
         public string IdKey { get; set; }
 
+        /// <summary>
+        /// Gets or sets the URL of the profile photo of the person who created this note.
+        /// </summary>
         public string CreatedByPhotoUrl { get; set; }
 
+        /// <summary>
+        /// Gets or sets the name of the note type this note belongs to.
+        /// </summary>
         public string NoteTypeName { get; set; }
 
+        /// <summary>
+        /// Gets or sets the name of the person who created this note.
+        /// </summary>
         public string CreatedByName { get; set; }
 
+        /// <summary>
+        /// Gets or sets the date and time this note was created.
+        /// </summary>
         public DateTimeOffset? CreatedDateTime { get; set; }
 
         /// <summary>

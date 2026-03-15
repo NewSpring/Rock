@@ -360,8 +360,6 @@
         selectedCampus.value = props.transferDetails?.currentCampusGuid;
         selectedConnector.value = props.transferDetails?.currentConnectorPersonAliasGuid;
         selectedDueDate.value = props.transferDetails?.currentDueDate;
-
-        console.log(props.transferDetails?.attributes);
     });
 
 </script>

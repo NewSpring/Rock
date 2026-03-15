@@ -23,12 +23,17 @@
 
 import { Guid } from "@Obsidian/Types";
 
+/** Represents a connection campaign and its current pending request count for use in the assign-from-campaign flow. */
 export type ConnectionCampaignBag = {
+    /** Gets or sets the default number of requests to assign per connector when pulling from this campaign. */
     defaultNumberOfRequests?: number | null;
 
+    /** Gets or sets the unique identifier of this connection campaign. */
     guid: Guid;
 
+    /** Gets or sets the name of this connection campaign. */
     name?: string | null;
 
+    /** Gets or sets the number of connection requests currently pending assignment in this campaign. */
     pendingCount: number;
 };

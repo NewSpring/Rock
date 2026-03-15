@@ -21,19 +21,26 @@
 // </copyright>
 //
 
-/** The additional configuration options for the Connections Hub block. */
+/** Represents a summary of an additional connection request associated with the same requester person. */
 export type AdditionalRequestBag = {
+    /** Gets or sets the encrypted identifier key of the connection opportunity this request belongs to. */
     connectionOpportunityIdKey?: string | null;
 
+    /** Gets or sets the name of the connection opportunity this request belongs to. */
     connectionOpportunityName?: string | null;
 
+    /** Gets or sets the display name of the current connection status for this request. */
     connectionStatus?: string | null;
 
+    /** Gets or sets the name of the connector assigned to this request. */
     connector?: string | null;
 
+    /** Gets or sets the date and time this connection request was created. */
     requestCreatedDateTime?: string | null;
 
+    /** Gets or sets the name of the person who submitted this connection request. */
     requester?: string | null;
 
+    /** Gets or sets the encrypted identifier key of this connection request. */
     requestIdKey?: string | null;
 };

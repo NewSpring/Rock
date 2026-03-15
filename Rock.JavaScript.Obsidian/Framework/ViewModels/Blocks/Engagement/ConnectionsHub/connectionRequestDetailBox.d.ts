@@ -24,8 +24,11 @@
 import { ConnectionRequestDetailOptionsBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionRequestDetailOptionsBag";
 import { ConnectionRequestDetailsBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionRequestDetailsBag";
 
+/** Represents the combined payload returned when opening a connection request detail panel, containing the request data and its configuration options. */
 export type ConnectionRequestDetailBox = {
+    /** Gets or sets the entity data for the connection request being viewed or edited. */
     entity?: ConnectionRequestDetailsBag | null;
 
+    /** Gets or sets the configuration options used to render the connection request detail panel. */
     options?: ConnectionRequestDetailOptionsBag | null;
 };

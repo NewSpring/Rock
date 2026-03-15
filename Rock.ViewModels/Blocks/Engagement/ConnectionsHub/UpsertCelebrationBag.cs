@@ -18,12 +18,18 @@
 namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
 {
     /// <summary>
-    /// 
+    /// Represents the data required to create or update a celebration on a connection request.
     /// </summary>
     public class UpsertCelebrationBag
     {
+        /// <summary>
+        /// Gets or sets the encrypted identifier key of the connection request to add or update the celebration on.
+        /// </summary>
         public string ConnectionRequestIdKey { get; set; }
 
+        /// <summary>
+        /// Gets or sets the celebration text to display for this connection request.
+        /// </summary>
         public string CelebrationText { get; set; }
     }
 }

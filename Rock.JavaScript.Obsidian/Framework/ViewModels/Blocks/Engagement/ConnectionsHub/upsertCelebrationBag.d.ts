@@ -21,8 +21,11 @@
 // </copyright>
 //
 
+/** Represents the data required to create or update a celebration on a connection request. */
 export type UpsertCelebrationBag = {
+    /** Gets or sets the celebration text to display for this connection request. */
     celebrationText?: string | null;
 
+    /** Gets or sets the encrypted identifier key of the connection request to add or update the celebration on. */
     connectionRequestIdKey?: string | null;
 };

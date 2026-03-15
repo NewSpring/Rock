@@ -21,12 +21,15 @@
 // </copyright>
 //
 
+/** Represents the profile data for the person who submitted a connection request, used to populate the requester section of the detail panel. */
 export type RequesterPersonBag = {
+    /** Gets or sets the age of the requester. */
     age?: number | null;
 
     /** Gets or sets the connection status. */
     connectionStatus?: string | null;
 
+    /** Gets or sets the display value of the requester's gender. */
     gender?: string | null;
 
     /** Gets or sets the hashed identifier key. */
@@ -35,6 +38,7 @@ export type RequesterPersonBag = {
     /** Gets or sets the last name. */
     lastName?: string | null;
 
+    /** Gets or sets the display value of the requester's marital status. */
     maritalStatus?: string | null;
 
     /** Gets or sets the nick name. */

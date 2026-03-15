@@ -116,9 +116,7 @@
 </style>
 
 <script setup lang="ts">
-    import { ref, PropType, watch, computed, onBeforeUnmount, onMounted, nextTick } from "vue";
-    import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
-    import TransitionVerticalCollapse from "@Obsidian/Controls/transitionVerticalCollapse.obs";
+    import { ref, PropType, watch, computed } from "vue";
     import RockButton from "@Obsidian/Controls/rockButton.obs";
     import { ActivityEntryBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/activityEntryBag";
     import PersonAvatar from "@Obsidian/Controls/personAvatar.obs";

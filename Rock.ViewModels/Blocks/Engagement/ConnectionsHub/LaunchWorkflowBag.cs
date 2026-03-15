@@ -20,12 +20,18 @@ using System.Collections.Generic;
 namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
 {
     /// <summary>
-    /// 
+    /// Represents the data required to launch a workflow against one or more connection requests.
     /// </summary>
     public class LaunchWorkflowBag
     {
+        /// <summary>
+        /// Gets or sets the encrypted identifier keys of the connection requests to launch the workflow against.
+        /// </summary>
         public List<string> ConnectionRequestIdKeys { get; set; }
 
+        /// <summary>
+        /// Gets or sets the GUID of the connection workflow configuration to launch.
+        /// </summary>
         public string ConnectionWorkflowGuid { get; set; }
     }
 }
