@@ -13,21 +13,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 // </copyright>
-
-namespace Rock.Plugin.HotFixes
+//
+namespace Rock.Migrations
 {
+    using System;
+    using System.Data.Entity.Migrations;
+    
     /// <summary>
-    /// Plug-in migration
+    ///
     /// </summary>
-    /// <seealso cref="Rock.Plugin.Migration" />
-    [MigrationNumber( 999, "19.0" )]
-    public class V19Connections : Migration
+    public partial class AddConnectionsFeatures : Rock.Migrations.RockMigration
     {
         /// <summary>
         /// Operations to be performed during the upgrade process.
         /// </summary>
         public override void Up()
         {
+            CreateIndex("dbo.ConnectionActivityType", "PersonNoteTypeId");
+            AddForeignKey("dbo.ConnectionActivityType", "PersonNoteTypeId", "dbo.NoteType", "Id");
+
             JPH_SeedEnabledViewsAndFeaturesForExistingConnectionType_Up();
             JPH_AddConnectionsPages_Up();
             JPH_AddConnectionNavigationViewBlocks_Up();
@@ -36,7 +40,7 @@ namespace Rock.Plugin.HotFixes
             KH_UpdateConnectionProperties();
             JMH_AddConnectionOperationalSnapshotBlock_Up();
         }
-
+        
         /// <summary>
         /// Operations to be performed during the downgrade process.
         /// </summary>
@@ -46,6 +50,9 @@ namespace Rock.Plugin.HotFixes
             JPH_AddConnectionNavigationViewBlocks_Down();
             JPH_AddConnectionsPages_Down();
             JPH_SeedEnabledViewsAndFeaturesForExistingConnectionType_Down();
+
+            DropForeignKey("dbo.ConnectionActivityType", "PersonNoteTypeId", "dbo.NoteType");
+            DropIndex("dbo.ConnectionActivityType", new[] { "PersonNoteTypeId" });
         }
 
         /// <summary>
@@ -552,7 +559,7 @@ END" );
             //  Layout: -
             //  Site: Rock RMS
             RockMigrationHelper.AddBlock( true, "8B5F2875-0D36-4625-8EE4-B738AE8E12F5".AsGuid(), null, "C2D29296-6A87-47A9-A753-EE4E9159C4C4".AsGuid(), "8674FB3A-9E0E-421C-821C-2DA862A20ED2".AsGuid(), "Connections List", "Main", @"", @"", 0, "1422636F-548F-4F50-BF2A-D494FB936A5C" );
-		}
+        }
 
         /// <summary>
         /// KH: Adds the Connection Request note type.
@@ -591,26 +598,26 @@ SET [RequestStatusDueDateOffsetInDays] = 7,
 SET [HighlightColor] = '#00a6f4'
 WHERE [HighlightColor] IS NULL" );
         }
-            
+
         private void JMH_AddConnectionOperationalSnapshotBlock_Up()
         {
-            
+
             // Add/Update Obsidian Block Entity Type
             //   EntityType:Rock.Blocks.Engagement.ConnectionOperationalSnapshot
-            RockMigrationHelper.UpdateEntityType("Rock.Blocks.Engagement.ConnectionOperationalSnapshot", "Connection Operational Snapshot", "Rock.Blocks.Engagement.ConnectionOperationalSnapshot, Rock.Blocks, Version=19.0.5.0, Culture=neutral, PublicKeyToken=null", false, false, "92236EAD-C18C-4484-9685-6792B51FB7F7");
+            RockMigrationHelper.UpdateEntityType( "Rock.Blocks.Engagement.ConnectionOperationalSnapshot", "Connection Operational Snapshot", "Rock.Blocks.Engagement.ConnectionOperationalSnapshot, Rock.Blocks, Version=19.0.5.0, Culture=neutral, PublicKeyToken=null", false, false, "92236EAD-C18C-4484-9685-6792B51FB7F7" );
 
             // Add/Update Obsidian Block Type
             //   Name:Connection Operational Snapshot
             //   Category:Engagement
             //   EntityType:Rock.Blocks.Engagement.ConnectionOperationalSnapshot
-            RockMigrationHelper.AddOrUpdateEntityBlockType("Connection Operational Snapshot", "Displays analytics and operational metrics for Connection Requests and Connectors.", "Rock.Blocks.Engagement.ConnectionOperationalSnapshot", "Engagement", "B5FAF2A4-8195-4972-AA09-F65615939EA8");
+            RockMigrationHelper.AddOrUpdateEntityBlockType( "Connection Operational Snapshot", "Displays analytics and operational metrics for Connection Requests and Connectors.", "Rock.Blocks.Engagement.ConnectionOperationalSnapshot", "Engagement", "B5FAF2A4-8195-4972-AA09-F65615939EA8" );
 
             // Add Block 
             //  Block Name: Connection Operational Snapshot
             //  Page Name: Operational Snapshot
             //  Layout: -
             //  Site: Rock RMS
-            RockMigrationHelper.AddBlock( true, SystemGuid.Page.CONNECTIONS_OPERATIONAL_SNAPSHOT.AsGuid(),null,"C2D29296-6A87-47A9-A753-EE4E9159C4C4".AsGuid(),"B5FAF2A4-8195-4972-AA09-F65615939EA8".AsGuid(), "Connection Operational Snapshot","Main",@"",@"",0,"BAD25336-28FF-4012-8078-C9C34C62FE7F"); 
+            RockMigrationHelper.AddBlock( true, SystemGuid.Page.CONNECTIONS_OPERATIONAL_SNAPSHOT.AsGuid(), null, "C2D29296-6A87-47A9-A753-EE4E9159C4C4".AsGuid(), "B5FAF2A4-8195-4972-AA09-F65615939EA8".AsGuid(), "Connection Operational Snapshot", "Main", @"", @"", 0, "BAD25336-28FF-4012-8078-C9C34C62FE7F" );
 
             // Attribute for BlockType
             //   BlockType: Connection Operational Snapshot
@@ -626,7 +633,7 @@ WHERE [HighlightColor] IS NULL" );
             //   Attribute: Connections Hub Page
             /*   Attribute Value: 8b5f2875-0d36-4625-8ee4-b738ae8e12f5,565dfc73-e223-4c52-9174-11bb65700b7b */
             //   Skip If Already Exists: true
-            RockMigrationHelper.AddBlockAttributeValue( true ,"BAD25336-28FF-4012-8078-C9C34C62FE7F","0EA453F6-5984-4760-A6D3-B5DF513B1EEC",$@"{SystemGuid.Page.CONNECTIONS_LIST},565dfc73-e223-4c52-9174-11bb65700b7b");
+            RockMigrationHelper.AddBlockAttributeValue( true, "BAD25336-28FF-4012-8078-C9C34C62FE7F", "0EA453F6-5984-4760-A6D3-B5DF513B1EEC", $@"{SystemGuid.Page.CONNECTIONS_LIST},565dfc73-e223-4c52-9174-11bb65700b7b" );
         }
 
         private void JMH_AddConnectionOperationalSnapshotBlock_Down()
@@ -635,19 +642,19 @@ WHERE [HighlightColor] IS NULL" );
             //   BlockType: Connection Operational Snapshot
             //   Category: Engagement
             //   Attribute: Connections Hub Page
-            RockMigrationHelper.DeleteAttribute("0EA453F6-5984-4760-A6D3-B5DF513B1EEC");
+            RockMigrationHelper.DeleteAttribute( "0EA453F6-5984-4760-A6D3-B5DF513B1EEC" );
 
             // Remove Block
             //  Name: Connection Operational Snapshot, from Page: Operational Snapshot, Site: Rock RMS
             //  from Page: Operational Snapshot, Site: Rock RMS
-            RockMigrationHelper.DeleteBlock("BAD25336-28FF-4012-8078-C9C34C62FE7F");
+            RockMigrationHelper.DeleteBlock( "BAD25336-28FF-4012-8078-C9C34C62FE7F" );
 
             // Delete BlockType 
             //   Name: Connection Operational Snapshot
             //   Category: Engagement
             //   Path: -
             //   EntityType: Connection Operational Snapshot
-            RockMigrationHelper.DeleteBlockType("B5FAF2A4-8195-4972-AA09-F65615939EA8");
+            RockMigrationHelper.DeleteBlockType( "B5FAF2A4-8195-4972-AA09-F65615939EA8" );
         }
     }
 }
