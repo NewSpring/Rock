@@ -59,13 +59,6 @@ namespace Rock.Blocks.Types.Mobile.Engagement
         Key = AttributeKeys.AddContact,
         Order = 3 )]
 
-    [TextField( "Toolbox Name",
-        Description = "The public name of this experience.",
-        IsRequired = false,
-        DefaultValue = "Beacon",
-        Key = AttributeKeys.ToolboxName,
-        Order = 4 )]
-
     [TextField( "Toolbox Subtitle",
         Description = "The subtitle appears below the Toolbox name.",
         IsRequired = false,
@@ -93,7 +86,6 @@ namespace Rock.Blocks.Types.Mobile.Engagement
             public const string DetailPage = "DetailPage";
             public const string MyContact = "MyContact";
             public const string AddContact = "AddContact";
-            public const string ToolboxName = "ToolboxName";
             public const string ToolboxSubtitle = "ToolboxSubtitle";
             public const string CompletionLookbackPeriod = "CompletionLookbackPeriod";
         }
@@ -406,7 +398,6 @@ namespace Rock.Blocks.Types.Mobile.Engagement
                 BaptismInfoUrl = ResolveURL( GetAttributeValue( AttributeKeys.BaptismInfo ) ),
                 MyContactPage = GetAttributeValue( AttributeKeys.MyContact ).AsGuidOrNull(),
                 AddContactPage = GetAttributeValue( AttributeKeys.AddContact ).AsGuidOrNull(),
-                ToolboxName = GetAttributeValue( AttributeKeys.ToolboxName ),
                 ToolboxSubtitle = GetAttributeValue( AttributeKeys.ToolboxSubtitle )
             };
         }
