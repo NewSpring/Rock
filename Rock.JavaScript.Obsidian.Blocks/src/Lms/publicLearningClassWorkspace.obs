@@ -277,8 +277,7 @@
 
                             </div>
 
-                            <activityTypeComponent v-else
-                                                   :activityBag="viewingCompletionBag.classActivityBag"
+                            <activityTypeComponent :activityBag="viewingCompletionBag.classActivityBag"
                                                    :completionBag="viewingCompletionBag"
                                                    :screenToShow="screenToShow"
                                                    @loaded="onActivityLoaded"
