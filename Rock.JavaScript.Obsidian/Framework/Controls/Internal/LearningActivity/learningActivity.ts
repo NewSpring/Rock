@@ -267,10 +267,10 @@ export function useLearningComponent(
     /** Determines if the actiivty has been graded by a facilitator. */
     const hasBeenGraded = computed(() => isValidGuid(toValue(completionBag)?.gradedByPersonAlias?.value ?? ""));
 
-    /** Whether the student or facilitator has completed the activity. */
+    /** Whether the assigned party (student or facilitator) has completed the activity. */
     const isCompleted = computed(() => {
         const completion = toValue(completionBag);
-        return completion?.isStudentCompleted || completion?.isFacilitatorCompleted;
+        return completion?.isCompleted;
     });
 
     /**

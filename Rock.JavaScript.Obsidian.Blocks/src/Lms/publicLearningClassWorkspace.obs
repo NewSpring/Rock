@@ -548,8 +548,8 @@
         ];
     }
 
-    function isCompleted(activity): boolean {
-        return activity.isStudentCompleted || activity.isFacilitatorCompleted;
+    function isCompleted(activity: LearningClassActivityCompletionBag): boolean {
+        return activity.isCompleted;
     }
 
     function getBadgeText(activity: LearningClassActivityCompletionBag): string | undefined {

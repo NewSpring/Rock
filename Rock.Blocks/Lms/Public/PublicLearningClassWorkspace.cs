@@ -340,6 +340,7 @@ namespace Rock.Blocks.Lms
                     IsFacilitatorCompleted = activity.IsFacilitatorCompleted,
                     IsLate = activity.IsLate,
                     IsStudentCompleted = activity.IsStudentCompleted,
+                    IsCompleted = activity.IsCompleted,
                     LearningClassActivityIdKey = activity.LearningClassActivity.IdKey,
                     PointsEarned = activity.PointsEarned,
                     RequiresScoring = activity.RequiresGrading,
@@ -704,6 +705,7 @@ namespace Rock.Blocks.Lms
 
             completion.IsStudentCompleted = true;
             activityCompletionBag.IsStudentCompleted = true;
+            activityCompletionBag.IsCompleted = completion.IsCompleted;
 
             var activityComponent = LearningActivityContainer.Instance.Components.Values
                 .FirstOrDefault( c => c.Value.EntityType.Id == completion.LearningClassActivity.LearningActivity.ActivityComponentId )
