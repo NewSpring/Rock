@@ -11,6 +11,7 @@
                  :entityTypeGuid="entityTypeGuid"
                  :isEditHidden="false"
                  :isDeleteHidden="true"
+                 :isAuditHidden="true"
                  :isSecurityHidden="true"
                  :footerSecondaryActions="[]"
                  @cancelEdit="onCancelEdit"

@@ -52,7 +52,7 @@ export type CampaignConfigurationBag = {
      * Gets or sets the minimum number of days that must pass since the last connection
      * request was modified before a new one is created for the same person.
      */
-    daysBetweenConnection: number;
+    daysBetweenConnection?: number | null;
 
     /**
      * Gets or sets the family limits setting, determining whether the campaign

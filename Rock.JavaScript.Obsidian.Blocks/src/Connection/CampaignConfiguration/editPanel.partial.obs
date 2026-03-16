@@ -49,7 +49,7 @@
                     <div v-if="showAdvancedSettings" class="contentsection-body-collapse">
                         <CodeEditor v-model="requestCommentsLavaTemplate"
                                     label="Request Comments Lava Template"
-                                    help="Lava template used to generate comments for connection requests. Merge fields: [Person] and [Family]."
+                                    help="The template will be used to generate the comments for the connection request. It will be passed [Person] and [Family] merge fields for use in the template <span class='tip tip-lava'></span>."
                                     mode="lava"
                                     :editorHeight="200" />
                     </div>
@@ -172,7 +172,7 @@
     const optOutGroup = propertyRef(props.modelValue.bag?.optOutGroup ?? null, "OptOutGroup");
     const createConnectionRequestOption = propertyRef<CreateConnectionRequestOptions | null>(props.modelValue.bag?.createConnectionRequestOption ?? null, "CreateConnectionRequestOption");
     const dailyLimitAssigned = propertyRef(props.modelValue.bag?.dailyLimitAssigned ?? null, "DailyLimitAssigned");
-    const daysBetweenConnection = propertyRef(props.modelValue.bag?.daysBetweenConnection ?? 0, "DaysBetweenConnection");
+    const daysBetweenConnection = propertyRef(props.modelValue.bag?.daysBetweenConnection ?? null, "DaysBetweenConnection");
     const preferPreviousConnector = propertyRef(props.modelValue.bag?.preferPreviousConnector ?? false, "PreferPreviousConnector");
 
     const connectionOpportunityOptions = ref<ListItemBag[]>(props.options.connectionOpportunityOptions ?? []);
@@ -275,7 +275,7 @@
         updateRefValue(optOutGroup, props.modelValue.bag?.optOutGroup ?? null);
         updateRefValue(createConnectionRequestOption, props.modelValue.bag?.createConnectionRequestOption ?? null);
         updateRefValue(dailyLimitAssigned, props.modelValue.bag?.dailyLimitAssigned ?? null);
-        updateRefValue(daysBetweenConnection, props.modelValue.bag?.daysBetweenConnection ?? 0);
+        updateRefValue(daysBetweenConnection, props.modelValue.bag?.daysBetweenConnection ?? null);
         updateRefValue(preferPreviousConnector, props.modelValue.bag?.preferPreviousConnector ?? false);
     });
 

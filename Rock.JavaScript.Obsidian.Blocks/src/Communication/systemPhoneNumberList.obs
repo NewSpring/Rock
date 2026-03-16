@@ -36,7 +36,7 @@
                        title="SMS Enabled"
                        field="isSmsEnabled"
                        :filter="booleanValueFilter"
-                       visiblePriority="md" />
+                       visiblePriority="xs" />
 
         <PersonColumn name="assignedToPersonAlias"
                       title="Response Recipient"
@@ -45,7 +45,7 @@
                       :filterValue="getPersonNameFilterValue"
                       width="20%"
                       :showAsLink="true"
-                      visiblePriority="md" />
+                      visiblePriority="xs" />
 
         <SecurityColumn itemTitle="name" />
 
