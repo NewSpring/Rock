@@ -335,8 +335,11 @@ DECLARE @BlockTypeId INT = (SELECT TOP 1 [Id] FROM [BlockType] WHERE [Guid] = '2
 
 IF @BlockTypeId IS NOT NULL
 BEGIN
+    DECLARE @EntityTypeId INT = (SELECT TOP 1 [Id] FROM [EntityType] WHERE [Guid] = 'E8C57557-31B7-4846-8F63-36BDDBB88719');
+
     UPDATE [BlockType]
-    SET [Name] = 'Connection Type Navigation'
+    SET [EntityTypeId] = @EntityTypeId
+        , [Name] = 'Connection Type Navigation'
         , [Description] = 'Displays connection types that the user is authorized to view and provides easy navigation into each type''s connection opportunities and requests.'
     WHERE [Id] = @BlockTypeId;
 
@@ -414,10 +417,6 @@ END" );
             //   Attribute: Opportunities Page
             RockMigrationHelper.DeleteAttribute( "39E56CE0-0154-4A80-902C-0EFAAD5A4483" );
 
-            // Delete Obsidian Block Entity Type
-            //   EntityType:Rock.Blocks.Connection.ConnectionTypeNavigation
-            RockMigrationHelper.DeleteEntityType( "E8C57557-31B7-4846-8F63-36BDDBB88719" );
-
             // -----
             // Re-add the Legacy block type name, description and attributes that were removed in the up migration:
 
@@ -427,7 +426,8 @@ DECLARE @BlockTypeId INT = (SELECT TOP 1 [Id] FROM [BlockType] WHERE [Guid] = '2
 IF @BlockTypeId IS NOT NULL
 BEGIN
     UPDATE [BlockType]
-    SET [Name] = 'Connection Opportunity Select'
+    SET [EntityTypeId] = NULL
+        , [Name] = 'Connection Opportunity Select'
         , [Description] = 'Block to display the connection opportunities that the user is authorized to view.'
     WHERE [Id] = @BlockTypeId;
 
@@ -436,6 +436,10 @@ BEGIN
     WHERE [BlockTypeId] = @BlockTypeId
         AND [Name] = 'Connection Type Navigation';
 END" );
+
+            // Delete Obsidian Block Entity Type
+            //   EntityType:Rock.Blocks.Connection.ConnectionTypeNavigation
+            RockMigrationHelper.DeleteEntityType( "E8C57557-31B7-4846-8F63-36BDDBB88719" );
 
             // Attribute for BlockType: Connection Opportunity Select:Configuration Page
             RockMigrationHelper.AddOrUpdateBlockTypeAttribute( "23438CBC-105B-4ADB-8B9A-D5DDDCDD7643", "BD53F9C9-EBA9-4D3F-82EA-DE5DD34A8108", "Configuration Page", "ConfigurationPage", "Configuration Page", @"Page used to modify and create connection opportunities.", 1, @"9CC19684-7AD2-4D4E-A7C4-10DAE56E7FA6", "C170AC54-47B3-4B25-A149-742627D254CE" );
