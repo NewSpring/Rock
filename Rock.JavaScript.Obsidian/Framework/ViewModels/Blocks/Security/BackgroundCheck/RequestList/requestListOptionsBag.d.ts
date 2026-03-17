@@ -21,17 +21,6 @@
 // </copyright>
 //
 
-/** Contains a report search result row. */
-export type ReportSearchResultBag = {
-    /** Gets or sets the identifier of the report. */
-    id: number;
-
-    /** Gets or sets the report name. */
-    name?: string | null;
-
-    /** Gets or sets the display category structure that appears before the report link. */
-    structure?: string | null;
-
-    /** Gets or sets the target URL for the report. */
-    url?: string | null;
+/** The additional configuration options for the Request List block. */
+export type RequestListOptionsBag = {
 };

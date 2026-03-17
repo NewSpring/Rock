@@ -91,7 +91,7 @@ namespace Rock.ViewModels.Blocks.Connection.CampaignConfiguration
         /// Gets or sets the minimum number of days that must pass since the last connection
         /// request was modified before a new one is created for the same person.
         /// </summary>
-        public int DaysBetweenConnection { get; set; }
+        public int? DaysBetweenConnection { get; set; }
 
         /// <summary>
         /// Gets or sets a value indicating whether the campaign should prefer assigning

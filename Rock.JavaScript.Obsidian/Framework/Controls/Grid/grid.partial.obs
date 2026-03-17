@@ -969,7 +969,7 @@
      * Contains `true` if paging should be disabled on this grid.
      */
     const isPagingDisabled = computed((): boolean => {
-        return props.isFooterHidden || props.disablePaging;
+        return props.light || props.isFooterHidden || props.disablePaging;
     });
 
     /**

@@ -227,7 +227,7 @@ namespace Rock.Blocks.Connection
                 OptOutGroup = optOutGroupBag,
                 CreateConnectionRequestOption = isNew ? ( CreateConnectionRequestOptions? ) null : campaignItem.CreateConnectionRequestOption,
                 DailyLimitAssigned = campaignItem.DailyLimitAssigned,
-                DaysBetweenConnection = campaignItem.DaysBetweenConnection,
+                DaysBetweenConnection = isNew ? ( int? ) null : campaignItem.DaysBetweenConnection,
                 PreferPreviousConnector = campaignItem.PreferPreviousConnector
             };
         }
@@ -324,7 +324,7 @@ namespace Rock.Blocks.Connection
             campaignItem.FamilyLimits = bag.FamilyLimits ?? FamilyLimits.Everyone;
             campaignItem.CreateConnectionRequestOption = bag.CreateConnectionRequestOption ?? CreateConnectionRequestOptions.AsNeeded;
             campaignItem.DailyLimitAssigned = bag.DailyLimitAssigned;
-            campaignItem.DaysBetweenConnection = bag.DaysBetweenConnection;
+            campaignItem.DaysBetweenConnection = bag.DaysBetweenConnection ?? 0;
             campaignItem.PreferPreviousConnector = bag.PreferPreviousConnector;
 
             // Resolve the data view Guid from the bag's ListItemBag value.
