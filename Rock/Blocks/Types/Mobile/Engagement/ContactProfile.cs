@@ -221,9 +221,11 @@ namespace Rock.Blocks.Types.Mobile.Engagement
                 contact.WeddingDay = contactProfileBag.AnniversaryDay;
                 contact.WeddingMonth = contactProfileBag.AnniversaryMonth;
                 contact.WeddingYear = contactProfileBag.AnniversaryYear;
+                contact.HasAcceptedJesus = contactProfileBag.HasAcceptedJesus;
                 contact.SalvationDay = contactProfileBag.SalvationDay;
                 contact.SalvationMonth = contactProfileBag.SalvationMonth;
                 contact.SalvationYear = contactProfileBag.SalvationYear;
+                contact.HasBeenBaptized = contactProfileBag.Baptized;
                 contact.BaptismDay = contactProfileBag.BaptismDay;
                 contact.BaptismMonth = contactProfileBag.BaptismMonth;
                 contact.BaptismYear = contactProfileBag.BaptismYear;
@@ -234,9 +236,6 @@ namespace Rock.Blocks.Types.Mobile.Engagement
                 contact.TikTokProfileUrl = contactProfileBag.TikTokProfileUrl;
                 contact.InstagramProfileUrl = contactProfileBag.InstagramProfileUrl;
                 contact.XProfileUrl = contactProfileBag.XProfileUrl;
-
-                contact.HasBeenBaptized = contactProfileBag.BaptismDay.HasValue && contactProfileBag.BaptismMonth.HasValue;
-                contact.HasAcceptedJesus = contactProfileBag.SalvationDay.HasValue && contactProfileBag.SalvationMonth.HasValue;
 
                 RockContext.SaveChanges();
             } );
