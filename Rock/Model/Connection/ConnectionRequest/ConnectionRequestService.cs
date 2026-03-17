@@ -761,7 +761,9 @@ namespace Rock.Model
                         LastActivityDate = cr.LastActivityDate,
                         FollowupDate = cr.FollowupDate,
                         UserHasDirectAccess = cr.ConnectorPersonAliasId == currentPersonAliasId,
-                        CanCurrentUserEdit = cr.CanCurrentUserEdit
+                        CanCurrentUserEdit = cr.CanCurrentUserEdit,
+                        DueDate = cr.DueDate,
+                        DueSoonDate = cr.DueSoonDate
                     } )
                     .ToList()
                     .Select( cr => new ConnectionRequestViewModelSecurity
@@ -811,7 +813,9 @@ namespace Rock.Model
                         FollowupDate = cr.FollowupDate,
                         UserHasDirectAccess = cr.UserHasDirectAccess,
                         CanCurrentUserEdit = cr.UserHasDirectAccess ||
-                            cr.ConnectionRequest.IsAuthorized( Authorization.EDIT, currentPerson )
+                            cr.ConnectionRequest.IsAuthorized( Authorization.EDIT, currentPerson ),
+                        DueDate = cr.DueDate,
+                        DueSoonDate = cr.DueSoonDate
                     } )
                     .Where( cr => cr.UserHasDirectAccess ||
                              cr.ConnectionRequest.IsAuthorized( Authorization.VIEW, currentPerson ) );
@@ -877,7 +881,9 @@ namespace Rock.Model
                                 cr.ConnectorPersonAliasId == currentPersonAliasId,
                         CanCurrentUserEdit = campusIdQuery.Contains( null ) || // Global campus connector
                                 campusIdQuery.Contains( cr.CampusId ) || // In a connector group of the appropriate campus
-                                cr.ConnectorPersonAliasId == currentPersonAliasId
+                                cr.ConnectorPersonAliasId == currentPersonAliasId,
+                        DueDate = cr.DueDate,
+                        DueSoonDate = cr.DueSoonDate
                     } )
                     .Where( r =>
                         campusIdQuery.Contains( null ) || // Global campus connector
