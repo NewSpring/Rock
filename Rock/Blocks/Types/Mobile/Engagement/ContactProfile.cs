@@ -122,10 +122,9 @@ namespace Rock.Blocks.Types.Mobile.Engagement
                 XProfileUrl = contact.XProfileUrl,
                 PrayerCadence = contact.PrayerCadence.ToMobile(),
                 ConnectionCadence = contact.ConnectionCadence.ToMobile(),
-                PrayerNote = contact.PrayerNote,
+                ContactNote = contact.ContactNote,
                 TotalCompletedPrayersCount = GetTouchpointCount( contact.Id, TouchpointType.Prayer ),
                 CompletedPrayersLast30DaysCount = GetTouchpointCount( contact.Id, TouchpointType.Prayer, 30 ),
-                ConnectionNote = contact.ConnectionNote,
                 TotalCompletedConnectionsCount = GetTouchpointCount( contact.Id, TouchpointType.Connection ),
                 CompletedConnectionsLast30DaysCount = GetTouchpointCount( contact.Id, TouchpointType.Connection, 30 ),
             };
@@ -259,8 +258,7 @@ namespace Rock.Blocks.Types.Mobile.Engagement
             }
 
             // Only update the fields that were included in the request
-            contact.PrayerNote = bag.PrayerNote != null ? bag.PrayerNote : contact.PrayerNote;
-            contact.ConnectionNote = bag.ConnectionNote != null ? bag.ConnectionNote : contact.ConnectionNote;
+            contact.ContactNote = bag.ContactNote != null ? bag.ContactNote : contact.ContactNote;
             contact.PrayerCadence = bag.PrayerCadence != null ? bag.PrayerCadence.Value.ToNative() : contact.PrayerCadence;
             contact.ConnectionCadence = bag.ConnectionCadence != null ? bag.ConnectionCadence.Value.ToNative() : contact.ConnectionCadence;
 
