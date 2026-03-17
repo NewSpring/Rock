@@ -135,6 +135,7 @@ namespace Rock.Blocks.Engagement
             public const string SelectedGroupByMode = "SelectedGroupByMode";
             public const string AreOnlyMyRequestsVisible = "AreOnlyMyRequestsVisible";
             public const string SelectedConnector = "SelectedConnector";
+            public const string FilterStateConnectionTypeIdKey = "FilterState_ConnectionTypeIdKey_{0}";
         }
 
         private static class SqlParamKey
@@ -194,6 +195,30 @@ namespace Rock.Blocks.Engagement
         }
 
         /// <summary>
+        /// Sets default person preference values for this block if they have not yet been configured.
+        /// This runs during block initialization so that the client receives the correct defaults
+        /// on first page load without needing fallback logic on the client side.
+        /// </summary>
+        private void SetDefaultPreferences( string connectionTypeIdKey )
+        {
+            if ( connectionTypeIdKey.IsNullOrWhiteSpace() )
+            {
+                return;
+            }
+
+            var stateFilterKey = string.Format( PreferenceKey.FilterStateConnectionTypeIdKey, connectionTypeIdKey );
+
+            var existingValue = this.PersonPreferences.GetValue( stateFilterKey );
+            var hasValue = existingValue.FromJsonOrNull<List<int>>()?.Count > 0;
+
+            if ( !hasValue )
+            {
+                this.PersonPreferences.SetValue( stateFilterKey, new List<string> { ConnectionState.Active.ToString( "D" ) }.ToJson() );
+                this.PersonPreferences.Save();
+            }
+        }
+
+        /// <summary>
         /// Gets the box navigation URLs required for the page to operate.
         /// </summary>
         /// <returns>A dictionary of key names and URL values.</returns>
@@ -242,6 +267,8 @@ namespace Rock.Blocks.Engagement
             options.IconCssClass = connectionType.IconCssClass;
 
             var connectionTypeIdKey = IdHasher.Instance.GetHash( connectionType.Id );
+            SetDefaultPreferences( connectionTypeIdKey );
+
             options.ConnectionTypeIdKey = connectionTypeIdKey;
             options.RequiresPlacementGroupToComplete = connectionType.RequiresPlacementGroupToConnect;
             options.IsSequentialStatusMode = connectionType.IsSequentialStatusEnforced;
@@ -432,6 +459,22 @@ namespace Rock.Blocks.Engagement
             var preferences = GetBlockPersonPreferences();
 
             return preferences.GetValue( string.Format( PreferenceKey.ConnectionmOpportunityFilterConnectionTypeIdKey, connectionTypeIdKey ) ).AsGuidOrNull();
+        }
+
+        /// <summary>
+        /// Gets the Connection State Filter from the Person Preference. The values are stored
+        /// as a JSON array of integers corresponding to the <see cref="ConnectionState"/> enum.
+        /// </summary>
+        /// <param name="connectionTypeIdKey">The connection type that the preference is set on.</param>
+        /// <returns>A list of <see cref="ConnectionState"/> values to filter by, or an empty list if no filter is set.</returns>
+        private List<ConnectionState> GetStateFilter( string connectionTypeIdKey )
+        {
+            var preferences = GetBlockPersonPreferences();
+
+            return preferences.GetValue( string.Format( PreferenceKey.FilterStateConnectionTypeIdKey, connectionTypeIdKey ) )
+                .FromJsonOrNull<List<int>>()
+                ?.Select( i => ( ConnectionState ) i )
+                .ToList() ?? new List<ConnectionState>();
         }
 
         /// <summary>
@@ -1526,8 +1569,10 @@ namespace Rock.Blocks.Engagement
                 Person = requesterPerson,
                 RequesterPersonAliasGuid = connectionRequest.PersonAlias.Guid,
                 ConnectionOpportunity = connectionRequest.ConnectionOpportunity.Name,
+                ConnectionOpportunityGuid = connectionRequest.ConnectionOpportunity.Guid,
                 ConnectionTypeSource = connectionRequest.ConnectionTypeSource?.Name,
                 Campus = connectionRequest.Campus?.Name,
+                CampusGuid = connectionRequest.Campus?.Guid,
                 Group = connectionRequest.AssignedGroup?.Name,
                 ConnectionStatus = connectionStatusBag,
                 LastActivityDateTime = connectionRequest.ConnectionRequestActivities.Select( cra => cra.CreatedDateTime )
@@ -2627,6 +2672,7 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
                     ConnectionTypeSource = a.ConnectionTypeSource != null ? a.ConnectionTypeSource.Name : string.Empty,
                     CampusId = a.CampusId,
                     Campus = a.Campus != null ? a.Campus.Name : string.Empty,
+                    CampusGuid = a.Campus != null ? a.Campus.Guid : ( Guid? ) null,
                     //GroupId = a.AssignedGroupId,
                     Group = a.AssignedGroup != null ? a.AssignedGroup.Name : string.Empty,
                     ConnectionStatusProjection = new ConnectionStatusProjection
@@ -2673,10 +2719,18 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
                 connectionRequestsQry = connectionRequestsQry.Where( c => c.CampusId == campusContext.Id );
             }
 
-            var connectionOpportunityFilter = GetConnectionOpportunityFilter( IdHasher.Instance.GetHash( connectionType.Id ) );
+            var connectionTypeIdKey = IdHasher.Instance.GetHash( connectionType.Id );
+
+            var connectionOpportunityFilter = GetConnectionOpportunityFilter( connectionTypeIdKey );
             if ( connectionOpportunityFilter.HasValue )
             {
                 connectionRequestsQry = connectionRequestsQry.Where( c => c.ConnectionOpportunityGuid == connectionOpportunityFilter.Value );
+            }
+
+            var stateFilter = GetStateFilter( connectionTypeIdKey );
+            if ( stateFilter.Count > 0 )
+            {
+                connectionRequestsQry = connectionRequestsQry.Where( c => stateFilter.Contains( c.ConnectionState ) );
             }
 
             // If there is a page parameter for a selected connector and the Selected Connector person preference has a value then filter by connector.
@@ -4920,8 +4974,10 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
                 .AddField( "requestDetails", a => a.Person )
                 .AddField( "requesterPersonAliasGuid", a => a.RequesterPersonAliasGuid )
                 .AddTextField( "connectionOpportunity", a => a.ConnectionOpportunity )
+                .AddField( "connectionOpportunityGuid", a => a.ConnectionOpportunityGuid)
                 .AddTextField( "connectionTypeSource", a => a.ConnectionTypeSource )
                 .AddTextField( "campus", a => a.Campus )
+                .AddField( "campusGuid", a => a.CampusGuid )
                 .AddTextField( "group", a => a.Group )
                 .AddField( "connectionStatus", a => a.ConnectionStatus )
                 .AddDateTimeField( "lastActivityDateTime", a => a.LastActivityDateTime )
@@ -5020,6 +5076,8 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
             public int? CampusId { get; set; }
 
             public string Campus { get; set; }
+
+            public Guid? CampusGuid { get; set; }
 
             //public int? GroupId { get; set; }
 

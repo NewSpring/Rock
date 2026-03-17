@@ -63,6 +63,11 @@
             required: true
         },
 
+        connectionStatusItems: {
+            type: Array as PropType<ListItemBag[]>,
+            required: true
+        },
+
         isSaving: {
             type: Boolean as PropType<boolean>,
             default: false
@@ -91,15 +96,6 @@
 
     const status = ref();
     const note = ref();
-
-    const connectionStatusItems = computed<ListItemBag[]>(() => {
-        return (
-            props.connectionStatuses?.map(s => ({
-                value: s.guid,
-                text: s.name
-            })) ?? []
-        );
-    });
 
     const isNoteRequired = computed(() => {
         if (props.isSequentialMode) {

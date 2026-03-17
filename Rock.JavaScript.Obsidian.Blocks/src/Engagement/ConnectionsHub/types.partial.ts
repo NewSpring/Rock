@@ -19,6 +19,7 @@ export const enum PreferenceKey {
     SelectedGroupByMode = "SelectedGroupByMode",
     SelectedConnector = "SelectedConnector",
     AreOnlyMyRequestsVisible = "AreOnlyMyRequestsVisible",
+    IsAutoCollapseEnabled = "IsAutoCollapseEnabled",
     FilterSortByConnectionTypIdKey = "FilterSortBy_ConnectionTypeIdKey_{0}",
     FilterIsAssignedToMeConnectionTypeIdKey = "FilterIsAssignedToMe_ConnectionTypeIdKey_{0}",
     FilterGridDataToShowConnectionTypIdKey = "FilterGridDataToShow_ConnectionTypeIdKey_{0}",

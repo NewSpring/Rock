@@ -127,7 +127,7 @@
 
 <script setup lang="ts">
     import TransitionVerticalCollapse from "@Obsidian/Controls/transitionVerticalCollapse.obs";
-    import { createSection, useSectionContainer } from "@Obsidian/Core/Controls/contentSection";
+    import { createSection, IContentSectionHolder, useSectionContainer } from "@Obsidian/Core/Controls/contentSection";
     import { isNullOrWhiteSpace } from "@Obsidian/Utility/stringUtils";
     import { computed, onBeforeUnmount, PropType, ref, useSlots, watch, nextTick, onMounted } from "vue";
 
@@ -201,6 +201,7 @@
 
     const emit = defineEmits<{
         (e: "onSectionTransition", v: boolean): void;
+        (e: "onSectionHeaderClick", v: IContentSectionHolder);
     }>();
 
     // #region Values
@@ -299,6 +300,7 @@
         section.isCollapsed.value = !section.isCollapsed.value;
 
         emit("onSectionTransition", section.isCollapsed.value);
+        emit("onSectionHeaderClick", section);
     }
 
     // #endregion

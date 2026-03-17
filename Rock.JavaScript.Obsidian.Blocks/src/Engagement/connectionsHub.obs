@@ -28,6 +28,7 @@
                       hasFullscreen
                       :onAddItem="onAddItem"
                       :onPanelSettingsClick="onPanelSettingsClick"
+                      :isAutoCollapseEnabled="isAutoCollapseEnabled"
                       :headerSecondaryActions="secondaryActions">
         <template #selectedActionToolbar>
             <div class="left-actions d-flex align-items-center gap-md">
@@ -200,7 +201,6 @@
                     </template>
                 </Column>
 
-                <!-- TODO - handle case where no activity. -->
                 <Column v-if="viewOptions.gridDataToShow?.includes('activity')"
                         name="activity"
                         title="Activity"
@@ -391,7 +391,7 @@
                         :errorMessage="flyoutErrorMessage"
                         :isCompletionButtonLoading="isFlyoutCompletionButtonLoading"
                         :isSaving="isFlyoutSaving"
-                        :anchorEl="anchorEl"
+                        :anchorEl="flyoutAnchorEl"
                         :connectionRequestUpdateBag="connectionRequestUpdateBag"
                         :isNoteRequired="isNoteRequired"
                         :isSequentialMode="box.options?.isSequentialStatusMode ?? false"
@@ -472,6 +472,7 @@
                    @upsertActivity="upsertActivity" />
     <ChangeStatusModal v-model:visible="isChangeStatusModalVisible"
                        :connectionStatuses="box.options?.connectionStatuses ?? []"
+                       :connectionStatusItems="connectionStatusItems"
                        :isSequentialMode="box.options?.isSequentialStatusMode ?? false"
                        :isSaving="isModalSaving"
                        :requestDetails="requestDetailsForModal"
@@ -504,7 +505,7 @@
 
     <ConnectionRequestDockedPanel v-model="isDockedPanelVisible"
                                   ref="connectionRequestDockedPanelRef"
-                                  :currentKey="selectedRequestKey"
+                                  :currentKey="selectedRequestKeyForDockedPanel"
                                   :connectionRequestBreadcrumbs="connectionRequestBreadcrumbs"
                                   :orderedKeys="orderedRequestKeys ?? []"
                                   :detailsBox="dockedPanelDetailsBox"
@@ -651,7 +652,7 @@
     import { PersonFieldBag } from "@Obsidian/ViewModels/Core/Grid/personFieldBag";
     import ContextSlicer from "@Obsidian/Controls/contextSlicer.obs";
     import { ContextEntityChangedData, Message } from "@Obsidian/Types/Utility/browserBus";
-    // import { useContextEntities } from "@Obsidian/Core/Utilities/contextEntity";
+    import { useContextEntities } from "@Obsidian/Core/Utilities/contextEntity";
     import { PageMessages } from "@Obsidian/Utility/browserBus";
     import { areEqual, toGuidOrNull } from "@Obsidian/Utility/guid";
     import { EntityType } from "@Obsidian/SystemGuids/entityType";
@@ -714,25 +715,24 @@
     import { TransferConnectionRequestDetailsBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/transferConnectionRequestDetailsBag";
     import ConnectionStatusButton from "./ConnectionsHub/connectionStatusButton.partial.obs";
     import { ConnectionActivityTypeBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionActivityTypeBag";
-
-    /* =====================================================
-     * Configuration & Data Loading
-     * ===================================================== */
+    import { updateRefValue } from "@Obsidian/Utility/component";
 
     const box = useConfigurationValues<ListBlockBox<ConnectionsHubOptionsBag>>();
     const invokeBlockAction = useInvokeBlockAction();
     const preferences = usePersonPreferences().blockPreferences;
     const browserBus = useBlockBrowserBus();
-    // const contextEntities = useContextEntities();
+    const contextEntities = useContextEntities();
     const store = useStore();
 
     browserBus.subscribe(PageMessages.ContextEntityChanged, async (message: Message<ContextEntityChangedData>) => {
         if (areEqual(message.data.entityTypeGuid, EntityType.Campus)) {
+            const campusBag = await contextEntities.get(EntityType.Campus);
+            updateRefValue(selectedCampus, campusBag ?? null);
+
             loadGridData();
         }
     });
 
-    // TODO - Potentially put this in a bag.
     const allGroupingFields = <ListItemBag[]>[
         {
             text: "Connector",
@@ -760,8 +760,9 @@
         },
     ];
 
-    // Setting default value to connector grouping
+    // Context Slicer configuration
     const selectedGrouping = ref<string>(isNullOrWhiteSpace(preferences.getValue(PreferenceKey.SelectedGroupByMode)) ? "connectorGrouping" : preferences.getValue(PreferenceKey.SelectedGroupByMode));
+    const selectedCampus = ref<ListItemBag | null>(null);
     const areOnlyMyRequestsVisible = ref<string>(isNullOrWhiteSpace(preferences.getValue(PreferenceKey.AreOnlyMyRequestsVisible)) ? "true" : preferences.getValue(PreferenceKey.AreOnlyMyRequestsVisible));
     const internalSelectedOpportunity = ref(box.options?.connectionOpportunityGuidFromPageParameter ?? preferences.getValue(getConnectionFilterKey(PreferenceKey.ConnectionmOpportunityFilterConnectionTypeIdKey)));
     const internalSelectedConnector = ref<ListItemBag | null | undefined>(box.options?.selectedConnector);
@@ -775,120 +776,95 @@
             value: "false"
         }
     ]);
-
     if (internalSelectedConnector.value?.value && !isNullOrWhiteSpace(internalSelectedConnector.value.value)) {
         requestToggleItems.value.push(internalSelectedConnector.value);
         areOnlyMyRequestsVisible.value = internalSelectedConnector.value.value;
     }
 
+    // Add Connection Request Configuration
     const newConnectionRequest = ref<ValidPropertiesBox<ConnectionRequestBag>>({ bag: { connectionOpportunityGuid: internalSelectedOpportunity.value } as ConnectionRequestBag });
     const isExistingActiveRequesterOnConnectionType = ref<boolean>(false);
     const isAddConnectionRequestModalVisible = ref(false);
     const connectionOpportunityDetails = ref<ConnectionOpportunityDetailBag>(box.options?.connectionOpportunityDetailsFromFilter ?? {});
     const placementGroupDetails = ref<PlacementGroupDetailsBag>();
+
+    // Grouped Grid Configuration
     const selectedKeys = ref<Record<string, string[]>>({});
-
     const groupedGridPanel = ref();
-
+    const rawQuickFilter = ref("");
+    const debouncedQuickFilter = ref(rawQuickFilter.value);
+    const isAutoCollapseEnabled = ref<boolean>(asBoolean(preferences.getValue(PreferenceKey.IsAutoCollapseEnabled)));
     const openDropdownIndex = ref<string | null | undefined>();
+    // Holds the raw grid data returned from the server
+    const gridData = ref<GridDataBag>();
 
+    // Modal Configuration
     const isSendSMSModalVisible = ref(false);
     const isSendEmailModalVisible = ref(false);
-
-    const isModalAlertVisible = ref(false);
-    const modalAlertText = ref();
-
-    const isReminderModalVisible = ref(false);
-    const reminderEntityGuid = ref<string>("");
-
     const isCelebrationModalVisible = ref(false);
     const isAssignRequestModalVisible = ref(false);
     const isDeleteRequestModalVisible = ref(false);
     const isActivityModalVisible = ref(false);
     const isChangeStatusModalVisible = ref(false);
-    const isModalSaving = ref(false);
+    const isReminderModalVisible = ref(false);
     const isLaunchWorkflowModalVisible = ref(false);
     const isChangeStateModalVisible = ref(false);
-    const changeStateTo = ref<ConnectionState>(ConnectionState.Active);
-
     const isAddFromCampaignModalVisible = ref(false);
+    const isTransferModalVisible = ref<boolean>(false);
+    const isModalAlertVisible = ref(false);
+    const isViewOptionsModalVisible = ref(false);
+    const modalAlertText = ref();
+    const isModalSaving = ref(false);
+    const requestDetailsForModal = ref<BulkRequestViewBag[]>([]);
+    // Refs for specific modals
+    const reminderEntityGuid = ref<string>("");
+    const changeStateTo = ref<ConnectionState>(ConnectionState.Active);
     const areCampaignsLoading = ref(false);
     const campaignRecordBags = ref();
-
-    const isFlyoutOpen = ref(false);
-    const flyoutErrorMessage = ref<string>("");
-    const isFlyoutSaving = ref<boolean>(false);
-    const isDockedPanelSaving = ref<boolean>(false);
-    const isFlyoutCompletionButtonLoading = ref<boolean>(false);
-    const anchorEl = ref<HTMLElement | null>(null);
-    const connectionRequestUpdateBag = ref<ConnectionRequestUpdateBag>({} as ConnectionRequestUpdateBag);
-    const isNoteRequired = ref(false);
-
-    const requestDetailsForModal = ref<BulkRequestViewBag[]>([]);
     const areRequestDetailsForModalLoading = ref<boolean>(false);
     const failingRequestDetailsForModal = ref<BulkRequestViewBag[]>([]);
-
-    const orderedRequestKeys = ref<string[]>([]);
-    const isDockedPanelVisible = ref(false);
-    // Breadcrumbs are used when a user navigates to an "additional request"
-    const connectionRequestBreadcrumbs = ref<ListItemBag[]>([]);
-    const selectedRequestKey = ref();
-    const dockedPanelDetailsBox = ref<ConnectionRequestDetailBox>();
     const activityToEdit = ref<ActivityEntryBag | null>(null);
-    const connectionRequestDockedPanelRef = ref<InstanceType<typeof ConnectionRequestDockedPanel>>();
-    const dockedPanelCloseOnOutsideClick = ref<boolean>(true);
-    const isInSingleRequestMode = ref<boolean>(false);
-
-    const isTransferModalVisible = ref<boolean>(false);
     const transferErrorMessage = ref();
     const transferRequestDetails = ref<TransferConnectionRequestDetailsBag>();
-
-    // const isRowDropdownOpen = ref<Record<string, boolean>>({});
-
     const viewOptions = ref<ViewOptions>({
         sortBy: preferences.getValue(getConnectionFilterKey(PreferenceKey.FilterSortByConnectionTypIdKey)),
-        // isAssignedToMe: asBoolean(preferences.getValue(getConnectionFilterKey(PreferenceKey.FilterIsAssignedToMeConnectionTypeIdKey))),
         gridDataToShow: safeParseJson(preferences.getValue(getConnectionFilterKey(PreferenceKey.FilterGridDataToShowConnectionTypIdKey))),
         isRequestSourceShown: asBoolean(preferences.getValue(getConnectionFilterKey(PreferenceKey.FilterIsRequestSourceShownConnectionTypIdKey))),
         stateFilter: safeParseJson(preferences.getValue(getConnectionFilterKey(PreferenceKey.FilterStateConnectionTypIdKey))),
         statusFilter: safeParseJson(preferences.getValue(getConnectionFilterKey(PreferenceKey.FilterStatusConnectionTypIdKey))),
         dueFilter: safeParseJson(preferences.getValue(getConnectionFilterKey(PreferenceKey.FilterDueConnectionTypIdKey))),
     });
-    const isViewOptionsModalVisible = ref(false);
-
     // TODO - consider computing this and filtering by opportunity selection.
     const allPossibleConnectors = ref(box.options?.allPossibleConnectors ?? []);
-
     // SMS and Email modal state
     const communicationRecipients = ref<CommunicationRecipientBag[] | null | undefined>();
     const smsFromSystemPhoneNumbers = ref<ListItemBag[]>([]);
     const smsSnippets = ref<ListItemBag[]>([]);
     const communicationTemplates = ref<CommunicationTemplateBag[]>([]);
 
-    // Holds the raw grid data returned from the server
-    const gridData = ref<GridDataBag>();
-    const rawQuickFilter = ref("");
-    const debouncedQuickFilter = ref(rawQuickFilter.value);
+    // Flyout Configuration
+    const isFlyoutOpen = ref(false);
+    const flyoutErrorMessage = ref<string>("");
+    const isFlyoutSaving = ref<boolean>(false);
+    const isFlyoutCompletionButtonLoading = ref<boolean>(false);
+    const flyoutAnchorEl = ref<HTMLElement | null>(null);
+    const isNoteRequired = ref(false);
 
+    // Docked Panel Configuration
+    const isDockedPanelSaving = ref<boolean>(false);
+    const connectionRequestUpdateBag = ref<ConnectionRequestUpdateBag>({} as ConnectionRequestUpdateBag);
+    const orderedRequestKeys = ref<string[]>([]);
+    const isDockedPanelVisible = ref(false);
+    const selectedRequestKeyForDockedPanel = ref();
+    const dockedPanelDetailsBox = ref<ConnectionRequestDetailBox>();
+    const connectionRequestDockedPanelRef = ref<InstanceType<typeof ConnectionRequestDockedPanel>>();
+    const dockedPanelCloseOnOutsideClick = ref<boolean>(true);
+    // Breadcrumbs are used when a user navigates to an "additional request"
+    const connectionRequestBreadcrumbs = ref<ListItemBag[]>([]);
+    // TODO - This ref will be used for opening a request when passed in through a query string param.
+    const isInSingleRequestMode = ref<boolean>(false);
 
-    async function loadGridData(): Promise<void> {
-        if (!isNullOrWhiteSpace(box?.options?.connectionRequestIdKey)) {
-            return;
-        }
-
-        const result = await invokeBlockAction<GridDataBag>("GetGridData");
-
-        if (result.isSuccess && result.data) {
-            gridData.value = reactive(result.data);
-            return;
-        }
-
-        throw new Error(result.errorMessage ?? "Error loading grid data.");
-    }
-
-    // async function loadConnectionRequest(): Promise<void> {
-
-    // }
+    // #region Computed Values
 
     const currentPerson = computed((): CurrentPersonBag | null => {
         return store.state.currentPerson;
@@ -896,62 +872,28 @@
 
     /**
      * Gets the list of secondary action items to be included in the panel.
+     * This is computed because the auto-collapse toggle title depends on reactive state.
      */
-    const secondaryActions = computed((): PanelAction[] | undefined => {
-        const actions: PanelAction[] = [];
-
-        actions.push({
+    const secondaryActions = computed((): PanelAction[] => [
+        {
             type: "default",
             iconCssClass: "ti ti-plus",
             title: "Add From Campaign",
             handler: showAddFromCampaignModal
-        });
-
-        actions.push({
+        },
+        {
             type: "default",
             iconCssClass: "ti ti-viewport-short",
-            title: "Turn On Auto-Collapse",
-            handler: showAddFromCampaignModal
-        });
-
-        actions.push({
-            type: "default",
-            iconCssClass: "ti ti-chevrons-down",
-            title: "Expand All",
-            handler: expandAll
-        });
-
-        actions.push({
+            title: isAutoCollapseEnabled.value ? "Turn Off Auto-Collapse" : "Turn On Auto-Collapse",
+            handler: toggleAutoCollapse
+        },
+        {
             type: "default",
             iconCssClass: "ti ti-chevrons-up",
             title: "Collapse All",
             handler: collapseAll
-        });
-
-        return actions;
-    });
-
-    // TODO - If we keep this than pass this into the change status modal.
-    const connectionStatusItems = computed<ListItemBag[]>(() => {
-        const statuses = dockedPanelDetailsBox.value?.options?.connectionStatuses
-            ?? box.options?.connectionStatuses;
-
-        return (
-            statuses?.slice() // avoid mutating source
-                .sort((a, b) => a.order - b.order)
-                .map(s => ({
-                    value: s.guid,
-                    text: s.name
-                })) ?? []
-        );
-    });
-
-    const connectionActivityItems = computed<ConnectionActivityTypeBag[] | null | undefined>(() => {
-        const activities = dockedPanelDetailsBox.value?.options?.connectionActivities
-            ?? box.options?.connectionActivities;
-
-        return activities;
-    });
+        }
+    ]);
 
     // Computed setter normalizes v-model updates so the dropdown’s blank "All Opportunities" value is never stored in component state.
     const selectedOpportunity = computed({
@@ -962,11 +904,16 @@
     });
 
     const groupingFields = computed(() => {
+        let filteredGroupingFields = allGroupingFields;
+
         if (!isNullOrWhiteSpace(selectedOpportunity.value)) {
-            return allGroupingFields.filter(g => g.value !== "opportunityGrouping");
+            filteredGroupingFields = filteredGroupingFields.filter(g => g.value !== "opportunityGrouping");
+        }
+        if (!isNullOrWhiteSpace(selectedCampus.value?.value)) {
+            filteredGroupingFields = filteredGroupingFields.filter(g => g.value !== "campusGrouping");
         }
 
-        return allGroupingFields;
+        return filteredGroupingFields;
     });
 
     const hasSelectedOpportunity = computed(() => !isNullOrWhiteSpace(selectedOpportunity.value));
@@ -992,7 +939,6 @@
         }).filter((r): r is BulkRequestViewBag => r !== null);
     });
 
-
     const attributesToShow = computed(() => {
         return box.gridDefinition?.attributeFields?.filter(a => {
             if (!a.name) {
@@ -1016,6 +962,40 @@
 
     const normalizedQuickFilter = computed(() => debouncedQuickFilter.value.toLowerCase());
 
+    const connectionStatusItems = computed<ListItemBag[]>(() => {
+        const statuses = dockedPanelDetailsBox.value?.options?.connectionStatuses
+            ?? box.options?.connectionStatuses;
+
+        return (
+            statuses?.slice() // avoid mutating source
+                .sort((a, b) => a.order - b.order)
+                .map(s => ({
+                    value: s.guid,
+                    text: s.name
+                })) ?? []
+        );
+    });
+
+    const connectionActivityItems = computed<ConnectionActivityTypeBag[] | null | undefined>(() => {
+        const activities = dockedPanelDetailsBox.value?.options?.connectionActivities
+            ?? box.options?.connectionActivities;
+
+        return activities;
+    });
+
+    const visibleRows = computed(() => {
+        if (!gridData.value?.rows) {
+            return [];
+        }
+
+        let rows = gridData.value.rows;
+
+        rows = filterRows(rows);
+        rows = sortRows(rows);
+
+        return rows;
+    });
+
     function filterRows(rows: Record<string, unknown>[]): Record<string, unknown>[] {
         return rows.filter(row => {
             const requestDetailsValue = row["requestDetails"] as PersonFieldBag | undefined;
@@ -1032,7 +1012,6 @@
                     return false;
                 }
 
-                // TODO - Consider converting stateFilter to numbers.
                 if (!viewOptions.value.stateFilter.includes(stateValue.toString())) {
                     return false;
                 }
@@ -1064,8 +1043,7 @@
                 }
             }
 
-            // Requests Assigned to Me
-            // TODO Is this still needed?
+            // Requests Assigned to Me (This filter is done on the server side, but included here to handle live updates)
             if (areOnlyMyRequestsVisible.value === "true") {
                 const connectorValue = row["connectorDetails"] as ListItemBag | undefined;
 
@@ -1074,6 +1052,21 @@
                 }
 
                 if (currentPerson.value?.idKey !== connectorValue.value) {
+                    return false;
+                }
+            }
+
+            // Requests assigned to a specific campus (This filter is done on the server side, but included here to handle live updates)
+            if (!isNullOrWhiteSpace(selectedCampus.value?.value)) {
+                const campusGuid = row["campusGuid"] as string | null | undefined;
+                if (!areEqual(selectedCampus.value?.value, campusGuid)) {
+                    return false;
+                }
+            }
+
+            if (!isNullOrWhiteSpace(selectedOpportunity.value)) {
+                const connectionOpportunityGuid = row["connectionOpportunityGuid"] as string | null | undefined;
+                if (!areEqual(selectedOpportunity.value, connectionOpportunityGuid)) {
                     return false;
                 }
             }
@@ -1178,19 +1171,6 @@
         });
     }
 
-    const visibleRows = computed(() => {
-        if (!gridData.value?.rows) {
-            return [];
-        }
-
-        let rows = gridData.value.rows;
-
-        rows = filterRows(rows);
-        rows = sortRows(rows);
-
-        return rows;
-    });
-
     function resetNewConnectionRequest(): void {
         newConnectionRequest.value = { bag: { connectionOpportunityGuid: internalSelectedOpportunity.value } as ConnectionRequestBag };
         isExistingActiveRequesterOnConnectionType.value = false;
@@ -1287,7 +1267,7 @@
         // When a new request is selected from the list we need to clear breadcrumbs.
         connectionRequestBreadcrumbs.value = [];
 
-        selectedRequestKey.value = key;
+        selectedRequestKeyForDockedPanel.value = key;
         isFlyoutOpen.value = false;
         isDockedPanelVisible.value = true;
     }
@@ -1295,7 +1275,7 @@
     function updateSelectedRequestKey(key: string | null): void {
         dockedPanelDetailsBox.value = undefined;
         if (!isNullOrWhiteSpace(key)) {
-            selectedRequestKey.value = key;
+            selectedRequestKeyForDockedPanel.value = key;
         }
     }
 
@@ -1449,12 +1429,12 @@
         }
     }
 
-    function expandAll(): void {
-        groupedGridPanel.value.expandAll();
-    }
-
     function collapseAll(): void {
         groupedGridPanel.value.collapseAll();
+    }
+
+    function toggleAutoCollapse(): void {
+        isAutoCollapseEnabled.value = !isAutoCollapseEnabled.value;
     }
 
     function showCelebrationModal(row: Record<string, unknown> | null = null, detailsBox: ConnectionRequestDetailBox | null = null): void {
@@ -1623,6 +1603,38 @@
         getConnectionRequestDetails(connectionRequestIdKey);
     }
 
+    /**
+     * Loads the context entity values for the current session.
+     */
+    async function loadContextValues(): Promise<void> {
+        const item = await contextEntities.get(EntityType.Campus);
+
+        if (item) {
+            selectedCampus.value = item;
+        }
+    }
+
+    // #region Block Actions
+
+    async function loadGridData(): Promise<void> {
+        if (!isNullOrWhiteSpace(box?.options?.connectionRequestIdKey)) {
+            return;
+        }
+
+        const result = await invokeBlockAction<GridDataBag>("GetGridData");
+
+        if (result.isSuccess && result.data) {
+            gridData.value = reactive(result.data);
+            return;
+        }
+
+        throw new Error(result.errorMessage ?? "Error loading grid data.");
+    }
+
+    // async function loadConnectionRequest(): Promise<void> {
+
+    // }
+
     async function updateStateFromModal(bag: UpdateConnectionRequestStatesBag): Promise<void> {
         try {
             isModalSaving.value = true;
@@ -1727,7 +1739,7 @@
         }
 
         isNoteRequired.value = status.isNoteRequiredOnCompletion;
-        anchorEl.value = event.currentTarget as HTMLElement;
+        flyoutAnchorEl.value = event.currentTarget as HTMLElement;
         isFlyoutOpen.value = true;
     }
 
@@ -1745,7 +1757,7 @@
         };
 
         isNoteRequired.value = dockedPanelDetailsBox.value?.entity?.connectionStatus?.isNoteRequiredOnCompletion ?? false;
-        anchorEl.value = event.currentTarget as HTMLElement;
+        flyoutAnchorEl.value = event.currentTarget as HTMLElement;
         isFlyoutOpen.value = true;
     }
 
@@ -1760,7 +1772,7 @@
     function onFlyoutClose(): void {
         connectionRequestUpdateBag.value = {} as ConnectionRequestUpdateBag;
         isNoteRequired.value = false;
-        anchorEl.value = null;
+        flyoutAnchorEl.value = null;
     }
 
     function syncGridData(gridRow: Record<string, unknown>): void {
@@ -2117,7 +2129,7 @@
 
             // TODO - Find a better aproach to clearing the selected request
             if (isDockedPanelVisible.value && connectionRequestIdKeys.length === 1 && dockedPanelDetailsBox.value?.entity?.connectionRequestIdKey === connectionRequestIdKeys[0]) {
-                selectedRequestKey.value = null;
+                selectedRequestKeyForDockedPanel.value = null;
                 isDockedPanelVisible.value = false;
                 dockedPanelDetailsBox.value = undefined;
             }
@@ -2489,6 +2501,8 @@
         }
     }
 
+    // #endregion Block Actions
+
     // When any modal is open, disable close-on-outside-click for the docked panel so that
     // clicking inside a modal doesn't accidentally close the panel behind it.
     watch([isTransferModalVisible, isCelebrationModalVisible, isActivityModalVisible, isReminderModalVisible, isSendSMSModalVisible, isSendEmailModalVisible, isFlyoutOpen, isModalAlertVisible, isDeleteRequestModalVisible], (values) => {
@@ -2576,15 +2590,16 @@
     //     onAddRequest(newConnectionRequest.value);
     // });
 
-    watch(selectedGrouping, async () => {
+    watch([selectedGrouping, isAutoCollapseEnabled], async () => {
         preferences.setValue(PreferenceKey.SelectedGroupByMode, selectedGrouping.value);
+        preferences.setValue(PreferenceKey.IsAutoCollapseEnabled, isAutoCollapseEnabled.value.toString());
 
         await preferences.save();
     });
 
-    watch(selectedRequestKey, async () => {
-        if (!isNullOrWhiteSpace(selectedRequestKey.value)) {
-            await getConnectionRequestDetails(selectedRequestKey.value);
+    watch(selectedRequestKeyForDockedPanel, async () => {
+        if (!isNullOrWhiteSpace(selectedRequestKeyForDockedPanel.value)) {
+            await getConnectionRequestDetails(selectedRequestKeyForDockedPanel.value);
         }
     });
 
@@ -2598,6 +2613,7 @@
         debouncedQuickFilter.value = rawQuickFilter.value;
     }, 150));
 
+    loadContextValues();
     loadGridData();
 
     // TODO - Load a single request at full width.
