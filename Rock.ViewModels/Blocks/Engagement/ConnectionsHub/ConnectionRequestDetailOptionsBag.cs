@@ -37,6 +37,11 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
         public string ConnectionTypeIdKey { get; set; }
 
         /// <summary>
+        /// Gets or sets the boolean value indicating whether the current person can edit the Connection Request.
+        /// </summary>
+        public bool CanEditConnectionRequest { get; set; }
+
+        /// <summary>
         /// Gets or sets a value indicating whether a placement group must be assigned before a request can be completed.
         /// </summary>
         public bool RequiresPlacementGroupToComplete { get; set; }
@@ -120,5 +125,10 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
         /// Gets or sets a value indicating whether an active AI provider is configured.
         /// </summary>
         public bool IsAISummaryVisible { get; set; }
+
+        /// <summary>
+        /// Gets or sets a boolean value indicating whether the logged in user can edit a connection request note.
+        /// </summary>
+        public bool CanEditConnectionRequestNote { get; set;  }
     }
 }

@@ -38,6 +38,11 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
         public string IconCssClass { get; set; }
 
         /// <summary>
+        /// Gets or sets the boolean value indicating whether the current user can edit Connection Requests.
+        /// </summary>
+        public bool CanEditConnectionRequests { get; set; }
+
+        /// <summary>
         /// Gets or sets the encrypted identifier key of the Connection Type being viewed.
         /// </summary>
         public string ConnectionTypeIdKey { get; set; }

@@ -118,6 +118,8 @@
                                      :isAiSummaryLoading="isAiSummaryLoading"
                                      :options="options"
                                      :dockedPanelWidthNumber="dockedPanelWidthNumber"
+                                     :canEditConnectionRequest="canEditConnectionRequest"
+                                     :canEditConnectionRequestNote="canEditConnectionRequestNote"
                                      @navigateToBreadcrumb="(index) => emit('navigateToBreadcrumb', index)"
                                      @navigateToAdditionalRequest="(key) => emit('navigateToAdditionalRequest', key)"
                                      @editActivity="(entry) => emit('editActivity', entry)"
@@ -161,7 +163,7 @@
                             </RockButton>
                         </div>
                     </template>
-                    <template v-else>
+                    <template v-else-if="canEditConnectionRequest">
                         <div class="d-flex align-items-center gap-xs">
                             <RockButton :btnType="BtnType.Primary"
                                         @click="onEditClick">
@@ -195,6 +197,16 @@
                                                         :highlightColor="requestDetails?.connectionStatus?.highlightColor"
                                                         :currentStatusName="requestDetails?.connectionStatus?.name"
                                                         @click="(e) => emit('onStatusButtonClick', e, !isCompleteButtonDisabled)" />
+                            </div>
+                        </div>
+                    </template>
+                    <template v-else>
+                        <div class="d-flex align-items-center justify-content-end w-100">
+                            <div style="min-width: 150px;">
+                                <ConnectionStatusButton :isSequentialStatusMode="options?.isSequentialStatusMode"
+                                                        :highlightColor="requestDetails?.connectionStatus?.highlightColor"
+                                                        :currentStatusName="requestDetails?.connectionStatus?.name"
+                                                        disabled />
                             </div>
                         </div>
                     </template>
@@ -419,6 +431,9 @@
 
     const editDockedPanelBodyRef = ref<InstanceType<typeof EditDockedPanelBody>>();
     const editConnectionRequestBox = ref<ValidPropertiesBox<ConnectionRequestBag>>({});
+
+    const canEditConnectionRequest = computed(() => props.detailsBox?.options?.canEditConnectionRequest ?? false);
+    const canEditConnectionRequestNote = computed(() => props.detailsBox?.options?.canEditConnectionRequestNote ?? false);
 
     const currentIndex = computed(() =>
         props.orderedKeys.indexOf(props.currentKey)

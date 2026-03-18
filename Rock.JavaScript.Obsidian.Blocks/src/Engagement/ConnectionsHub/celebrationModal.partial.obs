@@ -2,7 +2,7 @@
 <template>
     <Modal v-model="isVisible"
            :title="title"
-           :isSaveButtonDisabled="isSaving"
+           :isSaveButtonDisabled="isSaving || !canEditCelebration"
            saveText="Save"
            @save="onSave">
         <div class="mb-spacing-sm text-interface-medium">
@@ -48,6 +48,11 @@
         },
 
         isSaving: {
+            type: Boolean as PropType<boolean>,
+            default: false
+        },
+
+        canEditCelebration: {
             type: Boolean as PropType<boolean>,
             default: false
         }

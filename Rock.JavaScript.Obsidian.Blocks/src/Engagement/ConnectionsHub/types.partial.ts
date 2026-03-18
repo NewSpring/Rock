@@ -14,6 +14,9 @@
 // limitations under the License.
 // </copyright>
 
+import { nextTick } from "vue";
+import { tooltip } from "@Obsidian/Utility/tooltip";
+
 export const enum PreferenceKey {
     ConnectionmOpportunityFilterConnectionTypeIdKey = "ConnectionOpportunityFilter_ConnectionTypeIdKey_{0}",
     SelectedGroupByMode = "SelectedGroupByMode",
@@ -38,3 +41,26 @@ export type ViewOptions = {
     statusFilter?: string[] | null,
     dueFilter?: string[] | null
 };
+
+function isTextOverflowing(el: HTMLElement): boolean {
+    return el.scrollWidth > el.clientWidth;
+}
+
+export function addTooltipIfOverflow(el: HTMLElement | null, tooltipText: string): void {
+    if (!el) return;
+
+    nextTick(() => {
+        requestAnimationFrame(() => {
+            el.removeAttribute("title");
+            el.removeAttribute("data-original-title");
+            el.removeAttribute("data-toggle");
+
+            if (isTextOverflowing(el)) {
+                el.setAttribute("title", tooltipText);
+                el.setAttribute("data-original-title", tooltipText);
+                el.setAttribute("data-toggle", "tooltip");
+                tooltip(el);
+            }
+        });
+    });
+}

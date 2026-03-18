@@ -21,7 +21,7 @@
                 </div>
             </div>
             <div class="d-flex gap-md  h-fit">
-                <DropDownContent v-if="activityEntry.entryType !== ActivityEntryType.Communication"
+                <DropDownContent v-if="(activityEntry.entryType === ActivityEntryType.RequestNote && canEditNote) || (activityEntry.entryType === ActivityEntryType.Activity && canEditActivity)"
                                  v-model="isSecondaryActionDropdownOpen"
                                  enableFlip>
                     <template #default>
@@ -140,6 +140,14 @@
         connectionRequestIdKey: {
             type: String as PropType<string>,
         },
+        canEditActivity: {
+            type: Boolean as PropType<boolean>,
+            required: true
+        },
+        canEditNote: {
+            type: Boolean as PropType<boolean>,
+            required: true
+        }
     });
 
     const emit = defineEmits<{

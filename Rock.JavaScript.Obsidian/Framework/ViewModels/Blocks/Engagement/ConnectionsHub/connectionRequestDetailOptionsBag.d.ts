@@ -42,6 +42,12 @@ export type ConnectionRequestDetailOptionsBag = {
     /** Gets or sets the GUIDs of the person profile badges to display on the request detail panel. */
     badgeGuids?: Guid[] | null;
 
+    /** Gets or sets the boolean value indicating whether the current person can edit the Connection Request. */
+    canEditConnectionRequest: boolean;
+
+    /** Gets or sets a boolean value indicating whether the logged in user can edit a connection request note. */
+    canEditConnectionRequestNote: boolean;
+
     /** Gets or sets the list of activity types available for logging against this request. */
     connectionActivities?: ConnectionActivityTypeBag[] | null;
 

@@ -164,12 +164,13 @@
                                     <DropDownContent v-model="isConnectorDropdownOpen"
                                                      enableFlip>
                                         <template #anchor>
-                                            <div class="d-flex align-items-center gap-xs cursor-pointer">
+                                            <div class="d-flex align-items-center gap-xs"
+                                                 :class="canEditConnectionRequest ? 'curser-pointer' : 'cursor-not-allowed'"
+                                                 @click.prevent.stop="onConnectorDropdownClick">
                                                 <PersonAvatar :photoUrl="selectedConnectorBag?.photoUrl ?? ''"
                                                               :photoSize="30"
                                                               marginRight="0" />
                                                 <div class="d-flex align-items-center gap-tiny">
-                                                    <!-- TODO: Is there a blank space here when unassigned? -->
                                                     <div class="text-small text-interface-strong text-semibold">{{ selectedConnectorBag?.listItemBag?.text }}</div>
                                                     <i class="ti ti-chevron-down"></i>
                                                 </div>
@@ -262,6 +263,7 @@
                                     <CheckBox :modelValue="manualRequirement.groupMemberRequirementState === MeetsGroupRequirement.Meets"
                                               label=""
                                               :text="manualRequirement.requirementName ?? ''"
+                                              :disabled="!canEditConnectionRequest"
                                               @update:modelValue="(isChecked) => updateManualRequirement(manualRequirement, isChecked)" />
                                     <Loading :isLoading="isManualRequirementLoadingRecord[manualRequirement.groupRequirementIdKey]"
                                              isSmall />
@@ -315,31 +317,33 @@
                 </DropDownContent>
             </template>
             <template #default>
-                <RockForm @submit="onAddRequestNote">
-                    <div class="d-flex flex-column gap-xs">
-                        <NotificationBox v-if="isAddRequestNoteErrorMessageVisible"
-                                         alertType="danger"
-                                         style="margin-bottom: 0;"
-                                         dismissible
-                                         @dismiss="onAddRequestNoteErrorDismissed">
-                            {{ addRequestNoteErrorMessage }}
-                        </NotificationBox>
-                        <TextBox v-model="connectionRequestNoteText"
-                                 textMode="multiline"
-                                 placeholder="Write a note..."
-                                 validationTitle="Note"
-                                 rules="required" />
-                        <div class="row">
-                            <div class="col-md-3">
-                                <RockButton :btnType="BtnType.Primary"
-                                            :btnSize="BtnSize.Small"
-                                            type="submit">
-                                    Save Note
-                                </RockButton>
+                <template v-if="canEditConnectionRequestNote">
+                    <RockForm @submit="onAddRequestNote">
+                        <div class="d-flex flex-column gap-xs">
+                            <NotificationBox v-if="isAddRequestNoteErrorMessageVisible"
+                                             alertType="danger"
+                                             style="margin-bottom: 0;"
+                                             dismissible
+                                             @dismiss="onAddRequestNoteErrorDismissed">
+                                {{ addRequestNoteErrorMessage }}
+                            </NotificationBox>
+                            <TextBox v-model="connectionRequestNoteText"
+                                     textMode="multiline"
+                                     placeholder="Write a note..."
+                                     validationTitle="Note"
+                                     rules="required" />
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <RockButton :btnType="BtnType.Primary"
+                                                :btnSize="BtnSize.Small"
+                                                type="submit">
+                                        Save Note
+                                    </RockButton>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                </RockForm>
+                    </RockForm>
+                </template>
                 <template v-for="activityEntry in filteredAndSortedActivityEntries">
                     <div v-if="activityEntry.entryType === ActivityEntryType.SystemUpdate && activityEntry.systemUpdate" class="d-flex gap-xs text-interface-medium text-small">
                         <Badge :isCircle="true" class="d-flex justify-content-center bg-interface-softest text-interface-medium h-fit">
@@ -354,6 +358,8 @@
                                   :connectionRequestIdKey="requestDetails?.connectionRequestIdKey ?? ''"
                                   :activityEntry="activityEntry"
                                   :ref="(el) => setActivityCardRef(activityEntry.key, el)"
+                                  :canEditActivity="canEditConnectionRequest"
+                                  :canEditNote="canEditConnectionRequestNote"
                                   @editNote="(bag) => onEditRequestNote(bag, activityEntry.key)"
                                   @deleteNote="deleteNote"
                                   @editActivity="(entry) => emit('editActivity', entry)"
@@ -458,16 +464,11 @@
 
 <script setup lang="ts">
     import { ref, PropType, watch, computed, shallowRef } from "vue";
-    import { useVModelPassthrough } from "@Obsidian/Utility/component";
     import { ConnectionRequestDetailsBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionRequestDetailsBag";
     import PersonAvatar from "@Obsidian/Controls/personAvatar.obs";
-    import BadgeList from "@Obsidian/Controls/badgeList.obs";
     import RockButton from "@Obsidian/Controls/rockButton.obs";
     import { isNullOrWhiteSpace, pluralize } from "@Obsidian/Utility/stringUtils";
-    import { EntityType } from "@Obsidian/SystemGuids/entityType";
     import TransitionVerticalCollapse from "@Obsidian/Controls/transitionVerticalCollapse.obs";
-    import { ExpandedNoteBag } from "@Obsidian/Controls/Internal/Notes/types.partial";
-    import { ConnectionsHubOptionsBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionsHubOptionsBag";
     import { RockDateTime } from "@Obsidian/Utility/rockDateTime";
     import { AdditionalRequestBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/additionalRequestBag";
     import ContentSection from "@Obsidian/Controls/contentSection.obs";
@@ -477,7 +478,6 @@
     import DisplayCard from "@Obsidian/Controls/displayCard.obs";
     import DropDownContent from "@Obsidian/Controls/dropDownContent.obs";
     import { DueStatus } from "@Obsidian/Enums/Connection/dueStatus";
-    import { PersonFieldBag } from "@Obsidian/ViewModels/Core/Grid/personFieldBag";
     import ActionItems from "./actionItems.partial.obs";
     import HighlightLabel from "@Obsidian/Controls/highlightLabel.obs";
     import AttributeValuesContainer from "@Obsidian/Controls/attributeValuesContainer.obs";
@@ -491,7 +491,6 @@
     import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
     import { toNumber } from "@Obsidian/Utility/numberUtils";
     import Badge from "@Obsidian/Controls/badge.obs";
-    import { SystemUpdateBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/systemUpdateBag";
     import { SystemUpdateType } from "@Obsidian/Enums/Connection/systemUpdateType";
     import { ActivityEntryBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/activityEntryBag";
     import TextBox from "@Obsidian/Controls/textBox.obs";
@@ -501,7 +500,7 @@
     import RockForm from "@Obsidian/Controls/rockForm.obs";
     import { BtnSize } from "@Obsidian/Enums/Controls/btnSize";
     import NotificationBox from "@Obsidian/Controls/notificationBox.obs";
-    import { MeetsGroupRequirement, MeetsGroupRequirementDescription } from "@Obsidian/Enums/Group/meetsGroupRequirement";
+    import { MeetsGroupRequirement } from "@Obsidian/Enums/Group/meetsGroupRequirement";
     import { GroupMemberRequirementBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/groupMemberRequirementBag";
     import CheckBox from "@Obsidian/Controls/checkBox.obs";
     import { UpdateGroupMemberRequirementBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/updateGroupMemberRequirementBag";
@@ -543,6 +542,16 @@
 
         dockedPanelWidthNumber: {
             type: Number as PropType<number>,
+            required: true
+        },
+
+        canEditConnectionRequest: {
+            type: Boolean as PropType<boolean>,
+            required: true
+        },
+
+        canEditConnectionRequestNote: {
+            type: Boolean as PropType<boolean>,
             required: true
         }
     });
@@ -876,6 +885,14 @@
             default:
                 return "text-interface-medium";
         }
+    }
+
+    function onConnectorDropdownClick(): void {
+        if (!props.canEditConnectionRequest) {
+            return;
+        }
+
+        isConnectorDropdownOpen.value = true;
     }
 
     // TODO - Determine if this needs to be saved immediately

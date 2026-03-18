@@ -26,7 +26,7 @@
                       :groupingFields="groupingFields"
                       itemTerm="Request"
                       hasFullscreen
-                      :onAddItem="onAddItem"
+                      :onAddItem="canEditConnectionRequests ? onAddItem : undefined"
                       :onPanelSettingsClick="onPanelSettingsClick"
                       :isAutoCollapseEnabled="isAutoCollapseEnabled"
                       :headerSecondaryActions="secondaryActions">
@@ -37,11 +37,11 @@
                     <Badge class="font-weight-semibold bg-info-strong">{{ allSelectedKeys.length }}</Badge>
                 </div>
                 <div class="d-flex align-items-center gap-xs">
-                    <RockButton class="activity-btn" @click="showAssignRequestModal">
+                    <RockButton class="activity-btn" @click="showAssignRequestModal" :disabled="!canEditConnectionRequests">
                         <i class="ti ti-user-circle"></i>
                         <span class="activity-btn-label">Assign</span>
                     </RockButton>
-                    <RockButton @click="showChangeStatusModal" class="activity-btn">
+                    <RockButton @click="showChangeStatusModal" class="activity-btn" :disabled="!canEditConnectionRequests">
                         <template v-if="box.options?.isSequentialStatusMode">
                             <i class="ti ti-arrow-right"></i>
                             <span class="activity-btn-label">Advance to Next Status</span>
@@ -55,11 +55,11 @@
                         <i class="ti ti-settings-cog"></i>
                         <span class="activity-btn-label">Launch Workflow</span>
                     </RockButton>
-                    <RockButton class="activity-btn" @click="showChangeStateModal(ConnectionState.Connected)">
+                    <RockButton class="activity-btn" @click="showChangeStateModal(ConnectionState.Connected)" :disabled="!canEditConnectionRequests">
                         <i class="ti ti-circle-check"></i>
                         <span class="activity-btn-label">Complete</span>
                     </RockButton>
-                    <div class="dropdown">
+                    <div v-if="canEditConnectionRequests" class="dropdown">
                         <i class="ti ti-dots-vertical cursor-pointer" data-toggle="dropdown"></i>
                         <ul class="dropdown-menu">
                             <li>
@@ -106,7 +106,7 @@
                     </RockButton>
                 </div>
                 <div class="border-left border-info pl-spacing-md d-flex align-items-center gap-md">
-                    <RockButton class="activity-btn" @click="showAddActivityModal">
+                    <RockButton class="activity-btn" @click="showAddActivityModal" :disabled="!canEditConnectionRequests">
                         <i class="ti ti-activity"></i>
                         <span class="activity-btn-label">Add Activity</span>
                     </RockButton>
@@ -304,6 +304,7 @@
                                 <ConnectionStatusButton :isSequentialStatusMode="box.options?.isSequentialStatusMode"
                                                         :highlightColor="row.connectionStatus.highlightColor"
                                                         :currentStatusName="row.connectionStatus.name"
+                                                        :disabled="!canEditConnectionRequests"
                                                         @click.stop="(e) => onStatusClick(row, e)" />
                             </template>
                             <div v-else-if="row.connectionState === ConnectionState.Inactive"
@@ -330,34 +331,36 @@
                         <div :class="['dropdown', 'dropdown-right', { 'open': openDropdownIndex === row.idKey }]">
                             <i class="ti ti-dots-vertical cursor-pointer" data-toggle="dropdown" @click.stop="toggleGridRowDropdown(row.idKey)"></i>
                             <ul class="dropdown-menu">
-                                <li>
-                                    <button type="button"
-                                            @click.stop="showChangeStateModal(ConnectionState.Active, row)"
-                                            class="dropdown-item btn-link py-spacing-xs px-spacing-md font-weight-semibold">
-                                        <i class="ti ti-user pr-spacing-sm text-interface-medium"></i>Set as Active
-                                    </button>
-                                </li>
-                                <li>
-                                    <button type="button"
-                                            @click.stop="showChangeStateModal(ConnectionState.Inactive, row)"
-                                            class="dropdown-item btn-link py-spacing-xs px-spacing-md font-weight-semibold">
-                                        <i class="ti ti-user-off pr-spacing-sm text-interface-medium"></i>Set as Inactive
-                                    </button>
-                                </li>
-                                <li v-if="box.options?.isFutureFollowUpEnabled">
-                                    <button type="button"
-                                            @click.stop="showChangeStateModal(ConnectionState.FutureFollowUp, row)"
-                                            class="dropdown-item btn-link py-spacing-xs px-spacing-md font-weight-semibold">
-                                        <i class="ti ti-calendar pr-spacing-sm text-interface-medium"></i>Set as Future Follow-Up
-                                    </button>
-                                </li>
-                                <li>
-                                    <button type="button"
-                                            @click.stop="showChangeStateModal(ConnectionState.Connected, row)"
-                                            class="dropdown-item btn-link py-spacing-xs px-spacing-md font-weight-semibold">
-                                        <i class="ti ti-circle-check pr-spacing-sm text-interface-medium"></i>Mark Complete
-                                    </button>
-                                </li>
+                                <template v-if="canEditConnectionRequests">
+                                    <li>
+                                        <button type="button"
+                                                @click.stop="showChangeStateModal(ConnectionState.Active, row)"
+                                                class="dropdown-item btn-link py-spacing-xs px-spacing-md font-weight-semibold">
+                                            <i class="ti ti-user pr-spacing-sm text-interface-medium"></i>Set as Active
+                                        </button>
+                                    </li>
+                                    <li>
+                                        <button type="button"
+                                                @click.stop="showChangeStateModal(ConnectionState.Inactive, row)"
+                                                class="dropdown-item btn-link py-spacing-xs px-spacing-md font-weight-semibold">
+                                            <i class="ti ti-user-off pr-spacing-sm text-interface-medium"></i>Set as Inactive
+                                        </button>
+                                    </li>
+                                    <li v-if="box.options?.isFutureFollowUpEnabled">
+                                        <button type="button"
+                                                @click.stop="showChangeStateModal(ConnectionState.FutureFollowUp, row)"
+                                                class="dropdown-item btn-link py-spacing-xs px-spacing-md font-weight-semibold">
+                                            <i class="ti ti-calendar pr-spacing-sm text-interface-medium"></i>Set as Future Follow-Up
+                                        </button>
+                                    </li>
+                                    <li>
+                                        <button type="button"
+                                                @click.stop="showChangeStateModal(ConnectionState.Connected, row)"
+                                                class="dropdown-item btn-link py-spacing-xs px-spacing-md font-weight-semibold">
+                                            <i class="ti ti-circle-check pr-spacing-sm text-interface-medium"></i>Mark Complete
+                                        </button>
+                                    </li>
+                                </template>
                                 <li>
                                     <button type="button"
                                             @click.stop="showLaunchWorkflowModal(row)"
@@ -365,20 +368,22 @@
                                         <i class="ti ti-settings-cog pr-spacing-sm text-interface-medium"></i>Launch Workflow
                                     </button>
                                 </li>
-                                <li v-if="box.options?.isRequestSecurityEnabled">
-                                    <button type="button"
-                                            @click.stop="showSecurityModal(row.idKey)"
-                                            class="dropdown-item btn-link py-spacing-xs px-spacing-md font-weight-semibold">
-                                        <i class="ti ti-lock pr-spacing-sm text-interface-medium"></i>Security
-                                    </button>
-                                </li>
-                                <li>
-                                    <button type="button"
-                                            @click.stop="showDeleteRequestModal(row)"
-                                            class="dropdown-item btn-link py-spacing-xs px-spacing-md font-weight-semibold text-danger">
-                                        <i class="ti ti-trash pr-spacing-sm text-danger"></i>Delete
-                                    </button>
-                                </li>
+                                <template v-if="canEditConnectionRequests">
+                                    <li v-if="box.options?.isRequestSecurityEnabled">
+                                        <button type="button"
+                                                @click.stop="showSecurityModal(row.idKey)"
+                                                class="dropdown-item btn-link py-spacing-xs px-spacing-md font-weight-semibold">
+                                            <i class="ti ti-lock pr-spacing-sm text-interface-medium"></i>Security
+                                        </button>
+                                    </li>
+                                    <li>
+                                        <button type="button"
+                                                @click.stop="showDeleteRequestModal(row)"
+                                                class="dropdown-item btn-link py-spacing-xs px-spacing-md font-weight-semibold text-danger">
+                                            <i class="ti ti-trash pr-spacing-sm text-danger"></i>Delete
+                                        </button>
+                                    </li>
+                                </template>
                             </ul>
                         </div>
                     </template>
@@ -427,6 +432,7 @@
                       :requestDetails="requestDetailsForModal"
                       :viewOptions="viewOptions"
                       :isSaving="isModalSaving"
+                      :canEditCelebration="canEditConnectionRequests"
                       @upsertCelebration="upsertCelebration" />
 
     <ReminderModal v-model="isReminderModalVisible"
@@ -781,6 +787,8 @@
         areOnlyMyRequestsVisible.value = internalSelectedConnector.value.value;
     }
 
+    const canEditConnectionRequests = ref<boolean>(box.options?.canEditConnectionRequests ?? false);
+
     // Add Connection Request Configuration
     const newConnectionRequest = ref<ValidPropertiesBox<ConnectionRequestBag>>({ bag: { connectionOpportunityGuid: internalSelectedOpportunity.value } as ConnectionRequestBag });
     const isExistingActiveRequesterOnConnectionType = ref<boolean>(false);
@@ -996,6 +1004,10 @@
         return rows;
     });
 
+    // #endregion Computed Values
+
+    // #region Grid Functions
+
     function filterRows(rows: Record<string, unknown>[]): Record<string, unknown>[] {
         return rows.filter(row => {
             const requestDetailsValue = row["requestDetails"] as PersonFieldBag | undefined;
@@ -1171,10 +1183,55 @@
         });
     }
 
+    function getOverdueCount(rows: Record<string, unknown>[]): number {
+        return rows.filter(r => r["dueStatus"] === DueStatus.Overdue).length;
+    }
+
+    function getDueSoonCount(rows: Record<string, unknown>[]): number {
+        return rows.filter(r => r["dueStatus"] === DueStatus.DueSoon).length;
+    }
+
+    /**
+     * Called when a row has been selected by the individual.
+     *
+     * @param key The key of the row that was selected.
+     */
+    function onSelectItem(key: string): void {
+        // When a new request is selected from the list we need to clear breadcrumbs.
+        connectionRequestBreadcrumbs.value = [];
+
+        selectedRequestKeyForDockedPanel.value = key;
+        isFlyoutOpen.value = false;
+        isDockedPanelVisible.value = true;
+    }
+
+    function onAddItem(): void {
+        isAddConnectionRequestModalVisible.value = true;
+    }
+
+    // #endregion Grid Functions
+
+    // #region Docked Panel Functions
+
+    function updateSelectedRequestKey(key: string | null): void {
+        dockedPanelDetailsBox.value = undefined;
+        if (!isNullOrWhiteSpace(key)) {
+            selectedRequestKeyForDockedPanel.value = key;
+        }
+    }
+
+    // #endregion Docked Panel Functions
+
+    // #region Modal Functions
+
     function resetNewConnectionRequest(): void {
         newConnectionRequest.value = { bag: { connectionOpportunityGuid: internalSelectedOpportunity.value } as ConnectionRequestBag };
         isExistingActiveRequesterOnConnectionType.value = false;
     }
+
+    // #endregioin Modal Functions
+
+    // #region Helper Functions
 
     /** The time elapsed since the specified date in a human-readable format. */
     function getElapsedShortTime(date: string | null | undefined): string {
@@ -1235,19 +1292,6 @@
         }
     }
 
-    // TODO - consider exporting this from a partial file.
-    // function getFormattedName(person: PersonFieldBag): string {
-    //     return `${person.nickName ?? ""} ${person.lastName ?? ""}`;
-    // }
-
-    function getOverdueCount(rows: Record<string, unknown>[]): number {
-        return rows.filter(r => r["dueStatus"] === DueStatus.Overdue).length;
-    }
-
-    function getDueSoonCount(rows: Record<string, unknown>[]): number {
-        return rows.filter(r => r["dueStatus"] === DueStatus.DueSoon).length;
-    }
-
     function asLocaleString(dateTime: string | null | undefined): string {
         let date = RockDateTime.parseISO(dateTime ?? "");
 
@@ -1256,27 +1300,6 @@
         }
 
         return date.toLocaleString({ year: "numeric", month: "numeric", day: "numeric" });
-    }
-
-    /**
-     * Called when a row has been selected by the individual.
-     *
-     * @param key The key of the row that was selected.
-     */
-    function onSelectItem(key: string): void {
-        // When a new request is selected from the list we need to clear breadcrumbs.
-        connectionRequestBreadcrumbs.value = [];
-
-        selectedRequestKeyForDockedPanel.value = key;
-        isFlyoutOpen.value = false;
-        isDockedPanelVisible.value = true;
-    }
-
-    function updateSelectedRequestKey(key: string | null): void {
-        dockedPanelDetailsBox.value = undefined;
-        if (!isNullOrWhiteSpace(key)) {
-            selectedRequestKeyForDockedPanel.value = key;
-        }
     }
 
     /**
@@ -1303,10 +1326,7 @@
         }
     }
 
-    // TODO - Add security check to see if add is enabled
-    function onAddItem(): void {
-        isAddConnectionRequestModalVisible.value = true;
-    }
+    // #endregion Helper Functions
 
     function onPanelSettingsClick(): void {
         isViewOptionsModalVisible.value = true;
@@ -1617,9 +1637,10 @@
     // #region Block Actions
 
     async function loadGridData(): Promise<void> {
-        if (!isNullOrWhiteSpace(box?.options?.connectionRequestIdKey)) {
-            return;
-        }
+        // TODO - Single Request View
+        // if (!isNullOrWhiteSpace(box?.options?.connectionRequestIdKey)) {
+        //     return;
+        // }
 
         const result = await invokeBlockAction<GridDataBag>("GetGridData");
 
@@ -1634,6 +1655,16 @@
     // async function loadConnectionRequest(): Promise<void> {
 
     // }
+
+    async function refreshUserEditPermissions(): Promise<void> {
+        const result = await invokeBlockAction<boolean>("RefreshUserEditPermissions", {
+            connectionTypeIdKey: box.options?.connectionTypeIdKey
+        });
+
+        if (result.isSuccess) {
+            canEditConnectionRequests.value = result.data ?? false;
+        }
+    }
 
     async function updateStateFromModal(bag: UpdateConnectionRequestStatesBag): Promise<void> {
         try {
@@ -1697,6 +1728,10 @@
     }
 
     function onStatusClick(row: Record<string, unknown>, event: MouseEvent): void {
+        if (!canEditConnectionRequests.value) {
+            return;
+        }
+
         const key = row["idKey"] as string | null | undefined;
         const state = row["connectionState"] as ConnectionState | undefined;
         const status = row["connectionStatus"] as ConnectionStatusBag | undefined;
@@ -2558,7 +2593,7 @@
             }
         }
 
-        // TODO - client side filter?
+        await refreshUserEditPermissions();
         loadGridData();
     });
 

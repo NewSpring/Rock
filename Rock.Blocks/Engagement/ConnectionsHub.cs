@@ -282,6 +282,18 @@ namespace Rock.Blocks.Engagement
                 this.PersonPreferences.Save();
             }
 
+            var connectionOpportunityFilter = GetConnectionOpportunityFilter( connectionTypeIdKey );
+            if ( connectionOpportunity == null && connectionOpportunityFilter.HasValue )
+            {
+                connectionOpportunity = new ConnectionOpportunityService( RockContext ).Get( connectionOpportunityFilter.Value );
+            }
+            if ( connectionOpportunity != null )
+            {
+                options.ConnectionOpportunityDetailsFromFilter = GetConnectionOpportunityDetailBag( connectionOpportunity );
+            }
+
+            options.CanEditConnectionRequests = CanEditConnectionRequests( connectionType, connectionOpportunity );
+
             var connectorPerson = new PersonService( RockContext ).Get( PageParameter( PageParameterKey.Connector ), !PageCache.Layout.Site.DisablePredictableIds );
             if ( connectorPerson != null )
             {
@@ -390,19 +402,6 @@ namespace Rock.Blocks.Engagement
             tempConnectionRequest.LoadAttributes();
 
             options.ConnectionTypeRequestAttributes = tempConnectionRequest.GetPublicAttributesForEdit( RequestContext.CurrentPerson );
-
-
-            var connectionOpportunityFilter = GetConnectionOpportunityFilter( connectionTypeIdKey );
-
-            if ( connectionOpportunity == null && connectionOpportunityFilter.HasValue )
-            {
-                connectionOpportunity = new ConnectionOpportunityService( RockContext ).Get( connectionOpportunityFilter.Value );
-            }
-
-            if ( connectionOpportunity != null )
-            {
-                options.ConnectionOpportunityDetailsFromFilter = GetConnectionOpportunityDetailBag( connectionOpportunity );
-            }
 
             // The values should equal the field names for each respective column.
             options.GridDataToShowItems = new List<ListItemBag>
@@ -1170,6 +1169,7 @@ namespace Rock.Blocks.Engagement
         {
             var entityService = new ConnectionRequestService( RockContext );
             error = null;
+            bool? enableRequestSecurity = null;
 
             // Determine if we are editing an existing entity or creating a new one.
             if ( idKey.IsNotNullOrWhiteSpace() )
@@ -1180,10 +1180,17 @@ namespace Rock.Blocks.Engagement
             }
             else
             {
+                var connectionType = GetConnectionTypeCacheFromPageParameters();
+                if ( connectionType == null )
+                {
+                    error = ActionBadRequest( $"{ConnectionType.FriendlyTypeName} not found." );
+                }
+
                 entity = new ConnectionRequest();
-                // TODO - Handle cases when connection type is not passed in as parameter
-                entity.ConnectionTypeId = ConnectionTypeCache.Get( PageParameter( PageParameterKey.ConnectionType ), !PageCache.Layout.Site.DisablePredictableIds )?.Id ?? 0;
+                entity.ConnectionTypeId = connectionType.Id;
                 entityService.Add( entity );
+
+                enableRequestSecurity = connectionType.EnableRequestSecurity;
             }
 
             if ( entity == null )
@@ -1192,7 +1199,7 @@ namespace Rock.Blocks.Engagement
                 return false;
             }
 
-            if ( !entity.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson ) )
+            if ( !CanEditSpecifiedConnectionRequest( entity, out error, enableRequestSecurity ) )
             {
                 error = ActionBadRequest( $"Not authorized to edit ${ConnectionRequest.FriendlyTypeName}." );
                 return false;
@@ -1313,6 +1320,60 @@ namespace Rock.Blocks.Engagement
         }
 
         /// <summary>
+        /// Checks whether the logged in user can edit Connection Requests.
+        /// </summary>
+        /// <param name="connectionType">The specified Connection Type</param>
+        /// <param name="connectionOpportunity">An optional Connection Opportunity</param>
+        /// <returns>true if the user can edit a Connection Request.</returns>
+        private bool CanEditConnectionRequests( ConnectionType connectionType, ConnectionOpportunity connectionOpportunity = null )
+        {
+            bool userCanEditConnectionRequests = false;
+
+            // Only check Opportunity-level security if Enable Request Security is turned off.
+            if ( !connectionType.EnableRequestSecurity )
+            {
+                if ( connectionOpportunity != null )
+                {
+                    // Checks if the user has edit permissions the specified Connection Opportunity.
+                    userCanEditConnectionRequests = connectionOpportunity.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson );
+                }
+                else
+                {
+                    // Checks if the user has edit permissions for all Connection Opportunities in the specified Connection Type.
+                    userCanEditConnectionRequests = connectionType.ConnectionOpportunities.All( co => co.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson ) );
+                }
+            }
+
+            if ( !userCanEditConnectionRequests )
+            {
+                if ( connectionOpportunity != null )
+                {
+                    // Checks if the current person is a connector for the specified Connection Opportunity.
+                    userCanEditConnectionRequests = new ConnectionOpportunityConnectorGroupService( RockContext )
+                        .Queryable()
+                        .Where( cg => cg.ConnectionOpportunityId == connectionOpportunity.Id )
+                        .SelectMany( cg => cg.ConnectorGroup.Members )
+                        .Any( m => m.PersonId == RequestContext.CurrentPerson.Id );
+                }
+                else
+                {
+                    // Checks if all Connection Opportunities for the Connection Type have the current person as a connector.
+                    var opportunityIds = connectionType.ConnectionOpportunities.Select( o => o.Id ).ToList();
+
+                    userCanEditConnectionRequests = new ConnectionOpportunityConnectorGroupService( RockContext )
+                        .Queryable()
+                        .Where( cg => opportunityIds.Contains( cg.ConnectionOpportunityId )
+                                   && cg.ConnectorGroup.Members.Any( m => m.PersonId == RequestContext.CurrentPerson.Id ) )
+                        .Select( cg => cg.ConnectionOpportunityId )
+                        .Distinct()
+                        .Count() == opportunityIds.Count;
+                }
+            }
+
+            return userCanEditConnectionRequests;
+        }
+
+        /// <summary>
         /// Determines if the logged in user can edit a specific Connection Request.
         /// </summary>
         /// <param name="connectionType">The Connection Type Cache tied to the Connection Request.</param>
@@ -1320,69 +1381,68 @@ namespace Rock.Blocks.Engagement
         /// <param name="connectionRequest">When this method returns, contains the resolved Connection Request, or null if it could not be found.</param>
         /// <param name="error">When this method returns, contains a Block Action Result error if the user lacks permission or the request could not be found; otherwise null.</param>
         /// <returns>True if the logged in user has edit permissions for the Connection Request; otherwise false.</returns>
-        private bool CanEditConnectionRequest( ConnectionTypeCache connectionType, string connectionRequestIdKey, out ConnectionRequest connectionRequest, out BlockActionResult error )
+        private bool CanEditSpecifiedConnectionRequest( ConnectionTypeCache connectionType, string connectionRequestIdKey, out ConnectionRequest connectionRequest, out BlockActionResult error )
         {
-            var canEdit = CanEditConnectionRequests( connectionType, new List<string> { connectionRequestIdKey }, out var connectionRequests, out error );
+            var canEdit = CanEditSpecifiedConnectionRequests( connectionType, new List<string> { connectionRequestIdKey }, out var connectionRequests, out error );
             connectionRequest = connectionRequests.FirstOrDefault();
             return canEdit;
         }
 
         /// <summary>
-        /// Determines if the logged in user can edit a list of Connection Requests.
-        /// Checks edit authorization either at the request level (if EnableRequestSecurity is set on
-        /// the Connection Type) or at the opportunity level. Also grants edit access if the current
-        /// user is the assigned connector or is a member of an applicable connector group for the
-        /// request's campus.
+        /// Determines if the logged in user can edit the specified Connection Request entity.
+        /// Use this overload when the entity is already loaded; no database lookup is performed.
         /// </summary>
-        /// <param name="connectionType">The Connection Type Cache tied to the Connection Requests, used to determine the security model and validate that all requests belong to this type.</param>
-        /// <param name="connectionRequestIdKeys">The list of IdKeys for the Connection Requests to check edit permissions for.</param>
-        /// <param name="connectionRequests">When this method returns, contains the resolved list of Connection Requests; empty if any IdKeys could not be resolved.</param>
-        /// <param name="error">When this method returns, contains a Block Action Result error if any requests could not be found or the user lacks permission; otherwise null.</param>
-        /// <param name="queryModifier">An optional function to apply additional filtering or modification to the Connection Request query before it is executed.</param>
+        /// <param name="connectionRequest">
+        /// The already-loaded Connection Request to check. For saved requests where
+        /// <paramref name="enableRequestSecurity"/> is not provided, the
+        /// <see cref="ConnectionRequest.ConnectionOpportunity"/> and its
+        /// <see cref="ConnectionOpportunity.ConnectionType"/> navigation properties must be loaded.
+        /// </param>
+        /// <param name="error">When this method returns, contains a Block Action Result error if the user lacks permission; otherwise null.</param>
+        /// <param name="enableRequestSecurity">
+        /// When provided, overrides the <see cref="ConnectionType.EnableRequestSecurity"/> value read
+        /// from the navigation property. Pass this explicitly when checking a new (unsaved) request
+        /// or when the navigation property is not loaded.
+        /// </param>
+        /// <returns>True if the logged in user has edit permissions for the Connection Request; otherwise false.</returns>
+        private bool CanEditSpecifiedConnectionRequest( ConnectionRequest connectionRequest, out BlockActionResult error, bool? enableRequestSecurity = null )
+        {
+            return CanEditSpecifiedConnectionRequests( new List<ConnectionRequest> { connectionRequest }, out error, enableRequestSecurity );
+        }
+
+        /// <summary>
+        /// Determines if the logged in user can edit a list of Connection Request entities.
+        /// Use this overload when the entities are already loaded; no database lookup is performed.
+        /// Also grants edit access if the current user is the assigned connector, or is an active
+        /// member of a connector group that covers the request's campus.
+        /// </summary>
+        /// <param name="connectionRequests">
+        /// The already-loaded Connection Requests to check. All requests are assumed to belong to
+        /// the same Connection Type. For saved requests where <paramref name="enableRequestSecurity"/>
+        /// is not provided, the <see cref="ConnectionRequest.ConnectionOpportunity"/> and its
+        /// <see cref="ConnectionOpportunity.ConnectionType"/> navigation properties must be loaded.
+        /// </param>
+        /// <param name="error">When this method returns, contains a Block Action Result error if the user lacks permission; otherwise null.</param>
+        /// <param name="enableRequestSecurity">
+        /// When provided, overrides the <see cref="ConnectionType.EnableRequestSecurity"/> value read
+        /// from the navigation property. If null, the value is read from the first request's
+        /// <see cref="ConnectionRequest.ConnectionOpportunity"/>.<see cref="ConnectionOpportunity.ConnectionType"/>
+        /// navigation property. Pass this explicitly when checking new (unsaved) requests or when
+        /// the navigation property is not loaded.
+        /// </param>
         /// <returns>True if the logged in user has edit permissions for all specified Connection Requests; otherwise false.</returns>
-        private bool CanEditConnectionRequests( ConnectionTypeCache connectionType, List<string> connectionRequestIdKeys, out List<ConnectionRequest> connectionRequests, out BlockActionResult error, Func<IQueryable<ConnectionRequest>, IQueryable<ConnectionRequest>> queryModifier = null )
+        private bool CanEditSpecifiedConnectionRequests( List<ConnectionRequest> connectionRequests, out BlockActionResult error, bool? enableRequestSecurity = null )
         {
             error = null;
-            var decodedIds = connectionRequestIdKeys.Select( key => Rock.Utility.IdHasher.Instance.GetId( key ) ).ToList();
 
-            if ( decodedIds.Any( id => !id.HasValue ) )
-            {
-                connectionRequests = new List<ConnectionRequest>();
-                error = ActionBadRequest( $"{ConnectionRequest.FriendlyTypeName} not found." );
-            }
-
-            var connectionRequestIds = decodedIds
-                .Select( id => id.Value )
-                .Distinct()
-                .ToList();
-
-            if ( !connectionRequestIds.Any() )
-            {
-                connectionRequests = new List<ConnectionRequest>();
-                error = ActionBadRequest( $"{ConnectionRequest.FriendlyTypeName} not found." );
-            }
-
-            var connectionRequestsQry = new ConnectionRequestService( RockContext ).GetByIds( connectionRequestIds )
-                .Where(c => c.ConnectionTypeId == connectionType.Id); // Confirm that all requests match the Connection Type that we are checking security for.
-
-            if ( queryModifier != null )
-            {
-                connectionRequestsQry = queryModifier( connectionRequestsQry );
-            }
-
-            connectionRequests = connectionRequestsQry.ToList();
-
-            if ( connectionRequests.Count != connectionRequestIds.Count )
-            {
-                error = ActionBadRequest( $"{ConnectionRequest.FriendlyTypeName} not found." );
-            }
-
-            bool userCanEditConnectionRequest = false;
             var opportunityIds = connectionRequests.Select( r => r.ConnectionOpportunityId )
                 .Distinct()
                 .ToList();
 
-            if ( connectionType.EnableRequestSecurity )
+            bool userCanEditConnectionRequest;
+            var resolvedEnableRequestSecurity = enableRequestSecurity ?? connectionRequests.FirstOrDefault()?.ConnectionOpportunity?.ConnectionType?.EnableRequestSecurity == true;
+
+            if ( resolvedEnableRequestSecurity )
             {
                 userCanEditConnectionRequest = connectionRequests.All( cr => cr.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson ) );
             }
@@ -1444,16 +1504,71 @@ namespace Rock.Blocks.Engagement
                     }
 
                     return false;
-
                 } );
             }
 
             if ( !userCanEditConnectionRequest )
             {
-                error = ActionBadRequest( $"Not authorized to edit ${ConnectionRequest.FriendlyTypeName}." );
+                error = ActionForbidden( $"Not authorized to edit {ConnectionRequest.FriendlyTypeName}." );
             }
 
             return userCanEditConnectionRequest;
+        }
+
+        /// <summary>
+        /// Determines if the logged in user can edit a list of Connection Requests.
+        /// Checks edit authorization either at the request level (if EnableRequestSecurity is set on
+        /// the Connection Type) or at the opportunity level. Also grants edit access if the current
+        /// user is the assigned connector or is a member of an applicable connector group for the
+        /// request's campus.
+        /// </summary>
+        /// <param name="connectionType">The Connection Type Cache tied to the Connection Requests, used to determine the security model and validate that all requests belong to this type.</param>
+        /// <param name="connectionRequestIdKeys">The list of IdKeys for the Connection Requests to check edit permissions for.</param>
+        /// <param name="connectionRequests">When this method returns, contains the resolved list of Connection Requests; empty if any IdKeys could not be resolved.</param>
+        /// <param name="error">When this method returns, contains a Block Action Result error if any requests could not be found or the user lacks permission; otherwise null.</param>
+        /// <param name="queryModifier">An optional function to apply additional filtering or modification to the Connection Request query before it is executed.</param>
+        /// <returns>True if the logged in user has edit permissions for all specified Connection Requests; otherwise false.</returns>
+        private bool CanEditSpecifiedConnectionRequests( ConnectionTypeCache connectionType, List<string> connectionRequestIdKeys, out List<ConnectionRequest> connectionRequests, out BlockActionResult error, Func<IQueryable<ConnectionRequest>, IQueryable<ConnectionRequest>> queryModifier = null )
+        {
+            error = null;
+            var decodedIds = connectionRequestIdKeys.Select( key => Rock.Utility.IdHasher.Instance.GetId( key ) ).ToList();
+
+            if ( decodedIds.Any( id => !id.HasValue ) )
+            {
+                connectionRequests = new List<ConnectionRequest>();
+                error = ActionBadRequest( $"{ConnectionRequest.FriendlyTypeName} not found." );
+                return false;
+            }
+
+            var connectionRequestIds = decodedIds
+                .Select( id => id.Value )
+                .Distinct()
+                .ToList();
+
+            if ( !connectionRequestIds.Any() )
+            {
+                connectionRequests = new List<ConnectionRequest>();
+                error = ActionBadRequest( $"{ConnectionRequest.FriendlyTypeName} not found." );
+                return false;
+            }
+
+            var connectionRequestsQry = new ConnectionRequestService( RockContext ).GetByIds( connectionRequestIds )
+                .Where(c => c.ConnectionTypeId == connectionType.Id); // Confirm that all requests match the Connection Type that we are checking security for.
+
+            if ( queryModifier != null )
+            {
+                connectionRequestsQry = queryModifier( connectionRequestsQry );
+            }
+
+            connectionRequests = connectionRequestsQry.ToList();
+
+            if ( connectionRequests.Count != connectionRequestIds.Count )
+            {
+                error = ActionBadRequest( $"{ConnectionRequest.FriendlyTypeName} not found." );
+                return false;
+            }
+
+            return CanEditSpecifiedConnectionRequests( connectionRequests, out error );
         }
 
         #region UI Refresh Helpers
@@ -1636,6 +1751,7 @@ namespace Rock.Blocks.Engagement
             var optionsBag = new ConnectionRequestDetailOptionsBag
             {
                 ConnectionTypeIdKey = connectionRequest.ConnectionOpportunity.ConnectionType.IdKey,
+                CanEditConnectionRequest = CanEditSpecifiedConnectionRequest( connectionRequest, out _ ),
                 RequiresPlacementGroupToComplete = connectionRequest.ConnectionOpportunity.ConnectionType.RequiresPlacementGroupToConnect,
                 ConnectorItems = connectionRequest.ConnectionOpportunity.ConnectionOpportunityConnectorGroups
                     .SelectMany( cg => cg.ConnectorGroup.Members )
@@ -1667,12 +1783,20 @@ namespace Rock.Blocks.Engagement
                 RequestSourceItems = connectionRequest.ConnectionOpportunity.ConnectionType.ConnectionTypeSources.ToListItemBagList()
             };
 
+            var tempNote = new Note
+            {
+                EntityId = connectionRequest.Id,
+                NoteTypeId = NoteTypeCache.Get( Rock.SystemGuid.NoteType.CONNECTION_REQUEST_NOTE.AsGuid() ).Id,
+            };
+
+            optionsBag.CanEditConnectionRequestNote = tempNote.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson );
+
             optionsBag.ConnectionActivities = connectionRequest.ConnectionOpportunity.ConnectionType.ConnectionActivityTypes.Where( at => at.IsActive )
-                .Select( a => new ConnectionActivityTypeBag
-                {
-                    ActivityType = a.ToListItemBag(),
-                    PersonNoteCreationBehavior = a.PersonNoteCreationBehavior
-                } ).ToList();
+            .Select( a => new ConnectionActivityTypeBag
+            {
+                ActivityType = a.ToListItemBag(),
+                PersonNoteCreationBehavior = a.PersonNoteCreationBehavior
+            } ).ToList();
 
             var delimitedBadgeGuids = GetAttributeValue( AttributeKey.Badges );
             optionsBag.BadgeGuids = delimitedBadgeGuids.SplitDelimitedValues().AsGuidList();
@@ -2841,6 +2965,32 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
         }
 
         /// <summary>
+        /// Gets a boolean value indicating whether the current user can edit the Connection Requests. 
+        /// </summary>
+        /// <param name="connectionTypeIdKey">The Connection Type IdKey</param>
+        /// <returns>true if the user can edit</returns>
+        [BlockAction]
+        public BlockActionResult RefreshUserEditPermissions( string connectionTypeIdKey )
+        {
+            var connectionType = new ConnectionTypeService( RockContext ).Get( connectionTypeIdKey, !PageCache.Layout.Site.DisablePredictableIds );
+            if ( connectionType == null )
+            {
+                return ActionBadRequest( $"{Rock.Model.ConnectionType.FriendlyTypeName} not found." );
+            }
+
+            ConnectionOpportunity connectionOpportunity = null;
+            var connectionOpportunityFilter = GetConnectionOpportunityFilter( connectionTypeIdKey );
+            if ( connectionOpportunityFilter.HasValue )
+            {
+                connectionOpportunity = new ConnectionOpportunityService( RockContext ).Get( connectionOpportunityFilter.Value );
+            }
+
+            var canEditRequests = CanEditConnectionRequests( connectionType, connectionOpportunity );
+
+            return ActionOk( canEditRequests );
+        }
+
+        /// <summary>
         /// Gets the Connection Opportunity Detail Bag for the specified Connection Opportunity,
         /// used to populate the opportunity details without a full page reload.
         /// </summary>
@@ -3075,7 +3225,7 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
                 return ActionBadRequest( $"{Rock.Model.ConnectionType.FriendlyTypeName} not found." );
             }
 
-            var canEditRequests = CanEditConnectionRequests( connectionType, connectionRequestIdKeys, out var connectionRequests, out var actionError );
+            var canEditRequests = CanEditSpecifiedConnectionRequests( connectionType, connectionRequestIdKeys, out var connectionRequests, out var actionError );
 
             if ( !canEditRequests )
             {
@@ -3152,7 +3302,7 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
                 .ToList();
 
 
-            var canEditRequests = CanEditConnectionRequests( connectionType, allRequestIdKeys, out var connectionRequests, out var actionError );
+            var canEditRequests = CanEditSpecifiedConnectionRequests( connectionType, allRequestIdKeys, out var connectionRequests, out var actionError );
 
             if ( !canEditRequests )
             {
@@ -3285,7 +3435,7 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
                 return ActionBadRequest( $"{Rock.Model.ConnectionType.FriendlyTypeName} not found." );
             }
 
-            var canEditRequest = CanEditConnectionRequests( connectionType, bag.ConnectionRequestIdKeys, out var connectionRequests, out var actionError );
+            var canEditRequest = CanEditSpecifiedConnectionRequests( connectionType, bag.ConnectionRequestIdKeys, out var connectionRequests, out var actionError );
 
             if ( !canEditRequest )
             {
@@ -3358,7 +3508,7 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
                 return ActionBadRequest( $"{Rock.Model.ConnectionType.FriendlyTypeName} not found." );
             }
 
-            var canEditRequest = CanEditConnectionRequests( connectionType, connectionRequestIdKeys, out var connectionRequests, out var actionError );
+            var canEditRequest = CanEditSpecifiedConnectionRequests( connectionType, connectionRequestIdKeys, out var connectionRequests, out var actionError );
 
             if ( !canEditRequest )
             {
@@ -3410,7 +3560,7 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
                 return ActionBadRequest( $"{Rock.Model.ConnectionType.FriendlyTypeName} not found." );
             }
 
-            var canEditRequest = CanEditConnectionRequests( connectionType, bag.ConnectionRequestIdKeys, out var connectionRequests, out var actionError, q => q.Include( r => r.ConnectionRequestActivities ).Include( r => r.PersonAlias ) );
+            var canEditRequest = CanEditSpecifiedConnectionRequests( connectionType, bag.ConnectionRequestIdKeys, out var connectionRequests, out var actionError, q => q.Include( r => r.ConnectionRequestActivities ).Include( r => r.PersonAlias ) );
 
             if ( !canEditRequest )
             {
@@ -3696,7 +3846,7 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
                 return ActionBadRequest( $"{Rock.Model.ConnectionType.FriendlyTypeName} not found." );
             }
 
-            var canEditRequest = CanEditConnectionRequest( connectionType, bag.ConnectionRequestIdKey, out var connectionRequest, out var actionError );
+            var canEditRequest = CanEditSpecifiedConnectionRequest( connectionType, bag.ConnectionRequestIdKey, out var connectionRequest, out var actionError );
 
             if ( !canEditRequest )
             {
@@ -3764,7 +3914,7 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
                 return ActionBadRequest( $"{Rock.Model.ConnectionType.FriendlyTypeName} not found." );
             }
 
-            var canEditRequest = CanEditConnectionRequest( connectionType, bag.ConnectionRequestIdKey, out var connectionRequest, out var actionError );
+            var canEditRequest = CanEditSpecifiedConnectionRequest( connectionType, bag.ConnectionRequestIdKey, out var connectionRequest, out var actionError );
 
             if ( !canEditRequest )
             {
@@ -3791,7 +3941,7 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
         /// </summary>
         /// <remarks>
         /// Edit authorization is checked both at the Connection Request level via
-        /// <see cref="CanEditConnectionRequests"/> and at the activity level via Rock's
+        /// <see cref="CanEditSpecifiedConnectionRequests"/> and at the activity level via Rock's
         /// standard authorization check, requiring both to pass before any changes are applied.
         /// </remarks>
         /// <param name="bag">A bag containing the Activity IdKey, updated note, connector Person Alias GUID, activity type GUID, and the associated Connection Request IdKeys.</param>
@@ -3806,7 +3956,7 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
                 return ActionBadRequest( $"{Rock.Model.ConnectionType.FriendlyTypeName} not found." );
             }
 
-            var canEditRequest = CanEditConnectionRequests( connectionType, bag.ConnectionRequestIdKeys, out var connectionRequests, out var actionError );
+            var canEditRequest = CanEditSpecifiedConnectionRequests( connectionType, bag.ConnectionRequestIdKeys, out var connectionRequests, out var actionError );
 
             if ( !canEditRequest )
             {
