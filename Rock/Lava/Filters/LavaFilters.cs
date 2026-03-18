@@ -4699,7 +4699,7 @@ namespace Rock.Lava
             }
 
             comparisonType = ( comparisonType ?? "equal" ).ToLower();
-            comparisonType = ( comparisonType == "equal" || comparisonType == "notequal" ) ? comparisonType : "equal";
+            comparisonType = ( comparisonType == "equal" || comparisonType == "notequal" || comparisonType == "contains" ) ? comparisonType : "equal";
 
             var result = new List<object>();
 
@@ -4720,7 +4720,9 @@ namespace Rock.Lava
                 {
                     if ( lavaObject.ContainsKey( filterKey )
                             && ( ( comparisonType == "equal" && GetLavaCompareResult( lavaObject.GetValue( filterKey ), filterValue ) == 0 )
-                                 || ( comparisonType == "notequal" && GetLavaCompareResult( lavaObject.GetValue( filterKey ), filterValue ) != 0 ) ) )
+                                 || ( comparisonType == "notequal" && GetLavaCompareResult( lavaObject.GetValue( filterKey ), filterValue ) != 0 )
+                                 || ( comparisonType == "contains" && lavaObject.GetValue( filterKey )?.ToString().Contains( filterValue?.ToString() ) == true )
+                               ) )
                     {
                         result.Add( lavaObject );
                     }
@@ -4730,7 +4732,9 @@ namespace Rock.Lava
                     var dictionaryObject = value as IDictionary<string, object>;
                     if ( dictionaryObject.ContainsKey( filterKey )
                              && ( ( dynamic ) dictionaryObject[filterKey] == ( dynamic ) filterValue && comparisonType == "equal"
-                                    || ( ( dynamic ) dictionaryObject[filterKey] != ( dynamic ) filterValue && comparisonType == "notequal" ) ) )
+                                    || ( ( dynamic ) dictionaryObject[filterKey] != ( dynamic ) filterValue && comparisonType == "notequal" )
+                                    || ( ( dynamic ) dictionaryObject[filterKey].ToString().Contains( filterValue?.ToString() ) == true && comparisonType == "contains" )
+                                    ) )
                     {
                         result.Add( dictionaryObject );
                     }
@@ -4749,6 +4753,10 @@ namespace Rock.Lava
 
                     if ( ( compareResult == 0 && comparisonType == "equal" )
                             || ( compareResult != 0 && comparisonType == "notequal" ) )
+                    {
+                        result.Add( value );
+                    }
+                    else if ( comparisonType == "contains" && propertyValue.ToString().Contains( filterValue?.ToString() ) == true )
                     {
                         result.Add( value );
                     }
@@ -5525,16 +5533,17 @@ namespace Rock.Lava
         /// <example><![CDATA[
         /// {{ 'hello' | ToBase64 }}
         /// ]]></example>
+        [Obsolete( "Use ToBase64 instead." )]
+        [RockObsolete( "19.0" )]
         public static string Base64( object input )
         {
-            if ( input is ICollection<byte> )
-            {
-                return Convert.ToBase64String( ( input as ICollection<byte> ).ToArray() );
-            }
-            else
-            {
-                return Convert.ToBase64String( System.Text.Encoding.UTF8.GetBytes( input.ToString() ) );
-            }
+            return ToBase64( input );
+        }
+
+        /// <inheritdoc cref="Rock.Lava.Filters.TemplateFilters.ToBase64(object)"/>
+        public static string ToBase64( object input )
+        {
+            return Rock.Lava.Filters.TemplateFilters.ToBase64( input );
         }
 
         /// <summary>
