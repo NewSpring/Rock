@@ -335,11 +335,8 @@ DECLARE @BlockTypeId INT = (SELECT TOP 1 [Id] FROM [BlockType] WHERE [Guid] = '2
 
 IF @BlockTypeId IS NOT NULL
 BEGIN
-    DECLARE @EntityTypeId INT = (SELECT TOP 1 [Id] FROM [EntityType] WHERE [Guid] = 'E8C57557-31B7-4846-8F63-36BDDBB88719');
-
     UPDATE [BlockType]
-    SET [EntityTypeId] = @EntityTypeId
-        , [Name] = 'Connection Type Navigation'
+    SET [Name] = 'Connection Type Navigation'
         , [Description] = 'Displays connection types that the user is authorized to view and provides easy navigation into each type''s connection opportunities and requests.'
     WHERE [Id] = @BlockTypeId;
 
