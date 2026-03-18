@@ -25,9 +25,6 @@ import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
 
 /** The additional configuration options for the Connection Type Detail block. */
 export type ConnectionTypeDetailOptionsBag = {
-    /** Gets or sets the communication template options. */
-    communicationTemplateOptions?: ListItemBag[] | null;
-
     /** Gets or sets the connection type options. */
     connectionTypeOptions?: ListItemBag[] | null;
 

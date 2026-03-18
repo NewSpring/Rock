@@ -104,7 +104,6 @@
 
         <ContentSection title="Additional Settings" icon="ti ti-file-settings">
             <AdditionalSettingsSection v-model:additionalSettings="additionalSettings"
-                                       :communicationTemplateOptions="props.options.communicationTemplateOptions ?? []"
                                        :connectionTypeOptions="props.options.connectionTypeOptions ?? []"
                                        :hasActiveAIProvider="props.options.hasActiveAIProvider ?? false" />
         </ContentSection>
