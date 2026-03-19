@@ -5,6 +5,12 @@
            :isSaveButtonDisabled="isSaving"
            saveText="Save"
            @save="onSave">
+        <NotificationBox v-if="!isNullOrWhiteSpace(errorMessage)"
+                         alertType="danger"
+                         dismissible
+                         @dismiss="emit('dismissErrorMessage')">
+            {{ errorMessage }}
+        </NotificationBox>
         <div class="row">
             <div class="col-md-4">
                 <DropDownList v-if="!activityToEdit?.cardEntry?.isSystemActivityType"
@@ -56,6 +62,7 @@
     import DropDownList from "@Obsidian/Controls/dropDownList.obs";
     import TextBox from "@Obsidian/Controls/textBox.obs";
     import CheckBox from "@Obsidian/Controls/checkBox.obs";
+    import NotificationBox from "@Obsidian/Controls/notificationBox.obs";
     import RequestTable from "./requestTable.partial.obs";
     import { ref, PropType, watch, computed } from "vue";
     import { useVModelPassthrough } from "@Obsidian/Utility/component";
@@ -107,6 +114,11 @@
         isSaving: {
             type: Boolean as PropType<boolean>,
             default: false
+        },
+
+        errorMessage: {
+            type: String as PropType<string>,
+            required: true
         }
     });
 
@@ -114,9 +126,8 @@
         (e: "update:visible", value: boolean): void;
         (e: "upsertActivity", value: ActivityBag): void;
         (e: "close"): void;
+        (e: "dismissErrorMessage"): void;
     }>();
-
-    const errorMessage = ref();
 
     const isVisible = useVModelPassthrough(props, "visible", emit);
 
@@ -157,8 +168,6 @@
     }
 
     watch(isVisible, () => {
-        errorMessage.value = "";
-
         if (isVisible.value) {
             if (props.activityToEdit) {
                 activityType.value = props.activityToEdit.cardEntry?.activityTypeGuid ?? undefined;

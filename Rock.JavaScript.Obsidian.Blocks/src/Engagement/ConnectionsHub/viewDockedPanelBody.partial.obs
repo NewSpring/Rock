@@ -165,7 +165,7 @@
                                                      enableFlip>
                                         <template #anchor>
                                             <div class="d-flex align-items-center gap-xs"
-                                                 :class="canEditConnectionRequest ? 'curser-pointer' : 'cursor-not-allowed'"
+                                                 :class="canEditConnectionRequest ? 'cursor-pointer' : 'cursor-not-allowed'"
                                                  @click.prevent.stop="onConnectorDropdownClick">
                                                 <PersonAvatar :photoUrl="selectedConnectorBag?.photoUrl ?? ''"
                                                               :photoSize="30"
@@ -317,6 +317,11 @@
                 </DropDownContent>
             </template>
             <template #default>
+                <NotificationBox v-if="!isNullOrWhiteSpace(activityErrorMessage)"
+                                 alertType="danger">
+                    {{ activityErrorMessage }}
+                </NotificationBox>
+
                 <template v-if="canEditConnectionRequestNote">
                     <RockForm @submit="onAddRequestNote">
                         <div class="d-flex flex-column gap-xs">
@@ -552,6 +557,11 @@
 
         canEditConnectionRequestNote: {
             type: Boolean as PropType<boolean>,
+            required: true
+        },
+
+        activityErrorMessage: {
+            type: String as PropType<string>,
             required: true
         }
     });

@@ -9,8 +9,10 @@
                          alertType="warning">
             The current requester already has an active request on this connection type.
         </NotificationBox>
-        <NotificationBox v-if="errorMessage"
-                         alertType="warning">
+        <NotificationBox v-if="!isNullOrWhiteSpace(errorMessage)"
+                         alertType="danger"
+                         dismissible
+                         @dismiss="emit('dismissErrorMessage')">
             {{ errorMessage }}
         </NotificationBox>
 
@@ -212,6 +214,11 @@
         isSaving: {
             type: Boolean as PropType<boolean>,
             default: false
+        },
+
+        errorMessage: {
+            type: String as PropType<string>,
+            required: true
         }
     });
 
@@ -222,9 +229,8 @@
         (e: "fetchConnectionOpportunityDetails", value: string): void;
         (e: "fetchPlacementGroupDetails", connectionOpportunityGuid: string, placementGroupGuid: string): void;
         (e: "close"): void;
+        (e: "dismissErrorMessage"): void;
     }>();
-
-    const errorMessage = ref();
 
     const isVisible = useVModelPassthrough(props, "visible", emit);
 
@@ -302,7 +308,6 @@
     const connectionStatusText = computed<string>(() => connectionStatusItems.value.find(s => s.value === connectionStatusGuid.value)?.text ?? "");
 
     function onSave(): void {
-        errorMessage.value = "";
         const newValue: ValidPropertiesBox<ConnectionRequestBag> = {
             bag: { ...props.modelValue.bag } as ConnectionRequestBag,
             validProperties: props.modelValue.validProperties
@@ -374,7 +379,6 @@
     }
 
     watch(isVisible, () => {
-        errorMessage.value = "";
         if (!isVisible.value) {
             emit("close");
         }

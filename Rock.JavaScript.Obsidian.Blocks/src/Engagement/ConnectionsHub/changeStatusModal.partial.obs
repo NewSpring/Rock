@@ -5,6 +5,12 @@
            :isSaveButtonDisabled="isSaving"
            saveText="Save"
            @save="onSave">
+        <NotificationBox v-if="!isNullOrWhiteSpace(errorMessage)"
+                         alertType="danger"
+                         dismissible
+                         @dismiss="emit('dismissErrorMessage')">
+            {{ errorMessage }}
+        </NotificationBox>
         <NotificationBox v-if="isSequentialMode"
                          alertType="info"
                          heading="Sequential Mode">
@@ -40,6 +46,7 @@
     import TextBox from "@Obsidian/Controls/textBox.obs";
     import RequestTable from "./requestTable.partial.obs";
     import { ref, PropType, watch, computed } from "vue";
+    import { isNullOrWhiteSpace } from "@Obsidian/Utility/stringUtils";
     import { useVModelPassthrough } from "@Obsidian/Utility/component";
     import { BulkRequestViewBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/bulkRequestViewBag";
     import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
@@ -81,6 +88,11 @@
         viewOptions: {
             type: Object as PropType<ViewOptions>,
             required: true
+        },
+
+        errorMessage: {
+            type: String as PropType<string>,
+            required: true
         }
     });
 
@@ -88,9 +100,8 @@
         (e: "update:visible", value: boolean): void;
         (e: "updateStatus", bag: ConnectionRequestUpdateBag): void;
         (e: "close"): void;
+        (e: "dismissErrorMessage"): void;
     }>();
-
-    const errorMessage = ref();
 
     const isVisible = useVModelPassthrough(props, "visible", emit);
 
@@ -118,11 +129,9 @@
     function resetModal(): void {
         status.value = undefined;
         note.value = undefined;
-        errorMessage.value = undefined;
     }
 
     watch(isVisible, () => {
-        errorMessage.value = "";
         if (!isVisible.value) {
             resetModal();
             emit("close");

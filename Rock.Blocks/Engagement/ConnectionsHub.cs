@@ -1165,7 +1165,7 @@ namespace Rock.Blocks.Engagement
             return bag;
         }
 
-        private bool TryGetEntityForEditAction( string idKey, out ConnectionRequest entity, out BlockActionResult error )
+        private bool TryGetEntityForEditAction( string idKey, out ConnectionRequest entity, out BlockActionResult error, Guid? connectionOpportunityGuid = null )
         {
             var entityService = new ConnectionRequestService( RockContext );
             error = null;
@@ -1184,10 +1184,30 @@ namespace Rock.Blocks.Engagement
                 if ( connectionType == null )
                 {
                     error = ActionBadRequest( $"{ConnectionType.FriendlyTypeName} not found." );
+                    entity = null;
+                    return false;
+                }
+
+                // Resolve the opportunity now so the security check can evaluate against the
+                // correct opportunity rather than the default Id of 0 on the unsaved entity.
+                if ( !connectionOpportunityGuid.HasValue )
+                {
+                    error = ActionBadRequest( $"{ConnectionOpportunity.FriendlyTypeName} not found." );
+                    entity = null;
+                    return false;
+                }
+
+                var connectionOpportunity = new ConnectionOpportunityService( RockContext ).Get( connectionOpportunityGuid.Value );
+                if ( connectionOpportunity == null )
+                {
+                    error = ActionBadRequest( $"{ConnectionOpportunity.FriendlyTypeName} not found." );
+                    entity = null;
+                    return false;
                 }
 
                 entity = new ConnectionRequest();
                 entity.ConnectionTypeId = connectionType.Id;
+                entity.ConnectionOpportunityId = connectionOpportunity.Id;
                 entityService.Add( entity );
 
                 enableRequestSecurity = connectionType.EnableRequestSecurity;
@@ -1201,7 +1221,7 @@ namespace Rock.Blocks.Engagement
 
             if ( !CanEditSpecifiedConnectionRequest( entity, out error, enableRequestSecurity ) )
             {
-                error = ActionBadRequest( $"Not authorized to edit ${ConnectionRequest.FriendlyTypeName}." );
+                error = ActionBadRequest( $"Not authorized to edit {ConnectionRequest.FriendlyTypeName}." );
                 return false;
             }
 
@@ -1228,7 +1248,14 @@ namespace Rock.Blocks.Engagement
             {
                 var isConnectionOpportunityValid = box.IfValidProperty( nameof( box.Bag.ConnectionOpportunityGuid ), () =>
                 {
-                    var connectionOpportunityId = new ConnectionOpportunityService( RockContext ).GetId( box.Bag.ConnectionOpportunityGuid.AsGuid() );
+                    Guid? connectionOpportunityGuid = box.Bag.ConnectionOpportunityGuid.AsGuidOrNull();
+
+                    if ( !connectionOpportunityGuid.HasValue )
+                    {
+                        return false;
+                    }
+
+                    var connectionOpportunityId = new ConnectionOpportunityService( RockContext ).GetId( connectionOpportunityGuid.Value );
 
                     if ( !connectionOpportunityId.HasValue )
                     {
@@ -1237,7 +1264,7 @@ namespace Rock.Blocks.Engagement
 
                     entity.ConnectionOpportunityId = connectionOpportunityId.Value;
                     return true;
-                }, true);
+                }, false);
 
                 if ( !isConnectionOpportunityValid )
                 {
@@ -1491,14 +1518,9 @@ namespace Rock.Blocks.Engagement
                         return true;
                     }
 
-                    // New Connection Request
-                    if ( cr.Id == 0 )
-                    {
-                        return true;
-                    }
-
-                    // Campus-specific logic
-                    if ( cr.CampusId.HasValue && groups.Any( g => g.CampusId == cr.CampusId.Value ) )
+                    // Campus-specific logic: if the request has no campus (including new unsaved requests)
+                    // it is not campus-restricted; otherwise the connector group must match the request's campus.
+                    if ( !cr.CampusId.HasValue || groups.Any( g => g.CampusId == cr.CampusId.Value ) )
                     {
                         return true;
                     }
@@ -3796,7 +3818,7 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
         [BlockAction]
         public BlockActionResult SaveConnectionRequest( ValidPropertiesBox<ConnectionRequestBag> box )
         {
-            if ( !TryGetEntityForEditAction( box.Bag.IdKey, out var entity, out var actionError ) )
+            if ( !TryGetEntityForEditAction( box.Bag.IdKey, out var entity, out var actionError, box.Bag.ConnectionOpportunityGuid.AsGuidOrNull() ) )
             {
                 return actionError;
             }

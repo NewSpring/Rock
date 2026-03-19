@@ -414,6 +414,8 @@
                                :isConnectionOpportunityFilterSelected="hasSelectedOpportunity"
                                :isExistingActiveRequesterOnConnectionType="isExistingActiveRequesterOnConnectionType"
                                :isSaving="isModalSaving"
+                               :errorMessage="modalErrorMessage"
+                               @dismissErrorMessage="onModalErrorMessageDismissed"
                                @checkForActiveRequester="checkForActiveRequester"
                                @save="onAddRequest"
                                @close="resetNewConnectionRequest"
@@ -426,6 +428,9 @@
                           :isLoading="areCampaignsLoading"
                           :isSaving="isModalSaving"
                           :campaignRecordBags="campaignRecordBags"
+                          :errorMessage="modalErrorMessage"
+                          @dismissErrorMessage="onModalErrorMessageDismissed"
+                          @close="onModalErrorMessageDismissed"
                           @assignRequests="assignRequestsFromCampaign" />
 
     <CelebrationModal v-model:visible="isCelebrationModalVisible"
@@ -433,6 +438,9 @@
                       :viewOptions="viewOptions"
                       :isSaving="isModalSaving"
                       :canEditCelebration="canEditConnectionRequests"
+                      :errorMessage="modalErrorMessage"
+                      @dismissErrorMessage="onModalErrorMessageDismissed"
+                      @close="onModalErrorMessageDismissed"
                       @upsertCelebration="upsertCelebration" />
 
     <ReminderModal v-model="isReminderModalVisible"
@@ -453,6 +461,9 @@
                         :requestDetails="requestDetailsForModal"
                         :viewOptions="viewOptions"
                         :isSaving="isModalSaving"
+                        :errorMessage="modalErrorMessage"
+                        @dismissErrorMessage="onModalErrorMessageDismissed"
+                        @close="onModalErrorMessageDismissed"
                         @updateConnector="updateConnectorFromModal" />
     <ChangeStateModal v-model:visible="isChangeStateModalVisible"
                       :isLoading="areRequestDetailsForModalLoading"
@@ -461,11 +472,17 @@
                       :requestDetails="requestDetailsForModal"
                       :failingRequestDetails="failingRequestDetailsForModal"
                       :viewOptions="viewOptions"
+                      :errorMessage="modalErrorMessage"
+                      @dismissErrorMessage="onModalErrorMessageDismissed"
+                      @close="onModalErrorMessageDismissed"
                       @updateState="updateStateFromModal" />
     <DeleteRequestModal v-model:visible="isDeleteRequestModalVisible"
                         :requestDetails="requestDetailsForModal"
                         :viewOptions="viewOptions"
                         :isSaving="isModalSaving"
+                        :errorMessage="modalErrorMessage"
+                        @dismissErrorMessage="onModalErrorMessageDismissed"
+                        @close="onModalErrorMessageDismissed"
                         @deleteRequests="deleteRequestsFromModal" />
     <ActivityModal v-model:visible="isActivityModalVisible"
                    :connectorItems="allPossibleConnectors"
@@ -475,6 +492,9 @@
                    :currentPerson="currentPerson"
                    :activityToEdit="activityToEdit"
                    :isSaving="isModalSaving"
+                   :errorMessage="modalErrorMessage"
+                   @dismissErrorMessage="onModalErrorMessageDismissed"
+                   @close="onModalErrorMessageDismissed"
                    @upsertActivity="upsertActivity" />
     <ChangeStatusModal v-model:visible="isChangeStatusModalVisible"
                        :connectionStatuses="box.options?.connectionStatuses ?? []"
@@ -483,12 +503,18 @@
                        :isSaving="isModalSaving"
                        :requestDetails="requestDetailsForModal"
                        :viewOptions="viewOptions"
+                       :errorMessage="modalErrorMessage"
+                       @dismissErrorMessage="onModalErrorMessageDismissed"
+                       @close="onModalErrorMessageDismissed"
                        @updateStatus="updateStatusFromModal" />
     <LaunchWorkflowModal v-model:visible="isLaunchWorkflowModalVisible"
                          :workflowItems="box.options?.workflowItems ?? []"
                          :requestDetails="requestDetailsForModal"
                          :viewOptions="viewOptions"
                          :isSaving="isModalSaving"
+                         :errorMessage="modalErrorMessage"
+                         @dismissErrorMessage="onModalErrorMessageDismissed"
+                         @close="onModalErrorMessageDismissed"
                          @launchWorkflows="launchWorkflowForRequests" />
     <SendSMSModal v-model:visible="isSendSMSModalVisible"
                   :communicationRecipients="communicationRecipients"
@@ -536,8 +562,12 @@
                                   @deleteRequest="showDeleteRequestModal()" />
 
     <TransferConnectionRequestModal v-model="isTransferModalVisible"
+                                    :isLoading="areTransferDetailsLoading"
                                     :transferDetails="transferRequestDetails"
                                     :isSaving="isModalSaving"
+                                    :errorMessage="modalErrorMessage"
+                                    @dismissErrorMessage="onModalErrorMessageDismissed"
+                                    @close="onModalErrorMessageDismissed"
                                     @transfer="transferRequest" />
 </template>
 
@@ -766,6 +796,9 @@
         },
     ];
 
+    // Soft security check to see if the user can edit the list of connection requests.
+    const canEditGlobalConnectionRequests = ref<boolean>(box.options?.canEditConnectionRequests ?? false);
+
     // Context Slicer configuration
     const selectedGrouping = ref<string>(isNullOrWhiteSpace(preferences.getValue(PreferenceKey.SelectedGroupByMode)) ? "connectorGrouping" : preferences.getValue(PreferenceKey.SelectedGroupByMode));
     const selectedCampus = ref<ListItemBag | null>(null);
@@ -787,8 +820,6 @@
         areOnlyMyRequestsVisible.value = internalSelectedConnector.value.value;
     }
 
-    const canEditConnectionRequests = ref<boolean>(box.options?.canEditConnectionRequests ?? false);
-
     // Add Connection Request Configuration
     const newConnectionRequest = ref<ValidPropertiesBox<ConnectionRequestBag>>({ bag: { connectionOpportunityGuid: internalSelectedOpportunity.value } as ConnectionRequestBag });
     const isExistingActiveRequesterOnConnectionType = ref<boolean>(false);
@@ -807,6 +838,7 @@
     const gridData = ref<GridDataBag>();
 
     // Modal Configuration
+    const modalErrorMessage = ref<string>("");
     const isSendSMSModalVisible = ref(false);
     const isSendEmailModalVisible = ref(false);
     const isCelebrationModalVisible = ref(false);
@@ -830,9 +862,9 @@
     const areCampaignsLoading = ref(false);
     const campaignRecordBags = ref();
     const areRequestDetailsForModalLoading = ref<boolean>(false);
+    const areTransferDetailsLoading = ref<boolean>(false);
     const failingRequestDetailsForModal = ref<BulkRequestViewBag[]>([]);
     const activityToEdit = ref<ActivityEntryBag | null>(null);
-    const transferErrorMessage = ref();
     const transferRequestDetails = ref<TransferConnectionRequestDetailsBag>();
     const viewOptions = ref<ViewOptions>({
         sortBy: preferences.getValue(getConnectionFilterKey(PreferenceKey.FilterSortByConnectionTypIdKey)),
@@ -873,6 +905,15 @@
     const isInSingleRequestMode = ref<boolean>(false);
 
     // #region Computed Values
+
+    const canEditConnectionRequests = computed<boolean>(() => {
+        // If the Docked Panel is currently open and the box has data then use the security derived from the specific request.
+        if (isDockedPanelVisible.value && dockedPanelDetailsBox.value?.options) {
+            return dockedPanelDetailsBox.value.options.canEditConnectionRequest;
+        }
+
+        return canEditGlobalConnectionRequests.value;
+    });
 
     const currentPerson = computed((): CurrentPersonBag | null => {
         return store.state.currentPerson;
@@ -1227,6 +1268,11 @@
     function resetNewConnectionRequest(): void {
         newConnectionRequest.value = { bag: { connectionOpportunityGuid: internalSelectedOpportunity.value } as ConnectionRequestBag };
         isExistingActiveRequesterOnConnectionType.value = false;
+        onModalErrorMessageDismissed();
+    }
+
+    function onModalErrorMessageDismissed(): void {
+        modalErrorMessage.value = "";
     }
 
     // #endregioin Modal Functions
@@ -1592,7 +1638,10 @@
 
         try {
             isModalSaving.value = true;
-            await updateRequestStatuses(statusUpdateBags, completedRequests);
+            const errorMessage = await updateRequestStatuses(statusUpdateBags, completedRequests);
+            if (errorMessage) {
+                modalErrorMessage.value = errorMessage;
+            }
         }
         finally {
             isModalSaving.value = false;
@@ -1662,7 +1711,7 @@
         });
 
         if (result.isSuccess) {
-            canEditConnectionRequests.value = result.data ?? false;
+            canEditGlobalConnectionRequests.value = result.data ?? false;
         }
     }
 
@@ -1674,11 +1723,15 @@
             if (!errorMessage) {
                 isChangeStateModalVisible.value = false;
 
+                // TODO - check if this should be switched to > 0
                 if (requestDetailsForModal.value.length > 1) {
                     // clear selected keys
                     // TODO - Come back to this after the clear keys bug is fixed.
                     clearAllSelections();
                 }
+            }
+            else {
+                modalErrorMessage.value = errorMessage;
             }
         }
         finally {
@@ -1706,11 +1759,14 @@
     async function deleteRequestsFromModal(keys: string[]): Promise<void> {
         try {
             isModalSaving.value = true;
-            const result = await deleteRequests(keys);
+            const errorMessage = await deleteRequests(keys);
 
-            if (result) {
+            if (!errorMessage) {
                 isDeleteRequestModalVisible.value = false;
+                return;
             }
+
+            modalErrorMessage.value = errorMessage;
         }
         finally {
             isModalSaving.value = false;
@@ -1927,7 +1983,7 @@
         return result;
     }
 
-    async function updateRequestStatuses(statusUpdateBags: ConnectionRequestUpdateBag[], completedRequestIdKeys: string[]): Promise<void> {
+    async function updateRequestStatuses(statusUpdateBags: ConnectionRequestUpdateBag[], completedRequestIdKeys: string[]): Promise<string | null> {
         const result = await invokeBlockAction<ConnectionListGridUpdateBag[]>("UpdateRequestStatuses", {
             statusUpdateBags: statusUpdateBags,
             completedRequestIdKeys: completedRequestIdKeys,
@@ -1958,10 +2014,10 @@
             clearAllSelections();
 
             isChangeStatusModalVisible.value = false;
-            return;
+            return null;
         }
 
-        console.error(result.errorMessage);
+        return result.errorMessage ?? "An error occurred while updating the status of a Connection Request.";
     }
 
     async function changeRequestStatus(bag: ConnectionRequestUpdateBag): Promise<void> {
@@ -2036,7 +2092,7 @@
             failingRequestDetailsForModal.value = notMeeting;
         }
         else {
-            console.error("An error occurred while checking group requirements for requests");
+            modalErrorMessage.value = result.errorMessage ?? "An error occurred while checking group requirements for requests.";
         }
 
         areRequestDetailsForModalLoading.value = false;
@@ -2106,7 +2162,6 @@
             return null;
         }
 
-        console.error(result.errorMessage);
         return result.errorMessage ?? "An error occurred while updating the connection request state.";
     }
 
@@ -2141,14 +2196,14 @@
                 return;
             }
 
-            console.error(result.errorMessage);
+            modalErrorMessage.value = result.errorMessage ?? "An error occurred while launching the selected Workflow.";
         }
         finally {
             isModalSaving.value = false;
         }
     }
 
-    async function deleteRequests(connectionRequestIdKeys: string[]): Promise<boolean> {
+    async function deleteRequests(connectionRequestIdKeys: string[]): Promise<string | null> {
         // If the action comes from a docked panel than the Connection Type could be different than the Connection Type of the List View.
         const connectionTypeIdKey = dockedPanelDetailsBox.value?.options?.connectionTypeIdKey;
 
@@ -2169,9 +2224,9 @@
                 dockedPanelDetailsBox.value = undefined;
             }
 
-            return true;
+            return null;
         }
-        return false;
+        return result.errorMessage ?? "An error occurred while deleting a Connection Request.";
     }
 
     function onEditActivity(entry: ActivityEntryBag): void {
@@ -2189,7 +2244,10 @@
 
             // If we have an activity Id Key then we are in update mode.
             if (bag.activityIdKey) {
-                await updateActivity(bag, connectionTypeIdKey);
+                const errorMessage = await updateActivity(bag, connectionTypeIdKey);
+                if (errorMessage) {
+                    modalErrorMessage.value = errorMessage;
+                }
                 return;
             }
 
@@ -2234,14 +2292,14 @@
                 return;
             }
 
-            console.error(result.errorMessage);
+            modalErrorMessage.value = result.errorMessage ?? "An error occurred while adding the Activity.";
         }
         finally {
             isModalSaving.value = false;
         }
     }
 
-    async function updateActivity(bag: ActivityBag, connectionTypeIdKey: string | null | undefined): Promise<void> {
+    async function updateActivity(bag: ActivityBag, connectionTypeIdKey: string | null | undefined): Promise<string | null> {
         const result = await invokeBlockAction<ActivityEntryBag>("UpdateActivity", {
             bag,
             connectionTypeIdKey
@@ -2257,10 +2315,10 @@
             }
             isActivityModalVisible.value = false;
             activityToEdit.value = null;
-            return;
+            return null;
         }
 
-        console.error(result.errorMessage);
+        return result.errorMessage ?? "An error occurred while updating the Activity.";
     }
 
     async function fetchConnectionOpportunityDetails(connectionOpportunityGuid: string): Promise<void> {
@@ -2302,7 +2360,7 @@
                 connectionRequestDockedPanelRef.value?.setEditMode(false);
             }
             else {
-                console.error(result.errorMessage ?? "An unknown error occurred while editing the request.");
+                connectionRequestDockedPanelRef.value?.setErrorMessage("edit", result.errorMessage ?? "An unknown error occurred while editing the request.");
             }
         }
         finally {
@@ -2311,17 +2369,21 @@
     }
 
     async function onTransferClick(): Promise<void> {
+        isTransferModalVisible.value = true;
+        areTransferDetailsLoading.value = true;
+
         const result = await invokeBlockAction<TransferConnectionRequestDetailsBag>("GetTransferDetails", {
             key: dockedPanelDetailsBox.value?.entity?.connectionRequestIdKey
         });
 
         if (result.isSuccess && result.data) {
             transferRequestDetails.value = result.data;
-            isTransferModalVisible.value = true;
         }
         else {
-            console.error(result.errorMessage);
+            modalErrorMessage.value = result.errorMessage ?? "An error occurred while getting transfer details.";
         }
+
+        areTransferDetailsLoading.value = false;
     }
 
     async function transferRequest(bag: TransferConnectionRequestBag): Promise<void> {
@@ -2342,7 +2404,7 @@
                 isTransferModalVisible.value = false;
             }
             else {
-                transferErrorMessage.value = result.errorMessage ?? "An unknown error occurred while transferring the connection request.";
+                modalErrorMessage.value = result.errorMessage ?? "An unknown error occurred while transferring the connection request.";
             }
         }
         finally {
@@ -2359,7 +2421,7 @@
             isExistingActiveRequesterOnConnectionType.value = result.data;
         }
         else {
-            console.error(result.errorMessage ?? "An error occurred while checking if the selected requester had any active requests.");
+            modalErrorMessage.value = "An error occurred while checking if the selected requester had any active requests.";
         }
     }
 
@@ -2378,7 +2440,7 @@
                 return;
             }
             else {
-                console.error(result.errorMessage ?? "An unknown error occurred while adding the request.");
+                modalErrorMessage.value = result.errorMessage ?? "An unknown error occurred while adding the request.";
             }
         }
         finally {
@@ -2442,7 +2504,7 @@
             return;
         }
 
-        console.error(result.errorMessage);
+        modalErrorMessage.value = result.errorMessage ?? "An error occurred while assigning the Connector.";
     }
 
     async function fetchConnectionCampaigns(): Promise<void> {
@@ -2468,7 +2530,7 @@
                 return;
             }
 
-            console.error(result.errorMessage);
+            modalErrorMessage.value = result.errorMessage ?? "An error occurred while assigning Connection Requests from the selected Campaign.";
         }
         finally {
             isModalSaving.value = false;
@@ -2498,7 +2560,7 @@
                 return;
             }
 
-            console.error(result.errorMessage);
+            modalErrorMessage.value = result.errorMessage ?? "An error occurred while updating the celebration.";
         }
         finally {
             isModalSaving.value = false;
@@ -2515,7 +2577,8 @@
             return;
         }
 
-        console.error(result.errorMessage);
+        connectionRequestDockedPanelRef.value?.setIsLoading(false);
+        connectionRequestDockedPanelRef.value?.setErrorMessage("view", result.errorMessage ?? "An error occurred while getting the Connection Request details.");
     }
 
     async function refreshActivityEntries(requestIdKey: string | null | undefined): Promise<void> {
@@ -2532,7 +2595,8 @@
             dockedPanelDetailsBox.value.entity.activityEntries = result.data;
         }
         else {
-            console.error(result.errorMessage);
+            console.log("SettingError: ", result.errorMessage);
+            connectionRequestDockedPanelRef.value?.setErrorMessage("activity", result.errorMessage ?? "An error occurred while getting the Connection Request activity entries.");
         }
     }
 

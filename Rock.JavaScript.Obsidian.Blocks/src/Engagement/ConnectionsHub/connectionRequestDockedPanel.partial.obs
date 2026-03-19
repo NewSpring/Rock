@@ -109,7 +109,9 @@
                                      @update:modelValue="onEditConnectionRequestSaved"
                                      ref="editDockedPanelBodyRef"
                                      :options="options"
-                                     :editConnectionRequestFormId="editConnectionRequestFormId" />
+                                     :editConnectionRequestFormId="editConnectionRequestFormId"
+                                     :errorMessage="editErrorMessage"
+                                     @dismissErrorMessage="setErrorMessage('edit', '')" />
                 <ViewDockedPanelBody v-else
                                      :requestDetails="requestDetails"
                                      :connectionRequestBreadcrumbs="connectionRequestBreadcrumbs"
@@ -120,6 +122,7 @@
                                      :dockedPanelWidthNumber="dockedPanelWidthNumber"
                                      :canEditConnectionRequest="canEditConnectionRequest"
                                      :canEditConnectionRequestNote="canEditConnectionRequestNote"
+                                     :activityErrorMessage="activityErrorMessage"
                                      @navigateToBreadcrumb="(index) => emit('navigateToBreadcrumb', index)"
                                      @navigateToAdditionalRequest="(key) => emit('navigateToAdditionalRequest', key)"
                                      @editActivity="(entry) => emit('editActivity', entry)"
@@ -373,6 +376,11 @@
         isSaving: {
             type: Boolean as PropType<boolean>,
             default: false
+        },
+
+        editBox: {
+            type: Object as PropType<ValidPropertiesBox<ConnectionRequestBag>>,
+            default: {}
         }
     });
 
@@ -402,10 +410,13 @@
         (e: "onStatusButtonClick", event: MouseEvent, canCompleteRequest: boolean): void;
         (e: "launchWorkflow", value: LaunchWorkflowBag): void;
         (e: "deleteRequest"): void;
+        (e: "fetchEditDetails"): void;
     }>();
 
     defineExpose({
         setEditMode,
+        setIsLoading,
+        setErrorMessage
     });
 
     const isVisible = useVModelPassthrough(props, "modelValue", emit);
@@ -418,6 +429,10 @@
 
     const isLoading = ref(true);
     const isInEditMode = ref<boolean>(false);
+
+    const viewErrorMessage = ref<string>("");
+    const editErrorMessage = ref<string>("");
+    const activityErrorMessage = ref<string>("");
 
     const requestDetails = ref<ConnectionRequestDetailsBag>();
     const options = ref<ConnectionRequestDetailOptionsBag>();
@@ -432,7 +447,7 @@
     const editDockedPanelBodyRef = ref<InstanceType<typeof EditDockedPanelBody>>();
     const editConnectionRequestBox = ref<ValidPropertiesBox<ConnectionRequestBag>>({});
 
-    const canEditConnectionRequest = computed(() => props.detailsBox?.options?.canEditConnectionRequest ?? false);
+    const canEditConnectionRequest = computed(() => true);
     const canEditConnectionRequestNote = computed(() => props.detailsBox?.options?.canEditConnectionRequestNote ?? false);
 
     const currentIndex = computed(() =>
@@ -531,8 +546,8 @@
     }
 
     function onEditClick(): void {
-        //Set edit mode
         isLoading.value = true;
+        //Set edit mode
         setEditMode(true);
         onEdit();
     }
@@ -541,9 +556,24 @@
         isInEditMode.value = value;
     }
 
+    function setIsLoading(value: boolean): void {
+        isLoading.value = value;
+    }
+
+    function setErrorMessage(type: string, message: string): void {
+        if (type === "edit") {
+            editErrorMessage.value = message;
+        }
+        else if (type === "activity") {
+            activityErrorMessage.value = message;
+        }
+        else {
+            viewErrorMessage.value = message;
+        }
+    }
+
     function onEditConnectionRequestSaved(editBox: ValidPropertiesBox<ConnectionRequestBag>): void {
         editConnectionRequestBox.value = editBox;
-        // saveConnectionRequest();
         emit("editRequest", editBox);
     }
 
@@ -567,7 +597,7 @@
             editConnectionRequestBox.value = result.data;
         }
         else {
-            console.error(result.errorMessage);
+            setErrorMessage("edit", result.errorMessage ?? "An error occurred while getting the Connection Request edit details.");
         }
 
         isLoading.value = false;
@@ -610,6 +640,11 @@
         editConnectionRequestBox.value = {};
         aiSummary.value = "";
         aiSummaryError.value = "";
+
+        // Cleanup error message if displayed on previous request.
+        setErrorMessage("edit", "");
+        setErrorMessage("view", "");
+        setErrorMessage("activity", "");
     }
 
     /**
