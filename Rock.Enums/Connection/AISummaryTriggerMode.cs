@@ -1,4 +1,4 @@
-// <copyright>
+﻿// <copyright>
 // Copyright by the Spark Development Network
 //
 // Licensed under the Rock Community License (the "License");
@@ -15,19 +15,21 @@
 // </copyright>
 //
 
-export const enum NavigationUrlKey {
-    ParentPage = "ParentPage"
-}
+namespace Rock.Enums.Connection
+{
+    /// <summary>
+    /// Determines when AI summaries are generated for connection requests.
+    /// </summary>
+    public enum AISummaryTriggerMode
+    {
+        /// <summary>
+        /// AI summaries are only generated when manually triggered.
+        /// </summary>
+        Manual = 0,
 
-export const enum FeatureOption {
-    EnableFutureFollowup = "enableFutureFollowup",
-    IsSequentialStatusEnforced = "isSequentialStatusEnforced"
-}
-
-export const enum EntityKey {
-    ActivityType = "ActivityType",
-    Status = "Status",
-    ConnectionStatusAutomation = "ConnectionStatusAutomation",
-    ConnectionWorkflow = "ConnectionWorkflow",
-    ConnectionTypeSource = "ConnectionTypeSource"
+        /// <summary>
+        /// AI summaries are generated automatically.
+        /// </summary>
+        Automatic = 1
+    }
 }

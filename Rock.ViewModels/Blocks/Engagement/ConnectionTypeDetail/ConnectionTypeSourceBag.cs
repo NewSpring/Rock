@@ -1,4 +1,4 @@
-// <copyright>
+﻿// <copyright>
 // Copyright by the Spark Development Network
 //
 // Licensed under the Rock Community License (the "License");
@@ -15,19 +15,23 @@
 // </copyright>
 //
 
-export const enum NavigationUrlKey {
-    ParentPage = "ParentPage"
-}
+using System;
 
-export const enum FeatureOption {
-    EnableFutureFollowup = "enableFutureFollowup",
-    IsSequentialStatusEnforced = "isSequentialStatusEnforced"
-}
+namespace Rock.ViewModels.Blocks.Engagement.ConnectionTypeDetail
+{
+    /// <summary>
+    /// Minimal bag representation of a Connection Type Source.
+    /// </summary>
+    public class ConnectionTypeSourceBag
+    {
+        /// <summary>
+        /// Gets or sets the Guid.
+        /// </summary>
+        public Guid Guid { get; set; }
 
-export const enum EntityKey {
-    ActivityType = "ActivityType",
-    Status = "Status",
-    ConnectionStatusAutomation = "ConnectionStatusAutomation",
-    ConnectionWorkflow = "ConnectionWorkflow",
-    ConnectionTypeSource = "ConnectionTypeSource"
+        /// <summary>
+        /// Gets or sets the name.
+        /// </summary>
+        public string Name { get; set; }
+    }
 }
