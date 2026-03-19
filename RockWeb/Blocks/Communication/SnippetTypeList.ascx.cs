@@ -48,7 +48,7 @@ namespace RockWeb.Blocks.Communication
 
     #endregion Block Attributes
 
-    [Rock.SystemGuid.BlockTypeGuid( "74BF9B7D-0F1C-4632-ACBB-A3E30061A237" )]
+    [Rock.SystemGuid.BlockTypeGuid( "397583B2-0DC4-4D69-9169-C95B430AB336" )]
     public partial class SnippetTypeList : RockBlock
     {
         #region Keys
