@@ -436,8 +436,11 @@ namespace Rock.Model
                             .SelectMany( co =>
                                 co.ConnectionRequests
                                     .Where( cr =>
-                                        !campusGuid.HasValue
-                                        || cr.Campus.Guid == campusGuid.Value
+                                        cr.ConnectionState == ConnectionState.FutureFollowUp
+                                        && (
+                                            !campusGuid.HasValue
+                                            || cr.Campus.Guid == campusGuid.Value
+                                        )
                                     )
                             )
                     )
