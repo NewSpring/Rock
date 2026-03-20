@@ -452,6 +452,32 @@ namespace Rock.Blocks.Engagement
 
         #region Helper Methods
 
+
+        /// <summary>
+        /// Gets the appropriate authorization target for the specified Connection Opportunity
+        /// based on whether Request-level security is enabled on the Connection Type.
+        /// </summary>
+        /// <param name="connectionType">The Connection Type to check for Request Security configuration.</param>
+        /// <param name="connectionOpportunity">The Connection Opportunity to get the authorization target for.</param>
+        /// <returns>
+        /// A <see cref="ConnectionRequest"/> if <see cref="ConnectionType.EnableRequestSecurity"/> is enabled;
+        /// otherwise the <see cref="ConnectionOpportunity"/> itself.
+        /// </returns>
+        private ISecured GetAuthorizationTarget( ConnectionType connectionType, ConnectionOpportunity connectionOpportunity )
+        {
+            if ( connectionType.EnableRequestSecurity )
+            {
+                return new ConnectionRequest
+                {
+                    ConnectionTypeId = connectionType.Id,
+                    ConnectionOpportunityId = connectionOpportunity.Id,
+                    ConnectionOpportunity = connectionOpportunity
+                };
+            }
+
+            return connectionOpportunity;
+        }
+
         /// <summary>
         /// Gets the Connection Opportunity Filter from the Person Preference
         /// </summary>
@@ -1501,19 +1527,13 @@ namespace Rock.Blocks.Engagement
         {
             bool userCanEditConnectionRequests = false;
 
-            // Only check Opportunity-level security if Enable Request Security is turned off.
-            if ( !connectionType.EnableRequestSecurity )
+            if ( connectionOpportunity != null )
             {
-                if ( connectionOpportunity != null )
-                {
-                    // Checks if the user has edit permissions the specified Connection Opportunity.
-                    userCanEditConnectionRequests = connectionOpportunity.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson );
-                }
-                else
-                {
-                    // Checks if the user has edit permissions for all Connection Opportunities in the specified Connection Type.
-                    userCanEditConnectionRequests = connectionType.ConnectionOpportunities.All( co => co.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson ) );
-                }
+                userCanEditConnectionRequests = GetAuthorizationTarget( connectionType, connectionOpportunity ).IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson );
+            }
+            else
+            {
+                userCanEditConnectionRequests = connectionType.ConnectionOpportunities.All( co => GetAuthorizationTarget( connectionType, co ).IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson ) );
             }
 
             if ( !userCanEditConnectionRequests )
@@ -3558,7 +3578,7 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
 
                     if ( request.ConnectionOpportunity.ConnectionType.RequiresPlacementGroupToConnect && !request.AssignedGroupId.HasValue )
                     {
-                        return ActionBadRequest( "This Connection Type requires a Placemnt Group to be configured in order to complete the request." );
+                        return ActionBadRequest( "This Connection Type requires a Placement Group to be configured in order to complete the request." );
                     }
 
                     if ( !TryAssignPlacementGroup( request, out var error ) )
@@ -4601,9 +4621,9 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
                 return ActionBadRequest( $"{Rock.Model.ConnectionRequest.FriendlyTypeName} not found." );
             }
 
-            if ( !connectionRequest.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson ) )
+            if ( !CanEditSpecifiedConnectionRequest( connectionRequest, out var error ) )
             {
-                return ActionBadRequest( "You are not authorized to edit this Connection Request." );
+                return error;
             }
 
             var connectionType = ConnectionTypeCache.Get( connectionRequest.ConnectionTypeId );
@@ -4739,9 +4759,9 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
                 return ActionBadRequest( $"{Rock.Model.ConnectionRequest.FriendlyTypeName} not found." );
             }
 
-            if ( !connectionRequest.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson ) )
+            if ( !CanEditSpecifiedConnectionRequest( connectionRequest, out var error ) )
             {
-                return ActionBadRequest( "You are not authorized to edit this Connection Request." );
+                return error;
             }
 
             var connectionActivityTypeService = new ConnectionActivityTypeService( RockContext );

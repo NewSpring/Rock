@@ -447,7 +447,7 @@
     const editDockedPanelBodyRef = ref<InstanceType<typeof EditDockedPanelBody>>();
     const editConnectionRequestBox = ref<ValidPropertiesBox<ConnectionRequestBag>>({});
 
-    const canEditConnectionRequest = computed(() => true);
+    const canEditConnectionRequest = computed(() => props.detailsBox?.options?.canEditConnectionRequest ?? false);
     const canEditConnectionRequestNote = computed(() => props.detailsBox?.options?.canEditConnectionRequestNote ?? false);
 
     const currentIndex = computed(() =>
