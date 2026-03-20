@@ -678,27 +678,14 @@ namespace Rock.Blocks.Event
                 // If the person happens to have a valid signature document of the required template, we may skip this step.
                 if ( documentTemplate.IsValidInFuture && documentTemplate.ValidityDurationInDays.HasValue )
                 {
-                    // When thinking about date comparisons, think in terms of extremes:
-                    //  - If they signed a document today, and it's only valid for 1 day, it's still valid (at any point) today.
-                    //  - If they signed a document (at any point) yesterday or before, and it's only valid for 1 day, it's no longer valid today.
-                    // With this in mind, add one day to the specified ValidityDurationInDays before comparing.
-                    var earliestSignatureDate = RockDateTime.Today.AddDays( -documentTemplate.ValidityDurationInDays.ToIntSafe() + 1 );
-                    var existingSignatureDocument = new RegistrationRegistrantService( rockContext )
-                        .Queryable()
-                        .Where( r =>
-                            r.PersonAlias.PersonId == person.Id &&
-                            r.SignatureDocument.SignatureDocumentTemplateId == documentTemplate.Id &&
-                            r.SignatureDocument.SignedDateTime >= earliestSignatureDate )
-                        .OrderByDescending( r => r.SignatureDocument.SignedDateTime )
-                        .Select( r => new
-                        {
-                            r.SignatureDocument.Guid
-                        } )
+                    var existingSignatureDocumentGuid = new RegistrationRegistrantService( rockContext )
+                        .GetValidSignatureDocument( person.Id, documentTemplate )
+                        .Select( d => ( Guid? ) d.Guid )
                         .FirstOrDefault();
 
-                    if ( existingSignatureDocument != null )
+                    if ( existingSignatureDocumentGuid != null )
                     {
-                        response.ExistingSignatureDocumentGuid = existingSignatureDocument.Guid;
+                        response.ExistingSignatureDocumentGuid = existingSignatureDocumentGuid;
 
                         return ActionOk( response );
                     }
