@@ -33,7 +33,7 @@
                         <div class="row">
                             <div class="col-md-6">
                                 <RadioButtonList v-model="connectionState"
-                                                 :items="options?.connectionStates ?? []"
+                                                 :items="connectionStates"
                                                  label="State" />
                             </div>
                         </div>
@@ -306,6 +306,14 @@
                 disabled: s.disabled
             })) ?? []
         );
+    });
+
+    const connectionStates = computed<ListItemBag[]>(() => {
+        if (props.modelValue.bag?.connectionState === ConnectionState.Connected) {
+            return props.options?.connectionStates ?? [];
+        }
+
+        return props.options?.connectionStates?.filter(s => s.value !== ConnectionState.Connected.toString()) ?? [];
     });
 
     const statusChanged = computed(() => !!originalConnectionStatusGuid.value && originalConnectionStatusGuid.value !== connectionStatusGuid.value);

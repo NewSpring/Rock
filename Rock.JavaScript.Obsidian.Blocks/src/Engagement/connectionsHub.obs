@@ -233,8 +233,8 @@
                         field="dueDate"
                         width="2%">
                     <template #format="{ row }">
-                        <div v-if="!!row.dueDate" :class="getDueDateColor(row.dueStatus)">
-                            {{ formatDueDateShortLabel(row.dueDate) }}
+                        <div v-if="!!row.dueDate && row.connectionState !== ConnectionState.Inactive" :class="getDueDateColor(row.dueStatus, row.connectionState === ConnectionState.Connected)">
+                            {{ formatDueDateShortLabel(row.dueDate, row.connectionState === ConnectionState.Connected, row.completedDateTime) }}
                         </div>
                         <div v-else>
                             <i class="ti ti-minus"></i>
@@ -1308,30 +1308,34 @@
     }
 
 
-    function formatDueDateShortLabel(dueDate: string | null | undefined): string {
-        const today = RockDateTime.now().date;
+    function formatDueDateShortLabel(dueDate: string | null | undefined, isCompleted: boolean, completedDateTime: string | null | undefined): string {
+        // Use the completion date as the reference point if completed, otherwise use today
+        const referenceDate = isCompleted ? RockDateTime.parseISO(completedDateTime ?? "")?.date : RockDateTime.now().date;
         const due = RockDateTime.parseISO(dueDate ?? "")?.date;
 
-        if (!due) {
+        // If either date is missing/invalid, return empty string
+        if (!due || !referenceDate) {
             return "";
         }
 
+        // Calculate the difference in days between the due date and the reference date
         const msPerDay = 1000 * 60 * 60 * 24;
         const dayDiff = Math.round(
-            (due.toMilliseconds() - today.toMilliseconds()) / msPerDay
+            (due.toMilliseconds() - referenceDate.toMilliseconds()) / msPerDay
         );
 
-        if (dayDiff === 0) {
+        // Show "Today" label only for active (non-completed) tasks due today
+        if (dayDiff === 0 && !isCompleted) {
             return "Today";
         }
 
         return `${dayDiff}d`;
     }
 
-    function getDueDateColor(dueStatus: DueStatus | null | undefined): string {
+    function getDueDateColor(dueStatus: DueStatus | null | undefined, isCompleted: boolean): string {
         switch (dueStatus) {
             case DueStatus.DueLater:
-                return "text-interface-strong";
+                return isCompleted ? "text-emerald text-semibold" : "text-interface-strong";
             case DueStatus.DueSoon:
                 return "text-warning text-semibold";
             case DueStatus.Overdue:
@@ -2011,6 +2015,7 @@
                 row.dueStatus = updateBag.dueStatus;
                 row.dueDate = updateBag.dueDate;
                 row.dueSoonDate = updateBag.dueSoonDate;
+                row.completedDateTime = updateBag.completedDateTime;
             }
 
             // clear selected keys
@@ -2044,12 +2049,14 @@
                     row.dueStatus = result.data.dueStatus;
                     row.dueDate = result.data.dueDate;
                     row.dueSoonDate = result.data.dueSoonDate;
+                    row.completedDateTime = result.data.completedDateTime;
                 }
 
                 if (!!dockedPanelDetailsBox.value?.entity && dockedPanelDetailsBox.value.entity.connectionRequestIdKey === bag.connectionRequestIdKey) {
                     dockedPanelDetailsBox.value.entity.connectionStatus = result.data.connectionStatusBag;
                     dockedPanelDetailsBox.value.entity.dueStatus = result.data.dueStatus;
                     dockedPanelDetailsBox.value.entity.dueDate = result.data.dueDate;
+                    dockedPanelDetailsBox.value.entity.completedDateTime = result.data.completedDateTime;
                     refreshActivityEntries(dockedPanelDetailsBox.value.entity.connectionRequestIdKey);
                 }
 
@@ -2142,6 +2149,7 @@
                 if (!!dockedPanelDetailsBox.value?.entity && dockedPanelDetailsBox.value.entity.connectionRequestIdKey === resultBag.idKey) {
                     dockedPanelDetailsBox.value.entity.connectionState = resultBag.connectionState;
                     dockedPanelDetailsBox.value.entity.followUpDate = resultBag.followUpDate;
+                    dockedPanelDetailsBox.value.entity.completedDateTime = resultBag.completedDateTime;
                     refreshActivityEntries(dockedPanelDetailsBox.value.entity.connectionRequestIdKey);
                 }
             }
@@ -2159,6 +2167,7 @@
                     row.stateGrouping = updateBag.stateGrouping;
                     row.connectionState = updateBag.connectionState;
                     row.followUpDate = updateBag.followUpDate;
+                    row.completedDateTime = updateBag.completedDateTime;
                 }
             }
 

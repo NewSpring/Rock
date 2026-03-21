@@ -600,16 +600,33 @@ namespace Rock.Blocks.Engagement
         /// <param name="dueDate">The date the item is due. If null, the status defaults to DueLater.</param>
         /// <param name="dueSoonDate">The optional date from which the item is considered due soon. If null, DueSoon will never be returned.</param>
         /// <returns>A <see cref="DueStatus"/> indicating whether the item is overdue, due soon, or due later.</returns>
-        private DueStatus GetDueStatus( DateTime? dueDate, DateTime? dueSoonDate )
+        private DueStatus GetDueStatus( DateTime? dueDate, DateTime? dueSoonDate, ConnectionState connectionState, DateTime? completedDateTime )
         {
             var now = RockDateTime.Now.Date;
 
-            if ( !dueDate.HasValue )
+            if ( !dueDate.HasValue || connectionState == ConnectionState.Inactive )
             {
                 return DueStatus.DueLater;
             }
 
             var due = dueDate.Value.Date;
+
+            if ( connectionState == ConnectionState.Connected )
+            {
+                if ( !completedDateTime.HasValue )
+                {
+                    return DueStatus.DueLater;
+                }
+
+                var completedDate = completedDateTime.Value.Date;
+
+                if ( completedDate > due )
+                {
+                    return DueStatus.Overdue;
+                }
+
+                return DueStatus.DueLater;
+            }
 
             if ( now > due )
             {
@@ -1804,7 +1821,7 @@ namespace Rock.Blocks.Engagement
         {
             // TODO - Add server side filters
 
-            var dueStatus = GetDueStatus( connectionRequest.DueDate, connectionRequest.DueSoonDate );
+            var dueStatus = GetDueStatus( connectionRequest.DueDate, connectionRequest.DueSoonDate, connectionRequest.ConnectionState, connectionRequest.ConnectedDateTime );
             var connectorItem = new ListItemBag();
 
             if ( connectionRequest.ConnectorPersonAliasId.HasValue )
@@ -1859,7 +1876,7 @@ namespace Rock.Blocks.Engagement
                 OpportunityGrouping = GetGroupingFieldBag( connectionRequest.ConnectionOpportunityId, "text", connectionRequest.ConnectionOpportunity.Name, connectionRequest.ConnectionOpportunity.Order, connectionRequest.ConnectionOpportunity.IconCssClass ),
                 CampusGrouping = GetGroupingFieldBag( connectionRequest.CampusId, "text", connectionRequest.Campus?.Name, connectionRequest.Campus?.Order ),
                 StatusGrouping = GetGroupingFieldBag( connectionRequest.ConnectionStatusId, "text", connectionRequest.ConnectionStatus?.Name, connectionRequest.ConnectionStatus?.Order ),
-                DueStatusGrouping = GetGroupingFieldBag( ( int ) dueStatus, "text", dueStatus.ToString(), dueStatus.GetOrder(), "ti ti-calendar", null, GetDueStatusTextColorCssClass( dueStatus ) ),
+                DueStatusGrouping = GetGroupingFieldBag( ( int ) dueStatus, "text", dueStatus.GetDisplayName(), dueStatus.GetOrder(), "ti ti-calendar", null, GetDueStatusTextColorCssClass( dueStatus ) ),
                 StateGrouping = new GroupingFieldBag
                 {
                     Key = connectionRequest.ConnectionState.ToString(),
@@ -1885,6 +1902,7 @@ namespace Rock.Blocks.Engagement
                 CreatedDateTime = connectionRequest.CreatedDateTime,
                 DueDate = connectionRequest.DueDate,
                 DueSoonDate = connectionRequest.DueSoonDate,
+                CompletedDateTime = connectionRequest.ConnectedDateTime,
                 DueStatus = dueStatus,
                 FollowUpDate = connectionRequest.FollowupDate,
                 ConnectionState = connectionRequest.ConnectionState,
@@ -2007,10 +2025,7 @@ namespace Rock.Blocks.Engagement
             optionsBag.IsAISummaryVisible = new AIProviderService( RockContext ).GetActiveProvider() != null
                 && ( connectionRequest.ConnectionOpportunity.ConnectionType.GetConnectionTypeAdditionalSettings()?.AIInsightsPrompt.IsNotNullOrWhiteSpace() == true );
 
-            List<ConnectionState> ignoredConnectionStates = new List<ConnectionState>
-            {
-                ConnectionState.Connected
-            };
+            List<ConnectionState> ignoredConnectionStates = new List<ConnectionState>();
 
             if ( !connectionRequest.ConnectionOpportunity.ConnectionType.EnableFutureFollowup )
             {
@@ -2127,7 +2142,8 @@ namespace Rock.Blocks.Engagement
                 ConnectorPerson = connectionRequest.ConnectorPersonAlias?.Guid.ToString() ?? "unassigned",
                 CreatedDateTime = connectionRequest.CreatedDateTime?.ToRockDateTimeOffset(),
                 DueDate = connectionRequest.DueDate?.ToRockDateTimeOffset(),
-                DueStatus = GetDueStatus( connectionRequest.DueDate, connectionRequest.DueSoonDate ),
+                CompletedDateTime = connectionRequest.ConnectedDateTime?.ToRockDateTimeOffset(),
+                DueStatus = GetDueStatus(connectionRequest.DueDate, connectionRequest.DueSoonDate, connectionRequest.ConnectionState, connectionRequest.ConnectedDateTime ),
                 Comments = connectionRequest.Comments,
                 ConnectionTypeSource = connectionRequest.ConnectionTypeSource?.Name,
                 CelebrationText = connectionRequest.CelebrationText,
@@ -2811,7 +2827,7 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
             sb.AppendLine( $"Status: {connectionRequest.ConnectionStatus?.Name}" );
             sb.AppendLine( $"State: {connectionRequest.ConnectionState.GetDisplayName()}" );
 
-            var dueStatus = GetDueStatus( connectionRequest.DueDate, connectionRequest.DueSoonDate );
+            var dueStatus = GetDueStatus(connectionRequest.DueDate, connectionRequest.DueSoonDate, connectionRequest.ConnectionState, connectionRequest.ConnectedDateTime );
             sb.AppendLine( $"Due Status: {dueStatus.GetDisplayName()}" );
 
             if ( connectionRequest.CreatedDateTime.HasValue )
@@ -2956,7 +2972,6 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
                     CampusId = a.CampusId,
                     Campus = a.Campus != null ? a.Campus.Name : string.Empty,
                     CampusGuid = a.Campus != null ? a.Campus.Guid : ( Guid? ) null,
-                    //GroupId = a.AssignedGroupId,
                     Group = a.AssignedGroup != null ? a.AssignedGroup.Name : string.Empty,
                     ConnectionStatusProjection = new ConnectionStatusProjection
                     {
@@ -2976,6 +2991,7 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
                     CreatedDateTime = a.CreatedDateTime,
                     DueDate = a.DueDate,
                     DueSoonDate = a.DueSoonDate,
+                    CompletedDateTime = a.ConnectedDateTime,
                     CelebrationText = a.CelebrationText,
                     PersonProjection = new PersonProjection
                     {
@@ -3098,7 +3114,7 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
                     connectorItem.Text = "Unassigned";
                 }
 
-                var dueStatus = GetDueStatus( request.DueDate, request.DueSoonDate );
+                var dueStatus = GetDueStatus( request.DueDate, request.DueSoonDate, request.ConnectionState, request.CompletedDateTime );
                 request.DueStatus = dueStatus;
                 request.ConnectorDetails = connectorItem;
 
@@ -3562,14 +3578,12 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
                 .AsNoTracking()
                 .Where( s => s.ConnectionTypeId == connectionType.Id )
                 .ToList();
-            var requestsByIdKey = connectionRequests.ToDictionary( r => r.IdKey );
+
             var statusBagByIdKey = statusUpdateBags.ToDictionary( b => b.ConnectionRequestIdKey );
-            List<ConnectionListGridUpdateBag> gridUpdateBags = new List<ConnectionListGridUpdateBag>();
 
             foreach ( var request in connectionRequests )
             {
                 var currentStatus = connectionStatuses.Where( s => s.Id == request.ConnectionStatusId ).FirstOrDefault();
-                var dueStatus = GetDueStatus( request.DueDate, request.DueSoonDate );
 
                 // If Completed request, then apply state update.
                 if ( completedRequestIdKeys.Contains( request.IdKey ) )
@@ -3586,33 +3600,6 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
                         return error;
                     }
 
-                    gridUpdateBags.Add( new ConnectionListGridUpdateBag
-                    {
-                        IdKey = request.IdKey,
-                        StateGrouping = new GroupingFieldBag
-                        {
-                            Key = request.ConnectionState.ToString(),
-                            Type = "text",
-                            Label = request.ConnectionState.GetDisplayName(),
-                            IconCssClass = GetStateIconCssClass( request.ConnectionState ),
-                            Order = ( int ) request.ConnectionState
-                        },
-                        StatusGrouping = GetGroupingFieldBag( currentStatus.Id, "text", currentStatus.Name, currentStatus.Order ),
-                        ConnectionState = request.ConnectionState,
-                        ConnectionStatusBag = new ConnectionStatusBag
-                        {
-                            Guid = currentStatus.Guid,
-                            Order = currentStatus.Order,
-                            Name = currentStatus.Name,
-                            HighlightColor = currentStatus.HighlightColor,
-                            IsNoteRequiredOnCompletion = currentStatus.IsNoteRequiredOnCompletion,
-                            IsDefaultStatus = currentStatus.IsDefault
-                        },
-                        DueStatusGrouping = GetGroupingFieldBag( ( int ) dueStatus, "text", dueStatus.ToString(), dueStatus.GetOrder(), "ti ti-calendar", null, GetDueStatusTextColorCssClass( dueStatus ) ),
-                        DueStatus = dueStatus,
-                        DueDate = request.DueDate,
-                        DueSoonDate = request.DueSoonDate
-                    } );
                     continue;
                 }
                 if ( !statusBagByIdKey.TryGetValue( request.IdKey, out var updateBag ) )
@@ -3632,6 +3619,15 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
 
                 request.ConnectionStatusId = newStatus.Id;
                 request.ConnectionStatusHistoryNote = statusUpdateBags.First().Note;
+            }
+
+            RockContext.SaveChanges();
+
+            List<ConnectionListGridUpdateBag> gridUpdateBags = new List<ConnectionListGridUpdateBag>();
+
+            foreach ( var request in connectionRequests )
+            {
+                var dueStatus = GetDueStatus( request.DueDate, request.DueSoonDate, request.ConnectionState, request.ConnectedDateTime );
 
                 gridUpdateBags.Add( new ConnectionListGridUpdateBag
                 {
@@ -3644,25 +3640,24 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
                         IconCssClass = GetStateIconCssClass( request.ConnectionState ),
                         Order = ( int ) request.ConnectionState
                     },
-                    StatusGrouping = GetGroupingFieldBag( newStatus.Id, "text", newStatus.Name, newStatus.Order ),
+                    StatusGrouping = GetGroupingFieldBag( request.ConnectionStatus.Id, "text", request.ConnectionStatus.Name, request.ConnectionStatus.Order ),
                     ConnectionState = request.ConnectionState,
                     ConnectionStatusBag = new ConnectionStatusBag
                     {
-                        Guid = newStatus.Guid,
-                        Order = newStatus.Order,
-                        Name = newStatus.Name,
-                        HighlightColor = newStatus.HighlightColor,
-                        IsNoteRequiredOnCompletion = newStatus.IsNoteRequiredOnCompletion,
-                        IsDefaultStatus = newStatus.IsDefault
+                        Guid = request.ConnectionStatus.Guid,
+                        Order = request.ConnectionStatus.Order,
+                        Name = request.ConnectionStatus.Name,
+                        HighlightColor = request.ConnectionStatus.HighlightColor,
+                        IsNoteRequiredOnCompletion = request.ConnectionStatus.IsNoteRequiredOnCompletion,
+                        IsDefaultStatus = request.ConnectionStatus.IsDefault
                     },
                     DueStatusGrouping = GetGroupingFieldBag( ( int ) dueStatus, "text", dueStatus.ToString(), dueStatus.GetOrder(), "ti ti-calendar", null, GetDueStatusTextColorCssClass( dueStatus ) ),
                     DueStatus = dueStatus,
                     DueDate = request.DueDate,
-                    DueSoonDate = request.DueSoonDate
+                    DueSoonDate = request.DueSoonDate,
+                    CompletedDateTime = request.ConnectedDateTime
                 } );
             }
-
-            RockContext.SaveChanges();
 
             return ActionOk( gridUpdateBags );
         }
@@ -3698,8 +3693,6 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
                 return ActionBadRequest( "A Follow-Up Date is required." );
             }
 
-            List<ConnectionListGridUpdateBag> gridUpdateBags = new List<ConnectionListGridUpdateBag>();
-
             foreach ( var request in connectionRequests )
             {
                 if ( bag.ConnectionState == ConnectionState.FutureFollowUp )
@@ -3721,7 +3714,13 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
                 }
 
                 request.ConnectionState = bag.ConnectionState;
+            }
 
+            RockContext.SaveChanges();
+
+            List<ConnectionListGridUpdateBag> gridUpdateBags = new List<ConnectionListGridUpdateBag>();
+            foreach ( var request in connectionRequests )
+            {
                 gridUpdateBags.Add( new ConnectionListGridUpdateBag
                 {
                     IdKey = request.IdKey,
@@ -3734,11 +3733,11 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
                         Order = ( int ) request.ConnectionState
                     },
                     ConnectionState = request.ConnectionState,
-                    FollowUpDate = request.FollowupDate
+                    FollowUpDate = request.FollowupDate,
+                    CompletedDateTime = request.ConnectedDateTime
                 } );
             }
 
-            RockContext.SaveChanges();
             return ActionOk( gridUpdateBags );
         }
 
@@ -4117,7 +4116,7 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
 
             RockContext.SaveChanges();
 
-            var dueStatus = GetDueStatus( connectionRequest.DueDate, connectionRequest.DueSoonDate );
+            var dueStatus = GetDueStatus( connectionRequest.DueDate, connectionRequest.DueSoonDate, connectionRequest.ConnectionState, connectionRequest.ConnectedDateTime );
 
             var gridUpdateBag = new ConnectionListGridUpdateBag
             {
@@ -4135,7 +4134,8 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
                 DueStatusGrouping = GetGroupingFieldBag( ( int ) dueStatus, "text", dueStatus.ToString(), dueStatus.GetOrder(), "ti ti-calendar", null, GetDueStatusTextColorCssClass( dueStatus ) ),
                 DueStatus = dueStatus,
                 DueDate = connectionRequest.DueDate,
-                DueSoonDate = connectionRequest.DueSoonDate
+                DueSoonDate = connectionRequest.DueSoonDate,
+                CompletedDateTime = connectionRequest.ConnectedDateTime
             };
 
             return ActionOk( gridUpdateBag );
@@ -5379,6 +5379,7 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
                 .AddDateTimeField( "createdDateTime", a => a.CreatedDateTime )
                 .AddDateTimeField( "dueDate", a => a.DueDate )
                 .AddDateTimeField( "dueSoonDate", a => a.DueSoonDate )
+                .AddDateTimeField( "completedDateTime", a => a.CompletedDateTime )
                 .AddField( "dueStatus", a => a.DueStatus )
                 .AddDateTimeField( "followUpDate", a => a.FollowUpDate )
                 .AddField( "connectionState", a => a.ConnectionState )
@@ -5494,6 +5495,8 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
             public DateTime? DueDate { get; set; }
 
             public DateTime? DueSoonDate { get; set; }
+
+            public DateTime? CompletedDateTime { get; set; }
 
             public DueStatus DueStatus { get; set; }
 
