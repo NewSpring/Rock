@@ -45,8 +45,9 @@
                                  v-model="defaultListView"
                                  rules="required"
                                  label="Default List View"
-                                 help="Choose the default view used when showing this program’s steps on a person’s profile page."
-                                 :items="viewModes" />
+                                 help="Choose the default view used when showing this program's steps on a person's profile page."
+                                 :items="viewModes"
+                                 trailblazerField />
             </ContentStack>
         </ContentSection>
 
