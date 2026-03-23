@@ -21,13 +21,17 @@
 // </copyright>
 //
 
-import { SearchFilterBag } from "@Obsidian/ViewModels/Blocks/Core/SmartSearch/searchFilterBag";
+/** Represents a single search filter available in the Smart Search block. */
+export type SearchFilterBag = {
+    /** Gets or sets the search component key. */
+    key?: string | null;
 
-/** The additional configuration options for the Smart Search block. */
-export type SmartSearchOptionsBag = {
+    /** Gets or sets the display label for this search filter. */
+    label?: string | null;
+
     /**
-     * Gets or sets the available search filters.
-     * The list preserves the server-side iteration order.
+     * Gets or sets the result URL template for this search filter.
+     * The placeholder {0} is replaced with the search term.
      */
-    searchFilters?: SearchFilterBag[] | null;
+    resultUrl?: string | null;
 };
