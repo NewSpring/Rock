@@ -15,19 +15,27 @@
 // </copyright>
 //
 
-using System.Collections.Generic;
-
 namespace Rock.ViewModels.Blocks.Core.SmartSearch
 {
     /// <summary>
-    /// The additional configuration options for the Smart Search block.
+    /// Represents a single search filter available in the Smart Search block.
     /// </summary>
-    public class SmartSearchOptionsBag
+    public class SearchFilterBag
     {
         /// <summary>
-        /// Gets or sets the available search filters.
-        /// The list preserves the server-side iteration order.
+        /// Gets or sets the search component key.
         /// </summary>
-        public List<SearchFilterBag> SearchFilters { get; set; }
+        public string Key { get; set; }
+
+        /// <summary>
+        /// Gets or sets the display label for this search filter.
+        /// </summary>
+        public string Label { get; set; }
+
+        /// <summary>
+        /// Gets or sets the result URL template for this search filter.
+        /// The placeholder {0} is replaced with the search term.
+        /// </summary>
+        public string ResultUrl { get; set; }
     }
 }
