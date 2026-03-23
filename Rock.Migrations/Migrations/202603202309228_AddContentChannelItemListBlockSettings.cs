@@ -49,17 +49,16 @@ namespace Rock.Migrations
             // Update the ContentChannelItemList block type and any instances to reflect the current block type name and description.
             // If they've changed the name of any block instances from the previous default, leave their names as-is.
 
-            // Add/Update Obsidian Block Type
-            //   Name:Content Channel Item List
-            //   Category:CMS
-            //   EntityType:Rock.Blocks.Cms.ContentChannelItemList
-            RockMigrationHelper.AddOrUpdateEntityBlockType( "Content Channel Item List", "Displays a list of content channel items.", "Rock.Blocks.Cms.ContentChannelItemList", "CMS", "B995BE3F-A9EB-4A18-AE24-E93A8796AEDE" );
-
             Sql( @"
 DECLARE @BlockTypeId INT = (SELECT TOP 1 [Id] FROM [BlockType] WHERE [Guid] = 'B995BE3F-A9EB-4A18-AE24-E93A8796AEDE');
 
 IF @BlockTypeId IS NOT NULL
 BEGIN
+    UPDATE [BlockType]
+    SET [Name] = 'Content Channel Item List'
+        , [Description] = 'Displays a list of content channel items.'
+    WHERE [Id] = @BlockTypeId;
+
     UPDATE [Block]
     SET [Name] = 'Content Channel Item List'
     WHERE [BlockTypeId] = @BlockTypeId
@@ -93,17 +92,16 @@ END" );
             // ----------------------------------
             // Revert the ContentChannelItemList block type name and description.
 
-            // Add/Update Obsidian Block Type
-            //   Name:Content Channel Item List
-            //   Category:CMS
-            //   EntityType:Rock.Blocks.Cms.ContentChannelItemList
-            RockMigrationHelper.AddOrUpdateEntityBlockType( "Content Item List", "Lists content items.", "Rock.Blocks.Cms.ContentChannelItemList", "CMS", "B995BE3F-A9EB-4A18-AE24-E93A8796AEDE" );
-
             Sql( @"
 DECLARE @BlockTypeId INT = (SELECT TOP 1 [Id] FROM [BlockType] WHERE [Guid] = 'B995BE3F-A9EB-4A18-AE24-E93A8796AEDE');
 
 IF @BlockTypeId IS NOT NULL
 BEGIN
+    UPDATE [BlockType]
+    SET [Name] = 'Content Item List'
+        , [Description] = 'Lists content items.'
+    WHERE [Id] = @BlockTypeId;
+
     UPDATE [Block]
     SET [Name] = 'Content Item List'
     WHERE [BlockTypeId] = @BlockTypeId
