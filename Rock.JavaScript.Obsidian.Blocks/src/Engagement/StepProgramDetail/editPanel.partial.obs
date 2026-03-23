@@ -51,7 +51,8 @@
         </ContentSection>
 
         <ContentSection title="Statuses"
-                        icon="ti ti-flag">
+                        icon="ti ti-flag"
+                        :order="1">
             <ContentStack>
                 <Grid :data="statusesGridData"
                       keyField="key"
@@ -113,7 +114,8 @@
         </ContentSection>
 
         <ContentSection title="Type Attributes"
-                        icon="ti ti-binary-tree-2">
+                        icon="ti ti-binary-tree-2"
+                        :order="2">
             <ContentStack>
                 <Grid :data="attributesGridData"
                       keyField="key"
@@ -160,7 +162,8 @@
 
         <ContentSection v-if="areEntityAttributesDisplayed"
                         title="Step Program Entity Attributes"
-                        icon="ti ti-database">
+                        icon="ti ti-database"
+                        :order="3">
             <ContentStack>
                 <AttributeValuesContainer v-model="attributeValues"
                                           :attributes="attributes"
@@ -171,7 +174,8 @@
 
         <ContentSection v-if="store.state.trailblazerMode"
                         title="Workflows"
-                        icon="ti ti-settings-cog">
+                        icon="ti ti-settings-cog"
+                        :order="4">
             <ContentStack>
                 <Grid :data="workflowGridData"
                       keyField="key"

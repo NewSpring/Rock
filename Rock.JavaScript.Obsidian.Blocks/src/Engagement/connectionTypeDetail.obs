@@ -15,6 +15,7 @@
                  :isEditVisible="isEditable"
                  :isFollowVisible="false"
                  :isSecurityHidden="false"
+                 :showExperienceMode="true"
                  :footerSecondaryActions="footerSecondaryActions"
                  @cancelEdit="onCancelEdit"
                  @delete="onDelete"
