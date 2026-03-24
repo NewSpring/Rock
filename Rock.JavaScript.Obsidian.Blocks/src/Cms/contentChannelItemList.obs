@@ -64,7 +64,6 @@
             </template>
         </Column>
 
-        <NumberColumn v-if="showTotalViewsColumns" name="allTimeViewsCount" title="Views" field="allTimeViewsCount" :filter="config?.options?.showFilters ? numberValueFilter : undefined" width="150" />
         <NumberColumn v-if="showTotalViewsColumns" name="last28DaysViewsCount" title="Views 28d" field="last28DaysViewsCount" :filter="config?.options?.showFilters ? numberValueFilter : undefined" width="150" />
 
         <NumberColumn v-if="config?.options?.showPriorityColumn" name="priority" title="Priority" field="priority" :filter="config?.options?.showFilters ? numberValueFilter : undefined" width="150" />
@@ -282,8 +281,7 @@
             showTotalViewsColumns.value = !!(
                 config.options?.showTotalViewsColumns
                 && (gridData?.rows ?? []).some(i =>
-                    toNumber((i.allTimeViewsCount as number | null | undefined)) > 0
-                    || toNumber((i.last28DaysViewsCount as number | null | undefined)) > 0
+                    toNumber((i.last28DaysViewsCount as number | null | undefined)) > 0
                 )
             );
 

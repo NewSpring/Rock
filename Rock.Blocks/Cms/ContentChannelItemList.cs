@@ -93,9 +93,9 @@ namespace Rock.Blocks.Cms
         IsRequired = false )]
 
     [BooleanField(
-        "Show Total Views Columns",
+        "Show Total Views Column",
         Key = AttributeKey.ShowTotalViewsColumns,
-        Description = "Determines if the Views columns should be shown.",
+        Description = "Determines if the total views column should be shown.",
         DefaultBooleanValue = true,
         Category = AttributeCategory.GeneralSettings,
         Order = 4,
@@ -113,7 +113,7 @@ namespace Rock.Blocks.Cms
     [BooleanField(
         "Show Item URL Column",
         Key = AttributeKey.ShowItemUrlColumn,
-        Description = "Determines if the Item URL column should be shown.",
+        Description = "Determines if the item URL column should be shown.",
         DefaultBooleanValue = true,
         Category = AttributeCategory.GeneralSettings,
         Order = 6,
@@ -122,8 +122,8 @@ namespace Rock.Blocks.Cms
     [BooleanField(
         "Show Linked Media Column",
         Key = AttributeKey.ShowLinkedMediaColumn,
-        Description = "Determines if the Linked Media column should be shown.",
-        DefaultBooleanValue = false,
+        Description = "Determines if the linked media column should be shown.",
+        DefaultBooleanValue = true,
         Category = AttributeCategory.GeneralSettings,
         Order = 7,
         IsRequired = false )]
@@ -435,7 +435,6 @@ namespace Rock.Blocks.Cms
                 .AddField( "isUploadedToContentLibrary", a => a.IsUploadedToContentLibrary )
                 .AddField( "contentLibraryLicenseTypeGuid", a => a.ContentLibraryLicenseTypeValueId.HasValue ? DefinedValueCache.Get( a.ContentLibraryLicenseTypeValueId.Value )?.Guid : null )
                 .AddField( "isSecurityDisabled", a => !a.IsAuthorized( Authorization.ADMINISTRATE, RequestContext.CurrentPerson ) )
-                .AddField( "allTimeViewsCount", a => 0 )
                 .AddField( "last28DaysViewsCount", a => 0 )
                 .AddTextField( "itemUrl", a =>
                 {
@@ -554,20 +553,16 @@ namespace Rock.Blocks.Cms
                     using ( var rockContext = new RockContext() )
                     {
                         var sql = $@"
-SELECT x.[EntityId]
-    , COUNT(*) AS [AllTimeViewsCount]
-    , SUM(CASE WHEN x.[DaysSinceInteraction] <= 28 THEN 1 ELSE 0 END) AS [Last28DaysViewsCount]
-FROM (
-    SELECT ic.[EntityId]
-        , DATEDIFF(DAY, i.[InteractionDateTime], GETDATE()) AS [DaysSinceInteraction]
-    FROM [Interaction] i
-        INNER JOIN [InteractionComponent] ic ON ic.[Id] = i.[InteractionComponentId]
-        INNER JOIN [InteractionChannel] ich ON ich.[Id] = ic.[InteractionChannelId]
-        INNER JOIN [ContentChannelItem] cci ON cci.[Id] = ic.[EntityId]
-    WHERE ich.[ChannelTypeMediumValueId] = {SqlParamKey.MediumDefinedValueId}
-        AND cci.[ContentChannelId] = {SqlParamKey.ContentChannelId}
-) x
-GROUP BY x.[EntityId];";
+SELECT ic.[EntityId],
+    COUNT(*) AS [Last28DaysViewsCount]
+FROM [Interaction] i
+    INNER JOIN [InteractionComponent] ic ON ic.[Id] = i.[InteractionComponentId]
+    INNER JOIN [InteractionChannel] ich ON ich.[Id] = ic.[InteractionChannelId]
+    INNER JOIN [ContentChannelItem] cci ON cci.[Id] = ic.[EntityId]
+WHERE ich.[ChannelTypeMediumValueId] = {SqlParamKey.MediumDefinedValueId}
+    AND cci.[ContentChannelId] = {SqlParamKey.ContentChannelId}
+    AND i.[InteractionDateTime] >= DATEADD(DAY, -27, CAST(GETDATE() AS DATE))
+GROUP BY ic.[EntityId];";
 
                         return rockContext.Database
                             .SqlQuery<InteractionCounts>(
@@ -642,7 +637,6 @@ WHERE em.[Key] = {SqlParamKey.EntityMetadataKey}
 
                     if ( interactionCounts != null && interactionCounts.TryGetValue( id.Value, out var counts ) )
                     {
-                        row["allTimeViewsCount"] = counts.AllTimeViewsCount;
                         row["last28DaysViewsCount"] = counts.Last28DaysViewsCount;
                     }
 
@@ -866,11 +860,6 @@ WHERE em.[Key] = {SqlParamKey.EntityMetadataKey}
             /// Gets or sets the entity identifier.
             /// </summary>
             public int EntityId { get; set; }
-
-            /// <summary>
-            /// Gets or sets the count of all view interactions.
-            /// </summary>
-            public int AllTimeViewsCount { get; set; }
 
             /// <summary>
             /// Gets or sets the count of view interactions within the last 28 days.
