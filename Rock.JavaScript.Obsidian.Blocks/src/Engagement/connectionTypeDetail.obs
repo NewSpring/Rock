@@ -32,7 +32,7 @@
 </template>
 
 <script setup lang="ts">
-    import { computed, ref } from "vue";
+    import { computed, nextTick, ref } from "vue";
     import NotificationBox from "@Obsidian/Controls/notificationBox.obs";
     import DetailBlock from "@Obsidian/Templates/detailBlock";
     import { DetailPanelMode } from "@Obsidian/Enums/Controls/detailPanelMode";
@@ -148,6 +148,16 @@
 
     // #region Functions
 
+    /**
+     * Scrolls the error notification into view when an error message is set.
+     * Uses nextTick to ensure the element is rendered before scrolling.
+     */
+    function scrollToErrorNotification(): void {
+        nextTick(() => {
+            window.scrollTo({ top: 0, behavior: "smooth" });
+        });
+    }
+
     // #endregion
 
     // #region Event Handlers
@@ -188,6 +198,7 @@
         }
         else {
             errorMessage.value = result.errorMessage ?? "Unknown error while trying to delete connection type.";
+            scrollToErrorNotification();
 
             return false;
         }
@@ -238,6 +249,7 @@
         }
 
         errorMessage.value = result.errorMessage ?? "Unknown error while trying to copy connection type.";
+        scrollToErrorNotification();
     }
 
     /**
@@ -265,6 +277,7 @@
         }
 
         errorMessage.value = result.errorMessage ?? "Unknown error while trying to save connection type.";
+        scrollToErrorNotification();
 
         return false;
     }
