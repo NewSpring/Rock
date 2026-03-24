@@ -2436,17 +2436,22 @@ namespace Rock.Blocks.Engagement
         /// <returns>A list of <see cref="ActivityEntryBag"/> objects representing all activity feed entries, ordered by entry date descending.</returns>
         private List<ActivityEntryBag> GetActivityEntries( ConnectionRequest connectionRequest, Dictionary<string, object> mergeFields )
         {
-            // Filters out Connection Request Activities that do not have a created by person alias id or created date time. -- TODO - determine if we should do this. Currently inconsistent.
-            var validActivities = connectionRequest.ConnectionRequestActivities.Where( a => a.CreatedByPersonAliasId.HasValue && a.CreatedDateTime.HasValue ).ToList();
+            var connectionRequestActivityService = new ConnectionRequestActivityService( RockContext );
+            var connectionRequestActivities = connectionRequestActivityService.Queryable()
+                .AsNoTracking()
+                .Include( a => a.CreatedByPersonAlias )
+                .Include( a => a.ConnectionActivityType )
+                .Where( a => a.ConnectionRequestId == connectionRequest.Id )
+                .ToList();
 
             var entries = new List<ActivityEntryBag>();
 
-            entries.AddRange( validActivities.Select( a => new ActivityEntryBag
+            entries.AddRange( connectionRequestActivities.Select( a => new ActivityEntryBag
             {
                 Key = $"{ActivityEntryType.Activity}_{IdHasher.Instance.GetHash( a.Id )}",
                 EntryType = ActivityEntryType.Activity,
-                EntryDateTime = a.CreatedDateTime.Value.ToRockDateTimeOffset(),
-                CreatedBy = a.CreatedByPersonAlias?.Person?.FullName,
+                EntryDateTime = a.CreatedDateTime?.ToRockDateTimeOffset(),
+                CreatedBy = a.CreatedByPersonAlias?.Person?.FullName ?? "Rock",
                 CardEntry = new CardEntryBag
                 {
                     Title = string.Format( "Activity: {0}", a.ConnectionActivityType?.Name ),
@@ -2461,37 +2466,36 @@ namespace Rock.Blocks.Engagement
 
             if ( connectionRequest.ConnectionOpportunity.ConnectionType.EnableFullActivityList )
             {
-                var otherRequestActivities = new ConnectionRequestService( RockContext ).Queryable()
+                var otherRequestActivities = connectionRequestActivityService.Queryable()
                     .AsNoTracking()
-                    .Where( c => c.ConnectionTypeId == connectionRequest.ConnectionTypeId
-                        && c.Id != connectionRequest.Id
-                        && c.PersonAlias.PersonId == connectionRequest.PersonAlias.PersonId
-                        && c.ConnectionRequestActivities.Any( a => a.CreatedByPersonAlias != null && a.CreatedDateTime != null ) )
-                    .SelectMany( c => c.ConnectionRequestActivities
-                        .Where( a => a.CreatedByPersonAlias != null && a.CreatedDateTime != null )
-                        .Select( a => new
-                        {
-                            ActivityId = a.Id,
-                            EntryDateTime = a.CreatedDateTime,
-                            Content = a.Note,
-                            CreatedByPerson = a.CreatedByPersonAlias.Person,
-                            ActivityTypeGuid = a.ConnectionActivityType.Guid,
-                            ActivityTypeName = a.ConnectionActivityType.Name,
-                            IsSystemActivityType = a.ConnectionActivityType != null && a.ConnectionActivityType.ConnectionTypeId == null,
-                            ConnectorPersonAliasGuid = a.ConnectorPersonAlias != null ? a.ConnectorPersonAlias.Guid : ( Guid? ) null,
-                            ConnectionRequestId = c.Id,
-                            ConnectionOpportunityId = c.ConnectionOpportunityId,
-                            ConnectionOpportunityName = c.ConnectionOpportunity.Name,
-                            ConnectionStatusName = c.ConnectionStatus.Name
-                        } ) )
+                    .Where( a => a.ConnectionRequest != null
+                        && a.ConnectionRequest.PersonAlias != null
+                        && a.ConnectionRequest.ConnectionTypeId == connectionRequest.ConnectionTypeId
+                        && a.ConnectionRequestId != connectionRequest.Id
+                        && a.ConnectionRequest.PersonAlias.PersonId == connectionRequest.PersonAlias.PersonId )
+                    .Select( a => new
+                    {
+                        ActivityId = a.Id,
+                        EntryDateTime = a.CreatedDateTime,
+                        Content = a.Note,
+                        CreatedByPerson = a.CreatedByPersonAlias != null ? a.CreatedByPersonAlias.Person : null,
+                        ActivityTypeGuid = a.ConnectionActivityType.Guid,
+                        ActivityTypeName = a.ConnectionActivityType.Name,
+                        IsSystemActivityType = a.ConnectionActivityType != null && a.ConnectionActivityType.ConnectionTypeId == null,
+                        ConnectorPersonAliasGuid = a.ConnectorPersonAlias != null ? a.ConnectorPersonAlias.Guid : ( Guid? ) null,
+                        ConnectionRequestId = a.ConnectionRequestId,
+                        ConnectionOpportunityId = a.ConnectionRequest.ConnectionOpportunityId,
+                        ConnectionOpportunityName = a.ConnectionRequest.ConnectionOpportunity.Name,
+                        ConnectionStatusName = a.ConnectionRequest.ConnectionStatus.Name
+                    } )
                     .ToList();
 
                 entries.AddRange( otherRequestActivities.Select( a => new ActivityEntryBag
                 {
                     Key = $"{ActivityEntryType.Activity}_{IdHasher.Instance.GetHash( a.ActivityId )}",
                     EntryType = ActivityEntryType.Activity,
-                    EntryDateTime = a.EntryDateTime.Value.ToRockDateTimeOffset(),
-                    CreatedBy = a.CreatedByPerson?.FullName,
+                    EntryDateTime = a.EntryDateTime?.ToRockDateTimeOffset(),
+                    CreatedBy = a.CreatedByPerson?.FullName ?? "Rock",
                     CardEntry = new CardEntryBag
                     {
                         Title = string.Format( "Activity: {0}", a.ActivityTypeName ),
@@ -3122,7 +3126,7 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
                 request.OpportunityGrouping = GetGroupingFieldBag( request.OpportunityGroupingProjection.Id, "text", request.OpportunityGroupingProjection.Label, request.OpportunityGroupingProjection.Order, request.ConnectionOpportunityIcon );
                 request.CampusGrouping = GetGroupingFieldBag( request.CampusGroupingProjection.Id, "text", request.CampusGroupingProjection.Label, request.CampusGroupingProjection.Order );
                 request.StatusGrouping = GetGroupingFieldBag( request.StatusGroupingProjection.Id, "text", request.StatusGroupingProjection.Label, request.StatusGroupingProjection.Order );
-                request.DueStatusGrouping = GetGroupingFieldBag( ( int ) dueStatus, "text", dueStatus.ToString(), dueStatus.GetOrder(), "ti ti-calendar", null, GetDueStatusTextColorCssClass( dueStatus ) );
+                request.DueStatusGrouping = GetGroupingFieldBag( ( int ) dueStatus, "text", dueStatus.GetDisplayName(), dueStatus.GetOrder(), "ti ti-calendar", null, GetDueStatusTextColorCssClass( dueStatus ) );
 
                 request.StateGrouping = new GroupingFieldBag
                 {
@@ -3651,7 +3655,7 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
                         IsNoteRequiredOnCompletion = request.ConnectionStatus.IsNoteRequiredOnCompletion,
                         IsDefaultStatus = request.ConnectionStatus.IsDefault
                     },
-                    DueStatusGrouping = GetGroupingFieldBag( ( int ) dueStatus, "text", dueStatus.ToString(), dueStatus.GetOrder(), "ti ti-calendar", null, GetDueStatusTextColorCssClass( dueStatus ) ),
+                    DueStatusGrouping = GetGroupingFieldBag( ( int ) dueStatus, "text", dueStatus.GetDisplayName(), dueStatus.GetOrder(), "ti ti-calendar", null, GetDueStatusTextColorCssClass( dueStatus ) ),
                     DueStatus = dueStatus,
                     DueDate = request.DueDate,
                     DueSoonDate = request.DueSoonDate,
@@ -4131,7 +4135,7 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
                     IsNoteRequiredOnCompletion = connectionRequestStatus.IsNoteRequiredOnCompletion,
                     IsDefaultStatus = connectionRequestStatus.IsDefault
                 },
-                DueStatusGrouping = GetGroupingFieldBag( ( int ) dueStatus, "text", dueStatus.ToString(), dueStatus.GetOrder(), "ti ti-calendar", null, GetDueStatusTextColorCssClass( dueStatus ) ),
+                DueStatusGrouping = GetGroupingFieldBag( ( int ) dueStatus, "text", dueStatus.GetDisplayName(), dueStatus.GetOrder(), "ti ti-calendar", null, GetDueStatusTextColorCssClass( dueStatus ) ),
                 DueStatus = dueStatus,
                 DueDate = connectionRequest.DueDate,
                 DueSoonDate = connectionRequest.DueSoonDate,
