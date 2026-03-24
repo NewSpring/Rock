@@ -1793,6 +1793,7 @@ namespace Rock.Blocks.Engagement
                 .Include( r => r.PersonAlias.Person )
                 .Include( r => r.ConnectorPersonAlias.Person )
                 .Include( r => r.ConnectionOpportunity )
+                .Include( r => r.ConnectionTypeSource )
                 .Include( r => r.ConnectionStatus )
                 .Include( r => r.Campus )
                 .Include( r => r.AssignedGroup )
@@ -2022,8 +2023,11 @@ namespace Rock.Blocks.Engagement
             var delimitedBadgeGuids = GetAttributeValue( AttributeKey.Badges );
             optionsBag.BadgeGuids = delimitedBadgeGuids.SplitDelimitedValues().AsGuidList();
 
+            var connectionTypeAdditionalSettings = connectionRequest.ConnectionOpportunity.ConnectionType.GetConnectionTypeAdditionalSettings();
+
             optionsBag.IsAISummaryVisible = new AIProviderService( RockContext ).GetActiveProvider() != null
-                && ( connectionRequest.ConnectionOpportunity.ConnectionType.GetConnectionTypeAdditionalSettings()?.AIInsightsPrompt.IsNotNullOrWhiteSpace() == true );
+                && ( connectionTypeAdditionalSettings.AIInsightsPrompt.IsNotNullOrWhiteSpace() == true );
+            optionsBag.AISummaryTrigger = connectionTypeAdditionalSettings.AISummaryTrigger ?? AISummaryTriggerMode.Manual;
 
             List<ConnectionState> ignoredConnectionStates = new List<ConnectionState>();
 
@@ -2045,7 +2049,6 @@ namespace Rock.Blocks.Engagement
                         grp => grp.Select( c => new { Role = c.GroupMemberRole, Status = c.GroupMemberStatus } ).ToList()
                     );
 
-                //.Where( g => !campusId.HasValue || !g.CampusId.HasValue || g.CampusId.Value == campusId.Value ) TODO - Consider whether the docked panel should be aware of campus context ... this could be problematic if we tried to convert to a control.
                 optionsBag.PlacementGroups = connectionRequest.ConnectionOpportunity.ConnectionOpportunityGroups.Where( g => configsByGroupTypeId.ContainsKey( g.Group.GroupTypeId ) )
                     .Select( g =>
                     {
@@ -2830,13 +2833,19 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
             sb.AppendLine( $"Opportunity: {connectionRequest.ConnectionOpportunity?.Name}" );
             sb.AppendLine( $"Status: {connectionRequest.ConnectionStatus?.Name}" );
             sb.AppendLine( $"State: {connectionRequest.ConnectionState.GetDisplayName()}" );
+            sb.AppendLine( $"Campus: {connectionRequest.Campus.Name}" );
 
-            var dueStatus = GetDueStatus(connectionRequest.DueDate, connectionRequest.DueSoonDate, connectionRequest.ConnectionState, connectionRequest.ConnectedDateTime );
+            var dueStatus = GetDueStatus( connectionRequest.DueDate, connectionRequest.DueSoonDate, connectionRequest.ConnectionState, connectionRequest.ConnectedDateTime );
             sb.AppendLine( $"Due Status: {dueStatus.GetDisplayName()}" );
 
             if ( connectionRequest.CreatedDateTime.HasValue )
             {
                 sb.AppendLine( $"Created Date: {connectionRequest.CreatedDateTime}" );
+            }
+
+            if ( connectionRequest.ConnectionOpportunity.ConnectionType.EnabledFeatures.HasFlag( EnabledFeatureFlags.GroupPlacement ) && connectionRequest.AssignedGroup != null )
+            {
+                sb.AppendLine( $"Placement Group: {connectionRequest.AssignedGroup.Name}" );
             }
 
             if ( connectionRequest.DueDate.HasValue )
@@ -2877,7 +2886,8 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
 
             var activities = connectionRequest.ConnectionRequestActivities
                 .Where( a => a.CreatedByPersonAliasId.HasValue )
-                .OrderBy( a => a.CreatedDateTime )
+                .OrderByDescending( a => a.CreatedDateTime )
+                .Take( 5 )
                 .ToList();
 
             if ( activities.Any() )
@@ -4379,7 +4389,7 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
         }
 
         [BlockAction]
-        public async Task<BlockActionResult> GetAiSummary( string connectionRequestIdKey )
+        public async Task<BlockActionResult> GetAISummary( string connectionRequestIdKey, bool overrideCache )
         {
             var connectionRequestService = new ConnectionRequestService( RockContext );
             var connectionRequest = connectionRequestService.Get( connectionRequestIdKey, !PageCache.Layout.Site.DisablePredictableIds );
@@ -4394,17 +4404,47 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
                 return ActionBadRequest( "You are not authorized to view this Connection Request." );
             }
 
+            // Retrieve additional settings once so they can be used for both the prompt and cache duration.
+            var additionalSettings = connectionRequest.ConnectionOpportunity?.ConnectionType?.GetConnectionTypeAdditionalSettings();
+            var cacheDurationMinutes = additionalSettings?.AISummaryCacheDurationMinutes;
+            var cacheKey = $"ConnectionRequestAISummary:{connectionRequest.Id}";
+
+            // Return the cached summary if one exists and caching is configured and the user is not overriding the cache.
+            if ( cacheDurationMinutes > 0 && !overrideCache )
+            {
+                var cachedSummary = RockCache.Get( cacheKey ) as string;
+                if ( cachedSummary != null )
+                {
+                    return ActionOk( new GetAISummaryResponseBag { Summary = cachedSummary } );
+                }
+            }
+
             var aiProvider = new AIProviderService( RockContext ).GetActiveProvider();
             if ( aiProvider == null )
             {
                 return ActionBadRequest( "No active AI provider is configured." );
             }
 
-            var prompt = connectionRequest.ConnectionOpportunity.ConnectionType.GetConnectionTypeAdditionalSettings()?.AIInsightsPrompt;
+            var prompt = additionalSettings?.AIInsightsPrompt;
             if ( prompt.IsNullOrWhiteSpace() )
             {
                 return ActionBadRequest( "An AI Insights Prompt must be defined on the Connection Type." );
             }
+
+            var connectionRequestId = connectionRequest.Id;
+
+            // Re-fetch the connection request with all navigation properties
+            // needed to build a rich JSON context for the AI prompt.
+            connectionRequest = connectionRequestService.Queryable()
+                .Include( r => r.PersonAlias.Person )
+                .Include( r => r.ConnectorPersonAlias.Person )
+                .Include( r => r.ConnectionOpportunity.ConnectionType )
+                .Include( r => r.ConnectionStatus )
+                .Include( r => r.Campus )
+                .Include( r => r.AssignedGroup )
+                .Include( r => r.ConnectionRequestActivities.Select( a => a.ConnectionActivityType ) )
+                .Include( r => r.ConnectionRequestActivities.Select( a => a.CreatedByPersonAlias.Person ) )
+                .FirstOrDefault( r => r.Id == connectionRequestId );
 
             var aiProviderComponent = aiProvider.GetAIComponent();
             var promptWithContext = AttachAIPromptContext( prompt, connectionRequest );
@@ -4424,7 +4464,14 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
             var response = await aiProviderComponent.GetChatCompletions( aiProvider, completionsRequest );
             var summary = response.Choices?.FirstOrDefault()?.Text ?? string.Empty;
 
-            return ActionOk( new GetAiSummaryResponseBag { Summary = summary } );
+            // Cache the generated summary for the configured duration so subsequent requests
+            // can be served without consuming additional AI credits.
+            if ( cacheDurationMinutes > 0 )
+            {
+                RockCache.AddOrUpdate( cacheKey, null, summary, RockDateTime.Now.AddMinutes( cacheDurationMinutes.Value ) );
+            }
+
+            return ActionOk( new GetAISummaryResponseBag { Summary = summary } );
         }
 
         /// <summary>

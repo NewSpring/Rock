@@ -117,12 +117,13 @@
                                      :connectionRequestBreadcrumbs="connectionRequestBreadcrumbs"
                                      :aiSummary="aiSummary"
                                      :aiSummaryError="aiSummaryError"
-                                     :isAiSummaryLoading="isAiSummaryLoading"
+                                     :isAISummaryLoading="isAISummaryLoading"
                                      :options="options"
                                      :dockedPanelWidthNumber="dockedPanelWidthNumber"
                                      :canEditConnectionRequest="canEditConnectionRequest"
                                      :canEditConnectionRequestNote="canEditConnectionRequestNote"
                                      :activityErrorMessage="activityErrorMessage"
+                                     @fetchAISummary="fetchAISummary"
                                      @navigateToBreadcrumb="(index) => emit('navigateToBreadcrumb', index)"
                                      @navigateToAdditionalRequest="(key) => emit('navigateToAdditionalRequest', key)"
                                      @editActivity="(entry) => emit('editActivity', entry)"
@@ -332,12 +333,13 @@
     import { UpdateConnectionRequestStatesBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/updateConnectionRequestStatesBag";
     import { ConnectionState } from "@Obsidian/Enums/Connection/connectionState";
     import TransitionVerticalCollapse from "@Obsidian/Controls/transitionVerticalCollapse.obs";
-    import { GetAiSummaryResponseBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/getAiSummaryResponseBag";
+    import { GetAISummaryResponseBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/getAISummaryResponseBag";
     import NoteItem from "./noteItem.partial.obs";
     import ConnectionStatusButton from "./connectionStatusButton.partial.obs";
     import { LaunchWorkflowBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/launchWorkflowBag";
     import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
     import { MeetsGroupRequirement } from "@Obsidian/Enums/Group/meetsGroupRequirement";
+    import { AISummaryTriggerMode } from "@Obsidian/Enums/Connection/aiSummaryTriggerMode";
 
     const props = defineProps({
         modelValue: {
@@ -444,7 +446,7 @@
     const areNotesVisible = ref(false);
     const aiSummary = ref<string>("");
     const aiSummaryError = ref<string>("");
-    const isAiSummaryLoading = ref(false);
+    const isAISummaryLoading = ref(false);
 
     const editDockedPanelBodyRef = ref<InstanceType<typeof EditDockedPanelBody>>();
     const editConnectionRequestBox = ref<ValidPropertiesBox<ConnectionRequestBag>>({});
@@ -607,14 +609,15 @@
         isLoading.value = false;
     }
 
-    async function fetchAiSummary(): Promise<void> {
+    async function fetchAISummary(overrideCache: boolean): Promise<void> {
         if (!requestDetails.value?.connectionRequestIdKey) {
             return;
         }
 
-        isAiSummaryLoading.value = true;
-        const result = await invokeBlockAction<GetAiSummaryResponseBag>("GetAiSummary", {
-            connectionRequestIdKey: requestDetails.value.connectionRequestIdKey
+        isAISummaryLoading.value = true;
+        const result = await invokeBlockAction<GetAISummaryResponseBag>("GetAISummary", {
+            connectionRequestIdKey: requestDetails.value.connectionRequestIdKey,
+            overrideCache
         });
 
         if (result.isSuccess && result.data?.summary) {
@@ -624,7 +627,7 @@
             aiSummaryError.value = result.errorMessage ?? "An error occurred while creating the AI Summary.";
         }
 
-        isAiSummaryLoading.value = false;
+        isAISummaryLoading.value = false;
     }
 
     // watch(isFullWidth, () => {
@@ -673,8 +676,8 @@
             options.value = props.detailsBox.options;
             isLoading.value = false;
 
-            if (props.detailsBox.options.isAISummaryVisible) {
-                fetchAiSummary();
+            if (props.detailsBox.options.isAISummaryVisible && props.detailsBox.options.aiSummaryTrigger === AISummaryTriggerMode.Automatic) {
+                fetchAISummary(false);
             }
         }
     });
