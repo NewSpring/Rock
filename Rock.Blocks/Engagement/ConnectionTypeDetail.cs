@@ -989,8 +989,8 @@ namespace Rock.Blocks.Engagement
                     SmsSnippetCategoryGuid = communicationSettings.SmsSnippetCategoryGuid
                 },
                 AIInsightsPrompt = additionalSettings.AIInsightsPrompt,
-                AISummaryTrigger = additionalSettings.AISummaryTrigger,
-                AISummaryCacheDurationMinutes = additionalSettings.AISummaryCacheDurationMinutes
+                AISummaryTrigger = additionalSettings.AISummaryTrigger ?? AISummaryTriggerMode.Manual,
+                AISummaryCacheDurationMinutes = additionalSettings.AISummaryCacheDurationMinutes ?? 5
             };
         }
 
