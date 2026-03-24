@@ -172,6 +172,9 @@
         getFieldTypeGalleryComponent("GroupRole", "2", FieldTypeGuids.GroupRole, {
         }),
 
+        getFieldTypeGalleryComponent("Image", "", FieldTypeGuids.Image, {
+        }),
+
         getFieldTypeGalleryComponent("Integer", "20", FieldTypeGuids.Integer, {
         }),
 

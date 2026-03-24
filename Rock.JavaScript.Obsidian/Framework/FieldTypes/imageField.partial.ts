@@ -52,7 +52,22 @@ export const enum ConfigurationValueKey {
     Height = "height",
 
     /** The image url to use when rendering as an html img tag. */
-    ImageUrl = "imageUrl"
+    ImageUrl = "imageUrl",
+
+    /** Determines if the image cropping feature is enabled. */
+    EnableCrop = "enableCrop",
+
+    /** The width the image will be resized to before uploading. */
+    TargetWidth = "targetWidth",
+
+    /** The height the image will be resized to before uploading. */
+    TargetHeight = "targetHeight",
+
+    /** The minimum width allowed for the uploaded image. */
+    MinimumWidth = "minimumWidth",
+
+    /** The minimum height allowed for the uploaded image. */
+    MinimumHeight = "minimumHeight"
 }
 
 // The edit component can be quite large, so load it only as needed.

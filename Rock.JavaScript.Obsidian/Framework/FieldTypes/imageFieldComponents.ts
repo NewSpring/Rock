@@ -19,6 +19,7 @@ import { getFieldConfigurationProps, getFieldEditorProps } from "./utils";
 import CheckBox from "@Obsidian/Controls/checkBox.obs";
 import DropDownList from "@Obsidian/Controls/dropDownList.obs";
 import ImageUploader from "@Obsidian/Controls/imageUploader.obs";
+import NumberBox from "@Obsidian/Controls/numberBox.obs";
 import { ConfigurationValueKey, ConfigurationPropertyKey } from "./imageField.partial";
 import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
 import { updateRefValue } from "@Obsidian/Utility/component";
@@ -26,6 +27,7 @@ import { asBooleanOrNull, asTrueFalseOrNull } from "@Obsidian/Utility/booleanUti
 import { toGuidOrNull } from "@Obsidian/Utility/guid";
 import { Guid } from "@Obsidian/Types";
 import CodeEditor from "@Obsidian/Controls/codeEditor.obs";
+import { toNumberOrNull } from "@Obsidian/Utility/numberUtils";
 
 export const EditComponent = defineComponent({
     name: "ImageField.Edit",
@@ -43,6 +45,26 @@ export const EditComponent = defineComponent({
         // Configuration attributes passed to the edit control.
         const binaryFileType = computed<Guid | null>(() => {
             return toGuidOrNull(props.configurationValues[ConfigurationValueKey.BinaryFileType]);
+        });
+
+        const enableCrop = computed<boolean>(() => {
+            return asBooleanOrNull(props.configurationValues[ConfigurationValueKey.EnableCrop]) ?? false;
+        });
+
+        const targetWidth = computed<number>(() => {
+            return toNumberOrNull(props.configurationValues[ConfigurationValueKey.TargetWidth]) ?? 0;
+        });
+
+        const targetHeight = computed<number>(() => {
+            return toNumberOrNull(props.configurationValues[ConfigurationValueKey.TargetHeight]) ?? 0;
+        });
+
+        const minimumWidth = computed<number>(() => {
+            return toNumberOrNull(props.configurationValues[ConfigurationValueKey.MinimumWidth]) ?? 0;
+        });
+
+        const minimumHeight = computed<number>(() => {
+            return toNumberOrNull(props.configurationValues[ConfigurationValueKey.MinimumHeight]) ?? 0;
         });
 
         // Watch for changes from the parent component and update the text editor.
@@ -64,12 +86,17 @@ export const EditComponent = defineComponent({
 
         return {
             binaryFileType,
+            enableCrop,
+            targetWidth,
+            targetHeight,
+            minimumWidth,
+            minimumHeight,
             internalValue
         };
     },
 
     template: `
-<ImageUploader v-model="internalValue" :binaryFileTypeGuid="binaryFileType" uploadAsTemporary />
+<ImageUploader v-model="internalValue" :enableCrop="enableCrop" :targetWidth="targetWidth" :targetHeight="targetHeight" :minimumWidth="minimumWidth" :minimumHeight="minimumHeight" :binaryFileTypeGuid="binaryFileType" uploadAsTemporary />
 `
 });
 
@@ -79,7 +106,8 @@ export const ConfigurationComponent = defineComponent({
     components: {
         CheckBox,
         DropDownList,
-        CodeEditor
+        CodeEditor,
+        NumberBox
     },
 
     props: getFieldConfigurationProps(),
@@ -95,6 +123,11 @@ export const ConfigurationComponent = defineComponent({
         const fileType = ref("");
         const formatAsLink = ref(false);
         const imageTagTemplate = ref("");
+        const enableCrop = ref(false);
+        const targetWidth = ref<number | null>(null);
+        const targetHeight = ref<number | null>(null);
+        const minimumWidth = ref<number | null>(null);
+        const minimumHeight = ref<number | null>(null);
 
         /** The binary file types the individual can select from. */
         const fileTypeOptions = computed((): ListItemBag[] => {
@@ -122,11 +155,21 @@ export const ConfigurationComponent = defineComponent({
             newValue[ConfigurationValueKey.BinaryFileType] = fileType.value ? JSON.stringify({ text: "", value: fileType.value }) : "";
             newValue[ConfigurationValueKey.FormatAsLink] = asTrueFalseOrNull(formatAsLink.value) ?? "False";
             newValue[ConfigurationValueKey.ImageTagTemplate] = imageTagTemplate.value ?? "";
+            newValue[ConfigurationValueKey.EnableCrop] = asTrueFalseOrNull(enableCrop.value) ?? "False";
+            newValue[ConfigurationValueKey.TargetWidth] = targetWidth.value?.toString() ?? "";
+            newValue[ConfigurationValueKey.TargetHeight] = targetHeight.value?.toString() ?? "";
+            newValue[ConfigurationValueKey.MinimumWidth] = minimumWidth.value?.toString() ?? "";
+            newValue[ConfigurationValueKey.MinimumHeight] = minimumHeight.value?.toString() ?? "";
 
             // Compare the new value and the old value.
             const anyValueChanged = newValue[ConfigurationValueKey.BinaryFileType] !== (props.modelValue[ConfigurationValueKey.BinaryFileType] ?? "")
                 || newValue[ConfigurationValueKey.FormatAsLink] !== (props.modelValue[ConfigurationValueKey.FormatAsLink] ?? "False")
-                || newValue[ConfigurationValueKey.ImageTagTemplate] !== (props.modelValue[ConfigurationValueKey.ImageTagTemplate] ?? "");
+                || newValue[ConfigurationValueKey.ImageTagTemplate] !== (props.modelValue[ConfigurationValueKey.ImageTagTemplate] ?? "")
+                || newValue[ConfigurationValueKey.EnableCrop] !== (props.modelValue[ConfigurationValueKey.EnableCrop] ?? "False")
+                || newValue[ConfigurationValueKey.TargetWidth] !== (props.modelValue[ConfigurationValueKey.TargetWidth] ?? "")
+                || newValue[ConfigurationValueKey.TargetHeight] !== (props.modelValue[ConfigurationValueKey.TargetHeight] ?? "")
+                || newValue[ConfigurationValueKey.MinimumWidth] !== (props.modelValue[ConfigurationValueKey.MinimumWidth] ?? "")
+                || newValue[ConfigurationValueKey.MinimumHeight] !== (props.modelValue[ConfigurationValueKey.MinimumHeight] ?? "");
 
             // If any value changed then emit the new model value.
             if (anyValueChanged) {
@@ -156,6 +199,11 @@ export const ConfigurationComponent = defineComponent({
             fileType.value = JSON.parse(props.modelValue[ConfigurationValueKey.BinaryFileType] || "{}").value;
             formatAsLink.value = asBooleanOrNull(props.modelValue[ConfigurationValueKey.FormatAsLink]) ?? false;
             imageTagTemplate.value = props.modelValue[ConfigurationValueKey.ImageTagTemplate];
+            enableCrop.value = asBooleanOrNull(props.modelValue[ConfigurationValueKey.EnableCrop]) ?? false;
+            targetWidth.value = toNumberOrNull(props.modelValue[ConfigurationValueKey.TargetWidth] ?? "");
+            targetHeight.value = toNumberOrNull(props.modelValue[ConfigurationValueKey.TargetHeight] ?? "");
+            minimumWidth.value = toNumberOrNull(props.modelValue[ConfigurationValueKey.MinimumWidth] ?? "");
+            minimumHeight.value = toNumberOrNull(props.modelValue[ConfigurationValueKey.MinimumHeight] ?? "");
         }, {
             immediate: true
         });
@@ -174,12 +222,22 @@ export const ConfigurationComponent = defineComponent({
         watch(fileType, () => maybeUpdateConfiguration(ConfigurationValueKey.BinaryFileType, fileType.value ? JSON.stringify({ text: "", value: fileType.value }) : ""));
         watch(formatAsLink, () => maybeUpdateConfiguration(ConfigurationValueKey.FormatAsLink, asTrueFalseOrNull(formatAsLink.value) ?? "False"));
         watch(imageTagTemplate, () => maybeUpdateConfiguration(ConfigurationValueKey.ImageTagTemplate, imageTagTemplate.value ?? ""));
+        watch(enableCrop, () => maybeUpdateConfiguration(ConfigurationValueKey.EnableCrop, asTrueFalseOrNull(enableCrop.value) ?? "False"));
+        watch(targetWidth, () => maybeUpdateConfiguration(ConfigurationValueKey.TargetWidth, targetWidth.value?.toString() ?? ""));
+        watch(targetHeight, () => maybeUpdateConfiguration(ConfigurationValueKey.TargetHeight, targetHeight.value?.toString() ?? ""));
+        watch(minimumWidth, () => maybeUpdateConfiguration(ConfigurationValueKey.MinimumWidth, minimumWidth.value?.toString() ?? ""));
+        watch(minimumHeight, () => maybeUpdateConfiguration(ConfigurationValueKey.MinimumHeight, minimumHeight.value?.toString() ?? ""));
 
         return {
             fileType,
             fileTypeOptions,
             formatAsLink,
-            imageTagTemplate
+            imageTagTemplate,
+            enableCrop,
+            targetWidth,
+            targetHeight,
+            minimumWidth,
+            minimumHeight
         };
     },
 
@@ -197,9 +255,29 @@ export const ConfigurationComponent = defineComponent({
 
     <CodeEditor v-model="imageTagTemplate"
         label="Image Tag Template"
-        help="The Lava template to use when rendering as an html img tag."
+        help="The Lava template to use when rendering as an html img tags."
         mode="lava"
         :editorHeight="100" />
+
+    <CheckBox v-model="enableCrop"
+        label="Enable Crop"
+        help="Enable this to allow cropping of the image when uploading.<br/>Only supported by blocks using Obsidian." />
+
+    <NumberBox v-model="targetWidth"
+        label="Target Width"
+        help="The width the image will be resized to when uploading.<br/>Only supported by blocks using Obsidian." />
+
+    <NumberBox v-model="targetHeight"
+        label="Target Height"
+        help="The height the image will be resized to when uploading.<br/>Only supported by blocks using Obsidian." />
+
+    <NumberBox v-model="minimumWidth"
+        label="Minimum Width"
+        help="The minimum width required for the image to be uploaded.<br/>Only supported by blocks using Obsidian." />
+
+    <NumberBox v-model="minimumHeight"
+        label="Minimum Height"
+        help="The minimum height required for the image to be uploaded.<br/>Only supported by blocks using Obsidian." />
 </div>
 `
 });
