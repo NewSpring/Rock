@@ -2833,7 +2833,6 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
             sb.AppendLine( $"Opportunity: {connectionRequest.ConnectionOpportunity?.Name}" );
             sb.AppendLine( $"Status: {connectionRequest.ConnectionStatus?.Name}" );
             sb.AppendLine( $"State: {connectionRequest.ConnectionState.GetDisplayName()}" );
-            sb.AppendLine( $"Campus: {connectionRequest.Campus.Name}" );
 
             var dueStatus = GetDueStatus( connectionRequest.DueDate, connectionRequest.DueSoonDate, connectionRequest.ConnectionState, connectionRequest.ConnectedDateTime );
             sb.AppendLine( $"Due Status: {dueStatus.GetDisplayName()}" );
@@ -2841,6 +2840,11 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
             if ( connectionRequest.CreatedDateTime.HasValue )
             {
                 sb.AppendLine( $"Created Date: {connectionRequest.CreatedDateTime}" );
+            }
+
+            if ( connectionRequest.Campus != null )
+            {
+                sb.AppendLine( $"Campus: {connectionRequest.Campus.Name}" );
             }
 
             if ( connectionRequest.ConnectionOpportunity.ConnectionType.EnabledFeatures.HasFlag( EnabledFeatureFlags.GroupPlacement ) && connectionRequest.AssignedGroup != null )
