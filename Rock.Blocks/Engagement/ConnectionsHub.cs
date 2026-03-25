@@ -936,7 +936,7 @@ namespace Rock.Blocks.Engagement
 
             var meetsAllNonManualRequirements = nonManualRequirements.All( gr =>
             {
-                var status = gr.PersonMeetsGroupRequirement( RockContext, connectionRequest.PersonAlias.PersonId, connectionRequest.AssignedGroup.Id, connectionRequest.AssignedGroupMemberRoleId );
+                var status = gr.PersonMeetsGroupRequirement( RockContext, connectionRequest.PersonAlias.PersonId, connectionRequest.AssignedGroupId.Value, connectionRequest.AssignedGroupMemberRoleId );
                 return status.MeetsGroupRequirement == MeetsGroupRequirement.Meets
                     || status.MeetsGroupRequirement == MeetsGroupRequirement.MeetsWithWarning
                     || status.MeetsGroupRequirement == MeetsGroupRequirement.NotApplicable;
@@ -958,6 +958,15 @@ namespace Rock.Blocks.Engagement
 
                 if ( !isMet && manualRequirement.MustMeetRequirementToAddMember )
                 {
+                    // Check if there is already an existing record of the person meeting the manual requirement.
+                    var existingGroupRequirementStatus = manualRequirement.PersonMeetsGroupRequirement( RockContext, connectionRequest.PersonAlias.PersonId, connectionRequest.AssignedGroupId.Value, connectionRequest.AssignedGroupMemberRoleId );
+                    if ( existingGroupRequirementStatus.MeetsGroupRequirement == MeetsGroupRequirement.Meets
+                        || existingGroupRequirementStatus.MeetsGroupRequirement == MeetsGroupRequirement.MeetsWithWarning
+                        || existingGroupRequirementStatus.MeetsGroupRequirement == MeetsGroupRequirement.NotApplicable )
+                    {
+                        continue;
+                    }
+
                     error = ActionBadRequest( "Group Requirements have not been met. Please verify all of the requirements." );
                     return false;
                 }
@@ -3673,6 +3682,7 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
                     DueStatus = dueStatus,
                     DueDate = request.DueDate,
                     DueSoonDate = request.DueSoonDate,
+                    FollowUpDate = request.FollowupDate,
                     CompletedDateTime = request.ConnectedDateTime
                 } );
             }
@@ -4139,6 +4149,14 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
             var gridUpdateBag = new ConnectionListGridUpdateBag
             {
                 IdKey = connectionRequest.IdKey,
+                StateGrouping = new GroupingFieldBag
+                {
+                    Key = connectionRequest.ConnectionState.ToString(),
+                    Type = "text",
+                    Label = connectionRequest.ConnectionState.GetDisplayName(),
+                    IconCssClass = GetStateIconCssClass( connectionRequest.ConnectionState ),
+                    Order = ( int ) connectionRequest.ConnectionState
+                },
                 StatusGrouping = GetGroupingFieldBag( connectionRequestStatus.Id, "text", connectionRequestStatus.Name, connectionRequestStatus.Order ),
                 ConnectionStatusBag = new ConnectionStatusBag
                 {
@@ -4149,10 +4167,12 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
                     IsNoteRequiredOnCompletion = connectionRequestStatus.IsNoteRequiredOnCompletion,
                     IsDefaultStatus = connectionRequestStatus.IsDefault
                 },
+                ConnectionState = connectionRequest.ConnectionState,
                 DueStatusGrouping = GetGroupingFieldBag( ( int ) dueStatus, "text", dueStatus.GetDisplayName(), dueStatus.GetOrder(), "ti ti-calendar", null, GetDueStatusTextColorCssClass( dueStatus ) ),
                 DueStatus = dueStatus,
                 DueDate = connectionRequest.DueDate,
                 DueSoonDate = connectionRequest.DueSoonDate,
+                FollowUpDate = connectionRequest.FollowupDate,
                 CompletedDateTime = connectionRequest.ConnectedDateTime
             };
 

@@ -523,7 +523,6 @@
                    @close="onModalErrorMessageDismissed"
                    @upsertActivity="upsertActivity" />
     <ChangeStatusModal v-model:visible="isChangeStatusModalVisible"
-                       :connectionStatuses="box.options?.connectionStatuses ?? []"
                        :connectionStatusItems="connectionStatusItems"
                        :isSequentialMode="box.options?.isSequentialStatusMode ?? false"
                        :isSaving="isModalSaving"
@@ -2089,6 +2088,7 @@
                 row.dueStatus = updateBag.dueStatus;
                 row.dueDate = updateBag.dueDate;
                 row.dueSoonDate = updateBag.dueSoonDate;
+                row.followUpDate = updateBag.followUpDate;
                 row.completedDateTime = updateBag.completedDateTime;
             }
 
@@ -2123,12 +2123,15 @@
                 if (rowIndex !== -1 && gridData.value?.rows) {
                     const row = gridData.value.rows[rowIndex];
 
+                    row.stateGrouping = result.data.stateGrouping;
                     row.statusGrouping = result.data.statusGrouping;
+                    row.connectionState = result.data.connectionState;
                     row.connectionStatus = result.data.connectionStatusBag;
                     row.dueStatusGrouping = result.data.dueStatusGrouping;
                     row.dueStatus = result.data.dueStatus;
                     row.dueDate = result.data.dueDate;
                     row.dueSoonDate = result.data.dueSoonDate;
+                    row.followUpDate = result.data.followUpDate;
                     row.completedDateTime = result.data.completedDateTime;
 
                     // If this row stopped meeting server filters then splice it.
@@ -2142,6 +2145,8 @@
                     dockedPanelDetailsBox.value.entity.dueStatus = result.data.dueStatus;
                     dockedPanelDetailsBox.value.entity.dueDate = result.data.dueDate;
                     dockedPanelDetailsBox.value.entity.completedDateTime = result.data.completedDateTime;
+                    dockedPanelDetailsBox.value.entity.connectionState = result.data.connectionState;
+                    dockedPanelDetailsBox.value.entity.followUpDate = result.data.followUpDate;
                     refreshActivityEntries(dockedPanelDetailsBox.value.entity.connectionRequestIdKey);
                 }
 
@@ -2171,11 +2176,10 @@
 
             const { meeting, notMeeting } = requestDetailsForModal.value.reduce(
                 (acc, request) => {
-                    if (isPlacementGroupRequired && !request.hasPlacementGroup) {
-                        acc.notMeeting.push(request);
-                    }
+                    const failsPlacementGroup = isPlacementGroupRequired && !request.hasPlacementGroup;
+                    const failsRequirements = notMeetingIdKeys.includes(request.idKey ?? "");
 
-                    if (notMeetingIdKeys.includes(request.idKey ?? "")) {
+                    if (failsPlacementGroup || failsRequirements) {
                         acc.notMeeting.push(request);
                     }
                     else {
