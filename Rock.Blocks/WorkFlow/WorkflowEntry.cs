@@ -1335,18 +1335,6 @@ namespace Rock.Blocks.Workflow
                 mobileAddress = familyLocation != null ? Rock.Mobile.MobileHelper.GetMobileAddress( familyLocation ) : null;
             }
 
-            Guid? maritalStatusGuid;
-
-            if ( personEntryPerson != null )
-            {
-                maritalStatusGuid = personEntryPerson.MaritalStatusValue?.Guid;
-            }
-            else
-            {
-                // default to Married if this is a new person
-                maritalStatusGuid = Rock.SystemGuid.DefinedValue.PERSON_MARITAL_STATUS_MARRIED.AsGuid();
-            }
-
             return new WorkflowFormPersonEntry
             {
                 PreHtml = form.PersonEntryPreHtml.ResolveMergeFields( mergeFields ),
@@ -1365,7 +1353,7 @@ namespace Rock.Blocks.Workflow
                     Person = mobilePerson,
                     Spouse = mobileSpouse,
                     Address = mobileAddress,
-                    MaritalStatusGuid = maritalStatusGuid
+                    MaritalStatusGuid = personEntryPerson?.MaritalStatusValue?.Guid
                 }
             };
         }
