@@ -70,12 +70,10 @@ namespace Rock.Blocks.Communication
             var currentPerson = GetCurrentPerson();
 
             var isNew = systemCommunication == null;
-            if ( isNew )
-            {
-                systemCommunication = new SystemCommunication();
-            }
 
-            var bag = GetBag( systemCommunication );
+            var bag = isNew
+                ? new SystemCommunicationBag()
+                : GetBag( systemCommunication );
 
             var pushTransport = MediumContainer.GetActiveMediumComponentsWithActiveTransports()
                 .FirstOrDefault( m => m.TypeGuid == SystemGuid.EntityType.COMMUNICATION_MEDIUM_PUSH_NOTIFICATION.AsGuid() )?.Transport;
