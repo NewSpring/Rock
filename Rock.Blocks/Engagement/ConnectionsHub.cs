@@ -3892,7 +3892,7 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
                 gridUpdateBags.Add( new ConnectionListGridUpdateBag
                 {
                     IdKey = request.IdKey,
-                    LastActivityDateTime = DateTime.Now,
+                    LastActivityDateTime = RockDateTime.Now,
                     ActivityCount = request.ConnectionRequestActivities?.Count ?? 1
                 } );
             }
