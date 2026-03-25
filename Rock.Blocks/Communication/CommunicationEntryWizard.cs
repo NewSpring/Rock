@@ -424,7 +424,13 @@ namespace Rock.Blocks.Communication
 
                 box.Communication = communicationBag;
                 box.CommunicationTemplateDetail = communicationTemplateDetailBag;
-                box.CommunicationTopicValues = DefinedTypeCache.Get( SystemGuid.DefinedType.COMMUNICATION_TOPIC ).DefinedValues.ToListItemBagList();
+                box.CommunicationTopicValues = DefinedTypeCache.Get( SystemGuid.DefinedType.COMMUNICATION_TOPIC )
+                    .DefinedValues
+                    .Where( dv => dv.IsActive )
+                    .OrderBy( dv => dv.Order )
+                    .ThenBy( dv => dv.Value )
+                    .ThenBy( dv => dv.Id )
+                    .ToListItemBagList();
                 box.CustomText = GetCustomTextBag();
                 box.HasDetailBlockOnCurrentPage = this.PageCache.Blocks.Any( a => a.BlockType.Guid == SystemGuid.BlockType.COMMUNICATION_DETAIL.AsGuid() );
                 box.ImageComponentBinaryFileTypeGuid = this.ImageBinaryFileTypeGuid;
