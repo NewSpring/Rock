@@ -186,7 +186,7 @@ namespace Rock.Model
             if ( toDateTime.HasValue )
             {
                 var toDate = toDateTime.Value.Date;
-                qry = qry.Where( a => a.OccurrenceDate < ( toDate ) );
+                qry = qry.Where( a => a.OccurrenceDate <= ( toDate ) );
             }
 
             // Location Filter
