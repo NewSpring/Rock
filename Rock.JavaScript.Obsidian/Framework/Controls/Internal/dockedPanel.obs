@@ -2,6 +2,7 @@
     <teleport :to="teleportTarget">
         <div v-if="isRendered"
              class="docked-panel-container styled-scroll"
+             :style="containerStyles"
              data-position="right">
 
             <transition name="docked-panel-slide"
@@ -34,110 +35,6 @@
         </div>
     </teleport>
 </template>
-
-<style scoped>
-.docked-panel-container {
-    /*
-     * Use the same z-index as dropdowns so the docked panel is on top of all dropdowns
-     * from the main window, but underneath dropdowns inside the docked panel.
-     */
-    --z-docked-panel: 1050;
-
-    position: fixed;
-    inset: 0;
-    z-index: var(--z-docked-panel);
-
-    /* Container is layout only */
-    pointer-events: none;
-}
-
-.docked-panel-resize-handle {
-    --resize-handle-width: 5px;
-
-    position: absolute;
-    top: var(--top-header-height);
-    bottom: 0;
-
-    width: var(--resize-handle-width);
-    height: 100%;
-    cursor: col-resize;
-    pointer-events: auto;
-    touch-action: none;
-    background: var(--color-interface-strong);
-    opacity: 0;
-    transition: opacity 150ms ease;
-}
-
-.docked-panel-container[data-position="right"] .docked-panel-resize-handle {
-    right: min(min(calc(v-bind(maxWidth)), max(calc(v-bind(minWidth)), calc(v-bind(width)))),
-            calc(100% - var(--resize-handle-width)));
-    left: auto;
-}
-
-.docked-panel-resize-handle:hover {
-    opacity: .3;
-}
-
-.docked-panel {
-    position: absolute;
-    top: var(--top-header-height);
-    bottom: 0;
-
-    width: v-bind(width);
-    min-width: v-bind(minWidth);
-    max-width: v-bind(maxWidth);
-
-    display: flex;
-    flex-direction: column;
-
-    border: 1px solid var(--color-interface-soft);
-    background: var(--color-interface-softest);
-    box-shadow: var(--popup-box-shadow);
-    overflow: hidden;
-
-    /* Drawer is the only interactive surface */
-    pointer-events: auto;
-
-    /* Add width transition so setting the width programmatically animates smoothly (like when maximizing to fullscreen). */
-    transition: width 150ms ease;
-}
-
-.docked-panel.dragging {
-    /* Disable transitions while dragging, otherwise the drag feels sluggish. */
-    transition: none;
-}
-
-.docked-panel-container[data-position="right"] .docked-panel {
-    right: 0;
-    border-radius: var(--rounded-large) 0 0 var(--rounded-large);
-}
-
-.docked-panel-header,
-.docked-panel-footer {
-    flex: 0 0 auto;
-}
-
-.docked-panel-body {
-    flex: 1 1 auto;
-    min-height: 0;
-    overflow: auto;
-}
-
-.docked-panel-slide-enter-active,
-.docked-panel-slide-leave-active {
-    transition: transform 250ms ease;
-}
-
-.docked-panel-container[data-position="right"] .docked-panel-slide-enter-from,
-.docked-panel-container[data-position="right"] .docked-panel-slide-leave-to {
-    transform: translateX(100%);
-}
-
-.docked-panel-slide-enter-to,
-.docked-panel-slide-leave-from {
-    transform: translateX(0);
-}
-</style>
 
 <script setup lang="ts">
     import { computed, onBeforeUnmount, onMounted, PropType, ref, watch } from "vue";
@@ -203,6 +100,17 @@
     const isResizing = ref(false);
 
     // #endregion Values
+
+    // #region Computed Values
+
+    const containerStyles = computed((): Record<string, string> => {
+        return {
+            "--docked-panel-width": props.width,
+            "--docked-panel-minWidth": props.minWidth,
+            "--docked-panel-maxWidth": props.maxWidth
+        };
+    });
+    // #endregion
 
     // #region Event Handlers
 

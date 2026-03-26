@@ -11268,6 +11268,102 @@ hr {
   padding: 0;
 }
 
+/* Note:
+ * The CSS variables --docked-panel-width, --docked-panel-minWidth, and --docked-panel-maxWidth are
+ * set programmatically by the DockedPanel component.
+ */
+.docked-panel-container {
+  /*
+   * Use the same z-index as dropdowns so the docked panel is on top of all dropdowns
+   * from the main window, but underneath dropdowns inside the docked panel.
+   */
+  --z-docked-panel: 1050;
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-docked-panel);
+  /* Container is layout only */
+  pointer-events: none;
+}
+
+.docked-panel-resize-handle {
+  --resize-handle-width: 5px;
+  position: absolute;
+  top: var(--top-header-height);
+  bottom: 0;
+  width: var(--resize-handle-width);
+  height: 100%;
+  cursor: col-resize;
+  pointer-events: auto;
+  touch-action: none;
+  background: var(--color-interface-strong);
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+
+.docked-panel-container[data-position=right] .docked-panel-resize-handle {
+  right: min(min((var(--docked-panel-maxWidth)), max((var(--docked-panel-minWidth)), (var(--docked-panel-width)))), 100% - var(--resize-handle-width));
+  left: auto;
+}
+
+.docked-panel-resize-handle:hover {
+  opacity: 0.3;
+}
+
+.docked-panel {
+  position: absolute;
+  top: var(--top-header-height);
+  bottom: 0;
+  width: var(--docked-panel-width);
+  min-width: var(--docked-panel-minWidth);
+  max-width: var(--docked-panel-maxWidth);
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--color-interface-soft);
+  background: var(--color-interface-softest);
+  box-shadow: var(--popup-box-shadow);
+  overflow: hidden;
+  /* Drawer is the only interactive surface */
+  pointer-events: auto;
+  /* Add width transition so setting the width programmatically animates smoothly (like when maximizing to fullscreen). */
+  transition: width 150ms ease;
+}
+
+.docked-panel.dragging {
+  /* Disable transitions while dragging, otherwise the drag feels sluggish. */
+  transition: none;
+}
+
+.docked-panel-container[data-position=right] .docked-panel {
+  right: 0;
+  border-radius: var(--rounded-large) 0 0 var(--rounded-large);
+}
+
+.docked-panel-header,
+.docked-panel-footer {
+  flex: 0 0 auto;
+}
+
+.docked-panel-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
+.docked-panel-slide-enter-active,
+.docked-panel-slide-leave-active {
+  transition: transform 250ms ease;
+}
+
+.docked-panel-container[data-position=right] .docked-panel-slide-enter-from,
+.docked-panel-container[data-position=right] .docked-panel-slide-leave-to {
+  transform: translateX(100%);
+}
+
+.docked-panel-slide-enter-to,
+.docked-panel-slide-leave-from {
+  transform: translateX(0);
+}
+
 .grid-overflow {
   overflow-x: auto;
 }
@@ -20634,6 +20730,102 @@ iframe.file-browser {
   padding: 0;
 }
 
+/* Note:
+ * The CSS variables --docked-panel-width, --docked-panel-minWidth, and --docked-panel-maxWidth are
+ * set programmatically by the DockedPanel component.
+ */
+.docked-panel-container {
+  /*
+   * Use the same z-index as dropdowns so the docked panel is on top of all dropdowns
+   * from the main window, but underneath dropdowns inside the docked panel.
+   */
+  --z-docked-panel: 1050;
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-docked-panel);
+  /* Container is layout only */
+  pointer-events: none;
+}
+
+.docked-panel-resize-handle {
+  --resize-handle-width: 5px;
+  position: absolute;
+  top: var(--top-header-height);
+  bottom: 0;
+  width: var(--resize-handle-width);
+  height: 100%;
+  cursor: col-resize;
+  pointer-events: auto;
+  touch-action: none;
+  background: var(--color-interface-strong);
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+
+.docked-panel-container[data-position=right] .docked-panel-resize-handle {
+  right: min(min((var(--docked-panel-maxWidth)), max((var(--docked-panel-minWidth)), (var(--docked-panel-width)))), 100% - var(--resize-handle-width));
+  left: auto;
+}
+
+.docked-panel-resize-handle:hover {
+  opacity: 0.3;
+}
+
+.docked-panel {
+  position: absolute;
+  top: var(--top-header-height);
+  bottom: 0;
+  width: var(--docked-panel-width);
+  min-width: var(--docked-panel-minWidth);
+  max-width: var(--docked-panel-maxWidth);
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--color-interface-soft);
+  background: var(--color-interface-softest);
+  box-shadow: var(--popup-box-shadow);
+  overflow: hidden;
+  /* Drawer is the only interactive surface */
+  pointer-events: auto;
+  /* Add width transition so setting the width programmatically animates smoothly (like when maximizing to fullscreen). */
+  transition: width 150ms ease;
+}
+
+.docked-panel.dragging {
+  /* Disable transitions while dragging, otherwise the drag feels sluggish. */
+  transition: none;
+}
+
+.docked-panel-container[data-position=right] .docked-panel {
+  right: 0;
+  border-radius: var(--rounded-large) 0 0 var(--rounded-large);
+}
+
+.docked-panel-header,
+.docked-panel-footer {
+  flex: 0 0 auto;
+}
+
+.docked-panel-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
+.docked-panel-slide-enter-active,
+.docked-panel-slide-leave-active {
+  transition: transform 250ms ease;
+}
+
+.docked-panel-container[data-position=right] .docked-panel-slide-enter-from,
+.docked-panel-container[data-position=right] .docked-panel-slide-leave-to {
+  transform: translateX(100%);
+}
+
+.docked-panel-slide-enter-to,
+.docked-panel-slide-leave-from {
+  transform: translateX(0);
+}
+
 .badge-circle {
   border-radius: 999px;
   width: 24px;
@@ -21096,6 +21288,265 @@ table tbody tr td .required-indicator::after {
 }
 
 /* ===================== BLOCK =================== */
+.chat-bot .chat-container {
+  display: flex;
+  flex-direction: row;
+  gap: var(--spacing-small);
+}
+
+.chat-bot .sessions-column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-small);
+}
+
+.chat-bot .sessions-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-small);
+  flex-grow: 1;
+  overflow-y: auto;
+}
+
+.chat-bot .sessions-container :first-child {
+  margin-top: auto;
+}
+
+.chat-bot .session {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  background-color: var(--color-info-soft);
+  color: var(--color-info-strong);
+  padding: var(--spacing-small);
+  border-radius: var(--rounded-small);
+  cursor: pointer;
+  min-width: 200px;
+}
+
+.chat-bot .session.active {
+  border: 2px solid var(--color-info-strong);
+  cursor: initial;
+}
+
+.chat-bot .session-delete {
+  opacity: 0;
+  cursor: pointer;
+  font-size: var(--font-size-xsmall);
+  background-color: transparent;
+  color: var(--color-danger-strong);
+  width: 24px;
+  align-content: center;
+  text-align: center;
+  border-radius: var(--rounded-small);
+  transition: opacity 0.2s ease-in-out, background-color 0.2s ease-in-out, color 0.2s ease-in-out;
+}
+
+.chat-bot .session:hover .session-delete {
+  opacity: 1;
+}
+
+.chat-bot .session-delete:hover {
+  background-color: var(--color-danger-strong);
+  color: var(--color-danger-soft);
+}
+
+.chat-bot .session-name {
+  line-height: 1.3em;
+  margin-bottom: var(--spacing-tiny);
+}
+
+.chat-bot .session-date {
+  grid-row: 2;
+  grid-column: 1/3;
+  font-size: small;
+  opacity: 0.7;
+}
+
+.chat-bot .conversation-container {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  gap: var(--spacing-small);
+  position: relative;
+}
+
+.chat-bot .footer-actions {
+  /* this is ugly, don't use as final */
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  margin: 0 24px;
+  padding: var(--spacing-large);
+}
+
+.chat-bot .action-bar .btn-warning,
+.chat-bot .action-bar .btn-warning:active {
+  background: none;
+  color: var(--color-warning-strong);
+  box-shadow: unset !important;
+  border: 0;
+}
+
+.chat-bot .action-bar .btn-default {
+  background: none;
+  color: var(--color-interface-medium);
+  box-shadow: unset;
+  border: 0;
+}
+
+.chat-bot .action-bar .btn-primary {
+  border-radius: 100px;
+  padding: 8px 12px;
+}
+
+.chat-bot .action-bar-container {
+  background-color: var(--color-interface-softest);
+  border: 1px solid var(--color-interface-soft);
+  padding: var(--spacing-small);
+  border-radius: 1000px;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+}
+
+.chat-bot .action-bar-container input {
+  border: none;
+  box-shadow: none;
+}
+
+.chat-bot .action-bar .input-group-btn,
+.chat-bot .action-bar .btn {
+  box-shadow: none !important;
+}
+
+.chat-bot .messages-container {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  overflow-y: auto;
+  gap: var(--spacing-small);
+  margin-bottom: 0;
+  padding: var(--spacing-medium) var(--spacing-xlarge) 160px var(--spacing-xlarge);
+  border: 1px solid var(--color-interface-soft);
+  border-radius: var(--rounded-small);
+  background-color: var(--color-interface-softest);
+}
+
+.chat-bot .message {
+  padding: var(--spacing-tiny) var(--spacing-small);
+  border-radius: var(--rounded-medium);
+  max-width: 75%;
+}
+
+.chat-bot .message-user {
+  background-color: var(--color-interface-softer);
+  border: 1px solid var(--color-interface-soft);
+  color: var(--color-interface-strong);
+  margin-left: auto;
+  max-width: 400px;
+}
+
+.chat-bot .message-user .message-text p {
+  margin: 0;
+  padding: var(--spacing-small);
+}
+
+.chat-bot .message-assistant {
+  margin-right: auto;
+}
+
+.chat-bot .message-assistant .message-text p {
+  color: var(--color-interface-stronger);
+}
+
+.chat-bot .message-preamble {
+  font-size: var(--font-size-small);
+  background-color: var(--color-interface-softest);
+  border: 1px solid var(--color-interface-soft);
+  border-radius: var(--rounded-medium);
+  color: var(--color-interface-strong);
+  padding: var(--spacing-tiny) var(--spacing-small);
+}
+
+.chat-bot .message-thinking {
+  font-size: var(--font-size-h4);
+  opacity: 0.5;
+}
+
+.chat-bot .message-debug {
+  display: flex;
+  gap: var(--spacing-tiny);
+  --justify-content: flex-end;
+}
+
+.chat-bot .message-debug .label,
+.chat-bot .message-debug .btn {
+  background: none;
+  padding: 0;
+  color: var(--color-interface-medium);
+  margin-right: var(--spacing-small);
+  font-size: var(--font-size-xsmall);
+  margin-top: var(--spacing-small);
+}
+
+.chat-bot .message-debug .btn {
+  display: flex;
+  align-items: flex-start;
+}
+
+.chat-bot .anchors-container {
+  display: flex;
+  gap: var(--spacing-xsmall);
+  margin: var(--spacing-small) var(--spacing-xlarge);
+}
+
+.chat-bot .anchor {
+  border: 1px solid var(--color-success-strong);
+  background-color: var(--color-success-soft);
+  color: var(--color-success-strong);
+  font-size: var(--font-size-small);
+  display: flex;
+  border-radius: 12px;
+  height: 24px;
+  line-height: 1em;
+  align-items: center;
+  padding: 0 8px 0 12px;
+  gap: 8px;
+}
+
+.chat-bot .anchor-type {
+  font-weight: var(--font-weight-semibold);
+}
+
+.chat-bot .anchor-type::after {
+  content: ":";
+}
+
+.chat-bot .anchor-clear {
+  font-size: calc(0.77 * var(--font-size-xsmall));
+  padding-top: 2px;
+  cursor: pointer;
+}
+
+/* Message Debug Modal */
+.chat-bot .message-debug-log > pre {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  column-gap: var(--spacing-medium);
+  max-height: calc(100vh - 300px);
+}
+
+.chat-bot .message-debug-tool-calls {
+  max-height: calc(100vh - 300px);
+  margin-top: var(--spacing-medium);
+  overflow-y: auto;
+}
+
+.chat-bot .tool-labels {
+  display: flex;
+  gap: var(--spacing-tiny);
+  margin-right: var(--spacing-xsmall);
+}
+
 .choose-experience-mode {
   display: flex;
   gap: var(--spacing-medium);
