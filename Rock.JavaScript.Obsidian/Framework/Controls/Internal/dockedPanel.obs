@@ -6,8 +6,11 @@
              data-position="right">
 
             <transition name="docked-panel-slide"
-                        appear
-                        @after-leave="onAfterLeave">
+                        :appear="animateTransition"
+                        @beforeEnter="onBeforeEnter"
+                        @beforeLeave="onBeforeLeave"
+                        @afterEnter="onAfterEnter"
+                        @afterLeave="onAfterLeave">
                 <div v-show="internalValue"
                      ref="dockedPanelRef"
                      class="docked-panel"
@@ -76,7 +79,17 @@
         closeOnOutsideClick: {
             type: Boolean as PropType<boolean>,
             default: false
-        }
+        },
+
+        /**
+         * The mode the panel will operate in when visible. In "float" mode, the
+         * panel will overlay existing content. In "push" mode, the panel will
+         * push existing content to make room for itself.
+         */
+        mode: {
+            type: String as PropType<"float" | "push">,
+            default: "float"
+        },
     });
 
     const emit = defineEmits<{
@@ -88,6 +101,7 @@
     // #region Values
 
     const internalValue = useVModelPassthrough(props, "modelValue", emit);
+    const internalWidth = useVModelPassthrough(props, "width", emit);
     const isRendered = ref(false);
 
     const fullscreenElement = ref<Element | null>(null);
@@ -98,6 +112,7 @@
     const startX = ref(0);
     const startWidth = ref(0);
     const isResizing = ref(false);
+    const animateTransition = ref(!props.modelValue);
 
     // #endregion Values
 
@@ -105,12 +120,26 @@
 
     const containerStyles = computed((): Record<string, string> => {
         return {
-            "--docked-panel-width": props.width,
+            // Even though we also set --docked-panel-width on the body for use
+            // in push transitions, we need to keep it set here as well so that
+            // the actual panel width stays correct during the transition.
+            "--docked-panel-width": internalWidth.value,
             "--docked-panel-minWidth": props.minWidth,
             "--docked-panel-maxWidth": props.maxWidth
         };
     });
+
     // #endregion
+
+    function parseWidthSpecifier(value: string): number {
+        if (value.endsWith("%")) {
+            const percent = parseFloat(value) / 100;
+            return window.innerWidth * percent;
+        }
+        else {
+            return parseInt(value);
+        }
+    }
 
     // #region Event Handlers
 
@@ -138,7 +167,10 @@
         const delta = startX.value - e.clientX;
         const nextWidth = startWidth.value + delta;
 
-        emit("update:width", `${Math.round(nextWidth)}px`);
+        const minWidth = parseWidthSpecifier(props.minWidth);
+        const maxWidth = parseWidthSpecifier(props.maxWidth);
+
+        internalWidth.value = `${Math.min(Math.max(nextWidth, minWidth), maxWidth)}px`;
     }
 
     function onResizeEnd(): void {
@@ -159,9 +191,31 @@
         }
     }
 
+    function onBeforeEnter(): void {
+        document.body.classList.add("docked-panel-slide-enter-active");
+        document.body.style.setProperty("--docked-panel-width", internalWidth.value);
+        document.body.dataset.dockedPanelMode = props.mode;
+    }
+
+    function onBeforeLeave(): void {
+        document.body.classList.add("docked-panel-slide-leave-active");
+        document.body.style.removeProperty("--docked-panel-width");
+    }
+
+    function onAfterEnter(): void {
+        document.body.classList.remove("docked-panel-slide-enter-active");
+    }
+
     function onAfterLeave(): void {
         // Stop rendering after close animation completes
         isRendered.value = false;
+
+        // If we open again, animate the transition.
+        animateTransition.value = true;
+
+        // Remove the body attributes and classes.
+        document.body.classList.remove("docked-panel-slide-leave-active");
+        delete document.body.dataset.dockedPanelMode;
     }
 
     function onFullscreenChange(): void {
@@ -183,6 +237,18 @@
         }
     }, { immediate: true });
 
+    watch(() => props.mode, () => {
+        if (internalValue.value) {
+            document.body.dataset.dockedPanelMode = props.mode;
+        }
+    }, { immediate: true });
+
+    watch(internalWidth, () => {
+        if (internalValue.value) {
+            document.body.style.setProperty("--docked-panel-width", internalWidth.value);
+        }
+    }, { immediate: true });
+
     // #endregion Watchers
 
     // #region Lifecycle
@@ -192,6 +258,9 @@
     });
 
     onBeforeUnmount(() => {
+        delete document.body.dataset.dockedPanelMode;
+        document.body.style.removeProperty("--docked-panel-width");
+
         document.removeEventListener("pointermove", onResizeMove);
         document.removeEventListener("pointerup", onResizeEnd);
         document.removeEventListener("pointerdown", onDocumentPointerDown);

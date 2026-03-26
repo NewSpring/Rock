@@ -11364,6 +11364,25 @@ hr {
   transform: translateX(0);
 }
 
+body[data-docked-panel-mode=push] {
+  margin-right: var(--docked-panel-width, 0);
+}
+body[data-docked-panel-mode=push].docked-panel-slide-enter-active, body[data-docked-panel-mode=push].docked-panel-slide-leave-active {
+  transition: margin-right 250ms ease;
+}
+body[data-docked-panel-mode=push].docked-panel-slide-enter-active .navbar-fixed-top, body[data-docked-panel-mode=push].docked-panel-slide-leave-active .navbar-fixed-top {
+  transition: right 250ms ease;
+}
+body[data-docked-panel-mode=push] .navbar-fixed-top {
+  right: var(--docked-panel-width, 0);
+}
+body[data-docked-panel-mode=push] .docked-panel-container .docked-panel {
+  top: 0;
+  border-radius: 0;
+  border-width: 0 0 0 1px;
+  box-shadow: none;
+}
+
 .grid-overflow {
   overflow-x: auto;
 }
