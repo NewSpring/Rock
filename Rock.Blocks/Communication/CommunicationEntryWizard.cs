@@ -1594,7 +1594,7 @@ namespace Rock.Blocks.Communication
                 // so the person can see what segments are being used. This allows a second
                 // person to view/edit a communication without losing the segments that were previously selected.
                 PersonalizationSegments = GetPersonalizationSegments( rockContext, communication.PersonalizationSegments.SplitDelimitedValues().AsIntegerList() ),
-                SmsAttachmentBinaryFiles = communication.GetAttachments( CommunicationType.SMS ).ToListItemBagList(),
+                SmsAttachmentBinaryFiles = communication.GetAttachments( CommunicationType.SMS )?.Select( a => a.BinaryFile ).ToListItemBagList(),
                 SmsFromSystemPhoneNumberGuid = GetSmsFromSystemPhoneNumberGuid( communication ),
                 SmsMessage = communication.SMSMessage,
                 Status = communication.Status,
