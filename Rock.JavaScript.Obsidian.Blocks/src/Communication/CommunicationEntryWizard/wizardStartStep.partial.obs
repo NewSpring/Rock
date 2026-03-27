@@ -100,7 +100,7 @@
                                     </div>
                                 </div>
 
-                                <div v-if="selectedCommunicationListGuidOrManualOrEmptyString !== manualRecipientList && personalizationSegmentItems.length"
+                                <div v-if="selectedCommunicationListGuidOrManualOrEmptyString !== manualRecipientList && selectedCommunicationListGuidOrManualOrEmptyString && personalizationSegmentItems.length"
                                      class="row">
                                     <div class="col-sm-5">
                                         <ConditionalWell class="segments-section">
