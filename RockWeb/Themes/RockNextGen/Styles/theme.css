@@ -2423,11 +2423,11 @@ iframe {
   min-height: 100%;
   display: flex;
   flex-direction: column;
+  height: 100vh;
 }
 @media (min-width: 992px) {
   .page-wrapper {
     padding-top: 80px;
-    height: 100vh;
   }
 }
 
@@ -20674,11 +20674,14 @@ table tbody tr td .required-indicator::after {
   color: var(--color-interface-medium);
   box-shadow: unset;
   border: 0;
+  padding: 0 var(--spacing-tiny);
+  margin: 0 var(--spacing-tiny);
 }
 
 .chat-bot .action-bar .btn-primary {
   border-radius: 100px;
   padding: 8px 12px;
+  margin-left: var(--spacing-xsmall);
 }
 
 .chat-bot .action-bar-container {
@@ -20826,6 +20829,12 @@ table tbody tr td .required-indicator::after {
   display: flex;
   gap: var(--spacing-tiny);
   margin-right: var(--spacing-xsmall);
+}
+
+/* When chat bot inside docked panel. */
+.docked-panel .chat-bot .messages-container {
+  border: 0;
+  border-radius: 0;
 }
 
 .choose-experience-mode {
@@ -35410,6 +35419,7 @@ tbody .collapse.in {
 }
 :root {
   --panel-body-padding: 16px;
+  --sticky-element-offset: 0px;
 }
 
 @-ms-viewport {
@@ -35551,6 +35561,7 @@ body.navbar-side-open {
   flex: 1;
   display: flex;
   flex-direction: column;
+  overflow: auto;
 }
 #content-wrapper .main-content {
   flex: 1;

@@ -20674,11 +20674,14 @@ table tbody tr td .required-indicator::after {
   color: var(--color-interface-medium);
   box-shadow: unset;
   border: 0;
+  padding: 0 var(--spacing-tiny);
+  margin: 0 var(--spacing-tiny);
 }
 
 .chat-bot .action-bar .btn-primary {
   border-radius: 100px;
   padding: 8px 12px;
+  margin-left: var(--spacing-xsmall);
 }
 
 .chat-bot .action-bar-container {
@@ -20826,6 +20829,12 @@ table tbody tr td .required-indicator::after {
   display: flex;
   gap: var(--spacing-tiny);
   margin-right: var(--spacing-xsmall);
+}
+
+/* When chat bot inside docked panel. */
+.docked-panel .chat-bot .messages-container {
+  border: 0;
+  border-radius: 0;
 }
 
 .choose-experience-mode {
