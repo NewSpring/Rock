@@ -2423,11 +2423,11 @@ iframe {
   min-height: 100%;
   display: flex;
   flex-direction: column;
+  height: 100vh;
 }
 @media (min-width: 992px) {
   .page-wrapper {
     padding-top: 80px;
-    height: 100vh;
   }
 }
 
