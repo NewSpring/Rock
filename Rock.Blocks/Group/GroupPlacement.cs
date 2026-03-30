@@ -506,7 +506,7 @@ namespace Rock.Blocks.Group
                 foreach ( var field in fields )
                 {
                     var attribute = AttributeCache.Get( field.AttributeId.Value );
-                    if ( attribute != null )
+                    if ( attribute != null && attribute.IsActive )
                     {
                         listItems.Add( new ListItemBag
                         {
