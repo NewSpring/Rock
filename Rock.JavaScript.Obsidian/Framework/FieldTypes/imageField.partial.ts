@@ -35,7 +35,7 @@ export const enum ConfigurationPropertyKey {
 /**
  * The configuration value keys used by the configuraiton and edit controls.
  */
-export const enum ConfigurationValueKey {
+export const enum ConfigurationKey {
     /** The unique identifier of the BinaryFileType to use for uploads. */
     BinaryFileType = "binaryFileType",
 
@@ -107,9 +107,9 @@ export class ImageFieldType extends FieldTypeBase {
                 return "";
             }
 
-            const width = configurationValues[ConfigurationValueKey.Width];
-            const height = configurationValues[ConfigurationValueKey.Height];
-            let imageUrl = configurationValues[ConfigurationValueKey.ImageUrl] ?? `/GetImage.ashx?guid=${realValue.value}`;
+            const width = configurationValues[ConfigurationKey.Width];
+            const height = configurationValues[ConfigurationKey.Height];
+            let imageUrl = configurationValues[ConfigurationKey.ImageUrl] ?? `/GetImage.ashx?guid=${realValue.value}`;
             let queryParms = "";
 
             if (width) {
@@ -124,8 +124,8 @@ export class ImageFieldType extends FieldTypeBase {
                 imageUrl += `?guid=${realValue.value}`;
             }
 
-            const imageTagTemplate = configurationValues[ConfigurationValueKey.ImageTagTemplate];
-            const formatAsLink = asBoolean(configurationValues[ConfigurationValueKey.FormatAsLink]);
+            const imageTagTemplate = configurationValues[ConfigurationKey.ImageTagTemplate];
+            const formatAsLink = asBoolean(configurationValues[ConfigurationKey.FormatAsLink]);
             const mergeFields: Record<string, unknown> = {
                 "ImageUrl": imageUrl + queryParms,
                 "ImageGuid": realValue.value
@@ -151,10 +151,10 @@ export class ImageFieldType extends FieldTypeBase {
     }
 
     public override getCondensedHtmlValue(value: string, configurationValues: Record<string, string>, isEscaped: boolean = false): string {
-        const width = configurationValues[ConfigurationValueKey.Width];
+        const width = configurationValues[ConfigurationKey.Width];
 
         if (!width) {
-            configurationValues[ConfigurationValueKey.Width] = "120";
+            configurationValues[ConfigurationKey.Width] = "120";
         }
 
         return this.getHtmlValue(value, configurationValues, isEscaped);
