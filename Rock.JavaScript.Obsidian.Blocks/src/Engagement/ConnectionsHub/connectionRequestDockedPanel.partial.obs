@@ -30,7 +30,26 @@
                 </div>
                 <div v-else class="pt-spacing-xs bg-interface-softer">
                     <div class="d-flex justify-content-between px-spacing-sm">
-                        <div class="d-flex gap-sm">
+                        <div v-if="connectionRequestBreadcrumbs.length > 0"
+                             class="w-100 d-flex align-items-center gap-tiny flex-wrap text-small">
+                            <span class="cursor-pointer request-breadcrumb" @click="emit('navigateToBreadcrumb', 0)">
+                                {{ connectionRequestBreadcrumbs[0].text }}
+                            </span>
+                            <template v-if="connectionRequestBreadcrumbs.length > 2">
+                                <i class="ti ti-chevron-right"></i>
+                                <span class="d-flex align-items-end cursor-pointer request-breadcrumb" @click="emit('navigateToBreadcrumb', connectionRequestBreadcrumbs.length - 2)">
+                                    <i class="ti ti-dots"></i>
+                                </span>
+                            </template>
+                            <template v-if="connectionRequestBreadcrumbs.length > 1">
+                                <i class="ti ti-chevron-right"></i>
+                                <span class="cursor-pointer request-breadcrumb"
+                                      @click="emit('navigateToBreadcrumb', connectionRequestBreadcrumbs.length - 1)">
+                                    {{ connectionRequestBreadcrumbs[connectionRequestBreadcrumbs.length - 1].text }}
+                                </span>
+                            </template>
+                        </div>
+                        <div v-else class="d-flex gap-sm">
                             <i class="ti ti-chevron-left cursor-pointer" :class="{ disabled: !hasPrevious }" @click="goPrevious"></i>
                             <i class="ti ti-chevron-right cursor-pointer" :class="{ disabled: !hasNext }" @click="goNext"></i>
                         </div>
@@ -54,7 +73,6 @@
                                 </div>
                             </div>
                             <div>
-                                <!-- TODO: Fix Styling -->
                                 <BadgeList :entityTypeGuid="EntityType.Person"
                                            :entityKey="requestDetails.requesterPerson.idKey ?? ''"
                                            :badgeTypeGuids="options?.badgeGuids ?? []"
@@ -114,7 +132,6 @@
                                      @dismissErrorMessage="setErrorMessage('edit', '')" />
                 <ViewDockedPanelBody v-else
                                      :requestDetails="requestDetails"
-                                     :connectionRequestBreadcrumbs="connectionRequestBreadcrumbs"
                                      :aiSummary="aiSummary"
                                      :aiSummaryError="aiSummaryError"
                                      :isAISummaryLoading="isAISummaryLoading"
@@ -293,6 +310,11 @@
     height: fit-content;
 }
 
+.request-breadcrumb:hover {
+    color: var(--color-link);
+    text-decoration: underline;
+}
+
 /* Skeleton adjustments */
 .skeleton {
     background: var(--color-interface-soft);
@@ -366,11 +388,6 @@
             default: true
         },
 
-        isInSingleRequestMode: {
-            type: Boolean as PropType<boolean>,
-            required: true
-        },
-
         isSaving: {
             type: Boolean as PropType<boolean>,
             default: false
@@ -379,16 +396,13 @@
         editBox: {
             type: Object as PropType<ValidPropertiesBox<ConnectionRequestBag>>,
             default: {}
+        },
+
+        isAdditionalRequest: {
+            type: Boolean as PropType<boolean>,
+            default: false
         }
     });
-
-    /*
-    When in single request mode:
-     - Force full width
-     - Hide navigation arrows
-     - Hide close button
-     - Disable resize?
-    */
 
     const emit = defineEmits<{
         (e: "update:modelValue", value: boolean): void;
@@ -535,7 +549,6 @@
             return;
         }
         const url = `/Person/${props.detailsBox.entity.requesterPerson.idKey}`;
-        // TODO - Ask Jon if new tab is desired.
         window.open(url, "_blank");
     }
 

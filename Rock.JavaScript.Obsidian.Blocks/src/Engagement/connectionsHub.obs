@@ -140,7 +140,9 @@
                   :forceVirtualRowsOnLight="true"
                   class="grid-hover"
                   @selectedKeysChanged="state => onSelectedKeysChanged(group.key, state)"
-                  @selectItem="onSelectItem">
+                  @selectItem="onSelectItem"
+                  @onLoad="state => onGridLoad(group.key, state)"
+                  @onUnload="state => onGridUnload(group.key, state)">
                 <SelectColumn />
 
                 <PersonColumn name="requestDetails"
@@ -567,7 +569,6 @@
                                   :orderedKeys="orderedRequestKeys ?? []"
                                   :detailsBox="dockedPanelDetailsBox"
                                   :dockedPanelCloseOnOutsideClick="dockedPanelCloseOnOutsideClick"
-                                  :isInSingleRequestMode="isInSingleRequestMode"
                                   @navigate="updateSelectedRequestKey"
                                   @navigateToBreadcrumb="navigateToBreadcrumb"
                                   @navigateToAdditionalRequest="navigateToAdditionalRequest"
@@ -712,7 +713,7 @@
 <script setup lang="ts">
     import { onConfigurationValuesChanged, useBlockBrowserBus, useConfigurationValues, useInvokeBlockAction, usePersonPreferences, useReloadBlock } from "@Obsidian/Utility/block";
     import { GridDataBag } from "@Obsidian/ViewModels/Core/Grid/gridDataBag";
-    import { computed, reactive, ref, watch } from "vue";
+    import { computed, reactive, ref, watch, nextTick } from "vue";
     import { ListBlockBox } from "@Obsidian/ViewModels/Blocks/listBlockBox";
     import { ConnectionsHubOptionsBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionsHubOptionsBag";
     import Grid, { Column, PersonColumn, SelectColumn, AttributeColumns } from "@Obsidian/Controls/grid";
@@ -871,6 +872,7 @@
 
     // Grouped Grid Configuration
     const selectedKeys = ref<Record<string, string[]>>({});
+    const selectedKeysOnUnmount = ref<Record<string, string[]>>({});
     const groupedGridPanel = ref();
     const rawQuickFilter = ref("");
     const debouncedQuickFilter = ref(rawQuickFilter.value);
@@ -918,7 +920,6 @@
         statusFilter: safeParseJson(preferences.getValue(getConnectionFilterKey(PreferenceKey.FilterStatusConnectionTypIdKey))),
         dueFilter: safeParseJson(preferences.getValue(getConnectionFilterKey(PreferenceKey.FilterDueConnectionTypIdKey))),
     });
-    // TODO - consider computing this and filtering by opportunity selection.
     const allPossibleConnectors = ref(box.options?.allPossibleConnectors ?? []);
     // SMS and Email modal state
     const communicationRecipients = ref<CommunicationRecipientBag[] | null | undefined>();
@@ -945,8 +946,6 @@
     const dockedPanelCloseOnOutsideClick = ref<boolean>(true);
     // Breadcrumbs are used when a user navigates to an "additional request"
     const connectionRequestBreadcrumbs = ref<ListItemBag[]>([]);
-    // TODO - This ref will be used for opening a request when passed in through a query string param.
-    const isInSingleRequestMode = ref<boolean>(false);
 
     // #region Computed Values
 
@@ -1483,6 +1482,30 @@
         selectedKeys.value[key] = [...state.selectedKeys];
     }
 
+    /**
+     * Updates the grid state's selected keys to equal the selected keys before the grid unmounted.
+     * @param key the grid's grouping key
+     * @param state the grid state
+     */
+    function onGridLoad(key: string | null | undefined, state: IGridState): void {
+        if (!key || !selectedKeysOnUnmount.value[key]) {
+            return;
+        }
+        state.selectedKeys = [...state.selectedKeys, ...selectedKeysOnUnmount.value[key]];
+    }
+
+    /**
+     * Saves the grid's selected keys before the grid unmounts.
+     * @param key the grid's grouping key
+     * @param state the grid state
+     */
+    function onGridUnload(key: string | null | undefined, state: IGridState): void {
+        if (!key) {
+            return;
+        }
+        selectedKeysOnUnmount.value[key] = [...state.selectedKeys];
+    }
+
     function setSingleRequestDetail(row: Record<string, unknown> | null, dockedPanelBox: ConnectionRequestDetailBox | null): void {
         let requestDetailsBag;
 
@@ -1751,11 +1774,6 @@
     // #region Block Actions
 
     async function loadGridData(): Promise<void> {
-        // TODO - Single Request View
-        // if (!isNullOrWhiteSpace(box?.options?.connectionRequestIdKey)) {
-        //     return;
-        // }
-
         gridData.value = undefined;
         areRequestsLoading.value = true;
         const result = await invokeBlockAction<GridDataBag>("GetGridData");
@@ -1768,10 +1786,6 @@
         }
         areRequestsLoading.value = false;
     }
-
-    // async function loadConnectionRequest(): Promise<void> {
-
-    // }
 
     async function refreshUserEditPermissions(): Promise<void> {
         const result = await invokeBlockAction<boolean>("RefreshUserEditPermissions", {
@@ -2734,7 +2748,6 @@
             dockedPanelDetailsBox.value.entity.activityEntries = result.data;
         }
         else {
-            console.log("SettingError: ", result.errorMessage);
             connectionRequestDockedPanelRef.value?.setErrorMessage("activity", result.errorMessage ?? "An error occurred while getting the Connection Request activity entries.");
         }
     }
@@ -2865,10 +2878,9 @@
     loadContextValues();
     loadGridData();
 
-    // TODO - Load a single request at full width.
-    // if (!isNullOrWhiteSpace(box.options?.connectionRequestIdKey)) {
-    //     loadConnectionRequest();
-    // }
+    if (!isNullOrWhiteSpace(box.options?.connectionRequestIdKey)) {
+        onSelectItem(box.options!.connectionRequestIdKey!);
+    }
 
     onConfigurationValuesChanged(useReloadBlock());
 </script>

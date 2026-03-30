@@ -1,17 +1,6 @@
 <!-- Copyright by the Spark Development Network; Licensed under the Rock Community License -->
 <template>
     <div class="px-spacing-md pb-spacing-lg d-flex flex-column gap-md">
-        <div v-if="connectionRequestBreadcrumbs.length > 0"
-             class="w-100 d-flex gap-tiny flex-wrap text-small">
-            <template v-for="(breadcrumb, index) in connectionRequestBreadcrumbs">
-                <span class="cursor-pointer request-breadcrumb" @click="emit('navigateToBreadcrumb', index)">
-                    {{ breadcrumb.text }}
-                </span>
-                <span v-if="index !== connectionRequestBreadcrumbs.length - 1">
-                    <i class="ti ti-chevron-right"></i>
-                </span>
-            </template>
-        </div>
         <div v-if="options?.isAISummaryVisible" class="border border-info-soft rounded p-spacing-sm bg-interface-softer d-flex flex-column gap-xs">
             <div class="d-flex justify-content-between align-items-center text-info">
                 <div class="d-flex gap-xs align-items-center">
@@ -472,11 +461,6 @@
     height: fit-content;
 }
 
-.request-breadcrumb:hover {
-    color: var(--color-link);
-    text-decoration: underline;
-}
-
 /* Skeleton adjustments */
 .skeleton {
     background: var(--color-interface-soft);
@@ -536,11 +520,6 @@
             required: true
         },
 
-        connectionRequestBreadcrumbs: {
-            type: Array as PropType<ListItemBag[]>,
-            required: true
-        },
-
         aiSummary: {
             type: String as PropType<string>,
             required: true
@@ -590,7 +569,6 @@
         (e: "onReassignConnector", value: string): void;
         (e: "launchWorkflow", value: LaunchWorkflowBag): void;
         (e: "navigateToAdditionalRequest", value: string): void;
-        (e: "navigateToBreadcrumb", value: number): void;
     }>();
 
     const invokeBlockAction = useInvokeBlockAction();
