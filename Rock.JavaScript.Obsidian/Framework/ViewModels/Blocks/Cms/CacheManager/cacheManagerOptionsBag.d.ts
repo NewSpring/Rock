@@ -21,38 +21,25 @@
 // </copyright>
 //
 
-/**
- * Represents a grouping of data in a grid. This is used by a few special
- * blocks that show grouped data in multiple grids.
- */
-export type GroupingFieldBag = {
-    /** The icon that should be displayed for this data group. */
-    iconCssClass?: string | null;
+import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
 
-    /** The unique key that identifies this data group. */
-    key?: string | null;
-
-    /** The label that should be displayed for this data group. */
-    label?: string | null;
+/** The options bag for the Cache Manager block. */
+export type CacheManagerOptionsBag = {
+    /**
+     * Gets or sets the list of cache types available for selection
+     * in the cache type dropdown. Includes an "All Cached Items" option.
+     */
+    cacheTypes?: ListItemBag[] | null;
 
     /**
-     * The order that this group should be displayed in, if no manual
-     * ordering has been applied.
+     * Gets or sets a value indicating whether the current user
+     * is authorized to add and edit cache tags.
      */
-    order?: number | null;
+    isEditAuthorized: boolean;
 
     /**
-     * A URL to display a small photo icon that represents the grouped
-     * data.
+     * Gets or sets a value indicating whether cache statistics
+     * tracking is currently enabled in the web.config.
      */
-    photoUrl?: string | null;
-
-    /** Additional CSS classes that will be applied to the text component. */
-    textColorCssClass?: string | null;
-
-    /**
-     * Identifies the type of grouping operation that was used to create
-     * this group.
-     */
-    type?: string | null;
+    isStatisticsEnabled: boolean;
 };
