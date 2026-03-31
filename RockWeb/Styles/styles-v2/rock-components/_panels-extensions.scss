@@ -887,7 +887,7 @@
 }
 
 body[data-docked-panel-mode="push"] {
-  margin-right: var(--docked-panel-push-width, 0);
+  padding-right: var(--docked-panel-push-width, 0);
 
   &.docked-panel-slide-enter-active,
   &.docked-panel-slide-leave-active {

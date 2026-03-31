@@ -11368,7 +11368,7 @@ hr {
 }
 
 body[data-docked-panel-mode=push] {
-  margin-right: var(--docked-panel-push-width, 0);
+  padding-right: var(--docked-panel-push-width, 0);
 }
 body[data-docked-panel-mode=push].docked-panel-slide-enter-active, body[data-docked-panel-mode=push].docked-panel-slide-leave-active {
   transition: margin-right 250ms ease;
