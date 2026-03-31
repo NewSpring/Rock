@@ -446,7 +446,7 @@
                                @save="onAddRequest"
                                @close="resetNewConnectionRequest"
                                @fetchConnectionOpportunityDetails="fetchConnectionOpportunityDetails"
-                               @fetchConnectorOptions="fetchConnectorOptions"
+                               @fetchConnectorOptions="fetchConnectorOptionsForAdd"
                                @fetchPlacementGroupItems="fetchPlacementGroupItems"
                                @fetchPlacementGroupDetails="fetchPlacementGroupDetails" />
 
@@ -593,6 +593,7 @@
                                     :transferDetails="transferRequestDetails"
                                     :isSaving="isModalSaving"
                                     :errorMessage="modalErrorMessage"
+                                    @fetchConnectorOptions="fetchConnectorOptionsForTransfer"
                                     @dismissErrorMessage="onModalErrorMessageDismissed"
                                     @close="onModalErrorMessageDismissed"
                                     @transfer="transferRequest" />
@@ -1772,6 +1773,20 @@
         }
     }
 
+    async function fetchConnectorOptionsForAdd(connectionOpportunityGuid: string, campusGuid: string): Promise<void> {
+        const connectorOptions = await fetchConnectorOptions(connectionOpportunityGuid, campusGuid);
+        connectionOpportunityDetails.value.connectorOptions = connectorOptions;
+    }
+
+    async function fetchConnectorOptionsForTransfer(connectionOpportunityGuid: string, campusGuid: string): Promise<void> {
+        if (!transferRequestDetails.value) {
+            return;
+        }
+
+        const connectorOptions = await fetchConnectorOptions(connectionOpportunityGuid, campusGuid);
+        transferRequestDetails.value.connectorItems = connectorOptions?.connectors;
+    }
+
     // #region Block Actions
 
     async function loadGridData(): Promise<void> {
@@ -2461,15 +2476,16 @@
         }
     }
 
-    async function fetchConnectorOptions(connectionOpportunityGuid: string, campusGuid: string): Promise<void> {
+    async function fetchConnectorOptions(connectionOpportunityGuid: string, campusGuid: string): Promise<ConnectorOptionsBag | undefined> {
         const result = await invokeBlockAction<ConnectorOptionsBag>("FetchConnectorOptions", {
             connectionOpportunityGuid: connectionOpportunityGuid,
             campus: campusGuid
         });
 
         if (result.isSuccess && result.data) {
-            connectionOpportunityDetails.value.connectorOptions = result.data;
+            return result.data;
         }
+        return;
     }
 
     async function fetchPlacementGroupItems(connectionOpportunityGuid: string, campusGuid: string): Promise<void> {
