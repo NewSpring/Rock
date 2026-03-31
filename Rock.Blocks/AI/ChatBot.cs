@@ -81,7 +81,7 @@ namespace Rock.Blocks.AI
             if (!addedPanel) {
                 addedPanel = true;
 
-                document.body.style.setProperty(""--docked-panel-width"", panelData.width);
+                document.body.style.setProperty(""--docked-panel-push-width"", panelData.width);
                 document.body.dataset.dockedPanelMode = ""push"";
                 document.body.appendChild(dockedElement);
 

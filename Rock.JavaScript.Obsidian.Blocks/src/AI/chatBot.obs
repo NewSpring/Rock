@@ -212,7 +212,7 @@
 
             const data: SessionState = {
                 content: dockedPanel.outerHTML,
-                width: document.body.style.getPropertyValue("--docked-panel-width"),
+                width: document.body.style.getPropertyValue("--docked-panel-push-width"),
                 top: window.getComputedStyle(dockedPanel).getPropertyValue("--top-header-height"),
                 scrollTop: messagesContainer.scrollTop,
             };
@@ -484,12 +484,13 @@
         messagesContainer.value?.removeEventListener("scroll", saveSessionData);
 
         if (!isDockedMode) {
+            // Force scroll bar to be at the bottom on initial load so that it
+            // shows the most recent messages.
+            messagesContainer.value?.scrollTo(0, messagesContainer.value.scrollHeight);
             return;
         }
 
-        // Force scroll bar to be at the bottom on initial load so that it
-        // shows the most recent messages.
-        messagesContainer.value?.scrollTo(0, messagesContainer.value.scrollHeight);
+        messagesContainer.value?.scrollTo(0, previousDockedScrollTop ?? messagesContainer.value.scrollHeight);
 
         messagesContainer.value?.addEventListener("scroll", saveSessionData);
     });

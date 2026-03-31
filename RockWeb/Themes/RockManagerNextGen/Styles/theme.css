@@ -1290,7 +1290,7 @@ iframe {
 
 #cms-admin-footer {
   position: fixed;
-  right: 0;
+  right: var(--docked-panel-push-width, 0);
   bottom: 0;
   z-index: 1049;
   width: 100%;
@@ -11284,6 +11284,9 @@ hr {
   /* Container is layout only */
   pointer-events: none;
 }
+.docked-panel-container[data-mode=float] {
+  right: var(--docked-panel-push-width, 0);
+}
 
 .docked-panel-resize-handle {
   --resize-handle-width: 5px;
@@ -11365,7 +11368,7 @@ hr {
 }
 
 body[data-docked-panel-mode=push] {
-  margin-right: var(--docked-panel-width, 0);
+  margin-right: var(--docked-panel-push-width, 0);
 }
 body[data-docked-panel-mode=push].docked-panel-slide-enter-active, body[data-docked-panel-mode=push].docked-panel-slide-leave-active {
   transition: margin-right 250ms ease;
@@ -11374,9 +11377,9 @@ body[data-docked-panel-mode=push].docked-panel-slide-enter-active .navbar-fixed-
   transition: right 250ms ease;
 }
 body[data-docked-panel-mode=push] .navbar-fixed-top {
-  right: var(--docked-panel-width, 0);
+  right: var(--docked-panel-push-width, 0);
 }
-body[data-docked-panel-mode=push] .docked-panel-container .docked-panel {
+body[data-docked-panel-mode=push] .docked-panel-container[data-mode=push] .docked-panel {
   top: 0;
   border-radius: 0;
   border-width: 0 0 0 1px;
@@ -17820,7 +17823,7 @@ iframe.file-browser {
 }
 @media (min-width: 992px) {
   .profile-sticky-nav {
-    top: 80px;
+    top: var(--sticky-element-offset, 0);
   }
   .profile-sticky-nav.outline {
     top: 0;

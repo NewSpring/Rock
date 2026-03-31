@@ -57,9 +57,34 @@ function BindNavEvents() {
         })
       }
     }
+
+    topHeaderOffset()
+
+    var topHeader = $('.rock-top-header');
+    // create a new resize observer to watch for changes in the top header height
+    var topHeaderResizeObserver = new ResizeObserver(function (entries) {
+        topHeaderOffset()
+    });
+    // start observing the top header element
+    topHeaderResizeObserver.observe(topHeader[0]);
   });
 }
 
+function topHeaderOffset() {
+  // watch the .rock-top-header element for changes in height and write the new height to the body element as a css variable
+  var topHeader = document.querySelector('.rock-top-header');
+  document.body.style.setProperty('--top-header-height', topHeader.offsetHeight + 'px');
+  // if the top header is a fixed header, and is not position relative, then also set the --top-header-fixed-height css variable
+  // get computed topHeader style and check if position is relative
+  // Rock Next Gen theme now uses a scrollable inner-body, so we no longer
+  // need the sticky element offset value. It is set to 0 in the CSS file.
+  //var topHeaderStyle = window.getComputedStyle(topHeader);
+  //if (topHeaderStyle.position !== 'relative') {
+  //  document.body.style.setProperty('--sticky-element-offset', topHeader.offsetHeight + 'px');
+  //} else {
+  //  document.body.style.setProperty('--sticky-element-offset', '0px');
+  //}
+}
 function navMouseEvents() {
   var hoverDelay = 50,
   hideDelay = 100;
