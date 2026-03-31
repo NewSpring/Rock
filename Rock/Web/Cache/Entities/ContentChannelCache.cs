@@ -343,6 +343,63 @@ namespace Rock.Web.Cache
         /// </value>
         public ContentLibraryConfiguration ContentLibraryConfiguration { get; set; }
 
+        /// <summary>
+        /// Gets the content channel items.
+        /// </summary>
+        /// <remarks>
+        /// If this channel's items are manually ordered, this collection will be sorted according to the
+        /// order specified in the database. If not, they will be sorted by their start date/time.
+        /// </remarks>
+        public List<ContentChannelItemCache> ContentChannelItems
+        {
+            get
+            {
+                var contentChannelItems = new List<ContentChannelItemCache>();
+
+                if ( _contentChannelItemIds == null )
+                {
+                    lock ( _obj )
+                    {
+                        if ( _contentChannelItemIds == null )
+                        {
+                            using ( var rockContext = RockApp.Current.CreateRockContext() )
+                            {
+                                var qry = new ContentChannelItemService( rockContext )
+                                    .Queryable()
+                                    .Where( i => i.ContentChannelId == Id );
+
+                                if ( ItemsManuallyOrdered )
+                                {
+                                    qry = qry.OrderBy( i => i.Order );
+                                }
+                                else
+                                {
+                                    qry = qry.OrderBy( i => i.StartDateTime );
+                                }
+
+                                _contentChannelItemIds = qry
+                                    .Select( c => c.Id )
+                                    .ToList();
+                            }
+                        }
+                    }
+                }
+
+                foreach ( var id in _contentChannelItemIds )
+                {
+                    var contentChannelItem = ContentChannelItemCache.Get( id );
+                    if ( contentChannelItem != null )
+                    {
+                        contentChannelItems.Add( contentChannelItem );
+                    }
+                }
+
+                return contentChannelItems;
+            }
+        }
+
+        private List<int> _contentChannelItemIds = null;
+
         #endregion
 
         #region Public Methods
@@ -375,6 +432,8 @@ namespace Rock.Web.Cache
             EnablePersonalization = contentChannel.EnablePersonalization;
             CategoryIds = contentChannel.Categories.Select( c => c.Id ).ToList();
             ContentLibraryConfigurationJson = contentChannel.ContentLibraryConfigurationJson;
+
+            _contentChannelItemIds = null;
         }
 
         /// <summary>
