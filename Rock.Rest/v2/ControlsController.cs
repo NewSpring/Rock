@@ -3274,7 +3274,7 @@ namespace Rock.Rest.v2
                     {
                         Activity = CommunicationRecipientActivity.MarkedAsSpam,
                         ActivityDateTime = recipient.SpamComplaintDateTime.Value,
-                        Description = "Recipient marked email as spam."
+                        Description = "Recipient marked message as spam."
                     } );
                 }
 
@@ -3284,7 +3284,7 @@ namespace Rock.Rest.v2
                     {
                         Activity = CommunicationRecipientActivity.Unsubscribed,
                         ActivityDateTime = recipient.UnsubscribeDateTime.Value,
-                        Description = "Recipient unsubscribed from email."
+                        Description = "Recipient unsubscribed from message."
                     } );
                 }
 
