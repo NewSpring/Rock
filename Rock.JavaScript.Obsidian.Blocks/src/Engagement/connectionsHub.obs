@@ -569,6 +569,7 @@
                                   :orderedKeys="orderedRequestKeys ?? []"
                                   :detailsBox="dockedPanelDetailsBox"
                                   :dockedPanelCloseOnOutsideClick="dockedPanelCloseOnOutsideClick"
+                                  :navigationUrls="box.navigationUrls ?? {}"
                                   @navigate="updateSelectedRequestKey"
                                   @navigateToBreadcrumb="navigateToBreadcrumb"
                                   @navigateToAdditionalRequest="navigateToAdditionalRequest"
@@ -2045,10 +2046,8 @@
 
     function clearAllSelections(): void {
         groupedGridPanel.value.clearSelectedKeys();
-        // gridRefs.value.forEach(grid => {
-        //     console.log("clearning for grid: ", grid);
-        //     grid.clearSelectedKeys();
-        // });
+        selectedKeys.value = {};
+        selectedKeysOnUnmount.value = {};
     }
 
     async function getSmsConfiguration(selectedKeys: string[], connectionTypeIdKey: string | null | undefined): Promise<HttpResult<GetSmsConfigurationResponseBag>> {
@@ -2648,11 +2647,8 @@
                 dockedPanelDetailsBox.value?.entity?.connectorPerson === result.data[0].connectorDetails?.value;
                 refreshActivityEntries(connectionRequestIdKeys[0]);
             }
-            else {
-                // clear selected keys
-                clearAllSelections();
-            }
 
+            clearAllSelections();
             isAssignRequestModalVisible.value = false;
             return;
         }

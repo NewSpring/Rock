@@ -229,14 +229,40 @@
     }
 
     function onDocumentPointerDown(e: PointerEvent): void {
-        if (isHTMLElement(e.target)
-            && props.closeOnOutsideClick
-            && internalValue.value
-            && dockedPanelRef.value
-            && !dockedPanelRef.value.contains(e.target)
-            && !dockedPanelResizeHandleRef.value?.contains(e.target)) {
-            internalValue.value = false;
+        const panel = dockedPanelRef.value;
+        const resizeHandle = dockedPanelResizeHandleRef.value;
+        const target = e.target;
+
+        if (!isHTMLElement(target)
+            || !props.closeOnOutsideClick
+            || !internalValue.value
+            || !panel
+            || panel.contains(target)
+            || resizeHandle?.contains(target)) {
+            return;
         }
+
+        const panelContainer = panel.parentElement;
+        let targetBodyChild: HTMLElement | null = target;
+
+        // Walk up the DOM until we find the direct child of <body>
+        // that contains the clicked element.
+        while (targetBodyChild && targetBodyChild.parentElement !== document.body) {
+            targetBodyChild = targetBodyChild.parentElement;
+        }
+
+        // If the click happened inside a different top-level body child that is
+        // absolutely or fixed positioned, treat it as a floating/portaled UI
+        // element (such as a dropdown or date picker) and do not close the panel.
+        if (targetBodyChild && targetBodyChild !== panelContainer) {
+            const targetContainerPosition = window.getComputedStyle(targetBodyChild).position;
+
+            if (targetContainerPosition === "absolute" || targetContainerPosition === "fixed") {
+                return;
+            }
+        }
+
+        internalValue.value = false;
     }
 
     function onBeforeEnter(): void {
