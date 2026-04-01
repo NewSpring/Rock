@@ -106,7 +106,7 @@
                     </RockButton>
                 </div>
                 <div class="border-left border-info pl-spacing-md d-flex align-items-center gap-md">
-                    <RockButton class="activity-btn" @click="showAddActivityModal" :disabled="!canEditConnectionRequests">
+                    <RockButton class="activity-btn" @click="showAddActivityModal()" :disabled="!canEditConnectionRequests">
                         <i class="ti ti-activity"></i>
                         <span class="activity-btn-label">Add Activity</span>
                     </RockButton>
@@ -446,7 +446,7 @@
                                @save="onAddRequest"
                                @close="resetNewConnectionRequest"
                                @fetchConnectionOpportunityDetails="fetchConnectionOpportunityDetails"
-                               @fetchConnectorOptions="fetchConnectorOptions"
+                               @fetchConnectorOptions="fetchConnectorOptionsForAdd"
                                @fetchPlacementGroupItems="fetchPlacementGroupItems"
                                @fetchPlacementGroupDetails="fetchPlacementGroupDetails" />
 
@@ -569,6 +569,7 @@
                                   :orderedKeys="orderedRequestKeys ?? []"
                                   :detailsBox="dockedPanelDetailsBox"
                                   :dockedPanelCloseOnOutsideClick="dockedPanelCloseOnOutsideClick"
+                                  :navigationUrls="box.navigationUrls ?? {}"
                                   @navigate="updateSelectedRequestKey"
                                   @navigateToBreadcrumb="navigateToBreadcrumb"
                                   @navigateToAdditionalRequest="navigateToAdditionalRequest"
@@ -576,7 +577,7 @@
                                   :isSaving="isDockedPanelSaving"
                                   @editRequest="onEditRequest"
                                   @transferRequest="onTransferClick"
-                                  @addActivity="showAddActivityModal"
+                                  @addActivity="showAddActivityModal(dockedPanelDetailsBox)"
                                   @onCelebrationClick="box => showCelebrationModal(null, box)"
                                   @onReminderClick="box => showReminderModal(null, box)"
                                   @onSMSClick="showSMSModal(true)"
@@ -585,13 +586,14 @@
                                   @onRequestStateChanged="updateRequestStates"
                                   @onStatusButtonClick="onStatusClickFromDockedPanel"
                                   @launchWorkflow="launchWorkflowForRequests"
-                                  @deleteRequest="showDeleteRequestModal()" />
+                                  @deleteRequest="showDeleteRequestModal(null, dockedPanelDetailsBox)" />
 
     <TransferConnectionRequestModal v-model="isTransferModalVisible"
                                     :isLoading="areTransferDetailsLoading"
                                     :transferDetails="transferRequestDetails"
                                     :isSaving="isModalSaving"
                                     :errorMessage="modalErrorMessage"
+                                    @fetchConnectorOptions="fetchConnectorOptionsForTransfer"
                                     @dismissErrorMessage="onModalErrorMessageDismissed"
                                     @close="onModalErrorMessageDismissed"
                                     @transfer="transferRequest" />
@@ -1633,9 +1635,9 @@
         showSecurity(EntityType.ConnectionRequest, key);
     }
 
-    function showDeleteRequestModal(row: Record<string, unknown> | null = null): void {
+    function showDeleteRequestModal(row: Record<string, unknown> | null = null, detailBox: ConnectionRequestDetailBox | null = null): void {
         openDropdownIndex.value = null;
-        prepareRequestDetailsForModal(row, dockedPanelDetailsBox.value);
+        prepareRequestDetailsForModal(row, detailBox);
         isDeleteRequestModalVisible.value = true;
     }
 
@@ -1654,8 +1656,8 @@
         isChangeStateModalVisible.value = true;
     }
 
-    function showAddActivityModal(): void {
-        prepareRequestDetailsForModal(null, dockedPanelDetailsBox.value);
+    function showAddActivityModal(detailBox: ConnectionRequestDetailBox | null = null): void {
+        prepareRequestDetailsForModal(null, detailBox);
         isActivityModalVisible.value = true;
     }
 
@@ -1769,6 +1771,20 @@
         if (item) {
             selectedCampus.value = item;
         }
+    }
+
+    async function fetchConnectorOptionsForAdd(connectionOpportunityGuid: string, campusGuid: string): Promise<void> {
+        const connectorOptions = await fetchConnectorOptions(connectionOpportunityGuid, campusGuid);
+        connectionOpportunityDetails.value.connectorOptions = connectorOptions;
+    }
+
+    async function fetchConnectorOptionsForTransfer(connectionOpportunityGuid: string, campusGuid: string): Promise<void> {
+        if (!transferRequestDetails.value) {
+            return;
+        }
+
+        const connectorOptions = await fetchConnectorOptions(connectionOpportunityGuid, campusGuid);
+        transferRequestDetails.value.connectorItems = connectorOptions?.connectors;
     }
 
     // #region Block Actions
@@ -2045,10 +2061,8 @@
 
     function clearAllSelections(): void {
         groupedGridPanel.value.clearSelectedKeys();
-        // gridRefs.value.forEach(grid => {
-        //     console.log("clearning for grid: ", grid);
-        //     grid.clearSelectedKeys();
-        // });
+        selectedKeys.value = {};
+        selectedKeysOnUnmount.value = {};
     }
 
     async function getSmsConfiguration(selectedKeys: string[], connectionTypeIdKey: string | null | undefined): Promise<HttpResult<GetSmsConfigurationResponseBag>> {
@@ -2462,15 +2476,16 @@
         }
     }
 
-    async function fetchConnectorOptions(connectionOpportunityGuid: string, campusGuid: string): Promise<void> {
+    async function fetchConnectorOptions(connectionOpportunityGuid: string, campusGuid: string): Promise<ConnectorOptionsBag | undefined> {
         const result = await invokeBlockAction<ConnectorOptionsBag>("FetchConnectorOptions", {
             connectionOpportunityGuid: connectionOpportunityGuid,
             campus: campusGuid
         });
 
         if (result.isSuccess && result.data) {
-            connectionOpportunityDetails.value.connectorOptions = result.data;
+            return result.data;
         }
+        return;
     }
 
     async function fetchPlacementGroupItems(connectionOpportunityGuid: string, campusGuid: string): Promise<void> {
@@ -2648,11 +2663,8 @@
                 dockedPanelDetailsBox.value?.entity?.connectorPerson === result.data[0].connectorDetails?.value;
                 refreshActivityEntries(connectionRequestIdKeys[0]);
             }
-            else {
-                // clear selected keys
-                clearAllSelections();
-            }
 
+            clearAllSelections();
             isAssignRequestModalVisible.value = false;
             return;
         }

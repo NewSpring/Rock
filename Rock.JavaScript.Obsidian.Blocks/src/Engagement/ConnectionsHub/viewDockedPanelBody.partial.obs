@@ -232,10 +232,11 @@
                 <div class="d-flex flex-column gap-md">
                     <div class="d-flex flex-column gap-xs">
                         <RockLabel class="text-interface-medium text-regular">Group</RockLabel>
-                        <HighlightLabel v-if="requestDetails?.placementGroup"
+                        <HighlightLabel v-if="requestDetails?.placementGroup?.groupId"
                                         :iconCssClass="isNullOrWhiteSpace(requestDetails?.placementGroup?.iconCssClass) ? 'ti ti-users' : requestDetails?.placementGroup?.iconCssClass!"
                                         labelType="custom"
-                                        customClass="label label-info w-fit">
+                                        customClass="label label-info w-fit cursor-pointer"
+                                        @click="emit('navigateToGroup', requestDetails.placementGroup.groupId ?? '')">
                             {{ placementGroupName }}
                         </HighlightLabel>
                         <HighlightLabel v-else
@@ -381,11 +382,6 @@
 </template>
 
 <style scoped>
-.disabled {
-    cursor: default;
-    color: var(--color-interface-medium);
-}
-
 .person-details {
     white-space: nowrap;
 }
@@ -569,6 +565,7 @@
         (e: "onReassignConnector", value: string): void;
         (e: "launchWorkflow", value: LaunchWorkflowBag): void;
         (e: "navigateToAdditionalRequest", value: string): void;
+        (e: "navigateToGroup", value: string): void;
     }>();
 
     const invokeBlockAction = useInvokeBlockAction();

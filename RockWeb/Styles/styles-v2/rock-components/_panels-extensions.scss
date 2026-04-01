@@ -801,6 +801,10 @@
   z-index: var(--z-docked-panel);
   /* Container is layout only */
   pointer-events: none;
+
+  &[data-mode="float"] {
+    right: var(--docked-panel-push-width, 0);
+  }
 }
 
 .docked-panel-resize-handle {
@@ -883,7 +887,7 @@
 }
 
 body[data-docked-panel-mode="push"] {
-  margin-right: var(--docked-panel-width, 0);
+  padding-right: var(--docked-panel-push-width, 0);
 
   &.docked-panel-slide-enter-active,
   &.docked-panel-slide-leave-active {
@@ -895,10 +899,10 @@ body[data-docked-panel-mode="push"] {
   }
 
   .navbar-fixed-top {
-    right: var(--docked-panel-width, 0);
+    right: var(--docked-panel-push-width, 0);
   }
 
-  .docked-panel-container .docked-panel {
+  .docked-panel-container[data-mode="push"] .docked-panel {
     top: 0;
     border-radius: 0;
     border-width: 0 0 0 1px;

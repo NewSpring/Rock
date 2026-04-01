@@ -147,7 +147,8 @@
                                      @onCelebrationClick="emit('onCelebrationClick', detailsBox)"
                                      @onReminderClick="emit('onReminderClick', detailsBox)"
                                      @onReassignConnector="(connector) => emit('onReassignConnector', connector)"
-                                     @launchWorkflow="(bag) => emit('launchWorkflow', bag)" />
+                                     @launchWorkflow="(bag) => emit('launchWorkflow', bag)"
+                                     @navigateToGroup="navigateToGroup" />
             </template>
         </template>
         <template #footer>
@@ -334,6 +335,7 @@
     import PersonAvatar from "@Obsidian/Controls/personAvatar.obs";
     import BadgeList from "@Obsidian/Controls/badgeList.obs";
     import RockButton from "@Obsidian/Controls/rockButton.obs";
+    import { NavigationUrlKey } from "./types.partial";
     import { isNullOrWhiteSpace, pluralize } from "@Obsidian/Utility/stringUtils";
     import { EntityType } from "@Obsidian/SystemGuids/entityType";
     import { newGuid } from "@Obsidian/Utility/guid";
@@ -401,6 +403,11 @@
         isAdditionalRequest: {
             type: Boolean as PropType<boolean>,
             default: false
+        },
+
+        navigationUrls: {
+            type: Object as PropType<Record<string, string>>,
+            default: {}
         }
     });
 
@@ -545,10 +552,21 @@
     }
 
     function navigateToPersonProfile(): void {
-        if (!props.detailsBox?.entity?.requesterPerson?.idKey) {
+        const key = props.detailsBox?.entity?.requesterPerson?.idKey;
+        if (!key || !props.navigationUrls[NavigationUrlKey.PersonProfilePage]) {
             return;
         }
-        const url = `/Person/${props.detailsBox.entity.requesterPerson.idKey}`;
+
+        const url = props.navigationUrls[NavigationUrlKey.PersonProfilePage].replace("((Key))", key);
+        window.open(url, "_blank");
+    }
+
+    function navigateToGroup(key: string): void {
+        if (!props.navigationUrls[NavigationUrlKey.GroupDetailPage]) {
+            return;
+        }
+
+        const url = props.navigationUrls[NavigationUrlKey.GroupDetailPage].replace("((Key))", key);
         window.open(url, "_blank");
     }
 

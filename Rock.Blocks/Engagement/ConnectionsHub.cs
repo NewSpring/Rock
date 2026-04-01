@@ -941,7 +941,7 @@ namespace Rock.Blocks.Engagement
             // Always set the assigned status, for both new and preexisting members.
             groupMember.GroupMemberStatus = connectionRequest.AssignedGroupMemberStatus.Value;
 
-            var requirementsToCheck = connectionRequest.AssignedGroup.GroupRequirements.Where( gr => gr.MustMeetRequirementToAddMember ).ToList();
+            var requirementsToCheck = connectionRequest.AssignedGroup.GetGroupRequirements( RockContext ).Where( gr => gr.MustMeetRequirementToAddMember ).ToList();
             var manualRequirements = requirementsToCheck.Where( gr => gr.GroupRequirementType.RequirementCheckType == RequirementCheckType.Manual );
             var nonManualRequirements = requirementsToCheck.Where( gr => gr.GroupRequirementType.RequirementCheckType != RequirementCheckType.Manual );
 
@@ -1182,10 +1182,25 @@ namespace Rock.Blocks.Engagement
                     } ) )
                 .ToList();
 
-            // Group by person to deduplicate connectors who belong to multiple connector groups,
+            // Ensure the current logged-in person appears in the list even if outside the campus filter.
+            var currentPerson = RequestContext.CurrentPerson;
+            if ( currentPerson?.PrimaryAlias != null && !memberRows.Any( r => r.Person.PrimaryAliasGuid == currentPerson.PrimaryAlias.Guid ) )
+            {
+                memberRows.Add( new { Person = currentPerson, CampusGuid = ( Guid? ) null } );
+            }
+
+            // Ensure the currently assigned connector appears in the list even if outside the campus filter.
+            if ( currentConnector?.Person != null && !memberRows.Any( r => r.Person.PrimaryAliasGuid == currentConnector.Person.PrimaryAlias?.Guid ) )
+            {
+                memberRows.Add( new { Person = currentConnector.Person, CampusGuid = ( Guid? ) null } );
+            }
+
+            // Group by person to deduplicate connectors    who belong to multiple connector groups,
             // and to aggregate the campuses each connector is assigned to.
             var connectors = memberRows
                 .GroupBy( r => r.Person.PrimaryAliasGuid )
+                .OrderBy( g => g.First().Person.LastName )
+                .ThenBy( g => g.First().Person.FirstName )
                 .Select( g => new ConnectorItemBag
                 {
                     ListItemBag = new ListItemBag
@@ -1202,44 +1217,10 @@ namespace Rock.Blocks.Engagement
                 } )
                 .ToList();
 
-            var currentPerson = RequestContext.CurrentPerson;
-            var currentPersonAliasGuid = currentPerson.PrimaryAlias?.Guid;
-            if ( currentPersonAliasGuid.HasValue && !connectors.Any( c => c.ListItemBag.Value == currentPersonAliasGuid.Value.ToString() ) )
-            {
-                connectors.Add( new ConnectorItemBag
-                {
-                    ListItemBag = new ListItemBag
-                    {
-                        Text = currentPerson.FullName,
-                        Value = currentPersonAliasGuid.Value.ToString()
-                    },
-                    PhotoUrl = currentPerson.PhotoUrl,
-                    IsAvailableToAllCampuses = true
-                } );
-            }
-
-            // Adds the current connector to the connector items if the current connector does not exist in the list.
-            if ( currentConnector != null && !connectors.Any( c => c.ListItemBag.Value == currentConnector.Guid.ToString() ) )
-            {
-                connectors.Add( new ConnectorItemBag
-                {
-                    ListItemBag = new ListItemBag
-                    {
-                        Text = currentConnector.Person.FullName,
-                        Value = currentConnector.Guid.ToString()
-                    },
-                    PhotoUrl = currentConnector.Person.PhotoUrl,
-                    IsAvailableToAllCampuses = true
-                } );
-            }
-
-            // Order by Connector Name before adding Unassigned to the end of the list.
-            connectors.OrderBy( c => c.ListItemBag.Text );
-
-            // Add Unassigned Connector
+            // Add Unassigned Connector to the beggining of the list.
             if ( addUnassignedConnector )
             {
-                connectors.Add( new ConnectorItemBag
+                connectors.Insert( 0, new ConnectorItemBag
                 {
                     ListItemBag = new ListItemBag
                     {
@@ -1889,7 +1870,7 @@ namespace Rock.Blocks.Engagement
             var reminderCount = new ReminderService( RockContext ).Queryable()
                 .Include( r => r.PersonAlias )
                 .AsNoTracking()
-                .Where( r => !r.IsComplete && r.ReminderDate < RockDateTime.Now && r.PersonAlias.PersonId == RequestContext.CurrentPerson.Id )
+                .Where( r => !r.IsComplete && r.ReminderDate < RockDateTime.Now && r.PersonAlias.PersonId == RequestContext.CurrentPerson.Id && r.EntityId == connectionRequest.Id )
                 .Count();
 
             var requesterPerson = new PersonFieldBag
@@ -2227,6 +2208,7 @@ namespace Rock.Blocks.Engagement
                 {
                     ListItemBag = placementGroup.ToListItemBag(),
                     IconCssClass = placementGroup.GroupType.IconCssClass ?? "ti ti-users",
+                    GroupId = placementGroup.Id.ToString()
                 };
 
                 var groupMember = placementGroup.Members.FirstOrDefault( m => m.PersonId == connectionRequest.PersonAlias.PersonId );
@@ -4639,7 +4621,6 @@ WHERE 1 = 1" );
                 return ActionBadRequest( "You are not authorized to view this Connection Request." );
             }
 
-            // TODO - I probably need to add several include statements.
             var box = GetConnectionRequestDetailBox( connectionRequest ); 
 
             return ActionOk( box );
@@ -4971,7 +4952,6 @@ WHERE 1 = 1" );
                 CurrentConnectionOpportunityGuid = connectionRequest.ConnectionOpportunity.Guid,
                 CurrentCampusGuid = connectionRequest.Campus?.Guid,
                 CurrentConnectionStatusGuid = connectionRequest.ConnectionStatus.Guid,
-                CurrentDueDate = connectionRequest.DueDate?.ToRockDateTimeOffset(),
                 Campuses = campuses,
                 Statuses = connectionType.OrderedStatuses.ToListItemBagList(),
                 ConnectionOpportunities = new List<ConnectionOpportunityBag>(),
@@ -4981,40 +4961,6 @@ WHERE 1 = 1" );
             foreach( var opportunity in connectionOpportunities )
             {
                 opportunity.LoadAttributes();
-
-                var connectorItems = opportunity.ConnectionOpportunityConnectorGroups
-                    .SelectMany( cg => cg.ConnectorGroup.Members )
-                    .Select( gm => gm.Person )
-                    .Distinct()
-                    .Select( p => new ListItemBag
-                    {
-                        Text = p.FullName,
-                        Value = p.PrimaryAlias.Guid.ToString()
-                    } )
-                    .ToList();
-
-                // If the current connector (from the request) isn't in the connector list, add it.
-                if ( connectionRequest.ConnectorPersonAlias != null && !connectorItems.Any( c => c.Value == connectionRequest.ConnectorPersonAlias.Guid.ToString() ) )
-                {
-                    connectorItems.Add( new ListItemBag
-                    {
-                        Text = connectionRequest.ConnectorPersonAlias.Person.FullName,
-                        Value = connectionRequest.ConnectorPersonAlias.Guid.ToString()
-                    } );
-                }
-
-                // If the connector list does not include the current person, add them.
-                if ( !connectorItems.Any( c => c.Value == RequestContext.CurrentPerson.PrimaryAliasGuid.ToString() ) )
-                {
-                    var person = RequestContext.CurrentPerson;
-
-                    connectorItems.Add(  new ListItemBag
-                    {
-                        Text = person.FullName,
-                        Value = person.PrimaryAliasGuid.ToString()
-                    } );
-                }
-
                 bool? otherEntityAuthorized = null;
 
                 var opportunityBag = new ConnectionOpportunityBag
@@ -5024,7 +4970,6 @@ WHERE 1 = 1" );
                     Campuses = opportunity.ConnectionOpportunityCampuses.Where( c => c.Campus != null && c.Campus.IsActive == true )
                         .Select( c => c.Campus )
                         .ToListItemBagList(),
-                    PotentialConnectors = connectorItems,
                     PhotoUrl = ConnectionOpportunity.GetPhotoUrl( opportunity.PhotoId ),
                     IconCssClass = opportunity.IconCssClass,
                     Description = opportunity.Description,
@@ -5170,16 +5115,6 @@ WHERE 1 = 1" );
                 }
 
                 connectionRequest.ConnectorPersonAliasId = newConnectorId.Value;
-            }
-
-            // TODO - This conflicts with other due date logic, especially the logic in the save hook.
-            if ( bag.DueDateOption == "none" )
-            {
-                connectionRequest.DueDate = null;
-            }
-            else if ( bag.DueDateOption == "select" )
-            {
-                connectionRequest.DueDate = bag.DueDate?.DateTime;
             }
 
             var activityTransferGuid = Rock.SystemGuid.ConnectionActivityType.TRANSFERRED.AsGuid();

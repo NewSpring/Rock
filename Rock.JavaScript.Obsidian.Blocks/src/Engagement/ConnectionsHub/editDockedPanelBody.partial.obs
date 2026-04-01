@@ -44,7 +44,8 @@
                                     <div class="col-md-6">
                                         <DatePicker v-model="followUpDate"
                                                     label="Follow-Up Date"
-                                                    rules="required" />
+                                                    rules="required"
+                                                    :disallowPastDateSelection="true" />
                                     </div>
                                 </div>
                             </template>
@@ -120,13 +121,11 @@
                                 </div>
                                 <div class="row" v-if="selectedPlacementGroupDetails?.groupMemberAttributes">
                                     <div class="col-md-6">
-                                        <!-- TODO - Cannot disable attribute values container -->
                                         <AttributeValuesContainer v-model="placementGroupMemberAttributeValues"
                                                                   :attributes="selectedPlacementGroupDetails.groupMemberAttributes"
                                                                   :numberOfColumns="1"
-                                                                  isEditMode
+                                                                  :isEditMode="!arePlacementGroupsAndCampusFieldsDisabled"
                                                                   :showCategoryLabel="false" />
-
                                     </div>
                                 </div>
                             </template>
@@ -154,11 +153,6 @@
 </template>
 
 <style scoped>
-.disabled {
-    cursor: default;
-    color: var(--color-interface-medium);
-}
-
 .person-details {
     white-space: nowrap;
 }
