@@ -447,34 +447,34 @@ iframe {
   :root {
     --tint-white-percentage: 50%;
     --shade-black-percentage: 15%;
-    --color-critical-tint: color-mix(in srgb, var(--base-critical) 50%, transparent var(--tint-white-percentage));
-    --color-critical-soft: color-mix(in srgb, var(--base-critical) 7%, transparent var(--tint-white-percentage));
+    --color-critical-tint: color-mix(in srgb, var(--base-critical) 50%, var(--color-interface-softest));
+    --color-critical-soft: color-mix(in srgb, var(--base-critical) 7%, var(--color-interface-softest));
     --color-critical-shade: color-mix(in srgb, var(--base-critical) 100%, #000 var(--shade-black-percentage));
-    --color-danger-tint: color-mix(in srgb, var(--base-danger) 50%, transparent var(--tint-white-percentage));
-    --color-danger-soft: color-mix(in srgb, var(--base-danger) 7%, transparent var(--tint-white-percentage));
+    --color-danger-tint: color-mix(in srgb, var(--base-danger) 50%, var(--color-interface-softest));
+    --color-danger-soft: color-mix(in srgb, var(--base-danger) 7%, var(--color-interface-softest));
     --color-danger-shade: color-mix(in srgb, var(--base-danger) 100%, #000 var(--shade-black-percentage));
-    --color-info-tint: color-mix(in srgb, var(--base-info) 50%, transparent var(--tint-white-percentage));
-    --color-info-soft: color-mix(in srgb, var(--base-info) 7%, transparent var(--tint-white-percentage));
+    --color-info-tint: color-mix(in srgb, var(--base-info) 50%, var(--color-interface-softest));
+    --color-info-soft: color-mix(in srgb, var(--base-info) 7%, var(--color-interface-softest));
     --color-info-shade: color-mix(in srgb, var(--base-info) 100%, #000 var(--shade-black-percentage));
-    --color-success-tint: color-mix(in srgb, var(--base-success) 50%, transparent var(--tint-white-percentage));
-    --color-success-soft: color-mix(in srgb, var(--base-success) 7%, transparent var(--tint-white-percentage));
+    --color-success-tint: color-mix(in srgb, var(--base-success) 50%, var(--color-interface-softest));
+    --color-success-soft: color-mix(in srgb, var(--base-success) 7%, var(--color-interface-softest));
     --color-success-shade: color-mix(in srgb, var(--base-success) 100%, #000 var(--shade-black-percentage));
-    --color-warning-tint: color-mix(in srgb, var(--base-warning) 50%, transparent var(--tint-white-percentage));
-    --color-warning-soft: color-mix(in srgb, var(--base-warning) 7%, transparent var(--tint-white-percentage));
+    --color-warning-tint: color-mix(in srgb, var(--base-warning) 50%, var(--color-interface-softest));
+    --color-warning-soft: color-mix(in srgb, var(--base-warning) 7%, var(--color-interface-softest));
     --color-warning-shade: color-mix(in srgb, var(--base-warning) 100%, #000 var(--shade-black-percentage));
-    --color-primary-tint: color-mix(in srgb, var(--base-primary) 50%, transparent var(--tint-white-percentage));
-    --color-primary-soft: color-mix(in srgb, var(--base-primary) 7%, transparent var(--tint-white-percentage));
+    --color-primary-tint: color-mix(in srgb, var(--base-primary) 50%, var(--color-interface-softest));
+    --color-primary-soft: color-mix(in srgb, var(--base-primary) 7%, var(--color-interface-softest));
     --color-primary-shade: color-mix(in srgb, var(--base-primary) 100%, #000 var(--shade-black-percentage));
-    --color-link-tint: color-mix(in srgb, var(--base-link) 50%, transparent var(--tint-white-percentage));
+    --color-link-tint: color-mix(in srgb, var(--base-link) 50%, var(--color-interface-softest));
     --color-link-shade: color-mix(in srgb, var(--base-link) 100%, #000 var(--shade-black-percentage));
-    --color-secondary-tint: color-mix(in srgb, var(--base-secondary) 50%, transparent var(--tint-white-percentage));
-    --color-secondary-soft: color-mix(in srgb, var(--base-secondary) 7%, transparent var(--tint-white-percentage));
+    --color-secondary-tint: color-mix(in srgb, var(--base-secondary) 50%, var(--color-interface-softest));
+    --color-secondary-soft: color-mix(in srgb, var(--base-secondary) 7%, var(--color-interface-softest));
     --color-secondary-shade: color-mix(in srgb, var(--base-secondary) 100%, #000 var(--shade-black-percentage));
-    --color-gender-male-tint: color-mix(in srgb, var(--base-gender-male) 50%, transparent var(--tint-white-percentage));
-    --color-gender-male-soft: color-mix(in srgb, var(--base-gender-male) 7%, transparent var(--tint-white-percentage));
+    --color-gender-male-tint: color-mix(in srgb, var(--base-gender-male) 50%, var(--color-interface-softest));
+    --color-gender-male-soft: color-mix(in srgb, var(--base-gender-male) 7%, var(--color-interface-softest));
     --color-gender-male-shade: color-mix(in srgb, var(--base-gender-male) 100%, #000 var(--shade-black-percentage));
-    --color-gender-female-tint: color-mix(in srgb, var(--base-gender-female) 50%, transparent var(--tint-white-percentage));
-    --color-gender-female-soft: color-mix(in srgb, var(--base-gender-female) 7%, transparent var(--tint-white-percentage));
+    --color-gender-female-tint: color-mix(in srgb, var(--base-gender-female) 50%, var(--color-interface-softest));
+    --color-gender-female-soft: color-mix(in srgb, var(--base-gender-female) 7%, var(--color-interface-softest));
     --color-gender-female-shade: color-mix(in srgb, var(--base-gender-female) 100%, #000 var(--shade-black-percentage));
   }
 }
@@ -20572,6 +20572,10 @@ table tbody tr td .required-indicator::after {
 }
 
 /* ===================== BLOCK =================== */
+.btn-chat-toggle.active {
+  background-color: var(--color-info-soft);
+}
+
 .chat-bot .chat-container {
   display: flex;
   flex-direction: row;
@@ -20654,14 +20658,29 @@ table tbody tr td .required-indicator::after {
   position: relative;
 }
 
+.chat-bot .conversation-container h1 {
+  font-size: var(--font-size-h4);
+}
+
+.chat-bot .conversation-container h2 {
+  font-size: var(--font-size-h5);
+}
+
+.chat-bot .conversation-container h3,
+.chat-bot .conversation-container h4,
+.chat-bot .conversation-container h5,
+.chat-bot .conversation-container h6 {
+  font-size: var(--font-size-h6);
+}
+
 .chat-bot .footer-actions {
   /* this is ugly, don't use as final */
   position: absolute;
   bottom: 0;
   left: 0;
-  right: 0;
-  margin: 0 24px;
+  right: 10px; /* don't cover the scrollbar */
   padding: var(--spacing-large);
+  background: linear-gradient(to top, var(--color-interface-softest) 50%, color-mix(in srgb, var(--color-interface-softest) 70%, transparent) 70%, color-mix(in srgb, var(--color-interface-softest) 90%, transparent) 80%, transparent 100%);
 }
 
 .chat-bot .action-bar .btn-warning,
@@ -20685,6 +20704,8 @@ table tbody tr td .required-indicator::after {
   border-radius: 100px;
   padding: 8px 12px;
   margin-left: var(--spacing-xsmall);
+  border-bottom-left-radius: 100px !important;
+  border-top-left-radius: 100px !important;
 }
 
 .chat-bot .action-bar-container {
@@ -20712,7 +20733,7 @@ table tbody tr td .required-indicator::after {
   overflow-y: auto;
   gap: var(--spacing-small);
   margin-bottom: 0;
-  padding: var(--spacing-medium) var(--spacing-xlarge) 160px var(--spacing-xlarge);
+  padding: var(--spacing-medium) var(--spacing-medium) 120px var(--spacing-medium);
   border: 1px solid var(--color-interface-soft);
   border-radius: var(--rounded-small);
   background-color: var(--color-interface-softest);
@@ -20783,7 +20804,7 @@ table tbody tr td .required-indicator::after {
 .chat-bot .anchors-container {
   display: flex;
   gap: var(--spacing-xsmall);
-  margin: var(--spacing-small) var(--spacing-xlarge);
+  margin: var(--spacing-small) var(--spacing-large);
 }
 
 .chat-bot .anchor {

@@ -1,7 +1,8 @@
 <template>
     <div v-if="isDockedMode">
-        <RockButton class="rock-bookmark"
+        <RockButton class="rock-bookmark btn-chat-toggle"
                     btnType="default"
+                    :class="{ active: isDockedChatOpen }"
                     :disabled="!!config.error"
                     v-tooltip="config.error"
                     @click="onToggleDockedChatClick">
@@ -147,8 +148,8 @@
 
     const dockedChatBotIcon = computed((): string => {
         return !config.error && isDockedChatOpen.value
-            ? "ti ti-message-chatbot-filled"
-            : "ti ti-message-chatbot";
+            ? "ti ti-sparkles"
+            : "ti ti-sparkles";
     });
 
     // #endregion
