@@ -82,6 +82,7 @@ export const ConfigurationComponent = defineComponent({
     ],
 
     setup(props, { emit }) {
+        const mobileSitesOnly = ref(false);
         const shorteningSitesOnly = ref(false);
 
         /**
@@ -98,9 +99,12 @@ export const ConfigurationComponent = defineComponent({
             // Construct the new value that will be emitted if it is different
             // than the current value.
             newValue[ConfigurationKey.ShorteningSitesOnly] = asTrueOrFalseString(shorteningSitesOnly.value);
+            newValue[ConfigurationKey.MobileSitesOnly] = asTrueOrFalseString(mobileSitesOnly.value);
 
             // Compare the new value and the old value.
-            const anyValueChanged = newValue[ConfigurationKey.ShorteningSitesOnly] !== (asTrueOrFalseString(props.modelValue[ConfigurationKey.ShorteningSitesOnly]));
+            const anyValueChanged =
+                newValue[ConfigurationKey.ShorteningSitesOnly] !== (asTrueOrFalseString(props.modelValue[ConfigurationKey.ShorteningSitesOnly]))
+                || newValue[ConfigurationKey.MobileSitesOnly] !== (asTrueOrFalseString(props.modelValue[ConfigurationKey.MobileSitesOnly]));
 
             // If any value changed then emit the new model value.
             if (anyValueChanged) {
@@ -115,6 +119,7 @@ export const ConfigurationComponent = defineComponent({
         // Watch for changes coming in from the parent component and update our
         // data to match the new information.
         watch(() => [props.modelValue, props.configurationProperties], () => {
+            mobileSitesOnly.value = asBoolean(props.modelValue[ConfigurationKey.MobileSitesOnly]);
             shorteningSitesOnly.value = asBoolean(props.modelValue[ConfigurationKey.ShorteningSitesOnly]);
         }, {
             immediate: true
@@ -122,19 +127,19 @@ export const ConfigurationComponent = defineComponent({
 
         // Watch for changes in properties that require new configuration
         // properties to be retrieved from the server.
-        watch([shorteningSitesOnly], () => {
+        watch([shorteningSitesOnly, mobileSitesOnly], () => {
             if (maybeUpdateModelValue()) {
                 emit("updateConfiguration");
             }
         });
 
-
-        return { shorteningSitesOnly };
+        return { shorteningSitesOnly, mobileSitesOnly };
     },
 
     template: `
 <div>
-    <CheckBox v-model="shorteningSitesOnly" label="Shortening Enabled Sites Only" help="Should only sites that are enabled for shortening be displayed." />
+    <CheckBox v-model="mobileSitesOnly" label="Mobile Sites Only" help="Should only mobile sites be displayed?" />
+    <CheckBox v-model="shorteningSitesOnly" label="Shortening Enabled Sites Only" help="Should only sites that are enabled for shortening be displayed?" />
 </div>
 `
 });
