@@ -21,7 +21,8 @@ import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
 
 export const enum ConfigurationKey {
     Values = "values",
-    ShorteningSitesOnly = "shorteningSitesOnly"
+    ShorteningSitesOnly = "shorteningSitesOnly",
+    MobileSitesOnly = "mobileSitesOnly"
 }
 
 // The edit component can be quite large, so load it only as needed.
@@ -35,7 +36,7 @@ const configurationComponent = defineAsyncComponent(async () => {
 });
 
 /**
- * The field type handler for the Campus field.
+ * The field type handler for the Site field.
  */
 export class SiteFieldType extends FieldTypeBase {
     public override getTextValue(value: string, configurationValues: Record<string, string>): string {
