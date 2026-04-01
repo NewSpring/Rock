@@ -4636,6 +4636,8 @@ WHERE 1 = 1" );
                 return ActionBadRequest( "You are not authorized to assign requests from this campaign." );
             }
 
+            int numberOfRequestsRemaining;
+
             // Updates any existing requests that do not have a connector and creates new requests via the campaign.
             CampaignConnectionHelper.AddConnectionRequestsForPerson( selectedCampaignConnectionItem, RequestContext.CurrentPerson, bag.NumberOfRequests, out numberOfRequestsRemaining );
 
