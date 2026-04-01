@@ -103,8 +103,8 @@ namespace Rock.RealTime.AspNet
 
                 // Register some logic to handle adding a claim for the anonymous
                 // person identifier if we have one.
-                subApp.Use( RegisterSignalRClaims );
-                subApp.Use( FixNegotiateConnectionData );
+                subApp.Use( ( object ) RegisterSignalRClaims );
+                subApp.Use( ( object ) FixNegotiateConnectionData );
 
                 if ( azureEndpoint.IsNullOrWhiteSpace() || azureAccessKey.IsNullOrWhiteSpace() )
                 {
