@@ -20572,6 +20572,10 @@ table tbody tr td .required-indicator::after {
 }
 
 /* ===================== BLOCK =================== */
+.btn-chat-toggle.active {
+  background-color: var(--color-info-soft);
+}
+
 .chat-bot .chat-container {
   display: flex;
   flex-direction: row;
@@ -20654,14 +20658,29 @@ table tbody tr td .required-indicator::after {
   position: relative;
 }
 
+.chat-bot .conversation-container h1 {
+  font-size: var(--font-size-h4);
+}
+
+.chat-bot .conversation-container h2 {
+  font-size: var(--font-size-h5);
+}
+
+.chat-bot .conversation-container h3,
+.chat-bot .conversation-container h4,
+.chat-bot .conversation-container h5,
+.chat-bot .conversation-container h6 {
+  font-size: var(--font-size-h6);
+}
+
 .chat-bot .footer-actions {
   /* this is ugly, don't use as final */
   position: absolute;
   bottom: 0;
   left: 0;
-  right: 0;
-  margin: 0 24px;
+  right: 10px; /* don't cover the scrollbar */
   padding: var(--spacing-large);
+  background: linear-gradient(to top, var(--color-interface-softest) 50%, color-mix(in srgb, var(--color-interface-softest) 70%, transparent) 70%, color-mix(in srgb, var(--color-interface-softest) 90%, transparent) 80%, transparent 100%);
 }
 
 .chat-bot .action-bar .btn-warning,
@@ -20685,6 +20704,8 @@ table tbody tr td .required-indicator::after {
   border-radius: 100px;
   padding: 8px 12px;
   margin-left: var(--spacing-xsmall);
+  border-bottom-left-radius: 100px !important;
+  border-top-left-radius: 100px !important;
 }
 
 .chat-bot .action-bar-container {
@@ -20712,7 +20733,7 @@ table tbody tr td .required-indicator::after {
   overflow-y: auto;
   gap: var(--spacing-small);
   margin-bottom: 0;
-  padding: var(--spacing-medium) var(--spacing-xlarge) 160px var(--spacing-xlarge);
+  padding: var(--spacing-medium) var(--spacing-medium) 120px var(--spacing-medium);
   border: 1px solid var(--color-interface-soft);
   border-radius: var(--rounded-small);
   background-color: var(--color-interface-softest);
