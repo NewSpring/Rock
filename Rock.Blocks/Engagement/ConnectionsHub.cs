@@ -941,7 +941,7 @@ namespace Rock.Blocks.Engagement
             // Always set the assigned status, for both new and preexisting members.
             groupMember.GroupMemberStatus = connectionRequest.AssignedGroupMemberStatus.Value;
 
-            var requirementsToCheck = connectionRequest.AssignedGroup.GroupRequirements.Where( gr => gr.MustMeetRequirementToAddMember ).ToList();
+            var requirementsToCheck = connectionRequest.AssignedGroup.GetGroupRequirements( RockContext ).Where( gr => gr.MustMeetRequirementToAddMember ).ToList();
             var manualRequirements = requirementsToCheck.Where( gr => gr.GroupRequirementType.RequirementCheckType == RequirementCheckType.Manual );
             var nonManualRequirements = requirementsToCheck.Where( gr => gr.GroupRequirementType.RequirementCheckType != RequirementCheckType.Manual );
 

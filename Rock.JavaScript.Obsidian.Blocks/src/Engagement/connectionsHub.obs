@@ -106,7 +106,7 @@
                     </RockButton>
                 </div>
                 <div class="border-left border-info pl-spacing-md d-flex align-items-center gap-md">
-                    <RockButton class="activity-btn" @click="showAddActivityModal" :disabled="!canEditConnectionRequests">
+                    <RockButton class="activity-btn" @click="showAddActivityModal()" :disabled="!canEditConnectionRequests">
                         <i class="ti ti-activity"></i>
                         <span class="activity-btn-label">Add Activity</span>
                     </RockButton>
@@ -577,7 +577,7 @@
                                   :isSaving="isDockedPanelSaving"
                                   @editRequest="onEditRequest"
                                   @transferRequest="onTransferClick"
-                                  @addActivity="showAddActivityModal"
+                                  @addActivity="showAddActivityModal(dockedPanelDetailsBox)"
                                   @onCelebrationClick="box => showCelebrationModal(null, box)"
                                   @onReminderClick="box => showReminderModal(null, box)"
                                   @onSMSClick="showSMSModal(true)"
@@ -586,7 +586,7 @@
                                   @onRequestStateChanged="updateRequestStates"
                                   @onStatusButtonClick="onStatusClickFromDockedPanel"
                                   @launchWorkflow="launchWorkflowForRequests"
-                                  @deleteRequest="showDeleteRequestModal()" />
+                                  @deleteRequest="showDeleteRequestModal(null, dockedPanelDetailsBox)" />
 
     <TransferConnectionRequestModal v-model="isTransferModalVisible"
                                     :isLoading="areTransferDetailsLoading"
@@ -1635,9 +1635,9 @@
         showSecurity(EntityType.ConnectionRequest, key);
     }
 
-    function showDeleteRequestModal(row: Record<string, unknown> | null = null): void {
+    function showDeleteRequestModal(row: Record<string, unknown> | null = null, detailBox: ConnectionRequestDetailBox | null = null): void {
         openDropdownIndex.value = null;
-        prepareRequestDetailsForModal(row, dockedPanelDetailsBox.value);
+        prepareRequestDetailsForModal(row, detailBox);
         isDeleteRequestModalVisible.value = true;
     }
 
@@ -1656,8 +1656,8 @@
         isChangeStateModalVisible.value = true;
     }
 
-    function showAddActivityModal(): void {
-        prepareRequestDetailsForModal(null, dockedPanelDetailsBox.value);
+    function showAddActivityModal(detailBox: ConnectionRequestDetailBox | null = null): void {
+        prepareRequestDetailsForModal(null, detailBox);
         isActivityModalVisible.value = true;
     }
 
