@@ -18,7 +18,7 @@
                     <template #inputGroupAppend>
                         <span class="input-group-btn">
                             <button v-if="isDebugAllowed"
-                                    :class="isDebugEnabled ? 'btn btn-warning' : 'btn btn-default'"
+                                    :class="isDebugEnabled ? 'btn btn-warning btn-chat-debug' : 'btn btn-default btn-chat-debug'"
                                     type="button"
                                     :title="isDebugEnabled ? 'Disable Debug Mode' : 'Enable Debug Mode'"
                                     @click.prevent="onToggleDebugClick">
@@ -26,14 +26,14 @@
                                 <i v-else class="ti ti-bug-off"></i>
                             </button>
 
-                            <button class="btn btn-default"
+                            <button class="btn btn-default btn-chat-clear"
                                     type="button"
                                     @click.prevent="onClearMessages"
                                     title="Clear Chat History">
                                 <i class="ti ti-eraser"></i>
                             </button>
 
-                            <button class="btn btn-primary"
+                            <button class="btn btn-primary btn-chat-submit"
                                     type="button"
                                     :disabled="isSendDisabled"
                                     @click.prevent="onSubmit"><i class="ti ti-arrow-up"></i></button>
