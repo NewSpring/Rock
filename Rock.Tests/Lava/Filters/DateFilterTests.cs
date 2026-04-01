@@ -1164,6 +1164,18 @@ END:VCALENDAR
                 var expectedStartDateTime = LocalExpected( timeZone, expectedStartDateTimeString );
                 var expectedEndDateTime = LocalExpected( timeZone, expectedEndDateTimeString );
 
+                /* This test is only valid if the current time zone's time is not already PAST the expected start date time
+                 * on the DATE of the expected test's start datetime value.
+                 */
+                DateTime currentLocalTime = TimeZoneInfo.ConvertTimeFromUtc( DateTime.UtcNow, timeZone );
+
+                if ( currentLocalTime.Date == expectedStartDateTime.Date &&
+                    currentLocalTime.TimeOfDay > expectedStartDateTime.TimeOfDay )
+                {
+                    // Skip this code
+                    return;
+                }
+
                 var schedule = new Rock.Model.Schedule();
                 schedule.iCalendarContent = iCalString;
 
