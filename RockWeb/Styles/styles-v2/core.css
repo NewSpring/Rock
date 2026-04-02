@@ -19354,7 +19354,7 @@ iframe.file-browser {
   height: 100%;
   flex: 0 0 20%;
   position: sticky;
-  top: calc(var(--spacing-medium) + 80px);
+  top: calc(var(--spacing-medium) + var(--sticky-element-offset, 0));
 }
 
 .full-work-surface .contentsection-container > .contentsection-nav {
