@@ -187,18 +187,25 @@ namespace Rock.Cms
         /// <inheritdoc/>
         public string Build( string originalThemeCss )
         {
-            var sb = new StringBuilder();
-
             // Strip any legacy injected values from theme files. This shouldn't
             // happen since it should be stripped out already, but just in case.
             // This can be removed when the RemoveOverrides() method is removed.
-            originalThemeCss = CharsetPattern.Replace( originalThemeCss, string.Empty );
-            originalThemeCss = TopOverridePattern.Replace( originalThemeCss, string.Empty );
-            originalThemeCss = BottomOverridePattern.Replace( originalThemeCss, string.Empty );
-            originalThemeCss = originalThemeCss.Trim();
+            var newThemeCss = CharsetPattern.Replace( originalThemeCss, string.Empty );
+            newThemeCss = TopOverridePattern.Replace( newThemeCss, string.Empty );
+            newThemeCss = BottomOverridePattern.Replace( newThemeCss, string.Empty );
+            newThemeCss = newThemeCss.Trim();
 
             var topOverrides = BuildTopOverrides().Trim();
             var bottomOverrides = BuildBottomOverrides().Trim();
+
+            var sb = new StringBuilder();
+
+            // If the original theme CSS started with a @charset declaration then
+            // we need preserve it.
+            if ( originalThemeCss.StartsWith( "@charset" ) )
+            {
+                sb.AppendLine( "@charset \"UTF-8\";" );
+            }
 
             if ( topOverrides.Length > 0 )
             {
@@ -208,9 +215,9 @@ namespace Rock.Cms
                 sb.AppendLine();
             }
 
-            if ( originalThemeCss.Length > 0 )
+            if ( newThemeCss.Length > 0 )
             {
-                sb.AppendLine( originalThemeCss );
+                sb.AppendLine( newThemeCss );
             }
 
             if ( bottomOverrides.Length > 0 )
