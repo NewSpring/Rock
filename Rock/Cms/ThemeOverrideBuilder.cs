@@ -189,6 +189,9 @@ namespace Rock.Cms
         {
             var sb = new StringBuilder();
 
+            // Strip any legacy injected values from theme files. This shouldn't
+            // happen since it should be stripped out already, but just in case.
+            // This can be removed when the RemoveOverrides() method is removed.
             originalThemeCss = CharsetPattern.Replace( originalThemeCss, string.Empty );
             originalThemeCss = TopOverridePattern.Replace( originalThemeCss, string.Empty );
             originalThemeCss = BottomOverridePattern.Replace( originalThemeCss, string.Empty );
@@ -196,8 +199,6 @@ namespace Rock.Cms
 
             var topOverrides = BuildTopOverrides().Trim();
             var bottomOverrides = BuildBottomOverrides().Trim();
-
-            sb.AppendLine( "@charset \"UTF-8\";" );
 
             if ( topOverrides.Length > 0 )
             {
@@ -221,6 +222,30 @@ namespace Rock.Cms
             }
 
             return sb.ToString();
+        }
+
+        /// <summary>
+        /// Removes the override content from the theme file. This is a temporary
+        /// method introduced in Rock v19 to clean up existing theme.css files
+        /// from any custom themes that may have been created. The overrides are
+        /// now applied dynamically at runtime. This method can be removed in a
+        /// future release of Rock, probably around v21 or v22.
+        /// </summary>
+        /// <param name="currentThemeCss">The current CSS content</param>
+        /// <returns></returns>
+        internal static string RemoveOverrides( string currentThemeCss )
+        {
+            var newThemeCss = TopOverridePattern.Replace( currentThemeCss, string.Empty );
+            newThemeCss = BottomOverridePattern.Replace( newThemeCss, string.Empty );
+
+            if ( newThemeCss == currentThemeCss )
+            {
+                return currentThemeCss;
+            }
+
+            newThemeCss = newThemeCss.TrimStart();
+
+            return newThemeCss;
         }
 
         /// <summary>
