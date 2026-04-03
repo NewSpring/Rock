@@ -722,7 +722,7 @@
     import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
     import DropDownList from "@Obsidian/Controls/dropDownList.obs";
     import HighlightLabel from "@Obsidian/Controls/highlightLabel.obs";
-    import GroupedGridPanel from "@Obsidian/Controls/groupedGridPanel.obs";
+    import GroupedGridPanel from "@Obsidian/Controls/Internal/groupedGridPanel.obs";
     import { isNullOrWhiteSpace, pluralize, safeParseJson } from "@Obsidian/Utility/stringUtils";
     import { RockDateTime } from "@Obsidian/Utility/rockDateTime";
     import { tooltip } from "@Obsidian/Utility/tooltip";
