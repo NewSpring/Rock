@@ -473,11 +473,36 @@ namespace Rock.WebStartup
         /// </summary>
         private static void LoadEarlyCacheObjects( RockContext rockContext )
         {
-            EntityTypeCache.All( rockContext );
-            FieldTypeCache.All( rockContext );
+            // If any individual task fails, just log the exception and keep
+            // going. Otherwise Rock will fail to start - which makes it hard
+            // to see what the exception was anyway.
+            try
+            {
+                EntityTypeCache.All( rockContext );
+            }
+            catch ( Exception ex )
+            {
+                ExceptionLogService.LogException( ex );
+            }
 
-            // Force authorizations to be cached
-            Rock.Security.Authorization.Get();
+            try
+            {
+                FieldTypeCache.All( rockContext );
+            }
+            catch ( Exception ex )
+            {
+                ExceptionLogService.LogException( ex );
+            }
+
+            try
+            {
+                // Force authorizations to be cached
+                Rock.Security.Authorization.Get();
+            }
+            catch ( Exception ex )
+            {
+                ExceptionLogService.LogException( ex );
+            }
         }
 
         /// <summary>
