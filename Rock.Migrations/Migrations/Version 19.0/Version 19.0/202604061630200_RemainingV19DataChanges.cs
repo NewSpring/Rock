@@ -67,7 +67,7 @@ namespace Rock.Migrations
     AND only when signed document was created before the registrant record.
 */
 
-DECLARE @Today date = CONVERT( date,dbo.RockGetDate() );
+DECLARE @Today date = CONVERT( date, GETDATE() );
 
 ;WITH Targets AS
 (
