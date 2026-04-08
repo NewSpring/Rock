@@ -87,8 +87,7 @@ namespace Rock.Blocks.Core
 
     [Rock.SystemGuid.EntityTypeGuid( "A19AB7C6-F986-429E-B28A-2E57658185DF" )]
     // was [Rock.SystemGuid.BlockTypeGuid( "F476143B-58E8-4E30-9D86-D3AB28368DB3" )]
-    [Rock.SystemGuid.BlockTypeGuid( "F476143B-58E8-4E30-9D86-D3AB28368DB3" )]
-    //[Rock.SystemGuid.BlockTypeGuid( "6302B319-9830-4BE3-A402-17801C88F7E4" )]
+    [Rock.SystemGuid.BlockTypeGuid( "6302B319-9830-4BE3-A402-17801C88F7E4" )]
     public class ExceptionList : RockBlockType, ICustomGridColumns
     {
         #region Keys
