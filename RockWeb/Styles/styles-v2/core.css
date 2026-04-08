@@ -20399,18 +20399,6 @@ iframe.file-browser {
   border-bottom-left-radius: 0;
 }
 
-.input-group .form-control:not(.ant-select):last-child,
-.input-group-addon:last-child,
-.input-group-btn:last-child > .btn-group > .btn,
-.input-group-btn:last-child > .dropdown-toggle,
-.input-group-btn:first-child > .btn:not(:first-child),
-.input-group-btn:first-child > .btn-group:not(:first-child) > .btn {
-  padding-top: 6px;
-  padding-bottom: 6px;
-  height: 100%;
-  box-shadow: var(--input-box-shadow);
-}
-
 .input-group:has(.ant-select:last-child) .form-control {
   height: 38px;
 }
@@ -21516,6 +21504,18 @@ table tbody tr td .required-indicator::after {
 .note-editor .note-editable {
   border: 1px solid var(--color-interface-soft);
   border-radius: 0;
+}
+
+.schedule-builder-field-edit-control .label.schedulebuilder-info {
+  padding: 1px 6px;
+  display: inline;
+}
+.schedule-builder-field-edit-control .picker-select {
+  gap: 0;
+}
+.schedule-builder-field-edit-control .picker-select .btn.picker-select-none {
+  position: absolute;
+  right: var(--spacing-small);
 }
 
 .recurrence-pattern-type {
