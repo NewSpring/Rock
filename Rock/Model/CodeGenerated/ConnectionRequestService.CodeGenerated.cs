@@ -143,7 +143,6 @@ namespace Rock.Model
             target.AssignedGroupMemberRoleId = source.AssignedGroupMemberRoleId;
             target.AssignedGroupMemberStatus = source.AssignedGroupMemberStatus;
             target.CampusId = source.CampusId;
-            target.CelebrationText = source.CelebrationText;
             target.Comments = source.Comments;
             target.ConnectedDateTime = source.ConnectedDateTime;
             target.ConnectionOpportunityId = source.ConnectionOpportunityId;

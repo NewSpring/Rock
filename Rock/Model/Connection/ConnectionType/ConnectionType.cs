@@ -281,6 +281,36 @@ namespace Rock.Model
             public string AIInsightsPrompt { get; set; }
 
             /// <summary>
+            /// Gets or sets the AI summary trigger mode.
+            /// </summary>
+            public AISummaryTriggerMode? AISummaryTrigger { get; set; }
+
+            /// <summary>
+            /// Gets or sets the AI summary cache duration in minutes.
+            /// </summary>
+            public int? AISummaryCacheDurationMinutes { get; set; }
+
+            /// <summary>
+            /// Gets or sets the default value for <see cref="Rock.Model.ConnectionOpportunity.RequestDueDateOffsetInDays">Connection Opportunity Request Due Date Offset In Days</see>.
+            /// </summary>
+            public int? DefaultOpportunityDueDateOffsetInDays { get; set; }
+
+            /// <summary>
+            /// Gets or sets the default value for <see cref="Rock.Model.ConnectionOpportunity.RequestDueSoonOffsetInDays">Connection Opportunity Request Due Soon Offset In Days</see>.
+            /// </summary>
+            public int? DefaultOpportunityDueSoonOffsetInDays { get; set; }
+
+            /// <summary>
+            /// Gets or sets the default value for <see cref="Rock.Model.ConnectionStatus.RequestStatusDueDateOffsetInDays">Request Status Due Date Offset In Days</see>.
+            /// </summary>
+            public int? DefaultStatusDueDateOffsetInDays { get; set; }
+
+            /// <summary>
+            /// Gets or sets the default value for <see cref="Rock.Model.ConnectionStatus.RequestStatusDueSoonOffsetInDays">Request Status Due Soon Offset In Days</see>.
+            /// </summary>
+            public int? DefaultStatusDueSoonOffsetInDays { get; set; }
+
+            /// <summary>
             /// Defines a single "Additional Requests to Show" filter row.
             /// </summary>
             /// <remarks>

@@ -15,6 +15,7 @@
 // </copyright>
 //
 
+using System;
 using System.Collections.Generic;
 
 using Rock.Model;
@@ -31,6 +32,11 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
         /// Gets or sets the group as a list item containing its identifier value and display name.
         /// </summary>
         public ListItemBag ListItemBag { get; set; }
+
+        /// <summary>
+        /// Gets or sets the Campus Guid of the Placement Group.
+        /// </summary>
+        public Guid? CampusGuid { get; set; }
 
         /// <summary>
         /// Gets or sets the list of available group member roles in this placement group.
@@ -56,6 +62,11 @@ namespace Rock.ViewModels.Blocks.Engagement.ConnectionsHub
         /// The Group Member IdKey of the placed group member.
         /// </summary>
         public string GroupMemberIdKey { get; set; }
+
+        /// <summary>
+        /// The Id for the Placement Group. TODO - Convert this to IdKey when Group Detail supports it.
+        /// </summary>
+        public string GroupId { get; set; }
 
         /// <summary>
         /// Gets or sets the list of group member requirements and their current fulfillment state for this placement group.

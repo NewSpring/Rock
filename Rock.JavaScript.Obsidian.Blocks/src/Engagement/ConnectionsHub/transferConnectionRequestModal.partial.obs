@@ -5,127 +5,121 @@
            :isSaveButtonDisabled="isSaving"
            saveText="Save"
            @save="onSave">
-        <NotificationBox v-if="errorMessage"
-                         alertType="warning"
-                         dismissible
-                         @dismiss="errorMessage = null">
-            {{ errorMessage }}
-        </NotificationBox>
-        <template v-if="!isInSearchMode">
-            <div class="row d-flex align-items-end">
-                <div class="col-md-6">
-                    <DropDownList v-model="selectedOpportunity"
-                                  :items="opportunityItems"
-                                  label="Opportunity"
-                                  :showBlankItem="false" />
-                </div>
-                <div class="col-md-6 mb-spacing-md pl-spacing-none">
-                    <RockButton :btnType="BtnType.Default"
-                                @click="setSearchMode(true)"
-                                isSquare>
-                        <i class="ti ti-search"></i>
-                    </RockButton>
-                </div>
-            </div>
-            <div v-if="selectedOpportunityDetails?.showCampusOnTransfer" class="row">
-                <div class="col-md-6">
-                    <DropDownList v-model="selectedCampus"
-                                  :items="selectedOpportunityDetails?.campuses ?? []"
-                                  label="Campus"
-                                  :showBlankItem="false" />
-                </div>
-            </div>
-            <div v-if="selectedOpportunityDetails?.showStatusOnTransfer" class="row">
-                <div class="col-md-6">
-                    <DropDownList v-model="selectedStatus"
-                                  :items="transferDetails?.statuses ?? []"
-                                  label="Status"
-                                  :showBlankItem="false" />
-                </div>
-            </div>
-            <div class="row">
-                <div class="col-md-6">
-                    <RadioButtonList v-model="selectedConnectorOption"
-                                     :items="radioConnectorItems"
-                                     label="Connector" />
-                </div>
-            </div>
-            <div class="row">
-                <div class="col-md-6">
-                    <ConditionalWell v-if="selectedConnectorOption === 'select'">
-                        <DropDownList v-model="selectedConnector"
-                                      :items="selectedOpportunityDetails?.potentialConnectors ?? []"
-                                      label="Select Connector"
-                                      :showBlankItem="false" />
-                    </ConditionalWell>
-                </div>
-            </div>
-            <div class="row">
-                <div class="col-md-6">
-                    <RadioButtonList v-model="selectedDueDateOption"
-                                     :items="radioDueDateItems"
-                                     label="Due Date" />
-                </div>
-            </div>
-            <div class="row">
-                <div class="col-md-6">
-                    <ConditionalWell v-if="selectedDueDateOption === 'select'">
-                        <DatePicker v-model="selectedDueDate"
-                                    label="Select Due Date" />
-                    </ConditionalWell>
-                </div>
-            </div>
-            <div class="row">
-                <div class="col-md-12">
-                    <TextBox v-model="note"
-                             textMode="multiline"
-                             label="Note" />
-                </div>
-            </div>
-        </template>
+        <Loading v-if="isLoading" :isLoading="isLoading" />
         <template v-else>
-            <ContentSectionContainer :sidebar="!!transferDetails?.connectionOpportunities && transferDetails.connectionOpportunities.length > 3">
-                <ContentSection light
-                                overflowText="Show Filters">
-                    <ContentStack>
-                        <div class="row">
-                            <div class="col-md-12">
-                                <TextBox v-model="searchFilter"
-                                         label="Search"
-                                         isClearable />
-                            </div>
-                        </div>
-                    </ContentStack>
-                    <template #overflow>
-                        <CheckBoxList v-model="selectedCampusFilter"
-                                      :items="transferDetails?.campuses ?? []"
+            <NotificationBox v-if="warningMessage"
+                             alertType="warning"
+                             dismissible
+                             @dismiss="warningMessage = null">
+                {{ warningMessage }}
+            </NotificationBox>
+            <NotificationBox v-if="!isNullOrWhiteSpace(errorMessage)"
+                             alertType="danger"
+                             dismissible
+                             @dismiss="emit('dismissErrorMessage')">
+                {{ errorMessage }}
+            </NotificationBox>
+            <template v-if="!isInSearchMode">
+                <div class="row d-flex align-items-end">
+                    <div class="col-md-6">
+                        <DropDownList v-model="selectedOpportunity"
+                                      :items="opportunityItems"
+                                      label="Opportunity"
+                                      :showBlankItem="false" />
+                    </div>
+                    <div class="col-md-6 mb-spacing-md pl-spacing-none">
+                        <RockButton :btnType="BtnType.Default"
+                                    @click="setSearchMode(true)"
+                                    isSquare>
+                            <i class="ti ti-search"></i>
+                        </RockButton>
+                    </div>
+                </div>
+                <div v-if="selectedOpportunityDetails?.showCampusOnTransfer" class="row">
+                    <div class="col-md-6">
+                        <DropDownList v-model="selectedCampus"
+                                      :items="selectedOpportunityDetails?.campuses ?? []"
                                       label="Campus" />
-                        <AttributeValuesContainer v-model="selectedAttributeValueFilters"
-                                                  :attributes="transferDetails?.attributes ?? {}"
-                                                  isEditMode
-                                                  :numberOfColumns="1" />
-                    </template>
-                </ContentSection>
-                <template v-for="opportunity in filteredOpportunities">
-                    <ContentSection :title="opportunity.name ?? ''"
-                                    :icon="opportunity.iconCssClass ?? ''"
-                                    :disableCollapse="!!transferDetails?.connectionOpportunities && transferDetails.connectionOpportunities.length <= 3">
-                        <template #headerActions>
-                            <RockButton :btnType="BtnType.Default"
-                                        @click="onSelectOpportunity(opportunity.guid)">
-                                <i class="ti ti-circle-check"></i> Select
-                            </RockButton>
-                        </template>
+                    </div>
+                </div>
+                <div v-if="selectedOpportunityDetails?.showStatusOnTransfer" class="row">
+                    <div class="col-md-6">
+                        <DropDownList v-model="selectedStatus"
+                                      :items="transferDetails?.statuses ?? []"
+                                      label="Status"
+                                      :showBlankItem="false" />
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <RadioButtonList v-model="selectedConnectorOption"
+                                         :items="radioConnectorItems"
+                                         label="Connector" />
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <ConditionalWell v-if="selectedConnectorOption === 'select'">
+                            <DropDownList v-model="selectedConnector"
+                                          :items="transferDetails?.connectorItems ?? []"
+                                          label="Select Connector"
+                                          :showBlankItem="false"
+                                          :enhanceForLongLists="true" />
+                        </ConditionalWell>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-12">
+                        <TextBox v-model="note"
+                                 textMode="multiline"
+                                 label="Note" />
+                    </div>
+                </div>
+            </template>
+            <template v-else>
+                <ContentSectionContainer :sidebar="false">
+                    <ContentSection light
+                                    overflowText="Show Filters">
                         <ContentStack>
-                            <template #header>
-                                <img class="rounded" :src="opportunity.photoUrl ?? ''" width="200" height="200" />
-                            </template>
-                            <h5>Opportunity Description</h5>
-                            <div v-html="opportunity.description"></div>
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <TextBox v-model="searchFilter"
+                                             label="Search"
+                                             isClearable />
+                                </div>
+                            </div>
                         </ContentStack>
+                        <template #overflow>
+                            <CheckBoxList v-model="selectedCampusFilter"
+                                          :items="transferDetails?.campuses ?? []"
+                                          label="Campus" />
+                            <AttributeValuesContainer v-model="selectedAttributeValueFilters"
+                                                      :attributes="transferDetails?.attributes ?? {}"
+                                                      isEditMode
+                                                      :numberOfColumns="1" />
+                        </template>
                     </ContentSection>
-                </template>
-            </ContentSectionContainer>
+                    <template v-for="opportunity in filteredOpportunities">
+                        <ContentSection :title="opportunity.name ?? ''"
+                                        :icon="opportunity.iconCssClass ?? ''"
+                                        :disableCollapse="!!transferDetails?.connectionOpportunities && transferDetails.connectionOpportunities.length <= 3">
+                            <template #headerActions>
+                                <RockButton :btnType="BtnType.Default"
+                                            @click="onSelectOpportunity(opportunity.guid)">
+                                    <i class="ti ti-circle-check"></i> Select
+                                </RockButton>
+                            </template>
+                            <ContentStack>
+                                <template #header>
+                                    <img class="rounded" :src="opportunity.photoUrl ?? ''" width="200" height="200" />
+                                </template>
+                                <h5>Opportunity Description</h5>
+                                <div v-html="opportunity.description"></div>
+                            </ContentStack>
+                        </ContentSection>
+                    </template>
+                </ContentSectionContainer>
+            </template>
         </template>
     </Modal>
 </template>
@@ -139,6 +133,7 @@
 <script setup lang="ts">
     import Modal from "@Obsidian/Controls/modal.obs";
     import NotificationBox from "@Obsidian/Controls/notificationBox.obs";
+    import Loading from "@Obsidian/Controls/loading.obs";
     import { ref, PropType, watch, computed } from "vue";
     import { useVModelPassthrough } from "@Obsidian/Utility/component";
     import RadioButtonList from "@Obsidian/Controls/radioButtonList.obs";
@@ -169,6 +164,11 @@
             required: true
         },
 
+        isLoading: {
+            type: Boolean as PropType<boolean>,
+            required: true
+        },
+
         transferDetails: {
             type: Object as PropType<TransferConnectionRequestDetailsBag | undefined>,
             required: true
@@ -177,16 +177,23 @@
         isSaving: {
             type: Boolean as PropType<boolean>,
             default: false
+        },
+
+        errorMessage: {
+            type: String as PropType<string>,
+            required: true
         }
     });
 
     const emit = defineEmits<{
         (e: "update:modelValue", value: boolean): void;
+        (e: "fetchConnectorOptions", connectionOpportunityGuid: string, campusGuid: string): void;
         (e: "transfer", value: TransferConnectionRequestBag): void;
         (e: "close"): void;
+        (e: "dismissErrorMessage"): void;
     }>();
 
-    const errorMessage = ref();
+    const warningMessage = ref();
     const isInSearchMode = ref<boolean>(false);
 
     const selectedOpportunity = ref();
@@ -194,8 +201,6 @@
     const selectedCampus = ref();
     const selectedConnectorOption = ref<string>("default");
     const selectedConnector = ref();
-    const selectedDueDateOption = ref<string>("current");
-    const selectedDueDate = ref();
     const note = ref<string>("");
 
     // Filters
@@ -227,21 +232,6 @@
         },
         {
             text: "No Connector",
-            value: "none"
-        }
-    ]);
-
-    const radioDueDateItems = computed(() => <ListItemBag[]>[
-        {
-            text: `Current Due Date: ${RockDateTime.parseISO(props.transferDetails?.currentDueDate ?? "")?.toLocaleString(DateTimeFormat.DateMedium)}`,
-            value: "current"
-        },
-        {
-            text: "Select Due Date",
-            value: "select"
-        },
-        {
-            text: "No Due Date",
             value: "none"
         }
     ]);
@@ -313,7 +303,7 @@
 
     function onSave(): void {
         if (selectedOpportunity.value === props.transferDetails?.currentConnectionOpportunityGuid) {
-            errorMessage.value = "This request already belongs to the selected opportunity. Please choose a different opportunity to transfer to.";
+            warningMessage.value = "This request already belongs to the selected opportunity. Please choose a different opportunity to transfer to.";
             return;
         }
 
@@ -324,8 +314,6 @@
             statusGuid: selectedStatus.value,
             connectorOption: selectedConnectorOption.value,
             connectorPersonAliasGuid: selectedConnector.value,
-            dueDateOption: selectedDueDateOption.value,
-            dueDate: selectedDueDate.value,
             note: note.value
         };
 
@@ -337,9 +325,8 @@
     }
 
     function resetModal(): void {
-        errorMessage.value = undefined;
+        warningMessage.value = undefined;
         selectedConnectorOption.value = "default";
-        selectedDueDateOption.value = "current";
         note.value = "";
 
         isInSearchMode.value = false;
@@ -348,9 +335,18 @@
         selectedAttributeValueFilters.value = undefined;
     }
 
+    watch([selectedOpportunity, selectedCampus], () => {
+        let campus = props.transferDetails?.currentCampusGuid;
+        if (selectedOpportunityDetails.value?.showCampusOnTransfer) {
+            campus = selectedCampus.value;
+        }
+        emit("fetchConnectorOptions", selectedOpportunity.value ?? "", campus ?? "");
+    });
+
     watch(isVisible, (visible) => {
         if (!visible) {
             resetModal();
+            emit("close");
         }
     });
 
@@ -359,7 +355,6 @@
         selectedStatus.value = props.transferDetails?.currentConnectionStatusGuid;
         selectedCampus.value = props.transferDetails?.currentCampusGuid;
         selectedConnector.value = props.transferDetails?.currentConnectorPersonAliasGuid;
-        selectedDueDate.value = props.transferDetails?.currentDueDate;
     });
 
 </script>

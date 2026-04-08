@@ -14,6 +14,12 @@
                              alertType="warning">
                 <p>There aren’t any campaigns available for you to get requests from right now. Confirm that you’re included in the global connector group, or contact an administrator.</p>
             </NotificationBox>
+            <NotificationBox v-if="!isNullOrWhiteSpace(errorMessage)"
+                             alertType="danger"
+                             dismissible
+                             @dismiss="emit('dismissErrorMessage')">
+                {{ errorMessage }}
+            </NotificationBox>
             <template v-else>
                 <div class="row">
                     <div class="col-md-4">
@@ -117,15 +123,19 @@
             type: Object as PropType<Record<string, ConnectionCampaignBag[]> | undefined>,
             default: {}
         },
+
+        errorMessage: {
+            type: String as PropType<string>,
+            required: true
+        }
     });
 
     const emit = defineEmits<{
         (e: "update:visible", value: boolean): void;
         (e: "close"): void;
         (e: "assignRequests", value: AssignFromCampaignBag): void;
+        (e: "dismissErrorMessage"): void;
     }>();
-
-    const errorMessage = ref();
 
     const isVisible = useVModelPassthrough(props, "visible", emit);
 
@@ -228,7 +238,6 @@
     });
 
     watch(isVisible, () => {
-        errorMessage.value = "";
         if (!isVisible.value) {
             resetModal();
             emit("close");

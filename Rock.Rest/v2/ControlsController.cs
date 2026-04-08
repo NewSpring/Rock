@@ -3274,7 +3274,7 @@ namespace Rock.Rest.v2
                     {
                         Activity = CommunicationRecipientActivity.MarkedAsSpam,
                         ActivityDateTime = recipient.SpamComplaintDateTime.Value,
-                        Description = "Recipient marked email as spam."
+                        Description = "Recipient marked message as spam."
                     } );
                 }
 
@@ -3284,7 +3284,7 @@ namespace Rock.Rest.v2
                     {
                         Activity = CommunicationRecipientActivity.Unsubscribed,
                         ActivityDateTime = recipient.UnsubscribeDateTime.Value,
-                        Description = "Recipient unsubscribed from email."
+                        Description = "Recipient unsubscribed from message."
                     } );
                 }
 
@@ -5238,6 +5238,11 @@ namespace Rock.Rest.v2
                 if ( options.EntityTypeGuids != null && options.EntityTypeGuids.Any() )
                 {
                     itemQuery = itemQuery.Where( t => options.EntityTypeGuids.Contains( t.Guid ) );
+                }
+
+                if ( options.ExcludedEntityTypeGuids != null && options.ExcludedEntityTypeGuids.Any() )
+                {
+                    itemQuery = itemQuery.Where( t => !options.ExcludedEntityTypeGuids.Contains( t.Guid ) );
                 }
 
                 var items = itemQuery

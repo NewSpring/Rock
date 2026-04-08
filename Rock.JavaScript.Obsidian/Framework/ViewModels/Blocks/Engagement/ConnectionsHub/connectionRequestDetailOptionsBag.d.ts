@@ -21,6 +21,7 @@
 // </copyright>
 //
 
+import { AISummaryTriggerMode } from "@Obsidian/Enums/Connection/aiSummaryTriggerMode";
 import { Guid } from "@Obsidian/Types";
 import { ConnectionActivityTypeBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionActivityTypeBag";
 import { ConnectionStatusBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/connectionStatusBag";
@@ -30,6 +31,9 @@ import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
 
 /** Represents the configuration options used to render the connection request detail panel. */
 export type ConnectionRequestDetailOptionsBag = {
+    /** Gets or sets the trigger mode that determines when an AI summary should be generated and displayed for a connection request. */
+    aiSummaryTrigger: AISummaryTriggerMode;
+
     /** Gets or sets a value indicating whether celebrations are enabled for connection requests. */
     areCelebrationsEnabled: boolean;
 
@@ -41,6 +45,9 @@ export type ConnectionRequestDetailOptionsBag = {
 
     /** Gets or sets the GUIDs of the person profile badges to display on the request detail panel. */
     badgeGuids?: Guid[] | null;
+
+    /** Gets or sets the list of available campuses for this connection request. */
+    campuses?: ListItemBag[] | null;
 
     /** Gets or sets the boolean value indicating whether the current person can edit the Connection Request. */
     canEditConnectionRequest: boolean;
@@ -60,8 +67,11 @@ export type ConnectionRequestDetailOptionsBag = {
     /** Gets or sets the encrypted identifier key of the Connection Type this request belongs to. */
     connectionTypeIdKey?: string | null;
 
-    /** Gets or sets the list of connectors (with photo URLs) available for assignment to the request. */
+    /** Gets or sets the list of connectors available for assignment to the request. Filtered by campus for view mode. */
     connectorItems?: ConnectorItemBag[] | null;
+
+    /** Gets or sets the list of connectors avaiable when editing a Connection Request. Includes all connectors regardless of campus association since edit mode will filter by campus on the client. */
+    connectorItemsForEdit?: ConnectorItemBag[] | null;
 
     /** Gets or sets a value indicating whether an active AI provider is configured. */
     isAISummaryVisible: boolean;

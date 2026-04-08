@@ -5,6 +5,12 @@
            :isSaveButtonDisabled="isSaving || !canEditCelebration"
            saveText="Save"
            @save="onSave">
+        <NotificationBox v-if="!isNullOrWhiteSpace(errorMessage)"
+                         alertType="danger"
+                         dismissible
+                         @dismiss="emit('dismissErrorMessage')">
+            {{ errorMessage }}
+        </NotificationBox>
         <div class="mb-spacing-sm text-interface-medium">
             Connection Celebrations help your team record and celebrate stories of connection. Before adding this celebration, take a moment to record why this connection story is particularly meaningful.
         </div>
@@ -24,6 +30,7 @@
     import Modal from "@Obsidian/Controls/modal.obs";
     import TextBox from "@Obsidian/Controls/textBox.obs";
     import RequestTable from "./requestTable.partial.obs";
+    import NotificationBox from "@Obsidian/Controls/notificationBox.obs";
     import { ref, PropType, watch, computed } from "vue";
     import { useVModelPassthrough } from "@Obsidian/Utility/component";
     import { BulkRequestViewBag } from "@Obsidian/ViewModels/Blocks/Engagement/ConnectionsHub/bulkRequestViewBag";
@@ -55,6 +62,11 @@
         canEditCelebration: {
             type: Boolean as PropType<boolean>,
             default: false
+        },
+
+        errorMessage: {
+            type: String as PropType<string>,
+            required: true
         }
     });
 
@@ -62,9 +74,8 @@
         (e: "update:visible", value: boolean): void;
         (e: "upsertCelebration", value: UpsertCelebrationBag): void;
         (e: "close"): void;
+        (e: "dismissErrorMessage"): void;
     }>();
-
-    const errorMessage = ref();
 
     const isVisible = useVModelPassthrough(props, "visible", emit);
 
@@ -89,7 +100,6 @@
     });
 
     watch(isVisible, () => {
-        errorMessage.value = "";
         if (!isVisible.value) {
             emit("close");
         }
