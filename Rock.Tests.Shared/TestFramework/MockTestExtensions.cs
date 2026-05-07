@@ -77,7 +77,8 @@ namespace Rock.Tests.Shared.TestFramework
                     var methods = typeof( MockTestExtensions ).GetMethods();
                     var getDbSetMockMethod = typeof( MockTestExtensions )
                         .GetMethods()
-                        .Where( m => m.GetParameters().Length == 1
+                        .Where( m => m.Name == nameof( GetDbSetMock )
+                            && m.GetParameters().Length == 1
                             && m.GetParameters()[0].ParameterType.Name == typeof( List<> ).Name )
                         .First();
 
@@ -108,6 +109,8 @@ namespace Rock.Tests.Shared.TestFramework
             {
                 RecordsUpdated = ExecuteSaveChanges( rockContextMock )
             } );
+            rockContextMock.Setup( m => m.WrapTransaction( It.IsAny<Action>() ) ).Callback<Action>( a => a() );
+            rockContextMock.Setup( m => m.WrapTransactionIf( It.IsAny<Func<bool>>() ) ).Returns<Func<bool>>( a => a() );
         }
 
         /// <summary>
@@ -182,6 +185,21 @@ namespace Rock.Tests.Shared.TestFramework
             dbSetMock.Setup( m => m.Remove( It.IsAny<T>() ) ).Returns<T>( a =>
             {
                 sourceList.Remove( a );
+                return a;
+            } );
+
+            dbSetMock.Setup( m => m.AddRange( It.IsAny<IEnumerable<T>>() ) ).Returns<IEnumerable<T>>( a =>
+            {
+                sourceList.AddRange( a );
+                return a;
+            } );
+
+            dbSetMock.Setup( m => m.RemoveRange( It.IsAny<IEnumerable<T>>() ) ).Returns<IEnumerable<T>>( a =>
+            {
+                foreach ( var item in a )
+                {
+                    sourceList.Remove( item );
+                }
                 return a;
             } );
 

@@ -471,6 +471,21 @@ export const Page = {
      */
     ConnectionsBoard: "4FBCEB52-8892-4035-BDEA-112A494BE81F",
     /**
+     * Gets the Connections List page guid.
+     * ParentPage: Connections
+     */
+    ConnectionsList: "8B5F2875-0D36-4625-8EE4-B738AE8E12F5",
+    /**
+     * Gets the Connections Operational Snapshot page guid.
+     * ParentPage: Connections
+     */
+    ConnectionsOperationalSnapshot: "3421FD03-018F-457D-A0B6-9326C5D5A5F4",
+    /**
+     * Gets the Connections Opportunities page guid.
+     * ParentPage: Connections
+     */
+    ConnectionsOpportunities: "F8B0E0CE-76A3-4449-B4EB-28DD9A42D71F",
+    /**
      * Gets the Contact Us page guid
      * ParentPage: Connect
      */
@@ -1545,11 +1560,6 @@ export const Page = {
      * ParentPage: Communications
      */
     SystemEmailCategoriesCommunications: "B55323CD-F494-43E7-97BF-4E13DAB58E0B",
-    /**
-     * Gets the System Email Categories page guid
-     * ParentPage: System Emails
-     */
-    SystemEmailCategoriesSystemEmails: "66FAF7A6-7523-475C-A88D-51C75178A785",
     /**
      * Gets the System Information page guid
      * ParentPage: System Dialogs

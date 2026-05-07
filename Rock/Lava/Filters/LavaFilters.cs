@@ -2452,7 +2452,18 @@ namespace Rock.Lava
                 }
 
                 dataset.UpdateResultData();
-                rockContext.SaveChanges();
+
+                /*
+                    2/10/2026 - NA
+                    We are calling the SaveChanges( true ) overload that disables pre/post processing hooks
+                    because we only want to change the properties changed in UpdateResultData(). If we don't disable
+                    these hooks, the [ModifiedDateTime] value will also be updated every time a DataView is
+                    run, which is not what we want here.
+
+                    Reason: See Asana task "Persisted Datasets Don't Have CreatedBy/ModifiedBy Values"
+                    https://app.asana.com/1/20866866924293/task/1213202694111290
+                */
+                rockContext.SaveChanges( true );
             }
             else
             {
@@ -2707,6 +2718,21 @@ namespace Rock.Lava
                     case "ContentChannel":
                         {
                             modelCacheType = typeof( ContentChannelCache );
+                            break;
+                        }
+                    case "ContentChannelItem":
+                        {
+                            modelCacheType = typeof( ContentChannelItemCache );
+                            break;
+                        }
+                    case "ContentChannelItemAssociation":
+                        {
+                            modelCacheType = typeof( ContentChannelItemAssociationCache );
+                            break;
+                        }
+                    case "ContentChannelItemSlug":
+                        {
+                            modelCacheType = typeof( ContentChannelItemSlugCache );
                             break;
                         }
                     default:
@@ -4688,7 +4714,7 @@ namespace Rock.Lava
             }
 
             comparisonType = ( comparisonType ?? "equal" ).ToLower();
-            comparisonType = ( comparisonType == "equal" || comparisonType == "notequal" ) ? comparisonType : "equal";
+            comparisonType = ( comparisonType == "equal" || comparisonType == "notequal" || comparisonType == "contains" ) ? comparisonType : "equal";
 
             var result = new List<object>();
 
@@ -4709,7 +4735,9 @@ namespace Rock.Lava
                 {
                     if ( lavaObject.ContainsKey( filterKey )
                             && ( ( comparisonType == "equal" && GetLavaCompareResult( lavaObject.GetValue( filterKey ), filterValue ) == 0 )
-                                 || ( comparisonType == "notequal" && GetLavaCompareResult( lavaObject.GetValue( filterKey ), filterValue ) != 0 ) ) )
+                                 || ( comparisonType == "notequal" && GetLavaCompareResult( lavaObject.GetValue( filterKey ), filterValue ) != 0 )
+                                 || ( comparisonType == "contains" && lavaObject.GetValue( filterKey )?.ToString().Contains( filterValue?.ToString() ) == true )
+                               ) )
                     {
                         result.Add( lavaObject );
                     }
@@ -4719,7 +4747,9 @@ namespace Rock.Lava
                     var dictionaryObject = value as IDictionary<string, object>;
                     if ( dictionaryObject.ContainsKey( filterKey )
                              && ( ( dynamic ) dictionaryObject[filterKey] == ( dynamic ) filterValue && comparisonType == "equal"
-                                    || ( ( dynamic ) dictionaryObject[filterKey] != ( dynamic ) filterValue && comparisonType == "notequal" ) ) )
+                                    || ( ( dynamic ) dictionaryObject[filterKey] != ( dynamic ) filterValue && comparisonType == "notequal" )
+                                    || ( ( dynamic ) dictionaryObject[filterKey].ToString().Contains( filterValue?.ToString() ) == true && comparisonType == "contains" )
+                                    ) )
                     {
                         result.Add( dictionaryObject );
                     }
@@ -4738,6 +4768,10 @@ namespace Rock.Lava
 
                     if ( ( compareResult == 0 && comparisonType == "equal" )
                             || ( compareResult != 0 && comparisonType == "notequal" ) )
+                    {
+                        result.Add( value );
+                    }
+                    else if ( comparisonType == "contains" && propertyValue.ToString().Contains( filterValue?.ToString() ) == true )
                     {
                         result.Add( value );
                     }
@@ -5514,16 +5548,17 @@ namespace Rock.Lava
         /// <example><![CDATA[
         /// {{ 'hello' | ToBase64 }}
         /// ]]></example>
+        [Obsolete( "Use ToBase64 instead." )]
+        [RockObsolete( "19.0" )]
         public static string Base64( object input )
         {
-            if ( input is ICollection<byte> )
-            {
-                return Convert.ToBase64String( ( input as ICollection<byte> ).ToArray() );
-            }
-            else
-            {
-                return Convert.ToBase64String( System.Text.Encoding.UTF8.GetBytes( input.ToString() ) );
-            }
+            return ToBase64( input );
+        }
+
+        /// <inheritdoc cref="Rock.Lava.Filters.TemplateFilters.ToBase64(object)"/>
+        public static string ToBase64( object input )
+        {
+            return Rock.Lava.Filters.TemplateFilters.ToBase64( input );
         }
 
         /// <summary>
