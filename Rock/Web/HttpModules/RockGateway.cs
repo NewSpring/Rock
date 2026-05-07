@@ -71,8 +71,7 @@ namespace Rock.Web.HttpModules
         {
             context.BeginRequest += Application_BeginRequest;
             context.EndRequest += Application_EndRequest;
-
-            // TODO: Handle error like this: https://github.com/open-telemetry/opentelemetry-dotnet-contrib/blob/main/src/OpenTelemetry.Instrumentation.AspNet.TelemetryHttpModule/TelemetryHttpModule.cs#L127
+            context.Error += Application_Error;
         }
 
         /// <summary>
@@ -91,6 +90,84 @@ namespace Rock.Web.HttpModules
             BeginLogRequest( context );
 
             AddGeolocationToRequest( context );
+
+            // Intercept CSS requests and process them
+            if ( context.Request.Url.AbsolutePath.EndsWith( ".css", StringComparison.OrdinalIgnoreCase ) )
+            {
+                HandleCssRequest( context );
+            }
+        }
+
+        /// <summary>
+        /// Handles CSS requests by processing and serving CSS content.
+        /// </summary>
+        /// <param name="context">The current HTTP context.</param>
+        private static void HandleCssRequest( HttpContext context )
+        {
+            // Determine the root directory for CSS files (e.g., the web app root)
+            var relativePath = context.Request.Url.AbsolutePath;
+
+            var cssProcessor = RockApp.Current.GetRequiredService<CssProcessor>();
+            var result = cssProcessor.GetCssContent( relativePath );
+
+            // If the processor couldn't find the file, then let the normal pipeline handle it.
+            if ( result == null )
+            {
+                return;
+            }
+
+            // Set cache, ETag and Last-Modified headers. Cache is set to match
+            // default out of the box values for IIS static file handling.
+            context.Response.Cache.SetCacheability( HttpCacheability.Public );
+            context.Response.Cache.SetMaxAge( TimeSpan.FromDays( 365 ) );
+            context.Response.ContentType = "text/css";
+            context.Response.Headers["ETag"] = result.ETag;
+            context.Response.Headers["Last-Modified"] = result.LastModified.ToUniversalTime().ToString( "R" );
+
+            // Handle conditional GET (If-None-Match, If-Modified-Since)
+            var ifNoneMatch = context.Request.Headers["If-None-Match"];
+            var ifModifiedSince = context.Request.Headers["If-Modified-Since"];
+
+            if ( ShouldReturnNotModified( ifNoneMatch, ifModifiedSince, result.ETag, result.LastModified ) )
+            {
+                context.Response.StatusCode = 304;
+                context.Response.SuppressContent = true;
+                context.Response.End();
+                return;
+            }
+
+            context.Response.Write( result.Content );
+            context.Response.End();
+        }
+
+        /// <summary>
+        /// Determines if the response should be a 304 not modified given the
+        /// header values and content values.
+        /// </summary>
+        /// <param name="ifNoneMatch">The If-None-Match header value from the request.</param>
+        /// <param name="ifModifiedSince">The If-Modified-Since header value from the request.</param>
+        /// <param name="eTag">The ETag value of the content that would be sent.</param>
+        /// <param name="lastModified">The last modified date time of the content that would be sent.</param>
+        /// <returns><c>true</c> if the content has not been modified.</returns>
+        private static bool ShouldReturnNotModified( string ifNoneMatch, string ifModifiedSince, string eTag, DateTime lastModified )
+        {
+            var etagMatches = !string.IsNullOrEmpty( ifNoneMatch ) && ifNoneMatch.Replace( "W/", "" ).Trim() == eTag;
+
+            if ( etagMatches )
+            {
+                return true;
+            }
+
+            if ( !string.IsNullOrEmpty( ifModifiedSince ) )
+            {
+                if ( DateTime.TryParse( ifModifiedSince, out var since ) )
+                {
+                    // HTTP dates are in seconds, so ignore milliseconds
+                    return Math.Abs( ( lastModified - since.ToUniversalTime() ).TotalSeconds ) < 1;
+                }
+            }
+
+            return false;
         }
 
         /// <summary>
@@ -109,6 +186,20 @@ namespace Rock.Web.HttpModules
             EndLogRequest( context );
 
             EndAddObservabilityToRequest( context );
+        }
+
+        /// <summary>
+        /// Processes any error that happened during execution. This is only
+        /// called for unhandled exceptions.
+        /// </summary>
+        /// <param name="sender">The application that sent the event.</param>
+        /// <param name="e">The event arguments.</param>
+        private void Application_Error( object sender, EventArgs e )
+        {
+            var application = ( HttpApplication ) sender;
+            var context = application.Context;
+
+            AddErrorToObservability( context );
         }
 
         #region Observability
@@ -253,6 +344,18 @@ namespace Rock.Web.HttpModules
                     activity.AddTag( "client.country_code", geolocation.CountryCode );
                 }
 
+                if ( activity.Status == ActivityStatusCode.Unset )
+                {
+                    if ( context.Response.StatusCode >= 500 )
+                    {
+                        activity.SetStatus( ActivityStatusCode.Error );
+                    }
+                    else
+                    {
+                        activity.SetStatus( ActivityStatusCode.Ok );
+                    }
+                }
+
                 activity.Dispose();
             }
 
@@ -312,6 +415,30 @@ namespace Rock.Web.HttpModules
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// Adds any unhandled exceptions that occurred during the request to
+        /// the observability activity.
+        /// </summary>
+        /// <param name="context">The context that describes the request.</param>
+        private void AddErrorToObservability( HttpContext context )
+        {
+            if ( context.Items[ObservabilityContextKey] is Activity activity )
+            {
+                var exception = context.Server.GetLastError();
+
+                if ( exception != null )
+                {
+                    if ( exception is HttpUnhandledException && exception.InnerException != null )
+                    {
+                        exception = exception.InnerException;
+                    }
+
+                    activity.SetStatus( ActivityStatusCode.Error, exception.Message );
+                    activity.AddException( exception );
+                }
+            }
         }
 
         /// <summary>

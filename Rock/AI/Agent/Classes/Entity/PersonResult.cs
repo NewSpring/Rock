@@ -65,7 +65,7 @@ namespace Rock.AI.Agent.Classes.Entity
         /// Determines if the internal profile should be included in the return.
         /// </summary>
         [JsonIgnore]
-        public bool IncludePublicProfile { get; set; }
+        public bool IncludeProfileLink { get; set; }
 
         /// <summary>
         /// Determines if the avatar URL should be included in the return.
@@ -89,7 +89,7 @@ namespace Rock.AI.Agent.Classes.Entity
         {
             get
             {
-                if ( !IncludePublicProfile )
+                if ( !IncludeProfileLink )
                 {
                     return null;
                 }
@@ -310,7 +310,7 @@ namespace Rock.AI.Agent.Classes.Entity
         /// <summary>
         /// The compiled function representing <see cref="_nameOnlyPersonAliasExpression"/>.
         /// </summary>
-        private static readonly Lazy<Func<Person, PersonResult>> _nameOnlyPersonAliasFunc = new Lazy<Func<Person, PersonResult>>( () => _nameOnlyExpression.Compile() );
+        private static readonly Lazy<Func<PersonAlias, PersonResult>> _nameOnlyPersonAliasFunc = new Lazy<Func<PersonAlias, PersonResult>>( () => _nameOnlyPersonAliasExpression.Compile() );
 
         /// <summary>
         /// The expression for constructing a <see cref="PersonResult"/> with
@@ -395,7 +395,7 @@ namespace Rock.AI.Agent.Classes.Entity
         [Expandable( nameof( NameOnlyPersonAliasExpression ) )]
         public static PersonResult NameOnly( PersonAlias personAlias )
         {
-            return _nameOnlyPersonAliasFunc.Value( personAlias.Person );
+            return _nameOnlyPersonAliasFunc.Value( personAlias );
         }
 
         /// <summary>

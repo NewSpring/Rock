@@ -19,7 +19,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-using Rock.AI.Agent.Classes.Common;
 using Rock.Attribute;
 using Rock.Data;
 using Rock.Enums.AI.Agent;
@@ -62,7 +61,7 @@ namespace Rock.AI.Agent
         /// when the skill is being executed as part of a chat. Meaning any
         /// method that is not a tool will not have a context.
         /// </summary>
-        protected AgentRequestContext AgentRequestContext { get; private set; }
+        protected IAgentRequestContext AgentRequestContext { get; private set; }
 
         /// <summary>
         /// The configuration values that were configured for this skill when it
@@ -80,9 +79,28 @@ namespace Rock.AI.Agent
         /// </summary>
         /// <param name="configurationValues">The configuration values.</param>
         /// <param name="agentRequestContext">The context for this chat agent request.</param>
-        internal void Initialize( IReadOnlyDictionary<string, string> configurationValues, AgentRequestContext agentRequestContext )
+        internal void Initialize( IReadOnlyDictionary<string, string> configurationValues, IAgentRequestContext agentRequestContext )
         {
-            ConfigurationValues = configurationValues;
+            var writableConfigurationValues = configurationValues.ToDictionary( kvp => kvp.Key, kvp => kvp.Value );
+            var fieldTypeAttributes = GetConfigurationAttributes();
+
+            // Update any missing configuration values with defaults from the
+            // attributes.
+            foreach ( var fieldTypeAttribute in fieldTypeAttributes )
+            {
+                var fieldTypeCache = FieldTypeCache.All().FirstOrDefault( c => c.Class == fieldTypeAttribute.FieldTypeClass );
+                if ( fieldTypeCache == null || fieldTypeCache.Field == null )
+                {
+                    continue;
+                }
+
+                if ( !writableConfigurationValues.TryGetValue( fieldTypeAttribute.Key, out _ ) )
+                {
+                    writableConfigurationValues[fieldTypeAttribute.Key] = fieldTypeAttribute.DefaultValue ?? string.Empty;
+                }
+            }
+
+            ConfigurationValues = writableConfigurationValues;
             AgentRequestContext = agentRequestContext;
         }
 
@@ -97,10 +115,10 @@ namespace Rock.AI.Agent
         /// <summary>
         /// Creates a <see cref="ToolStatus.Success"/> result with no content.
         /// </summary>
-        /// <returns>A new instance of <see cref="RockToolResult"/>.</returns>
-        protected RockToolResult Success()
+        /// <returns>A new instance of <see cref="IAgentToolResult"/>.</returns>
+        protected IAgentToolResult Success()
         {
-            return RockToolResult.Success();
+            return AgentToolResult.Success();
         }
 
         /// <summary>
@@ -109,20 +127,20 @@ namespace Rock.AI.Agent
         /// object or an enumeration of objects that make up the payload.
         /// </summary>
         /// <param name="payload">The payload to return with the result.</param>
-        /// <returns>A new instance of <see cref="RockToolResult"/>.</returns>
-        protected RockToolResult Success( object payload )
+        /// <returns>A new instance of <see cref="IAgentToolResult"/>.</returns>
+        protected IAgentToolResult Success( object payload )
         {
-            return RockToolResult.Success( payload );
+            return AgentToolResult.Success( payload );
         }
 
         /// <summary>
         /// Creates a <see cref="ToolStatus.NoData"/> result. This should be
         /// used for lookup type operations that 
         /// </summary>
-        /// <returns>A new instance of <see cref="RockToolResult"/>.</returns>
-        protected RockToolResult NoData()
+        /// <returns>A new instance of <see cref="IAgentToolResult"/>.</returns>
+        protected IAgentToolResult NoData()
         {
-            return RockToolResult.NoData();
+            return AgentToolResult.NoData();
         }
 
         /// <summary>
@@ -130,10 +148,10 @@ namespace Rock.AI.Agent
         /// message.
         /// </summary>
         /// <param name="message">The error message to return.</param>
-        /// <returns>A new instance of <see cref="RockToolResult"/>.</returns>
-        protected RockToolResult Error( string message )
+        /// <returns>A new instance of <see cref="IAgentToolResult"/>.</returns>
+        protected IAgentToolResult Error( string message )
         {
-            return RockToolResult.Error( message );
+            return AgentToolResult.Error( message );
         }
 
         /// <summary>
@@ -141,10 +159,10 @@ namespace Rock.AI.Agent
         /// messages.
         /// </summary>
         /// <param name="messages">The error messages to return.</param>
-        /// <returns>A new instance of <see cref="RockToolResult"/>.</returns>
-        protected RockToolResult Error( IEnumerable<string> messages )
+        /// <returns>A new instance of <see cref="IAgentToolResult"/>.</returns>
+        protected IAgentToolResult Error( IEnumerable<string> messages )
         {
-            return RockToolResult.Error( messages );
+            return AgentToolResult.Error( messages );
         }
 
         #endregion
@@ -245,7 +263,11 @@ namespace Rock.AI.Agent
 
                 if ( !privateConfiguration.TryGetValue( fieldTypeAttribute.Key, out var privateValue ) )
                 {
-                    privateValue = string.Empty;
+                    privateValue = fieldTypeAttribute.DefaultValue ?? string.Empty;
+                }
+                else if ( privateValue.IsNullOrWhiteSpace() )
+                {
+                    privateValue = fieldTypeAttribute.DefaultValue ?? string.Empty;
                 }
 
                 var configurationValues = fieldTypeAttribute.FieldConfigurationValues

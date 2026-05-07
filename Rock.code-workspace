@@ -93,6 +93,9 @@
 		},
 		{
 			"path": "Rock.JavaScript.Obsidian.Reporting"
+		},
+		{
+			"path": "Rock.Frontend.Styles"
 		}
 	],
 	"settings": {
