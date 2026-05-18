@@ -103,19 +103,19 @@
                 <div class="py-2 col-span-md-2">
                     <div class="d-grid grid-cols-2 grid-cols-md-4 gap-2">
                         <div class="d-flex align-items-center gap-2">
-                            <div class="p-2 bg-warning rounded-sm" title="En Route"></div>
+                            <div class="p-2 bg-warning-strong rounded-sm" title="En Route"></div>
                             <h6 class="m-0">En Route</h6>
                         </div>
                         <div class="d-flex align-items-center gap-2">
-                            <div class="p-2 bg-danger rounded-sm" title="Not Marked Safe"></div>
+                            <div class="p-2 bg-danger-strong rounded-sm" title="Not Marked Safe"></div>
                             <h6 class="m-0">Not Marked Safe</h6>
                         </div>
                         <div class="d-flex align-items-center gap-2">
-                            <div class="p-2 bg-info rounded-sm" title="Marked Safe"></div>
+                            <div class="p-2 bg-info-strong rounded-sm" title="Marked Safe"></div>
                             <h6 class="m-0">Marked Safe</h6>
                         </div>
                         <div class="d-flex align-items-center gap-2">
-                            <div class="p-2 bg-success rounded-sm" title="Checked Out"></div>
+                            <div class="p-2 bg-success-strong rounded-sm" title="Checked Out"></div>
                             <h6 class="m-0">Checked Out</h6>
                         </div>
 
@@ -143,16 +143,16 @@
                         </div>
                         <div class="d-flex flex-wrap p-2 gap-1" style="border-top: 1px solid #e5e5e5;">
                             {% for i in (1..result.EnRoute) %}
-                                <div class="p-2 bg-warning rounded-sm" title="En Route"></div>
+                                <div class="p-2 bg-warning-strong rounded-sm" title="En Route"></div>
                             {% endfor %}
                             {% for i in (1..result.Unmarked) %}
-                                <div class="p-2 bg-danger rounded-sm" title="Not Marked Safe"></div>
+                                <div class="p-2 bg-danger-strong rounded-sm" title="Not Marked Safe"></div>
                             {% endfor %}
                             {% for i in (1..result.Marked) %}
-                                <div class="p-2 bg-info rounded-sm" title="Marked Safe"></div>
+                                <div class="p-2 bg-info-strong rounded-sm" title="Marked Safe"></div>
                             {% endfor %}
                             {% for i in (1..result.CheckedOut) %}
-                                <div class="p-2 bg-success rounded-sm" title="Checked Out"></div>
+                                <div class="p-2 bg-success-strong rounded-sm" title="Checked Out"></div>
                             {% endfor %}
                         </div>
                     </div>
