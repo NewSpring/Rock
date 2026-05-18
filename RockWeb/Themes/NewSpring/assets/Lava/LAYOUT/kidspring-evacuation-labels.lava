@@ -9,13 +9,13 @@
 
   {%- if status == 'marked' -%}
     {% assign formattedStatus = 'Marked Safe' %}
-    {% assign statusLabelType = 'info progress-bar bg-info w-auto progress-bar-striped active' %}
+    {% assign statusLabelType = 'info progress-bar bg-info-strong w-auto progress-bar-striped active' %}
   {%- elseif status == 'checkedOut' -%}
     {% assign formattedStatus = 'Checked Out' %}
     {% assign statusLabelType = 'success' %}
   {%- else -%}
     {% assign formattedStatus = 'Not Marked Safe' %}
-    {% assign statusLabelType = 'danger progress-bar bg-danger w-auto progress-bar-striped active' %}
+    {% assign statusLabelType = 'danger progress-bar bg-danger-strong w-auto progress-bar-striped active' %}
   {%- endif -%}
 
 <div class="d-flex flex-wrap gap-1 mt-1">
