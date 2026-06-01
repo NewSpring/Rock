@@ -21,9 +21,11 @@ using System.Linq;
 
 using Rock.Attribute;
 using Rock.ClientService.Core.Note;
+#if REVIEW_WEBFORMS
 using Rock.Common.Mobile;
 using Rock.Common.Mobile.Blocks.WorkflowEntry;
 using Rock.Common.Mobile.Enums;
+#endif
 using Rock.Data;
 using Rock.Enums.Cms;
 using Rock.Enums.Workflow;
@@ -1279,7 +1281,11 @@ namespace Rock.Blocks.Workflow
 
             if ( isLoginRequired && RequestContext.CurrentPerson == null )
             {
+#if REVIEW_WEBFORMS
                 PageCache.Layout.Site.RedirectToLoginPage( true );
+#else
+                throw new NotImplementedException();
+#endif
                 return true;
             }
 
@@ -1290,6 +1296,7 @@ namespace Rock.Blocks.Workflow
 
         #region Legacy Mobile Methods
 
+#if REVIEW_WEBFORMS
         /// <summary>
         /// Gets the person entry details to be sent to the shell.
         /// </summary>
@@ -1334,18 +1341,6 @@ namespace Rock.Blocks.Workflow
                 mobileAddress = familyLocation != null ? Rock.Mobile.MobileHelper.GetMobileAddress( familyLocation ) : null;
             }
 
-            Guid? maritalStatusGuid;
-
-            if ( personEntryPerson != null )
-            {
-                maritalStatusGuid = personEntryPerson.MaritalStatusValue?.Guid;
-            }
-            else
-            {
-                // default to Married if this is a new person
-                maritalStatusGuid = Rock.SystemGuid.DefinedValue.PERSON_MARITAL_STATUS_MARRIED.AsGuid();
-            }
-
             return new WorkflowFormPersonEntry
             {
                 PreHtml = form.PersonEntryPreHtml.ResolveMergeFields( mergeFields ),
@@ -1364,7 +1359,7 @@ namespace Rock.Blocks.Workflow
                     Person = mobilePerson,
                     Spouse = mobileSpouse,
                     Address = mobileAddress,
-                    MaritalStatusGuid = maritalStatusGuid
+                    MaritalStatusGuid = personEntryPerson?.MaritalStatusValue?.Guid
                 }
             };
         }
@@ -1606,6 +1601,7 @@ namespace Rock.Blocks.Workflow
 
             return values;
         }
+#endif
 
         #endregion
 
@@ -1805,6 +1801,7 @@ namespace Rock.Blocks.Workflow
             return ActionOk();
         }
 
+#if REVIEW_WEBFORMS
         /// <summary>
         /// Gets the next form to display for the workflow. The form may be either
         /// an entry form or just the text or redirect that should be performed.
@@ -1917,6 +1914,7 @@ namespace Rock.Blocks.Workflow
 
             return GetLegacyMobileWorkflowForm( action, workflow, currentPerson, useClientValues );
         }
+#endif
 
         #endregion
     }

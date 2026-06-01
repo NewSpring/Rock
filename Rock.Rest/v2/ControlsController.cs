@@ -58,6 +58,7 @@ using Rock.Storage.AssetStorage;
 using Rock.SystemKey;
 using Rock.Utility;
 using Rock.Utility.CaptchaApi;
+using Rock.ViewModels.Blocks.Core.SmartSearch;
 using Rock.ViewModels.Controls;
 using Rock.ViewModels.Crm;
 using Rock.ViewModels.Rest.Controls;
@@ -803,7 +804,11 @@ namespace Rock.Rest.v2
                 foreach ( var folder in options.ExpandedFolders )
                 {
                     var parsedAsset = ParseAssetKey( folder );
-                    expandedFolders.Add( $"{parsedAsset.ProviderId},{parsedAsset.FullPath}" );
+                    // Only try to add the folder if it parsed OK
+                    if ( parsedAsset != null )
+                    {
+                        expandedFolders.Add( $"{parsedAsset.ProviderId},{parsedAsset.FullPath}" );
+                    }
                 }
             }
 
@@ -874,7 +879,7 @@ namespace Rock.Rest.v2
 
             var parsedAsset = ParseAssetKey( options.AssetFolderId );
 
-            if ( parsedAsset.ProviderId == null || parsedAsset.FullPath == null )
+            if ( parsedAsset == null || parsedAsset.ProviderId == null || parsedAsset.FullPath == null )
             {
                 return Ok( new List<AssetManagerTreeItemBag>() );
             }
@@ -917,7 +922,7 @@ namespace Rock.Rest.v2
 
             var asset = ParseAssetKey( options.AssetFolderId );
 
-            if ( asset.ProviderId == null || asset.FullPath == null )
+            if ( asset == null || asset.ProviderId == null || asset.FullPath == null )
             {
                 return BadRequest();
             }
@@ -976,7 +981,7 @@ namespace Rock.Rest.v2
 
             var asset = ParseAssetKey( options.AssetFolderId );
 
-            if ( asset.ProviderId == null || asset.FullPath == null )
+            if ( asset == null || asset.ProviderId == null || asset.FullPath == null )
             {
                 return BadRequest();
             }
@@ -1574,7 +1579,7 @@ namespace Rock.Rest.v2
             var rootAssetKey = $"0,{encryptedRootFolder},,True";
             var parsedAsset = ParseAssetKey( rootAssetKey );
 
-            if ( parsedAsset.Root.IsNullOrWhiteSpace() )
+            if ( parsedAsset == null || parsedAsset.Root.IsNullOrWhiteSpace() )
             {
                 return (null, null);
             }
@@ -1716,7 +1721,7 @@ namespace Rock.Rest.v2
                         UnencryptedRoot = asset.Root
                     };
 
-                    if ( hasChildren && expandedFolders.Contains( $"0,{subDirAsset.FullDirectoryPath}" ) )
+                    if ( hasChildren && subDirAsset != null && expandedFolders.Contains( $"0,{subDirAsset.FullDirectoryPath}" ) )
                     {
                         updatedExpandedFolders.Add( subDirKey );
 
@@ -3040,6 +3045,64 @@ namespace Rock.Rest.v2
 
         #endregion
 
+        #region Color Picker
+
+        /// <summary>
+        /// Retrieves the list of available color swatches for the color picker, filtered by authorization and activity status.
+        /// </summary>
+        /// <remarks>
+        /// Only swatches that are active and for which the current user has view authorization
+        /// are included in the result. The response includes display location information for each swatch, which may be
+        /// "Custom" if not specified.
+        /// </remarks>
+        /// <param name="options">An object containing options for retrieving color picker swatches, including security grant information. Cannot be null.</param>
+        /// <returns>An HTTP response containing a collection of color picker swatch items if found; otherwise, a NotFound
+        /// response.</returns>
+        [HttpPost]
+        [Route( "ColorPickerGetColorPickerSwatches" )]
+        [Authenticate]
+        [ExcludeSecurityActions( Security.Authorization.EXECUTE_READ, Security.Authorization.EXECUTE_WRITE, Security.Authorization.EXECUTE_UNRESTRICTED_READ, Security.Authorization.EXECUTE_UNRESTRICTED_WRITE )]
+        [ProducesResponse( HttpStatusCode.OK, Type = typeof( List<ColorPickerSwatchBag> ) )]
+        [ProducesResponse( HttpStatusCode.NotFound )]
+        [Rock.SystemGuid.RestActionGuid( "22F2083E-CB15-4D19-893C-4218C6E06323" )]
+        public IActionResult ColorPickerGetColorPickerSwatches( ColorPickerGetColorPickerSwatchesOptionsBag options )
+        {
+            using ( var rockContext = new RockContext() )
+            {
+                var definedType = DefinedTypeCache.Get( Rock.SystemGuid.DefinedType.COLOR_PICKER_SWATCHES.AsGuid() );
+                var grant = SecurityGrant.FromToken( options.SecurityGrantToken );
+
+                if ( definedType == null || !definedType.IsAuthorized( Rock.Security.Authorization.VIEW, RockRequestContext.CurrentPerson ) )
+                {
+                    return NotFound();
+                }
+
+                var definedValues = definedType.DefinedValues
+                    .Where( v => ( v.IsAuthorized( Security.Authorization.VIEW, RockRequestContext.CurrentPerson ) || grant?.IsAccessGranted( v, Security.Authorization.VIEW ) == true )
+                        && ( v.IsActive ) )
+                    .OrderBy( v => v.Order )
+                    .ThenBy( v => v.Value )
+                    .ToList();
+
+                definedValues.LoadAttributes();
+
+                var displayLocationAttributeKey = AttributeCache.Get( SystemGuid.Attribute.DEFINED_TYPE_COLOR_PICKER_SWATCHES_DISPLAY_LOCATION )?.Key;
+
+                var result = definedValues
+                    .Select( dv => new ColorPickerSwatchBag
+                    {
+                        Value = dv.Value,
+                        Description = dv.Description,
+                        DisplayLocation = displayLocationAttributeKey.IsNotNullOrWhiteSpace() ? dv.GetAttributeValue( displayLocationAttributeKey ) : "Custom"
+                    } )
+                    .ToList();
+
+                return Ok( result );
+            }
+        }
+
+        #endregion Color Picker
+
         #region Communication Recipient Activity
 
         /// <summary>
@@ -3211,7 +3274,7 @@ namespace Rock.Rest.v2
                     {
                         Activity = CommunicationRecipientActivity.MarkedAsSpam,
                         ActivityDateTime = recipient.SpamComplaintDateTime.Value,
-                        Description = "Recipient marked email as spam."
+                        Description = "Recipient marked message as spam."
                     } );
                 }
 
@@ -3221,7 +3284,7 @@ namespace Rock.Rest.v2
                     {
                         Activity = CommunicationRecipientActivity.Unsubscribed,
                         ActivityDateTime = recipient.UnsubscribeDateTime.Value,
-                        Description = "Recipient unsubscribed from email."
+                        Description = "Recipient unsubscribed from message."
                     } );
                 }
 
@@ -4099,61 +4162,6 @@ namespace Rock.Rest.v2
 
                 return Ok( new ListItemBag { Text = definedValue.Value, Value = definedValue.Guid.ToString() } );
             }
-        }
-
-        #endregion
-
-        #region Defined Type Picker
-
-        /// <summary>
-        /// Gets the defined types that can be displayed in the defined type picker.
-        /// </summary>
-        /// <param name="options">The options that describe which items to load.</param>
-        /// <returns>A List of <see cref="ListItemBag"/> objects that represent defined types.</returns>
-        [HttpPost]
-        [Route( "DefinedTypePickerGetDefinedTypes" )]
-        [Authenticate]
-        [ExcludeSecurityActions( Security.Authorization.EXECUTE_READ, Security.Authorization.EXECUTE_WRITE, Security.Authorization.EXECUTE_UNRESTRICTED_READ, Security.Authorization.EXECUTE_UNRESTRICTED_WRITE )]
-        [ProducesResponse( HttpStatusCode.OK, Type = typeof( List<ListItemBag> ) )]
-        [Rock.SystemGuid.RestActionGuid( "50319D0D-7399-43C7-8239-495E11CA958A" )]
-        public IActionResult DefinedTypePickerGetDefinedTypes( [FromBody] DefinedTypePickerGetDefinedTypesOptionsBag options )
-        {
-            var definedTypes = DefinedTypeCache.All()
-                .Where( dt => dt.IsAuthorized( Rock.Security.Authorization.VIEW, RockRequestContext.CurrentPerson ) )
-                .ToList();
-
-            if ( options.DefinedTypes != null && options.DefinedTypes.Count > 0 )
-            {
-                definedTypes = definedTypes.Where( dt => options.DefinedTypes.Contains( dt.Guid ) ).ToList();
-            }
-
-            if ( options.ExcludeDefinedTypes != null && options.ExcludeDefinedTypes.Any() )
-            {
-                definedTypes = definedTypes.Where( dt => !options.ExcludeDefinedTypes.Contains( dt.Guid ) ).ToList();
-            }
-
-            if ( options.IsSortedByName )
-            {
-                definedTypes = definedTypes.OrderBy( dt => dt.Name ).ToList();
-            }
-            else
-            {
-                // Matches the ordering of the DefinedTypeList block
-                definedTypes = definedTypes
-                    .OrderBy( dt => dt.Category?.Name ?? string.Empty )
-                    .ThenBy( dt => dt.Name )
-                    .ToList();
-            }
-
-            var results = definedTypes
-                .Select( dt => new ListItemBag
-                {
-                    Value = dt.Guid.ToString(),
-                    Text = dt.Name
-                } )
-                .ToList();
-
-            return Ok( results );
         }
 
         #endregion
@@ -5232,6 +5240,11 @@ namespace Rock.Rest.v2
                     itemQuery = itemQuery.Where( t => options.EntityTypeGuids.Contains( t.Guid ) );
                 }
 
+                if ( options.ExcludedEntityTypeGuids != null && options.ExcludedEntityTypeGuids.Any() )
+                {
+                    itemQuery = itemQuery.Where( t => !options.ExcludedEntityTypeGuids.Contains( t.Guid ) );
+                }
+
                 var items = itemQuery
                     .OrderByDescending( t => t.IsCommon )
                     .ThenBy( t => t.FriendlyName )
@@ -5328,17 +5341,29 @@ namespace Rock.Rest.v2
         {
             using ( var rockContext = new RockContext() )
             {
+                var lowerValue = options.DateRangeStart.AsDateTime();
+                var upperValue = options.DateRangeEnd.AsDateTime();
+
+                // Swap the values if they are backwards
+                if ( lowerValue > upperValue )
+                {
+                    var temp = lowerValue;
+                    lowerValue = upperValue;
+                    upperValue = temp;
+                }
+
                 var eventItems = new EventCalendarItemService( rockContext ).Queryable()
                     .Include( eci => eci.EventCalendar )
-                    .Where( i => options.RootCalendar != Guid.Empty ? i.EventCalendar.Guid == options.RootCalendar : true )
-                    .Where( i => options.IncludeInactive ? true : i.EventItem.IsActive )
+                    .Where( eci => options.RootCalendar == Guid.Empty || eci.EventCalendar.Guid == options.RootCalendar )
+                    .Where( eci => options.IncludeInactive || eci.EventItem.IsActive )
                     .ToList()
                     .Where( eci => eci.EventCalendar.IsAuthorized( Authorization.VIEW, RockRequestContext.CurrentPerson ) )
-                    .Select( i => new ListItemBag
+                    .Where( eci => (!lowerValue.HasValue && !upperValue.HasValue) || eci.EventItem.GetStartTimes( lowerValue.Value, upperValue.Value ).Any() )
+                    .Select( eci => new ListItemBag
                     {
-                        Category = i.EventCalendar.Name,
-                        Value = i.EventItem.Guid.ToString(),
-                        Text = i.EventItem.Name
+                        Category = eci.EventCalendar.Name,
+                        Value = eci.EventItem.Guid.ToString(),
+                        Text = eci.EventItem.Name
                     } )
                     .OrderBy( i => i.Category )
                     .ThenBy( i => i.Text )
@@ -5380,27 +5405,26 @@ namespace Rock.Rest.v2
 
                 var eventItemOccurences = new EventItemOccurrenceService( rockContext )
                     .Queryable()
-                    .Where( c => c.EventItem.Guid == options.EventItem )
-                    .Where( c => options.IncludeInactive || c.EventItem.IsActive )
+                    .Where( eio => eio.EventItem.Guid == options.EventItem )
+                    .Where( eio => options.IncludeInactive || eio.EventItem.IsActive )
                     .ToList()
-                    .Where( c => c.EventItem.GetStartTimes( lowerValue, upperValue ).Any() )
-                    .Select( c => new
+                    .Where( eio => eio.EventItem.GetStartTimes( lowerValue, upperValue ).Any() )
+                    .Select( eio => new
                     {
-                        c.Guid,
-                        c.NextStartDateTime,
-                        Campus = c.Campus != null ? c.Campus.Name : "All Campuses",
-                        Order = c.CampusId.HasValue ? 1 : 0
-                    }
-                    )
-                    .OrderBy( c => c.Order )
-                    .ThenBy( c => c.Campus )
-                    .ThenBy( c => c.NextStartDateTime ?? DateTime.MinValue )
-                    .Select( c => new ListItemBag
+                        eio.Guid,
+                        eio.NextStartDateTime,
+                        CampusName = eio.Campus != null ? eio.Campus.Name : "All Campuses",
+                        Order = eio.CampusId.HasValue ? 1 : 0
+                    } )
+                    .OrderBy( eio => eio.Order )
+                    .ThenBy( eio => eio.CampusName )
+                    .ThenBy( eio => eio.NextStartDateTime ?? DateTime.MinValue )
+                    .Select( eio => new ListItemBag
                     {
-                        Text = c.NextStartDateTime.HasValue ?
-                                string.Format( "{0} - {1}", c.Campus, c.NextStartDateTime.Value.ToShortDateTimeString() ) :
-                                c.Campus,
-                        Value = c.Guid.ToString()
+                        Text = eio.NextStartDateTime.HasValue ?
+                                string.Format( "{0} - {1}", eio.CampusName, eio.NextStartDateTime.Value.ToShortDateTimeString() ) :
+                                eio.CampusName,
+                        Value = eio.Guid.ToString()
                     }
                     )
                     .ToList();
@@ -10517,42 +10541,38 @@ namespace Rock.Rest.v2
         #region Search Field
 
         /// <summary>
-        /// Gets the search filters available for the Search Field control
+        /// Gets the search filters available for the Search Field control.
         /// </summary>
-        /// <returns>A Dictionary of <see cref="ListItemBag"/> objects that represent all of the availabe filters.</returns>
+        /// <returns>A list of <see cref="SearchFilterBag"/> objects that represent all of the available filters.</returns>
         [HttpPost]
         [Route( "SearchFieldGetSearchFilters" )]
         [Authenticate]
         [ExcludeSecurityActions( Security.Authorization.EXECUTE_READ, Security.Authorization.EXECUTE_WRITE, Security.Authorization.EXECUTE_UNRESTRICTED_READ, Security.Authorization.EXECUTE_UNRESTRICTED_WRITE )]
-        [ProducesResponse( HttpStatusCode.OK, Type = typeof( Dictionary<string, ListItemBag> ) )]
+        [ProducesResponse( HttpStatusCode.OK, Type = typeof( List<SearchFilterBag> ) )]
         [Rock.SystemGuid.RestActionGuid( "6FF52C9E-985B-46C3-B5A5-E69312D189CB" )]
         public IActionResult SearchFieldGetSearchFilters()
         {
-            var searchExtensions = new Dictionary<string, ListItemBag>();
+            var searchFilters = new List<SearchFilterBag>();
 
             var currentPerson = RockRequestContext.CurrentPerson;
-            if ( currentPerson != null )
+            foreach ( KeyValuePair<int, Lazy<Rock.Search.SearchComponent, Rock.Extension.IComponentData>> service in Rock.Search.SearchContainer.Instance.Components )
             {
-                foreach ( KeyValuePair<int, Lazy<Rock.Search.SearchComponent, Rock.Extension.IComponentData>> service in Rock.Search.SearchContainer.Instance.Components )
+                var searchComponent = service.Value.Value;
+                if ( searchComponent.IsAuthorized( Security.Authorization.VIEW, currentPerson ) )
                 {
-                    var searchComponent = service.Value.Value;
-                    if ( searchComponent.IsAuthorized( Security.Authorization.VIEW, currentPerson ) )
+                    if ( !searchComponent.AttributeValues.ContainsKey( "Active" ) || bool.Parse( searchComponent.AttributeValues["Active"].Value ) )
                     {
-                        if ( !searchComponent.AttributeValues.ContainsKey( "Active" ) || bool.Parse( searchComponent.AttributeValues["Active"].Value ) )
+                        searchFilters.Add( new SearchFilterBag
                         {
-                            var item = new ListItemBag
-                            {
-                                Value = searchComponent.ResultUrl,
-                                Text = searchComponent.SearchLabel,
-
-                            };
-                            searchExtensions.Add( service.Key.ToString(), item );
-                        }
+                            Key = service.Key.ToString(),
+                            Label = searchComponent.SearchLabel,
+                            ResultUrl = searchComponent.ResultUrl,
+                        } );
                     }
                 }
             }
 
-            return Ok( searchExtensions );
+            return Ok( searchFilters );
         }
 
         #endregion

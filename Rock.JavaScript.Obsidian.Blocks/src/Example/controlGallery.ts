@@ -133,7 +133,6 @@ import FullscreenGallery from "./ControlGallery/fullscreenGallery.partial.obs";
 import PanelGallery from "./ControlGallery/panelGallery.partial.obs";
 import FileUploaderGallery from "./ControlGallery/fileUploaderGallery.partial.obs";
 import SlidingDateRangePickerGallery from "./ControlGallery/slidingDateRangePickerGallery.partial.obs";
-import DefinedTypePickerGallery from "./ControlGallery/definedTypePickerGallery.partial.obs";
 import DefinedValuePickerGallery from "./ControlGallery/definedValuePickerGallery.partial.obs";
 import EntityTypePickerGallery from "./ControlGallery/entityTypePickerGallery.partial.obs";
 import AchievementTypePickerGallery from "./ControlGallery/achievementTypePickerGallery.partial.obs";
@@ -261,7 +260,12 @@ import PieChartGallery from "./ControlGallery/pieChartGallery.partial.obs";
 import DoughnutChartGallery from "./ControlGallery/doughnutChartGallery.partial.obs";
 import ExperieceModePickerGallery from "./ControlGallery/experienceModePickerGallery.partial.obs";
 import SearchResultsSearchField from "./ControlGallery/searchResultsSearchFieldGallery.partial.obs";
+import PillListGallery from "./ControlGallery/pillListGallery.partial.obs";
+import DockedPanelGallery from "./ControlGallery/dockedPanelGallery.partial.obs";
 import EventItemOccurrencePickerGalleryPartial from "./ControlGallery/eventItemOccurrencePickerGallery.partial.obs";
+import LinearGaugeChartGallery from "./ControlGallery/linearGaugeChartGallery.partial.obs";
+import EventItemOccurrencePickerGallery from "./ControlGallery/eventItemOccurrencePickerGallery.partial.obs";
+import TooltipGallery from "./ControlGallery/tooltipGallery.partial.obs";
 
 const controlGalleryComponents: Record<string, Component> = [
     NotificationBoxGallery,
@@ -307,7 +311,6 @@ const controlGalleryComponents: Record<string, Component> = [
     FileUploaderGallery,
     ImageUploaderGallery,
     SlidingDateRangePickerGallery,
-    DefinedTypePickerGallery,
     DefinedValuePickerGallery,
     CampusPickerGallery,
     EntityTypePickerGallery,
@@ -469,6 +472,11 @@ const controlGalleryComponents: Record<string, Component> = [
     ExperieceModePickerGallery,
     SearchResultsSearchField,
     EventItemOccurrencePickerGalleryPartial,
+    PillListGallery,
+    DockedPanelGallery,
+    LinearGaugeChartGallery,
+    EventItemOccurrencePickerGallery,
+    TooltipGallery,
 ]
     // Fix vue 3 SFC putting name in __name.
     .map(a => {

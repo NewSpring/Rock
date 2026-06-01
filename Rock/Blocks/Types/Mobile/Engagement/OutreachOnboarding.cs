@@ -15,8 +15,10 @@
 // </copyright>
 
 using System.ComponentModel;
+using System.Data.Entity;
 
 using Rock.Attribute;
+using System.Linq;
 using Rock.Common.Mobile.Blocks.Engagement.OutreachOnboarding.cs;
 using Rock.Common.Mobile.ViewModel;
 using Rock.Enums.Core;
@@ -38,12 +40,12 @@ namespace Rock.Blocks.Types.Mobile.Engagement
 
     [LinkedPage(
         "Add Contact Page",
-        Description = "Page to link to when user taps on the plus button.",
+        Description = "The page to open for adding a contact.",
         IsRequired = true,
         Key = AttributeKey.AddContact,
         Order = 0 )]
 
-    [MobileNavigationActionField( "After Finish Action",
+    [MobileNavigationActionField( "Completion Action",
         Description = "The navigation action to perform when the delete button is pressed.",
         IsRequired = false,
         DefaultValue = MobileNavigationActionFieldAttribute.PopSinglePageValue,
@@ -51,7 +53,7 @@ namespace Rock.Blocks.Types.Mobile.Engagement
         Order = 1 )]
 
     [TextField( "Toolbox Name",
-        Description = "The name that you want to call this tool.",
+        Description = "The public name of this experience.",
         IsRequired = false,
         DefaultValue = "Beacon",
         Key = AttributeKey.ToolboxName,
@@ -75,6 +77,23 @@ namespace Rock.Blocks.Types.Mobile.Engagement
         #endregion
 
         #region Block Actions
+
+        /// <summary>
+        /// Gets a value indicating whether the current person has at least one contact.
+        /// </summary>
+        /// <returns></returns>
+        [BlockAction]
+        public BlockActionResult GetHasAtOneContact()
+        {
+            var currPerson = GetCurrentPerson();
+
+            ContactService contactService = new ContactService( RockContext );
+            var contactCount = contactService.Queryable()
+                .Where( c => c.OwnerPersonAliasId == currPerson.PrimaryAliasId )
+                .Count();
+
+            return ActionOk( contactCount > 0 );
+        }
 
         /// <summary>
         /// Finishes the onboarding.
