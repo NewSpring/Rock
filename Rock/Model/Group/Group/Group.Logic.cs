@@ -29,9 +29,11 @@ using Rock.Communication.Chat;
 using Rock.Data;
 using Rock.Enums.Communication.Chat;
 using Rock.Enums.Group;
+using Rock.Lava;
 using Rock.Security;
 using Rock.UniversalSearch;
 using Rock.UniversalSearch.IndexModels;
+using Rock.Utility;
 using Rock.Web.Cache;
 
 namespace Rock.Model
@@ -51,15 +53,20 @@ namespace Rock.Model
         public bool AllowsInteractiveBulkIndexing => true;
 
         /// <summary>
-        /// Gets or sets the history change list.
+        /// Gets the URL of the group's photo, or <see langword="null"/> when
+        /// <see cref="PhotoId"/> is null. Mirrors <see cref="Person.PhotoUrl"/>
+        /// in shape but without the person-aware no-photo fallback; the
+        /// design intentionally omits the hero region entirely when no photo
+        /// is set rather than rendering a placeholder.
         /// </summary>
         /// <value>
-        /// The history change list.
+        /// URL of the photo, or <see langword="null"/> when no photo is set.
         /// </value>
+        [LavaVisible]
         [NotMapped]
-        [RockObsolete( "1.14" )]
-        [Obsolete( "Does nothing. No longer needed. We replaced this with a private property under the SaveHook class for this entity.", true )]
-        public virtual History.HistoryChangeList HistoryChangeList { get; set; }
+        public virtual string PhotoUrl => PhotoId.HasValue
+            ? FileUrlHelper.GetImageUrl( PhotoId.Value )
+            : null;
 
         /// <summary>
         /// Gets whether this group is overriding its parent group type's peer network configuration in any way.
@@ -497,16 +504,20 @@ namespace Rock.Model
                 {
                     int curCount = groupMemberService.Queryable().Where( m => m.GroupId == group.Id && m.GroupRoleId == role.Id && m.GroupMemberStatus == GroupMemberStatus.Active ).Count();
 
+                    var encodedRoleNameLower = System.Net.WebUtility.HtmlEncode( role.Name.ToLower() );
+
                     if ( role.MinCount.HasValue && role.MinCount.Value > curCount )
                     {
-                        string format = "The <strong>{1}</strong> role is currently below its minimum requirement of {2:N0} active {3}.<br/>";
-                        roleLimitWarnings.AppendFormat( format, role.Name.Pluralize().ToLower(), role.Name.ToLower(), role.MinCount, role.MinCount == 1 ? groupType.GroupMemberTerm.ToLower() : groupType.GroupMemberTerm.Pluralize().ToLower() );
+                        string format = "The <strong>{0}</strong> role is currently below its minimum requirement of {1:N0} active {2}.<br/>";
+                        var memberTerm = role.MinCount == 1 ? groupType.GroupMemberTerm.ToLower() : groupType.GroupMemberTerm.Pluralize().ToLower();
+                        roleLimitWarnings.AppendFormat( format, encodedRoleNameLower, role.MinCount, System.Net.WebUtility.HtmlEncode( memberTerm ) );
                     }
 
                     if ( role.MaxCount.HasValue && role.MaxCount.Value < curCount )
                     {
-                        string format = "The <strong>{1}</strong> role is currently above its maximum limit of {2:N0} active {3}.<br/>";
-                        roleLimitWarnings.AppendFormat( format, role.Name.Pluralize().ToLower(), role.Name.ToLower(), role.MaxCount, role.MaxCount == 1 ? groupType.GroupMemberTerm.ToLower() : groupType.GroupMemberTerm.Pluralize().ToLower() );
+                        string format = "The <strong>{0}</strong> role is currently above its maximum limit of {1:N0} active {2}.<br/>";
+                        var memberTerm = role.MaxCount == 1 ? groupType.GroupMemberTerm.ToLower() : groupType.GroupMemberTerm.Pluralize().ToLower();
+                        roleLimitWarnings.AppendFormat( format, encodedRoleNameLower, role.MaxCount, System.Net.WebUtility.HtmlEncode( memberTerm ) );
                     }
                 }
             }
@@ -591,7 +602,7 @@ namespace Rock.Model
                         {
                             if ( groupType.GroupsRequireCampus && this.CampusId == null )
                             {
-                                errorMessage = string.Format( "{0} require a campus.", groupType.Name.Pluralize() );
+                                errorMessage = string.Format( "{0} require a campus.", System.Net.WebUtility.HtmlEncode( groupType.Name.Pluralize() ) );
                                 ValidationResults.Add( new ValidationResult( errorMessage ) );
                                 result = false;
                             }

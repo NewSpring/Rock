@@ -23,6 +23,7 @@ using System.Runtime.Serialization;
 
 using Rock.Bus.Message;
 using Rock.Data;
+using Rock.Enums.Security;
 using Rock.Net.Geolocation;
 using Rock.Security;
 using Rock.Web.Cache;
@@ -42,6 +43,7 @@ namespace Rock.Model
         /// </value>
         [MaxLength( 100 )]
         [DataMember]
+        [StringValidation( StringValidationProfile.PlainText )]
         public string AbbreviatedName
         {
             get
@@ -190,6 +192,12 @@ namespace Rock.Model
             if ( ( !entityTypeId.HasValue || entityTypeId.Value == 0 ) && entityTypeQualifierColumn == Attribute.SYSTEM_SETTING_QUALIFIER && string.IsNullOrEmpty( entityTypeQualifierValue ) )
             {
                 Rock.Web.SystemSettings.Remove();
+
+                if ( this.Key == SystemKey.SystemSetting.ROCK_SECURITY_SETTINGS )
+                {
+                    // Invalidate the cached security settings for all Rock instances.
+                    Rock.Web.Cache.RockCache.Remove( Rock.Security.SecuritySettingsService.SecuritySettingsCacheKey );
+                }
 
                 if ( this.Key == SystemKey.SystemSetting.COUNTRIES_RESTRICTED_FROM_ACCESSING )
                 {

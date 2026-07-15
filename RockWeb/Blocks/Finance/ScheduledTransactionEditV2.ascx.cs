@@ -402,10 +402,6 @@ mission. We are so grateful for your commitment.</p>
 
         public static class PageParameterKey
         {
-            [RockObsolete( "1.13.1" )]
-            [Obsolete( "Pass the GUID instead using the key ScheduledTransactionGuid." )]
-            public const string ScheduledTransactionId = "ScheduledTransactionId";
-
             public const string ScheduledTransactionGuid = "ScheduledTransactionGuid";
         }
 
@@ -528,18 +524,9 @@ mission. We are so grateful for your commitment.</p>
         {
             var financialScheduledTransactionGuid = PageParameter( PageParameterKey.ScheduledTransactionGuid ).AsGuidOrNull();
 
-#pragma warning disable CS0618
-            var financialScheduledTransactionId = PageParameter( PageParameterKey.ScheduledTransactionId ).AsIntegerOrNull();
-#pragma warning restore CS0618
-
             if ( financialScheduledTransactionGuid.HasValue )
             {
                 return financialScheduledTransactionGuid.Value;
-            }
-
-            if ( financialScheduledTransactionId.HasValue )
-            {
-                return new FinancialScheduledTransactionService( new RockContext() ).GetGuid( financialScheduledTransactionId.Value );
             }
 
             return null;
@@ -1141,6 +1128,9 @@ mission. We are so grateful for your commitment.</p>
 
             var selectedAccountAmounts = caapPromptForAccountAmounts.AccountAmounts.Where( a => a.Amount.HasValue && a.Amount.Value != 0 ).Select( a => new { a.AccountId, Amount = a.Amount.Value } ).ToArray();
             referencePaymentInfo.Amount = selectedAccountAmounts.Sum( a => a.Amount );
+            referencePaymentInfo.AccountAllocations = selectedAccountAmounts
+                .Select( a => new FinancialTransactionService.AccountAllocation( a.AccountId, a.Amount ) )
+                .ToList();
 
             // Validate that an amount was entered
             if ( selectedAccountAmounts.Sum( a => a.Amount ) <= 0 )

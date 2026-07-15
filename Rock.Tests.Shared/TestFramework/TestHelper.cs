@@ -26,10 +26,10 @@ using Moq;
 
 using Rock.Configuration;
 using Rock.Data;
-using Rock.Tests.Shared.TestFramework;
+using Rock.Net;
 using Rock.Web.Cache;
 
-namespace Rock.Tests.Shared
+namespace Rock.Tests.Shared.TestFramework
 {
     public static class TestHelper
     {
@@ -231,7 +231,7 @@ namespace Rock.Tests.Shared
             var rockContextMock = MockDatabaseHelper.CreateRockContextMock();
             var rockContextFactory = MockDatabaseHelper.CreateRockContextFactory( rockContextMock );
 
-            return CreateScopedRockApp( sc => sc.AddSingleton( rockContextFactory ) );
+            return CreateScopedRockApp( "Server=localhost\\MockInstance;Database=Rock", sc => sc.AddSingleton( rockContextFactory ) );
         }
 
         /// <summary>
@@ -255,6 +255,7 @@ namespace Rock.Tests.Shared
             sc.AddSingleton<IConnectionStringProvider>( new TestConnectionStringProvider( connectionString ) );
             sc.AddSingleton<IInitializationSettings, TestInitializationSettings>();
             sc.AddSingleton<IDatabaseConfiguration, DatabaseConfiguration>();
+            sc.AddSingleton<IUserAgentParser, UserAgentParser>();
             sc.AddSingleton( hostingMock.Object );
 
             sc.AddSingleton<IRockContextFactory, RockContextFactory>();
