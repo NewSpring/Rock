@@ -477,6 +477,12 @@ namespace Rock.SystemGuid
         public const string CHECKIN_CHECK_OUT_SUCCESS = "21A855BA-6D68-4504-97B4-D787452CEC29";
 
         /// <summary>
+        /// Gets the Check-in Areas and Groups page guid
+        /// ParentPage: Check-in
+        /// </summary>
+        public const string CHECK_IN_AREAS_AND_GROUPS = "BAF3E806-8555-41D4-825B-838673DAFEB5";
+
+        /// <summary>
         /// Gets the ChildPages page guid
         /// ParentPage: System Dialogs
         /// </summary>
@@ -613,11 +619,25 @@ namespace Rock.SystemGuid
         /// </summary>
         public const string CONNECTIONS_OPPORTUNITIES = "F8B0E0CE-76A3-4449-B4EB-28DD9A42D71F";
 
-		/// <summary>
+        /// <summary>
+        /// Gets the Connections Hub page guid.
+        /// ParentPage: Connections
+        /// </summary>
+        public const string CONNECTIONS_HUB = "8B5F2875-0D36-4625-8EE4-B738AE8E12F5";
+
+        /// <summary>
+        /// Gets the My Connections page guid.
+        /// ParentPage: Connections
+        /// </summary>
+        public const string MY_CONNECTIONS = "3E55BE64-C8E8-487B-9BD4-E94C7F99BE1B";
+
+        /// <summary>
         /// Gets the Connections List page guid.
         /// ParentPage: Connections
         /// </summary>
-        public const string CONNECTIONS_LIST = "8B5F2875-0D36-4625-8EE4-B738AE8E12F5";
+        [RockObsolete( "20.0" )]
+        [Obsolete( "Use CONNECTIONS_HUB instead." )]
+        public const string CONNECTIONS_LIST = CONNECTIONS_HUB;
 
         /// <summary>
         /// Gets the Connections Operational Snapshot page guid.
@@ -2148,5 +2168,10 @@ namespace Rock.SystemGuid
         /// The Group Placement page.
         /// </summary>
         public const string GROUP_PLACEMENT = "C1B0C21F-FF3B-4D79-A11A-75BF689A954A";
+
+        /// <summary>
+        /// The Ncoa Process Page
+        /// </summary>
+        public const string NCOA_PROCESS = "56EDE500-CEE6-41F4-B724-E44E66A4432F";
     }
 }

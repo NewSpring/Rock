@@ -41,12 +41,32 @@ namespace RockWeb.Blocks.CheckIn.Manager
     [Category( "Check-in > Manager" )]
     [Description( "Obsolete. Use Roster, LiveMetrics, and RoomSettings Blocks instead" )]
 
-    [CustomRadioListField( "Navigation Mode", "Navigation and attendance counts can be grouped and displayed either by 'Group Type > Group Type (etc) > Group > Location' or by 'location > location (etc).'  Select the navigation hierarchy that is most appropriate for your organization.", "T^Group Type,L^Location,", true, "T", "", 0, "Mode" )]
-    [GroupTypeField( "Check-in Type", "The Check-in Area to display.  This value can also be overridden through the URL query string key (e.g. when navigated to from the Check-in Type selection block).", false, "", "", 1, "GroupTypeTemplate", Rock.SystemGuid.DefinedValue.GROUPTYPE_PURPOSE_CHECKIN_TEMPLATE )]
-    [LinkedPage( "Person Page", "The page used to display a selected person's details.", order: 2 )]
-    [LinkedPage( "Area Select Page", "The page to redirect user to if area has not be configured or selected.", order: 3 )]
-    [DefinedValueField( Rock.SystemGuid.DefinedType.CHART_STYLES, "Chart Style", order: 4, defaultValue: Rock.SystemGuid.DefinedValue.CHART_STYLE_ROCK )]
-    [BooleanField( "Search By Code", "A flag indicating if security codes should also be evaluated in the search box results.", order: 5 )]
+    [CustomRadioListField( "Navigation Mode",
+        Description = "Navigation and attendance counts can be grouped and displayed either by 'Group Type > Group Type (etc) > Group > Location' or by 'location > location (etc).'  Select the navigation hierarchy that is most appropriate for your organization.",
+        ListSource = "T^Group Type,L^Location,",
+        IsRequired = true,
+        DefaultValue = "T",
+        Order = 0,
+        Key = "Mode" )]
+    [GroupTypeField( "Check-in Type",
+        Description = "The Check-in Area to display.  This value can also be overridden through the URL query string key (e.g. when navigated to from the Check-in Type selection block).",
+        IsRequired = false,
+        Order = 1,
+        Key = "GroupTypeTemplate",
+        GroupTypePurposeValueGuid = Rock.SystemGuid.DefinedValue.GROUPTYPE_PURPOSE_CHECKIN_TEMPLATE )]
+    [LinkedPage( "Person Page",
+        Description = "The page used to display a selected person's details.",
+        Order = 2 )]
+    [LinkedPage( "Area Select Page",
+        Description = "The page to redirect user to if area has not be configured or selected.",
+        Order = 3 )]
+    [DefinedValueField( "Chart Style",
+        DefinedTypeGuid = Rock.SystemGuid.DefinedType.CHART_STYLES,
+        Order = 4,
+        DefaultValue = Rock.SystemGuid.DefinedValue.CHART_STYLE_ROCK )]
+    [BooleanField( "Search By Code",
+        Description = "A flag indicating if security codes should also be evaluated in the search box results.",
+        Order = 5 )]
     [Rock.SystemGuid.BlockTypeGuid( "00FC1DEA-FE34-41E3-BC0A-2EE9138091EC" )]
     public partial class Locations : Rock.Web.UI.RockBlock
     {
@@ -183,7 +203,7 @@ namespace RockWeb.Blocks.CheckIn.Manager
                         CurrentNavPath = globalPreferences.GetValue( "checkin-manager-current-nav-path" );
                     }
 
-                    SetChartOptions();
+                    //SetChartOptions();
                     BuildNavigationControls();
                 }
             }
@@ -370,7 +390,7 @@ namespace RockWeb.Blocks.CheckIn.Manager
 
             }
 
-            RegisterStartupScript();
+            //RegisterStartupScript();
         }
 
         /// <summary>
@@ -380,7 +400,7 @@ namespace RockWeb.Blocks.CheckIn.Manager
         /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
         protected void Block_BlockUpdated( object sender, EventArgs e )
         {
-            SetChartOptions();
+            //SetChartOptions();
             BuildNavigationControls();
         }
 
@@ -761,70 +781,6 @@ namespace RockWeb.Blocks.CheckIn.Manager
             }
 
             return string.Empty;
-        }
-
-        private void SetChartOptions()
-        {
-#pragma warning disable CS0618 // Type or member is obsolete
-            var options = new ChartOptions();
-#pragma warning restore CS0618 // Type or member is obsolete
-            options.series = new SeriesOptions( false, true, false );
-            options.xaxis = new AxisOptions { mode = AxisMode.time };
-            options.grid = new GridOptions { hoverable = true, clickable = false };
-
-            options.SetChartStyle( GetAttributeValue( "ChartStyle" ).AsGuidOrNull() );
-
-            options.xaxis.timeformat = "%I:%M";
-
-            hfChartOptions.Value = JsonConvert.SerializeObject( options, Formatting.Indented, new JsonSerializerSettings() { ReferenceLoopHandling = ReferenceLoopHandling.Ignore, NullValueHandling = NullValueHandling.Ignore } );
-        }
-
-        private void RegisterStartupScript()
-        {
-#pragma warning disable CS0618 // Type or member is obsolete
-            var options = new ChartOptions();
-#pragma warning restore CS0618 // Type or member is obsolete
-            options.series = new SeriesOptions( false, true, false );
-            options.yaxis = new AxisOptions { min = 0, minTickSize = 1 };
-            options.xaxis = new AxisOptions { mode = AxisMode.time };
-            options.grid = new GridOptions { hoverable = true, clickable = false };
-            options.SetChartStyle( GetAttributeValue( "ChartStyle" ).AsGuidOrNull() );
-            options.xaxis.timeformat = "%I:%M";
-
-            string script = string.Format( @"
-    var data = eval($('#{1}').val());
-    var options = {2};
-    $.plot( $('#{0}'), data, options );
-
-    $('.js-threshold-btn-edit').on('click', function(e){{
-        var $parentDiv = $(this).closest('div.js-threshold');
-        $parentDiv.find('.js-threshold-nb').val($parentDiv.find('.js-threshold-hf').val());
-        $parentDiv.find('.js-threshold-view').hide();
-        $parentDiv.find('.js-threshold-edit').show();
-    }});
-
-    $('a.js-threshold-edit').on('click', function(e){{
-        var $parentDiv = $(this).closest('div.js-threshold');
-        $parentDiv.find('.js-threshold-edit').hide();
-        $parentDiv.find('.js-threshold-view').show();
-        return true;
-    }});
-
-    $('.js-threshold').on('click', function(e){{
-        e.stopPropagation();
-    }});
-",
-                pnlChart.ClientID, hfChartData.ClientID,
-                JsonConvert.SerializeObject(
-                    options,
-                    Formatting.Indented,
-                    new JsonSerializerSettings()
-                    {
-                        ReferenceLoopHandling = ReferenceLoopHandling.Ignore,
-                        NullValueHandling = NullValueHandling.Ignore
-                    } ) );
-
-            ScriptManager.RegisterStartupScript( pnlChart, pnlChart.GetType(), "chart", script, true );
         }
 
         #region Get Navigation Data
@@ -1473,7 +1429,7 @@ namespace RockWeb.Blocks.CheckIn.Manager
                     .ThenBy( i => i.Name );
                 rptNavItems.DataBind();
 
-                RegisterStartupScript();
+                //RegisterStartupScript();
             }
         }
 

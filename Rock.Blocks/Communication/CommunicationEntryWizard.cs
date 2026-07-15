@@ -272,9 +272,7 @@ namespace Rock.Blocks.Communication
 
         private static class PageParameterKey
         {
-            // "Communication" allows Communication Id, Guid, or IdKey values,
-            // while the older "CommunicationId" only supports Id.
-            public const string Communication = "Communication";
+            // Allows Communication Id, Guid, or IdKey values.
             public const string CommunicationId = "CommunicationId";
 
             // "Person" allows Person Id, Guid, or IdKey values,
@@ -321,30 +319,14 @@ namespace Rock.Blocks.Communication
 
         private Guid PersonalizationSegmentCategoryGuid => GetAttributeValue( AttributeKey.PersonalizationSegmentCategory ).AsGuid();
 
-        private string SimpleCommunicationPageUrl => this.GetLinkedPageUrl( AttributeKey.SimpleCommunicationPage, PageParameterKey.Communication, "((Key))" );
+        private string SimpleCommunicationPageUrl => this.GetLinkedPageUrl( AttributeKey.SimpleCommunicationPage, PageParameterKey.CommunicationId, "((Key))" );
 
         private int MinimumShortLinkTokenLength => this.GetAttributeValue( AttributeKey.MinimumShortLinkTokenLength ).AsInteger();
 
         /// <summary>
-        /// Gets the Communication entity key passed to the "Communication" or "CommunicationId" page parameter.
+        /// Gets the Communication entity key passed to the "CommunicationId" page parameter.
         /// </summary>
-        private string CommunicationOrCommunicationIdPageParameter
-        {
-            get
-            {
-                var communicationPageParameter = PageParameter( PageParameterKey.Communication );
-
-                if ( communicationPageParameter.IsNotNullOrWhiteSpace() )
-                {
-                    return communicationPageParameter;
-                }
-                else
-                {
-                    // Only allow the CommunicationId to contain an ID, but return it as a string so it can be used as an entity key.
-                    return PageParameter( PageParameterKey.CommunicationId ).AsIntegerOrNull()?.ToString();
-                }
-            }
-        }
+        private string CommunicationIdPageParameter => PageParameter( PageParameterKey.CommunicationId );
 
         /// <summary>
         /// Gets the CommunicationTemplate entity key passed to the "CommunicationTemplate" or "TemplateGuid" page parameter.
@@ -431,6 +413,7 @@ namespace Rock.Blocks.Communication
                     .ThenBy( dv => dv.Value )
                     .ThenBy( dv => dv.Id )
                     .ToListItemBagList();
+                box.CreateNewCommunicationUrl = this.GetCurrentPageUrl( null, skipExistingParameters: true );
                 box.CustomText = GetCustomTextBag();
                 box.HasDetailBlockOnCurrentPage = this.PageCache.Blocks.Any( a => a.BlockType.Guid == SystemGuid.BlockType.COMMUNICATION_DETAIL.AsGuid() );
                 box.ImageComponentBinaryFileTypeGuid = this.ImageBinaryFileTypeGuid;
@@ -1469,7 +1452,7 @@ namespace Rock.Blocks.Communication
         private Model.Communication LoadCommunicationFromPageParameter( RockContext rockContext )
         {
             // Check page parameter for existing communication.
-            var communicationKey = this.CommunicationOrCommunicationIdPageParameter;
+            var communicationKey = this.CommunicationIdPageParameter;
 
             if ( communicationKey.IsNotNullOrWhiteSpace() )
             {
@@ -1618,6 +1601,12 @@ namespace Rock.Blocks.Communication
                 BccEmails = communication.BCCEmails,
                 CcEmails = communication.CCEmails,
                 CommunicationId = communication.Id,
+                CommunicationIdKey = communication.IdKey,
+                CommunicationDetailUrl = communication.Id > 0
+                    ? this.GetCurrentPageUrl(
+                        new Dictionary<string, string> { [PageParameterKey.CommunicationId] = communication.IdKey },
+                        skipExistingParameters: true )
+                    : null,
                 CommunicationGuid = communication.Guid,
                 CommunicationListGroupGuid = communication.ListGroupId.HasValue ? communication.ListGroup?.Guid : defaultCommunicationListGroupGuid,
                 CommunicationName = communication.Name,
@@ -3095,6 +3084,14 @@ namespace Rock.Blocks.Communication
         {
             var currentPerson = GetCurrentPerson();
 
+            // Build the canonical detail URL synchronously while HttpContext is still
+            // available so the app subpath is included. The IdKey is substituted into
+            // the placeholder inside the background task once the communication is saved.
+            const string idKeyPlaceholder = "((Key))";
+            var communicationDetailUrlTemplate = this.GetCurrentPageUrl(
+                new Dictionary<string, string> { [PageParameterKey.CommunicationId] = idKeyPlaceholder },
+                skipExistingParameters: true );
+
             var progressReporter = RealTimeHelper.GetTopicContext<ITaskActivityProgress>().Clients.Channels( new[] { GetCommunicationSendChannel( bag.CommunicationGuid ) } );
 
             // Define a background task for the bulk send process, because it may take considerable time.
@@ -3199,7 +3196,9 @@ namespace Rock.Blocks.Communication
                     Message = finalMessage,
                     Data = new
                     {
-                        CommunicationId = communication.Id
+                        CommunicationId = communication.Id,
+                        CommunicationIdKey = communication.IdKey,
+                        CommunicationDetailUrl = communicationDetailUrlTemplate?.Replace( idKeyPlaceholder, communication.IdKey )
                     },
                     IsStarted = true,
                     IsFinished = true

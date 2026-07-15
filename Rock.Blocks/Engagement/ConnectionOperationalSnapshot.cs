@@ -21,6 +21,7 @@ using System.Data.Entity;
 using System.Linq;
 
 using Rock.Attribute;
+using Rock.Enums.Connection;
 using Rock.Model;
 using Rock.Model.Connection.ConnectionType.Options;
 using Rock.Obsidian.UI;
@@ -43,7 +44,7 @@ namespace Rock.Blocks.Engagement
 
     [LinkedPage( "Connections Hub Page",
         Key = AttributeKey.ConnectionsHubPage,
-        DefaultValue = SystemGuid.Page.CONNECTIONS_LIST,
+        DefaultValue = SystemGuid.Page.CONNECTIONS_HUB,
         Description = "The page to navigate to if a Connectors grid row is clicked.",
         IsRequired = true,
         Order = 0 )]
@@ -237,7 +238,8 @@ namespace Rock.Blocks.Engagement
                         {
                             { "ConnectionType", ConnectionType?.IdKey },
                             { "Connector", "((Key))" },
-                            { "ConnectionOpportunity", "((ConnectionOpportunityKey))" }
+                            { "ConnectionOpportunity", "((ConnectionOpportunityKey))" },
+                            { "SelectedView", EnabledViewFlags.List.ToString().ToLower() }
                         }
                     )
                 }
@@ -258,8 +260,9 @@ namespace Rock.Blocks.Engagement
                 ConnectionOpportunities = GetConnectionOpportunities(),
                 CompletionMetrics = GetCompletionMetrics(),
                 Filters = GetFilters(),
+                IsFutureFollowUpEnabled = ConnectionType?.EnableFutureFollowup == true,
                 RequestState = GetRequestState(),
-                RequestTimeline = GetRequestTimeline()
+                RequestTimeline = GetRequestTimeline(),
             };
         }
 
@@ -481,7 +484,11 @@ namespace Rock.Blocks.Engagement
                             cr.CreatedDateTime.Value,
                             cr.ConnectedDateTime.Value ) )
                 } )
-                .Where( m => m.ActiveRequestCount > 0 )
+                // Include connectors who currently have active requests as well as those
+                // who have connected at least one request in the last 28 days. This ensures
+                // that quick-moving connectors who have recently completed work are still
+                // represented in the grid even when they have no remaining active requests.
+                .Where( m => m.ActiveRequestCount > 0 || m.CompletedRequestCount > 0 )
                 .ToList();
 
             if ( !metrics.Any() )

@@ -29,6 +29,7 @@ using Rock.Reporting;
 using Rock.Security;
 using Rock.Utility;
 using Rock.ViewModels.Blocks;
+using Rock.ViewModels.Core.Grid;
 using Rock.ViewModels.Blocks.Cms.ContentChannelNavigation;
 using Rock.ViewModels.Utility;
 using Rock.Web.Cache;
@@ -401,11 +402,13 @@ namespace Rock.Blocks.Cms
         /// </summary>
         /// <param name="channel">The content channel.</param>
         /// <param name="gridAttributes">The grid attributes used for attribute filtering.</param>
-        /// <param name="isFiltered">Set to true if any filters are applied.</param>
+        /// <param name="hasActiveFilters">Set to true if any user-applied filters are active after value conversion.</param>
+        /// <param name="isReorderEnabled">Set to true if items are in manual order and reordering is available.</param>
         /// <returns>The filtered and authorized list of items.</returns>
-        private List<ContentChannelItem> GetFilteredItems( ContentChannel channel, List<AttributeCache> gridAttributes, out bool isFiltered )
+        private List<ContentChannelItem> GetFilteredItems( ContentChannel channel, List<AttributeCache> gridAttributes, out bool hasActiveFilters, out bool isReorderEnabled )
         {
-            isFiltered = false;
+            hasActiveFilters = false;
+            isReorderEnabled = false;
 
             var contentChannelItemService = new ContentChannelItemService( RockContext );
             var queryable = contentChannelItemService.Queryable()
@@ -424,7 +427,7 @@ namespace Rock.Blocks.Cms
 
                 if ( lowerDate.HasValue )
                 {
-                    isFiltered = true;
+                    hasActiveFilters = true;
                     if ( channel.ContentChannelType.DateRangeType == ContentChannelDateType.SingleDate )
                     {
                         queryable = queryable.Where( i => i.StartDateTime >= lowerDate.Value );
@@ -437,7 +440,7 @@ namespace Rock.Blocks.Cms
 
                 if ( upperDate.HasValue )
                 {
-                    isFiltered = true;
+                    hasActiveFilters = true;
                     var upperDateEnd = upperDate.Value.Date.AddDays( 1 );
                     queryable = queryable.Where( i => i.StartDateTime <= upperDateEnd );
                 }
@@ -446,14 +449,14 @@ namespace Rock.Blocks.Cms
                 var status = filters.Status.ConvertToEnumOrNull<ContentChannelItemStatus>();
                 if ( status.HasValue )
                 {
-                    isFiltered = true;
+                    hasActiveFilters = true;
                     queryable = queryable.Where( i => i.Status == status );
                 }
 
                 // Apply title filter.
                 if ( filters.Title.IsNotNullOrWhiteSpace() )
                 {
-                    isFiltered = true;
+                    hasActiveFilters = true;
                     queryable = queryable.Where( i => i.Title.Contains( filters.Title ) );
                 }
 
@@ -465,32 +468,29 @@ namespace Rock.Blocks.Cms
                     var personAlias = new PersonAliasService( RockContext ).Get( createdByAliasGuid.Value );
                     if ( personAlias != null )
                     {
-                        isFiltered = true;
+                        hasActiveFilters = true;
                         queryable = queryable.Where( i => i.CreatedByPersonAlias.PersonId == personAlias.PersonId );
                     }
                 }
             }
 
             /*
-                3/30/26 - MSE
+                4/10/26 - MSE
 
-                Attribute filters are applied at the IQueryable level before
-                materialization so that filtering happens in SQL rather than
-                in memory.
+                Attribute filters are applied at the IQueryable level so
+                filtering happens in SQL. Each filter's ComparisonValue
+                (comparison type + value) comes from the Obsidian
+                RockAttributeFilter component in SimpleFilter mode.
 
-                The grid settings modal uses RockAttributeFilter (not
-                AttributeValuesContainer) for each attribute. This renders the
-                FieldType's native filter component in SimpleFilter mode, which
-                provides a comparison type dropdown for numeric and date fields
-                and captures a ComparisonValue (comparison type + value) rather
-                than a plain string.
+                Because Obsidian components emit values in a public format
+                (JSON objects, GUIDs, etc.), we convert each value to its
+                internal database representation via GetPrivateValue before
+                passing it to GetAttributeExpression. The standard filter
+                component may also omit a ComparisonType for certain field
+                types, so we fall back to the field type's own default.
 
-                The comparison type and value are passed to
-                ExpressionHelper.GetAttributeExpression to build the same SQL
-                JOINs against the AttributeValue table that the WebForms block
-                produced via ApplyAttributeQueryFilter.
-
-                Reason: Field-type-aware attribute filtering at the SQL level.
+                Reason: Public-to-private value conversion for SQL-level
+                attribute filtering.
             */
             if ( gridAttributes.Any() )
             {
@@ -503,17 +503,36 @@ namespace Rock.Blocks.Cms
                         continue;
                     }
 
+                    /*
+                        5/6/26 - KBH
+
+                        Do NOT trim the raw filter value. Some field types (notably
+                        DateFieldType and DateTimeFieldType) use leading/trailing tab
+                        characters as a structural delimiter between the date picker
+                        value and the SlidingDateRangePicker value. Trimming strips
+                        those tabs and breaks Between filtering on date attributes.
+
+                        Reason: Preserve field-type-specific structural whitespace.
+                    */
+                    var rawValue = filterEntry.Value;
+                    if ( rawValue == "null" )
+                    {
+                        rawValue = string.Empty;
+                    }
+
+                    var filterValue = rawValue.IsNotNullOrWhiteSpace()
+                        ? PublicAttributeHelper.GetPrivateValue( attribute, rawValue )
+                        : rawValue;
+
                     // Skip entries with no value unless the comparison type is
                     // IsBlank or IsNotBlank, which are valid without a value.
                     var isBlankComparison = filterEntry.ComparisonType.HasValue
                         && ( ComparisonType.IsBlank | ComparisonType.IsNotBlank ).HasFlag( filterEntry.ComparisonType.Value );
 
-                    if ( !isBlankComparison && filterEntry.Value.IsNullOrWhiteSpace() )
+                    if ( !isBlankComparison && filterValue.IsNullOrWhiteSpace() )
                     {
                         continue;
                     }
-
-                    isFiltered = true;
 
                     var entityField = EntityHelper.GetEntityFieldForAttribute( attribute, false );
                     if ( entityField == null )
@@ -521,13 +540,24 @@ namespace Rock.Blocks.Cms
                         continue;
                     }
 
-                    var filterArgs = new List<string>();
-                    if ( filterEntry.ComparisonType.HasValue )
+                    // Determine the comparison type. If the client did not
+                    // provide one, fall back to the field type's default.
+                    var comparisonType = filterEntry.ComparisonType;
+                    if ( !comparisonType.HasValue && filterValue.IsNotNullOrWhiteSpace() )
                     {
-                        filterArgs.Add( filterEntry.ComparisonType.ConvertToInt().ToString() );
+                        var supportedTypes = entityField.FieldType.Field.FilterComparisonType;
+                        comparisonType = supportedTypes.HasFlag( ComparisonType.Contains )
+                            ? ComparisonType.Contains
+                            : ComparisonType.EqualTo;
                     }
 
-                    filterArgs.Add( filterEntry.Value );
+                    var filterArgs = new List<string>();
+                    if ( comparisonType.HasValue )
+                    {
+                        filterArgs.Add( comparisonType.ConvertToInt().ToString() );
+                    }
+
+                    filterArgs.Add( filterValue );
 
                     var parameterExpression = contentChannelItemService.ParameterExpression;
                     var attributeExpression = ExpressionHelper.GetAttributeExpression( contentChannelItemService, parameterExpression, entityField, filterArgs );
@@ -537,6 +567,7 @@ namespace Rock.Blocks.Cms
                         continue;
                     }
 
+                    hasActiveFilters = true;
                     queryable = queryable.Where( parameterExpression, attributeExpression );
                 }
             }
@@ -544,6 +575,7 @@ namespace Rock.Blocks.Cms
             // Materialize items and apply VIEW authorization.
             var items = queryable.ToList();
             var authorizedItems = new List<ContentChannelItem>();
+            var hasUnauthorizedItems = false;
 
             foreach ( var item in items )
             {
@@ -553,7 +585,7 @@ namespace Rock.Blocks.Cms
                 }
                 else
                 {
-                    isFiltered = true;
+                    hasUnauthorizedItems = true;
                 }
             }
 
@@ -564,8 +596,11 @@ namespace Rock.Blocks.Cms
                 Helper.LoadFilteredAttributes( typeof( ContentChannelItem ), authorizedItems.Cast<IHasAttributes>().ToList(), RockContext, a => gridAttributeIds.Contains( a.Id ) );
             }
 
-            // Sort: manual order when unfiltered, otherwise by start date descending.
-            if ( channel.ItemsManuallyOrdered && !isFiltered )
+            // Sort: manual order when unfiltered and all items are visible,
+            // otherwise by start date descending.
+            isReorderEnabled = channel.ItemsManuallyOrdered && !hasActiveFilters && !hasUnauthorizedItems;
+
+            if ( isReorderEnabled )
             {
                 return authorizedItems.OrderBy( i => i.Order ).ToList();
             }
@@ -671,8 +706,9 @@ namespace Rock.Blocks.Cms
             // Get grid attributes and filtered items.
             var gridAttributes = GetGridAttributes( channel );
 
-            bool isFiltered;
-            var items = GetFilteredItems( channel, gridAttributes, out isFiltered );
+            bool hasActiveFilters;
+            bool isReorderEnabled;
+            var items = GetFilteredItems( channel, gridAttributes, out hasActiveFilters, out isReorderEnabled );
 
             // Build tags lookup if tagging is enabled.
             var itemTags = channel.IsTaggingEnabled ? GetItemTags( items ) : null;
@@ -702,13 +738,14 @@ namespace Rock.Blocks.Cms
                 GridData = gridData,
                 GridDefinition = gridDefinition,
                 ChannelName = channel.Name,
-                IsReorderEnabled = channel.ItemsManuallyOrdered && !isFiltered,
+                IsReorderEnabled = isReorderEnabled,
                 CanEdit = canEdit,
                 AddItemUrl = addItemUrl,
                 AttributeFilters = attributeFilters,
                 IsIncludeTime = channel.ContentChannelType.IncludeTime,
                 HasScheduledItems = items.Any( i => i.StartDateTime > RockDateTime.Now ),
-                HasEventOccurrences = items.Any( i => i.EventItemOccurrences.Any() )
+                HasEventOccurrences = items.Any( i => i.EventItemOccurrences.Any() ),
+                HasActiveFilters = hasActiveFilters
             } );
         }
 
@@ -791,6 +828,29 @@ namespace Rock.Blocks.Cms
             RockContext.SaveChanges();
 
             return ActionOk();
+        }
+
+        /// <summary>
+        /// Creates an entity set for the subset of selected rows in the grid.
+        /// </summary>
+        /// <param name="entitySet">The entity set data from the grid.</param>
+        /// <returns>An action result that contains the identifier of the entity set.</returns>
+        [BlockAction]
+        public BlockActionResult CreateGridEntitySet( GridEntitySetBag entitySet )
+        {
+            if ( entitySet == null )
+            {
+                return ActionBadRequest( "No entity set data was provided." );
+            }
+
+            var rockEntitySet = GridHelper.CreateEntitySet( entitySet );
+
+            if ( rockEntitySet == null )
+            {
+                return ActionBadRequest( "No entities were found to create the set." );
+            }
+
+            return ActionOk( rockEntitySet.Id.ToString() );
         }
 
         #endregion Block Actions
