@@ -28,7 +28,8 @@
                 <div class="d-flex justify-content-between pb-spacing-xs">
                     <div class="font-size-h6 text-interface-stronger text-semibold">Attributes</div>
                     <DropDownContent v-model="isCategoryDropdownOpen"
-                                     enableFlip>
+                                     enableFlip
+                                     placement="bottom-end">
                         <template #anchor>
                             <div class="d-flex align-items-center gap-tiny text-primary cursor-pointer">
                                 <i class="ti ti-eye"></i>
@@ -61,7 +62,7 @@
 
             <template v-else-if="displayAsContentSection">
                 <ContentSection v-if="attributeCategories.length > 0"
-                                title="Attributes"
+                                :title="contentSectionTitle"
                                 icon="ti ti-binary-tree-2"
                                 :disableCollapse="isContentSectionCollapseDisabled">
                     <ContentStack v-for="cat in attributeCategories"
@@ -196,6 +197,14 @@
         isContentSectionCollapseDisabled: {
             type: Boolean,
             default: false
+        },
+        /**
+         * The title shown on the wrapping ContentSection when
+         * `displayAsContentSection` is enabled. Defaults to "Attributes".
+         */
+        contentSectionTitle: {
+            type: String as PropType<string>,
+            default: "Attributes"
         },
         showCategoryLabel: {
             type: Boolean,

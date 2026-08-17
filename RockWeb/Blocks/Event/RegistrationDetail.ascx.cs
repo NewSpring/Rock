@@ -46,14 +46,42 @@ namespace RockWeb.Blocks.Event
     [Description( "Displays the details of a given registration." )]
     [SecurityAction( SecurityActionKey.EditPaymentPlan, "The roles and/or users that can edit the payment plan for the selected persons." )]
 
-    [LinkedPage( "Registrant Page", "The page for viewing details about a registrant", true, "", "", 0 )]
-    [LinkedPage( "Transaction Page", "The page for viewing transaction details", true, "", "", 1 )]
-    [LinkedPage( "Group Detail Page", "The page for viewing details about a group", true, "", "", 2 )]
-    [LinkedPage( "Group Member Page", "The page for viewing details about a group member", true, "", "", 3 )]
-    [LinkedPage( "Transaction Detail Page", "The page for viewing details about a payment", true, "", "", 4 )]
-    [LinkedPage( "Audit Page", "Page used to display the history of changes to a registration.", true, "", "", 5 )]
-    [DefinedValueField( Rock.SystemGuid.DefinedType.FINANCIAL_SOURCE_TYPE, "Source", "The Financial Source Type to use when creating transactions", false, false, Rock.SystemGuid.DefinedValue.FINANCIAL_SOURCE_TYPE_ONSITE_COLLECTION, "", 6 )]
-    [TextField( "Batch Name Prefix", "The batch prefix name to use when creating a new batch", false, "Event Registration", "", 7 )]
+    [LinkedPage( "Registrant Page",
+        Description = "The page for viewing details about a registrant",
+        IsRequired = true,
+        Order = 0 )]
+    [LinkedPage( "Transaction Page",
+        Description = "The page for viewing transaction details",
+        IsRequired = true,
+        Order = 1 )]
+    [LinkedPage( "Group Detail Page",
+        Description = "The page for viewing details about a group",
+        IsRequired = true,
+        Order = 2 )]
+    [LinkedPage( "Group Member Page",
+        Description = "The page for viewing details about a group member",
+        IsRequired = true,
+        Order = 3 )]
+    [LinkedPage( "Transaction Detail Page",
+        Description = "The page for viewing details about a payment",
+        IsRequired = true,
+        Order = 4 )]
+    [LinkedPage( "Audit Page",
+        Description = "Page used to display the history of changes to a registration.",
+        IsRequired = true,
+        Order = 5 )]
+    [DefinedValueField( "Source",
+        Description = "The Financial Source Type to use when creating transactions",
+        IsRequired = false,
+        AllowMultiple = false,
+        DefinedTypeGuid = Rock.SystemGuid.DefinedType.FINANCIAL_SOURCE_TYPE,
+        DefaultValue = Rock.SystemGuid.DefinedValue.FINANCIAL_SOURCE_TYPE_ONSITE_COLLECTION,
+        Order = 6 )]
+    [TextField( "Batch Name Prefix",
+        Description = "The batch prefix name to use when creating a new batch",
+        IsRequired = false,
+        DefaultValue = "Event Registration",
+        Order = 7 )]
     [Rock.SystemGuid.BlockTypeGuid( "A1C967B2-EEDA-416F-A53C-7BE46D6DA4E1" )]
     public partial class RegistrationDetail : RockBlock
     {
@@ -77,6 +105,21 @@ namespace RockWeb.Blocks.Event
         }
 
         #endregion Security Actions
+
+        #region Page Parameter Keys
+
+        /// <summary>
+        /// Keys to use for Page Parameters. Both keys accept either a numeric Id
+        /// or an IdKey (hashed) value so that links from Obsidian blocks and
+        /// legacy numeric URLs both resolve.
+        /// </summary>
+        private static class PageParameterKey
+        {
+            public const string RegistrationInstanceId = "RegistrationInstanceId";
+            public const string RegistrationId = "RegistrationId";
+        }
+
+        #endregion Page Parameter Keys
 
         #region Fields
 
@@ -188,10 +231,10 @@ namespace RockWeb.Blocks.Event
                 else
                 {
                     var rockContext = new RockContext();
-                    var registrationInstanceId = this.PageParameter( "RegistrationInstanceId" ).AsIntegerOrNull();
+                    var registrationInstanceId = GetRegistrationInstanceIdFromPage();
                     if ( !registrationInstanceId.HasValue )
                     {
-                        var registrationId = this.PageParameter( "RegistrationId" ).AsIntegerOrNull();
+                        var registrationId = GetRegistrationIdFromPage();
                         if ( registrationId.HasValue )
                         {
                             registrationInstanceId = new RegistrationService( rockContext ).GetSelect( registrationId.Value, s => s.RegistrationInstanceId );
@@ -273,6 +316,30 @@ namespace RockWeb.Blocks.Event
         private List<RegistrantInfo> RegistrantsState { get; set; }
 
         #endregion Properties
+
+        #region Page Parameter Helpers
+
+        /// <summary>
+        /// Resolves the RegistrationInstanceId page parameter, accepting either a
+        /// numeric Id or an IdKey string. Returns null when neither form resolves.
+        /// </summary>
+        private int? GetRegistrationInstanceIdFromPage()
+        {
+            var key = PageParameter( PageParameterKey.RegistrationInstanceId );
+            return key.AsIntegerOrNull() ?? Rock.Utility.IdHasher.Instance.GetId( key );
+        }
+
+        /// <summary>
+        /// Resolves the RegistrationId page parameter, accepting either a numeric
+        /// Id or an IdKey string. Returns null when neither form resolves.
+        /// </summary>
+        private int? GetRegistrationIdFromPage()
+        {
+            var key = PageParameter( PageParameterKey.RegistrationId );
+            return key.AsIntegerOrNull() ?? Rock.Utility.IdHasher.Instance.GetId( key );
+        }
+
+        #endregion Page Parameter Helpers
 
         #region Control Methods
 
@@ -664,7 +731,7 @@ namespace RockWeb.Blocks.Event
             {
                 using ( var rockContext = new RockContext() )
                 {
-                    int instanceId = PageParameter( "RegistrationInstanceId" ).AsInteger();
+                    int instanceId = GetRegistrationInstanceIdFromPage() ?? 0;
                     templateId = new RegistrationInstanceService( rockContext )
                         .Queryable().AsNoTracking()
                         .Where( i => i.Id == instanceId )
@@ -689,10 +756,14 @@ namespace RockWeb.Blocks.Event
         {
             var qryParams = new Dictionary<string, string>();
             var pageCache = PageCache.Get( RockPage.PageId );
-            var instanceId = Registration != null ? Registration.RegistrationInstanceId.ToString() : PageParameter( "RegistrationInstanceId" );
+
+            var instanceId = Registration != null
+                ? Registration.RegistrationInstanceId.ToString()
+                : GetRegistrationInstanceIdFromPage()?.ToString()
+                  ?? PageParameter( PageParameterKey.RegistrationInstanceId );
             if ( pageCache != null && pageCache.ParentPage != null )
             {
-                qryParams.Add( "RegistrationInstanceId", instanceId );
+                qryParams.Add( PageParameterKey.RegistrationInstanceId, instanceId );
                 NavigateToPage( pageCache.ParentPage.Guid, qryParams );
             }
         }
@@ -710,10 +781,10 @@ namespace RockWeb.Blocks.Event
             }
             else
             {
-                string registrationId = PageParameter( "RegistrationId" );
-                if ( !string.IsNullOrWhiteSpace( registrationId ) )
+                var registrationId = GetRegistrationIdFromPage();
+                if ( registrationId.HasValue )
                 {
-                    ShowDetail( registrationId.AsInteger(), PageParameter( "RegistrationInstanceId" ).AsIntegerOrNull() );
+                    ShowDetail( registrationId.Value, GetRegistrationInstanceIdFromPage() );
                 }
                 else
                 {
@@ -1428,8 +1499,8 @@ namespace RockWeb.Blocks.Event
             if ( !RegistrationInstanceId.HasValue )
             {
                 Title = "New Registration";
-                RegistrationInstanceId = PageParameter( "RegistrationInstanceId" ).AsIntegerOrNull();
-                RegistrationId = PageParameter( "RegistrationId" ).AsIntegerOrNull();
+                RegistrationInstanceId = GetRegistrationInstanceIdFromPage();
+                RegistrationId = GetRegistrationIdFromPage();
 
                 var rockContext = new RockContext();
 
@@ -1959,6 +2030,10 @@ namespace RockWeb.Blocks.Event
                 paymentInfo.UpdateAddressFieldsFromAddressControl( acBillingAddress );
 
                 paymentInfo.Amount = amount;
+                paymentInfo.AccountAllocations = new List<FinancialTransactionService.AccountAllocation>
+                {
+                    new FinancialTransactionService.AccountAllocation( registration.RegistrationInstance.AccountId.Value, amount )
+                };
                 paymentInfo.Email = registration.ConfirmationEmail;
 
                 paymentInfo.FirstName = registration.FirstName;
@@ -2490,6 +2565,14 @@ namespace RockWeb.Blocks.Event
             lFrequencyPaymentAmount.Text = $"{registration.PaymentPlanFinancialScheduledTransaction.TotalAmount.FormatAsCurrency()} × {registration.PaymentPlanFinancialScheduledTransaction.NumberOfPayments}";
             spanChangeButtonWrapper.Visible = _canEditPaymentPlan;
             lbDeletePaymentPlan.Visible = _canEditPaymentPlan;
+
+            // Warn when the remaining scheduled plan payments don't equal the registration's remaining balance.
+            // This catches plans that no longer cover the balance because registrants were removed,
+            // discount codes were modified, or fees/costs changed after the plan was set up.
+            var paymentPlan = registration.PaymentPlanFinancialScheduledTransaction.PaymentPlan;
+            nbPaymentPlanAmountMismatch.Visible = paymentPlan != null
+                && paymentPlan.IsActive
+                && paymentPlan.PlannedAmountRemaining != registration.BalanceDue;
 
             var paymentPlanFinancialScheduledTransactionId = registration.PaymentPlanFinancialScheduledTransactionId.Value;
             var lastTransactionDate = new FinancialTransactionService( new RockContext() )

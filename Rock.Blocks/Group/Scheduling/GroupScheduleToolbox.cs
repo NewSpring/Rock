@@ -2281,7 +2281,66 @@ namespace Rock.Blocks.Group.Scheduling
                     .Where( gls => !excludeScheduleGuids.Contains( gls.Schedule.Guid ) );
             }
 
-            foreach ( var gls in groupLocationScheduleQry.ToList() )
+            var groupLocationSchedules = groupLocationScheduleQry.ToList();
+
+            // Pre-load the lookups used by the occurrence loop below.
+            var scheduleIdsInScope = groupLocationSchedules.Select( gls => gls.Schedule.Id ).Distinct().ToList();
+            var signUpRangeStartDate = minimumBeginDateTime.Date;
+            var signUpRangeEndDate = nonImmediateEndDateTime.Date;
+
+            // Schedule + date combinations the selected person is already scheduled or requested for, in any group or location.
+            var personScheduledScheduleDates = attendanceService
+                .Queryable()
+                .Where( a =>
+                    a.Occurrence.ScheduleId.HasValue
+                    && scheduleIdsInScope.Contains( a.Occurrence.ScheduleId.Value )
+                    && a.Occurrence.OccurrenceDate >= signUpRangeStartDate
+                    && a.Occurrence.OccurrenceDate <= signUpRangeEndDate
+                    && ( a.ScheduledToAttend == true || a.RequestedToAttend == true )
+                    && a.RSVP != RSVP.No
+                    && a.PersonAlias.PersonId == selectedPersonId )
+                .Select( a => new { a.Occurrence.ScheduleId, a.Occurrence.OccurrenceDate } )
+                .Distinct()
+                .ToList();
+
+            var personScheduledLookup = new HashSet<(int ScheduleId, DateTime OccurrenceDate)>(
+                personScheduledScheduleDates.Select( x => (x.ScheduleId.Value, x.OccurrenceDate) ) );
+
+            // The selected person's schedule-exclusion date ranges that overlap the sign-up window, for this group or all groups.
+            var personExclusionDateRanges = personScheduleExclusionService
+                .Queryable()
+                .Where( e =>
+                    e.PersonAlias.PersonId == selectedPersonId
+                    && ( e.GroupId == selectedGroup.Id || e.GroupId == null )
+                    && e.StartDate <= signUpRangeEndDate
+                    && e.EndDate >= signUpRangeStartDate )
+                .Select( e => new { e.StartDate, e.EndDate } )
+                .ToList();
+
+            // RSVP "Yes" attendance counts for this group, keyed by schedule + date + location (a null location is the no-location-preference count).
+            var scheduledYesCountsByKey = attendanceService
+                .Queryable()
+                .Where( a =>
+                    a.Occurrence.GroupId == selectedGroup.Id
+                    && a.Occurrence.ScheduleId.HasValue
+                    && scheduleIdsInScope.Contains( a.Occurrence.ScheduleId.Value )
+                    && a.Occurrence.OccurrenceDate >= signUpRangeStartDate
+                    && a.Occurrence.OccurrenceDate <= signUpRangeEndDate
+                    && a.RSVP == RSVP.Yes )
+                .GroupBy( a => new { a.Occurrence.ScheduleId, a.Occurrence.OccurrenceDate, a.Occurrence.LocationId } )
+                .Select( g => new
+                {
+                    g.Key.ScheduleId,
+                    g.Key.OccurrenceDate,
+                    g.Key.LocationId,
+                    Count = g.Count()
+                } )
+                .ToList()
+                .ToDictionary(
+                    x => (x.ScheduleId.Value, x.OccurrenceDate, x.LocationId),
+                    x => x.Count );
+
+            foreach ( var gls in groupLocationSchedules )
             {
                 var maximumCapacitySetting = gls.Config?.MaximumCapacity.GetValueOrDefault() ?? 0;
                 var desiredCapacitySetting = gls.Config?.DesiredCapacity.GetValueOrDefault() ?? 0;
@@ -2336,25 +2395,15 @@ namespace Rock.Blocks.Group.Scheduling
                 foreach ( var signUp in signUps )
                 {
                     var occurrenceDate = signUp.StartDateTime.Date;
-                    if ( attendanceService.IsScheduled( occurrenceDate, gls.Schedule.Id, selectedPersonId ) )
+                    if ( personScheduledLookup.Contains( (gls.Schedule.Id, occurrenceDate) ) )
                     {
                         continue;
                     }
 
-                    if ( personScheduleExclusionService.IsExclusionDate( selectedPersonId, selectedGroup.Id, occurrenceDate ) )
+                    if ( personExclusionDateRanges.Any( e => e.StartDate <= occurrenceDate && e.EndDate >= occurrenceDate ) )
                     {
                         continue;
                     }
-
-                    // Get the count of RSVP "Yes" attendances for the group/schedule/date combo (regardless of location).
-                    var peopleScheduledQry = attendanceService
-                        .Queryable()
-                        .Where( a =>
-                            a.Occurrence.GroupId == selectedGroup.Id
-                            && a.Occurrence.ScheduleId == gls.Schedule.Id
-                            && a.Occurrence.OccurrenceDate == signUp.StartDateTime.Date
-                            && a.RSVP == RSVP.Yes
-                        );
 
                     // Since we're looping over the combination of [group]location + schedule + startDateTime,
                     // we might have already created this schedule + startDateTime occurrence; try to find it.
@@ -2367,10 +2416,7 @@ namespace Rock.Blocks.Group.Scheduling
 
                     if ( scheduleOccurrence == null )
                     {
-                        // Execute the non-location-based RSVP "Yes" attendance count query.
-                        var peopleScheduledWithoutLocationCount = peopleScheduledQry
-                            .Where( a => !a.Occurrence.LocationId.HasValue )
-                            .Count();
+                        scheduledYesCountsByKey.TryGetValue( (gls.Schedule.Id, occurrenceDate, ( int? ) null), out var peopleScheduledWithoutLocationCount );
 
                         scheduleOccurrence = new SignUpOccurrenceBag
                         {
@@ -2390,10 +2436,7 @@ namespace Rock.Blocks.Group.Scheduling
                         response.scheduleIdsByGuid.TryAdd( gls.Schedule.Guid, gls.Schedule.Id );
                     }
 
-                    // Narrow the RSVP "Yes" count down to the specific location.
-                    var peopleScheduledAtLocationCount = peopleScheduledQry
-                        .Where( a => a.Occurrence.LocationId == gls.Location.Id )
-                        .Count();
+                    scheduledYesCountsByKey.TryGetValue( (gls.Schedule.Id, occurrenceDate, ( int? ) gls.Location.Id), out var peopleScheduledAtLocationCount );
 
                     // If this location is already at maximum capacity, no need to add it.
                     if ( maximumCapacitySetting > 0 && peopleScheduledAtLocationCount >= maximumCapacitySetting )
@@ -2503,6 +2546,28 @@ namespace Rock.Blocks.Group.Scheduling
         /// <returns>An object containing information about the outcome of the request.</returns>
         private SaveSignUpResponseBag SaveSignUp( RockContext rockContext, SaveSignUpRequestBag bag )
         {
+            /*
+                5/4/2026 - JPH
+
+                The legacy version of this block would immediately save an individual's "additional time sign-up" as
+                soon as they placed a check in the box for a given occurrence; it would then delete/re-save attendance
+                records if they chose a different location from the drop-down list or simply delete the attendance
+                record altogether if they changed their mind and un-checked the box.
+
+                This Obsidian version of this block - however - requires a save button to be clicked before any saving
+                takes place. Once the save button is clicked and the attendance record is created, the occurrence will
+                then be removed altogether from their list of available sign-ups. This is because we introduced a
+                "schedule coordinator" feature, where the coordinator receives a communication whenever someone signs
+                up or modifies an existing scheduled occurrence. Without this save button gate, the coordinator would
+                receive back-to-back communications whenever someone changes their mind and un-checks the box or
+                chooses a different sign-up location.
+
+                Individuals CAN still delete an existing scheduled occurrence: they'll just need to do so on the
+                "Current Schedule" section of their toolbox.
+
+                Reason: Explain legacy vs Obsidian "Additional Time Sign-Up" behavior difference.
+            */
+
             var friendlyErrorMessage = "Unable to save sign-up.";
 
             var response = new SaveSignUpResponseBag();
@@ -2690,9 +2755,8 @@ namespace Rock.Blocks.Group.Scheduling
                 return response;
             }
 
-            // Save the attendance record to get the ID.
+            // Add the pending attendance record.
             var newAttendance = attendanceService.ScheduledPersonAddPending( toolboxData.SelectedPerson.Id, newAttendanceOccurrence.Id, this.CurrentPerson?.PrimaryAlias );
-            rockContext.SaveChanges();
 
             // Should never happen.
             if ( newAttendance == null )
@@ -2701,8 +2765,8 @@ namespace Rock.Blocks.Group.Scheduling
                 return response;
             }
 
-            // Next, we can go ahead and confirm their attendance.
-            attendanceService.ScheduledPersonConfirm( newAttendance.Id );
+            // Confirm the attendance in memory, then commit the pending and confirmed states in a single save.
+            attendanceService.ScheduledPersonConfirm( newAttendance );
             rockContext.SaveChanges();
 
             // Let's check to see if we need to send the group schedule coordinator an email.

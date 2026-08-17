@@ -300,7 +300,7 @@ namespace Rock.Jobs
                     return statusMessage;
                 }
 
-                var communicationPage = PageCache.Get( SystemGuid.Page.NEW_COMMUNICATION.AsGuid(), rockContext );
+                var communicationPage = PageCache.Get( SystemGuid.Page.NEW_COMMUNICATION_OBSIDIAN.AsGuid(), rockContext );
                 var communicationPageRoute = communicationPage?.GetBestMatchingRoute( new Dictionary<string, string> { ["CommunicationId"] = "0" } );
 
                 if ( communicationPage == null || communicationPageRoute == null )
@@ -380,7 +380,7 @@ namespace Rock.Jobs
             {
                 Parameters = new Dictionary<string, string>
                 {
-                    ["CommunicationId"] = data.Communication.Id.ToString()
+                    ["CommunicationId"] = data.Communication.Id.AsIdKey()
                 }
             };
             var metricsUrl = internalApplicationRoot.EnsureTrailingForwardslash() + communicationPage.BuildUrl().RemoveLeadingForwardslash();

@@ -80,6 +80,17 @@ export default defineComponent({
             required: false
         },
 
+        /**
+         * Icon CSS class shown before the panel title in view mode. Edit /
+         * Add modes still use their built-in pencil / plus icons. Optional;
+         * leaving it unset (or passing null / undefined) falls back to no
+         * view-mode icon, matching the historical behavior.
+         */
+        titleIconCssClass: {
+            type: String as PropType<string | null>,
+            required: false
+        },
+
         /** The unique identifier of the entity type that this detail block represents. */
         entityTypeGuid: {
             type: String as PropType<Guid>,
@@ -182,10 +193,40 @@ export default defineComponent({
         },
 
         /**
+         * When true, the `labels` render inside the panel header (next to the
+         * title) rather than in the default sub-header row. Opt-in so existing
+         * blocks keep their current placement.
+         */
+        showLabelsInHeader: {
+            type: Boolean as PropType<boolean>,
+            default: false
+        },
+
+        /**
+         * Labels that always render inside the panel header (next to the
+         * title), independent of `labels` and `showLabelsInHeader`. Use this
+         * when only a subset of labels belongs in the header while the rest
+         * stay in the sub-header. Only shown in view mode.
+         */
+        headerLabels: {
+            type: Array as PropType<PanelAction[]>,
+            required: false
+        },
+
+        /**
          * Additional actions to display in the footer of the panel. These are
          * currently displayed as full buttons on the left of the footer.
          */
         footerActions: {
+            type: Array as PropType<PanelAction[]>,
+            required: false
+        },
+
+        /**
+         * Additional actions to display between the Save and Cancel buttons
+         * while in edit mode. Rendered as link buttons.
+         */
+        editFooterActions: {
             type: Array as PropType<PanelAction[]>,
             required: false
         },
@@ -272,6 +313,19 @@ export default defineComponent({
         showExperienceMode: {
             type: Boolean as PropType<boolean>,
             default: false
+        },
+
+        /**
+         * A value that resets the internal edit form when it changes. Changing
+         * this value clears the form's submit count and visible validation
+         * errors, which re-locks individual fields so they stop rendering
+         * error state until the next submit attempt. Useful after a
+         * "save and add another" flow where the entity is reset but the
+         * panel stays in edit mode.
+         */
+        formResetKey: {
+            type: String as PropType<string>,
+            default: ""
         }
     },
 
@@ -366,7 +420,7 @@ export default defineComponent({
 
                 case DetailPanelMode.View:
                 default:
-                    return "";
+                    return props.titleIconCssClass ?? "";
             }
         });
 
@@ -926,23 +980,34 @@ export default defineComponent({
             <ExperienceModePicker />
         </div>
 
+        <slot v-if="$slots.headerActions" name="headerActions" />
+
         <span v-for="action in headerActions" :class="getClassForIconAction(action)" :title="action.title" @click="onActionClick(action, $event)">
             <i :class="getActionIconCssClass(action)"></i>
         </span>
     </template>
 
-    <template v-if="showLabels || showTags" #subheaderLeft>
+    <template v-if="(showLabels && showLabelsInHeader) || (!showLabelsInHeader && headerLabels && headerLabels.length)" #panelLabels>
+        <div class="label-group">
+            <span v-for="action in (showLabelsInHeader ? labels : headerLabels)" :class="getClassForLabelAction(action)" :style="action.style" :title="action.tooltip" @click="onActionClick(action, $event)">
+                <i v-if="action.iconCssClass" :class="action.iconCssClass"></i>
+                <template v-if="action.title">{{ action.title }}</template>
+            </span>
+        </div>
+    </template>
+
+    <template v-if="(showLabels && !showLabelsInHeader) || showTags" #subheaderLeft>
         <div class="d-flex">
-            <div v-if="showLabels" class="label-group">
-                <span v-for="action in labels" :class="getClassForLabelAction(action)" @click="onActionClick(action, $event)">
+            <div v-if="showLabels && !showLabelsInHeader" class="label-group">
+                <span v-for="action in labels" :class="getClassForLabelAction(action)" :style="action.style" :title="action.tooltip" @click="onActionClick(action, $event)">
+                    <i v-if="action.iconCssClass" :class="action.iconCssClass"></i>
                     <template v-if="action.title">{{ action.title }}</template>
-                    <i v-else :class="action.iconCssClass"></i>
                 </span>
             </div>
 
-            <div v-if="showTags && showLabels" style="width: 2px; background-color: #eaedf0; margin: 0px 12px;"></div>
+            <div v-if="showTags && showLabels && !showLabelsInHeader" style="width: 2px; background-color: #eaedf0; margin: 0px 12px;"></div>
 
-            <div v-if="showTags" class="flex-grow-1">
+            <div v-if="showTags" class="flex-grow-1 d-flex">
                 <EntityTagList :entityTypeGuid="entityTypeGuid" :entityKey="entityKey" />
             </div>
         </div>
@@ -959,6 +1024,7 @@ export default defineComponent({
     <template #footerActions>
         <template v-if="isEditMode">
             <RockButton btnType="primary" autoDisable autoLoading @click="onSaveClick" shortcutKey="s">Save</RockButton>
+            <RockButton v-for="action in editFooterActions" :key="action.title + action.iconCssClass" :btnType="action.type" :disabled="action.disabled" @click="onActionClick(action, $event)">{{ action.title }}</RockButton>
             <RockButton btnType="link" @click="onEditCancelClick" shortcutKey="c">Cancel</RockButton>
         </template>
 
@@ -967,7 +1033,7 @@ export default defineComponent({
             <RockButton v-if="isDeleteVisible" btnType="link" @click="onDeleteClick" autoDisable autoLoading>Delete</RockButton>
         </template>
 
-        <RockButton v-for="action in footerActions" :btnType="action.type" @click="onActionClick(action, $event)">
+        <RockButton v-for="action in footerActions" :key="action.title + action.iconCssClass" :btnType="action.type" @click="onActionClick(action, $event)">
             <i v-if="action.iconCssClass" :class="action.iconCssClass"></i>
             <template v-if="action.title && action.title">&nbsp;</template>
             <template v-if="action.title">{{ action.title }}</template>
@@ -975,6 +1041,7 @@ export default defineComponent({
     </template>
 
     <template #footerSecondaryActions>
+        <slot v-if="$slots.footerSecondaryActions" name="footerSecondaryActions" />
         <RockButton v-for="action in internalFooterSecondaryActions" :btnType="action.type" btnSize="sm" :title="action.title" @click="onActionClick(action, $event)" :disabled="action.disabled" :key="action.title+action.iconCssClass">
             <i :class="getActionIconCssClass(action)"></i>
         </RockButton>
@@ -985,9 +1052,12 @@ export default defineComponent({
             .panel-flex .label-group > .label + * {
                 margin-left: 8px;
             }
+            .panel-flex > .panel-header > .panel-labels {
+                margin-right: 8px;
+            }
         </v-style>
 
-        <RockForm ref="editForm" v-if="isEditModeVisible" v-show="isEditMode" @submit="onSaveSubmit">
+        <RockForm ref="editForm" v-if="isEditModeVisible" v-show="isEditMode" :formResetKey="formResetKey" @submit="onSaveSubmit">
             <RockSuspense @ready="onEditSuspenseReady">
                 <slot name="edit" />
             </RockSuspense>

@@ -73,7 +73,7 @@ namespace Rock.Blocks.Communication
         Order = 2 )]
 
     [ComponentsField( "Rock.Communication.MediumContainer, Rock",
-        Name = "Mediums",
+        "Mediums",
         Key = AttributeKey.Mediums,
         Description = "The Mediums that should be available to user to send through (If none are selected, all active mediums will be available).",
         IsRequired = false,
@@ -250,9 +250,7 @@ namespace Rock.Blocks.Communication
         /// </summary>
         private static class PageParameterKey
         {
-            // "Communication" allows Communication Id, Guid, or IdKey values,
-            // while the older "CommunicationId" only supports Id.
-            public const string Communication = "Communication";
+            // Allows Communication Id, Guid, or IdKey values.
             public const string CommunicationId = "CommunicationId";
 
             // "Person" allows Person Id, Guid, or IdKey values,
@@ -455,25 +453,9 @@ namespace Rock.Blocks.Communication
         }
 
         /// <summary>
-        /// Gets the Communication entity key passed to the "Communication" or "CommunicationId" page parameter.
+        /// Gets the Communication entity key passed to the "CommunicationId" page parameter.
         /// </summary>
-        private string CommunicationOrCommunicationIdPageParameter
-        {
-            get
-            {
-                var communicationPageParameter = PageParameter( PageParameterKey.Communication );
-
-                if ( communicationPageParameter.IsNotNullOrWhiteSpace() )
-                {
-                    return communicationPageParameter;
-                }
-                else
-                {
-                    // Only allow the CommunicationId to contain an ID, but return it as a string so it can be used as an entity key.
-                    return PageParameter( PageParameterKey.CommunicationId ).AsIntegerOrNull()?.ToString();
-                }
-            }
-        }
+        private string CommunicationIdPageParameter => PageParameter( PageParameterKey.CommunicationId );
 
         /// <summary>
         /// Gets the Medium entity type key passed to the "Medium" or "MediumId" page parameter.
@@ -723,6 +705,7 @@ namespace Rock.Blocks.Communication
                         CommunicationGuid = communication.Guid,
                         CommunicationStatus = communication.Status,
                         CommunicationId = communication.Id,
+                        CommunicationIdKey = communication.IdKey,
                         HasDetailBlockOnCurrentPage = this.PageCache.Blocks.Any( a => a.BlockType.Guid == Rock.SystemGuid.BlockType.COMMUNICATION_DETAIL.AsGuid() ),
                         Message = "The communication has been saved",
                         RedirectToViewMode = false,
@@ -948,6 +931,7 @@ namespace Rock.Blocks.Communication
                     Message = responseMessage,
                     RedirectToViewMode = false,
                     CommunicationId = communication.Id,
+                    CommunicationIdKey = communication.IdKey,
                     CommunicationGuid = communication.Guid,
                     HasDetailBlockOnCurrentPage = this.PageCache.Blocks.Any( a => a.BlockType.Guid == Rock.SystemGuid.BlockType.COMMUNICATION_DETAIL.AsGuid() ),
                 } );
@@ -1039,7 +1023,7 @@ namespace Rock.Blocks.Communication
         {
             // Check page parameter for existing communication.
             Model.Communication communication = null;
-            var communicationKey = this.CommunicationOrCommunicationIdPageParameter;
+            var communicationKey = this.CommunicationIdPageParameter;
 
             if ( communicationKey.IsNotNullOrWhiteSpace() )
             {
@@ -2588,9 +2572,6 @@ namespace Rock.Blocks.Communication
                     _bag.SmsAttachmentBinaryFiles = AttachmentHelper.ToListItemBags( value );
                 }
             }
-
-            /// <inheritdoc/>
-            public int? SMSFromDefinedValueId { get; set; }
 
             /// <inheritdoc/>
             public void SetEmailAttachments( IEnumerable<int> binaryFileIds )

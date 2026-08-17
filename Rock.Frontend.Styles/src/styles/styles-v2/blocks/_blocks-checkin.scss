@@ -1,0 +1,554 @@
+
+
+//  BLOCKS CHECKIN STYLE
+
+
+// =============================================================
+// Table of Content
+//  + Check-in Configuration List - styles for the check-in configuration list block.
+//  + Check-in Areas and Groups - styles for the check-in areas and groups block.
+//  + Check-in Schedule Builder - styles for the check-in schedule builder block.
+// =============================================================
+
+// ===================== CHECKIN CONFIGURATION LIST =====================
+.check-ins-list {
+    .sort-dropdown {
+        .sort-dropdown-toggle {
+            display:          inline-flex;
+            align-items:      center;
+            gap:              var(--spacing-tiny);
+            background-color: transparent;
+            border-color:     transparent;
+            box-shadow:       none;
+            color:            var(--color-interface-medium);
+            font-size:        var(--font-size-xsmall);
+            font-weight:      var(--font-weight-semibold);
+        }
+
+        .sort-dropdown-toggle:hover,
+        .sort-dropdown-toggle:focus,
+        &.open > .sort-dropdown-toggle {
+            background-color: transparent;
+            border-color:     transparent;
+            box-shadow:       none;
+            color:            var(--color-interface-strong);
+        }
+
+        .sort-dropdown-menu li > a {
+            display:     flex;
+            align-items: center;
+            gap:         var(--spacing-tiny);
+        }
+    }
+
+    /* Agressive selector to override the default padding. */
+    .panel.panel-flex > .panel-header .panel-header-actions > .action {
+        padding-right: 0;
+    }
+}
+// =================== END CHECKIN CONFIGURATION LIST ===================
+
+// ======================== CHECKIN AREAS AND GROUPS ========================
+/*----------------------------------------
+    Outer panel container. The block sets an explicit height on this element
+    from JS so the panel fills the remaining viewport space below the slicer to
+    support the panel's bounded scroll regions (the split pane's two columns).
+----------------------------------------*/
+.area-group-panel-container {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.area-group-panel-container > div {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.area-group-panel-container > div > .panel {
+    flex: 1;
+    min-height: 0;
+}
+
+/* The panel body holds the split-pane content. The flex chain pushes the
+   panel's body height down to .area-group-content so the two panes can manage their
+   own bounded scroll regions. The bottom corners match the panel's radius
+   and overflow is hidden so the list pane's soft background gets clipped to
+   the curve instead of squaring off the panel's rounded bottom. */
+.area-group-panel-container .panel-body {
+    flex: 1;
+    min-height: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border-bottom-left-radius: var(--rounded-medium);
+    border-bottom-right-radius: var(--rounded-medium);
+}
+
+/*----------------------------------------
+    SPLIT PANE LAYOUT
+    Two columns inside the panel body, each managing its own scroll.
+----------------------------------------*/
+.area-group-content {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+}
+
+.area-group-list-pane,
+.area-group-detail-pane {
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.area-group-list-pane {
+    background-color: var(--color-interface-softer);
+    border-right: 1px solid var(--color-interface-soft);
+}
+
+/* The detail pane's RockForm acts as the inner flex column, holding the
+   pinned header, the scrolling body, and the pinned footer. */
+.area-group-detail-pane > form {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+/*----------------------------------------
+    SHARED PANE SHELL
+    Both panes use the same header / body / footer skeleton. Header is pinned,
+    body scrolls, and the detail pane optionally adds a pinned footer.
+----------------------------------------*/
+/* min-height floors the list-pane and area-editor headers so they match the
+   group editor's natural two-line height (icon 43 or stack 44 + padding 24). */
+.area-group-pane-header {
+    min-height: 72px;
+    padding: var(--spacing-small) var(--spacing-large);
+    display: flex;
+    justify-content: space-between;
+
+    .heading {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: var(--spacing-small);
+    }
+
+    .heading-text {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: var(--spacing-tiny);
+    }
+
+    /* padding-bottom keeps descender glyphs (g, p, y) inside the overflow-hidden
+       clipping region that the ellipsis requires. Without it, line-height: tight
+       on the h5 puts the line-box bottom right at the baseline and descenders
+       fall outside it. */
+    .heading-title {
+        color: var(--color-interface-strong);
+        margin: 0;
+        padding-bottom: 2px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .heading-description {
+        color: var(--color-interface-medium);
+        font-size: var(--font-size-xsmall);
+        line-height: var(--line-height-tight);
+        padding-bottom: 2px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .heading-icon {
+        color: var(--color-interface-softest);
+        background-color: var(--color-info-strong);
+        padding: var(--spacing-xsmall);
+        border-radius: var(--rounded-small);
+        flex-shrink: 0;
+        font-size: var(--font-size-h5);
+
+        /* The .is-group modifier swaps to the lighter group palette. */
+        &.is-group {
+            background-color: var(--color-info-soft);
+            color: var(--color-info-strong);
+        }
+    }
+
+    .header-actions {
+        display: flex;
+        gap: var(--spacing-tiny);
+        align-items: center;
+        margin-left: var(--spacing-large);
+        color: var(--color-interface-strong);
+        cursor: initial;
+    }
+}
+
+.area-group-pane-body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    padding: 0 var(--spacing-medium) var(--spacing-medium);
+}
+
+.area-group-pane-footer {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-small);
+    padding: var(--spacing-medium) var(--spacing-large);
+    border-top: 1px solid var(--color-interface-soft);
+}
+
+/*----------------------------------------
+    GROUP HANDLE COLORING
+    Areas inherit the SortableTree control's default handle color.
+    Groups override with a lighter palette.
+----------------------------------------*/
+.sortable-tree-row-handle.area-group-handle {
+    background-color: var(--color-info-soft);
+    color: var(--color-info-strong);
+}
+
+/* Selected groups read off a softer body background than selected areas. */
+.area-group-list-pane .sortable-tree-row.group-group.selected .sortable-tree-row-body {
+    background-color: var(--color-interface-softer);
+}
+
+/*----------------------------------------
+    EMPTY STATES
+    Centered both axes within their pane. Used in the list pane when no areas
+    or groups are configured, and in the detail pane when nothing is selected.
+----------------------------------------*/
+.area-group-empty-state,
+.area-group-detail-loading {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: var(--spacing-tiny);
+    padding: var(--spacing-large);
+}
+
+.area-group-detail-loading {
+    color: var(--color-interface-medium);
+}
+
+.area-group-empty-state {
+    .empty-icon {
+        color: var(--color-interface-medium);
+        margin-bottom: var(--spacing-small);
+    }
+
+    .empty-title {
+        color: var(--color-interface-medium);
+        margin: 0;
+        font-weight: var(--font-weight-semibold);
+    }
+
+    .empty-subtitle {
+        color: var(--color-interface-medium);
+        margin: 0;
+        font-size: var(--font-size-small);
+    }
+}
+
+/*----------------------------------------
+    COMPACT LAYOUT (small breakpoints)
+    Drops the JS height-bound and stacks the two panes vertically. The panel
+    takes its natural height; the page provides scroll. Right-border between
+    panes becomes a bottom-border instead.
+----------------------------------------*/
+.area-group-panel-container.is-compact-layout {
+    overflow: visible;
+}
+
+.area-group-panel-container.is-compact-layout .area-group-content {
+    flex-direction: column;
+}
+
+.area-group-panel-container.is-compact-layout .area-group-list-pane,
+.area-group-panel-container.is-compact-layout .area-group-detail-pane {
+    flex: none;
+    overflow-y: visible;
+}
+
+/* In compact layout the page scrolls, so each pane's body should stop forcing
+   its own scroll region and let the page handle it. The detail pane's form
+   wrapper also relaxes its flex chain. */
+.area-group-panel-container.is-compact-layout .area-group-pane-body {
+    flex: none;
+    overflow-y: visible;
+}
+
+.area-group-panel-container.is-compact-layout .area-group-detail-pane > form {
+    flex: none;
+}
+
+.area-group-panel-container.is-compact-layout .area-group-list-pane {
+    border-right: none;
+    border-bottom: 1px solid var(--color-interface-soft);
+}
+
+/*----------------------------------------
+    LABEL GRID
+    Wrapper for the Check-in Labels and Classic Check-in Labels grids in the
+    Area editor. Header row has the section title on the left and an optional
+    "Create Label" external-tab link on the right; <Grid light> renders below.
+----------------------------------------*/
+.area-group-label-grid {
+    margin-top: var(--spacing-large);
+
+    .section-header {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: var(--spacing-tiny);
+        margin-bottom: var(--spacing-tiny);
+    }
+
+    .create-link {
+        font-size: var(--font-size-small);
+        font-weight: var(--font-weight-semibold);
+        white-space: nowrap;
+    }
+}
+
+/*----------------------------------------
+    LOCATIONS GRID
+    Wrapper for the Main and Overflow named-location grids in the Group editor.
+----------------------------------------*/
+.area-group-locations-grid + .area-group-locations-grid {
+    margin-top: var(--spacing-large);
+}
+
+// ====================== END CHECKIN AREAS AND GROUPS ======================
+
+// ======================== CHECKIN SCHEDULE BUILDER ========================
+/*----------------------------------------
+    Main grid wrapper: vertical stack of header + rows.
+    No overflow set here — the page provides vertical scroll so that
+    `position: sticky` on children references the viewport. When content is
+    wider than the container, `.schedule-grid-overflow` is added, enabling
+    horizontal scroll and disabling sticky headers (the same tradeoff the
+    Obsidian Grid makes).
+----------------------------------------*/
+.schedule-grid {
+    display: flex;
+    flex-direction: column;
+    background-color: var(--color-interface-softer);
+    gap: var(--spacing-small);
+    position: relative;
+    padding: 0 var(--spacing-medium) var(--spacing-medium) var(--spacing-medium);
+}
+
+.schedule-grid.schedule-grid-overflow {
+    overflow-x: auto;
+}
+
+/*----------------------------------------
+    SHARED GRID LAYOUT
+    The header and every data row use the same CSS Grid column template,
+    driven by `--schedule-count` set on the `.schedule-grid` ancestor.
+    A transparent border on the header matches the 1px border on rows so
+    both elements have an identical box model — keeping grid tracks
+    pixel-aligned at every viewport width.
+
+    The 120px minimum on the 1fr columns serves two purposes:
+      1. Keeps group/location text readable before overflow kicks in.
+      2. Gives the JS overflow detection a meaningful threshold — once
+         2×120px + N×80px + gaps exceeds the container width, a row's
+         scrollWidth exceeds its offsetWidth and overflow mode activates.
+----------------------------------------*/
+.schedule-grid-header,
+.schedule-row {
+    display: grid;
+    grid-template-columns: minmax(120px, 1fr) minmax(120px, 1fr) repeat(var(--schedule-count, 0), 80px);
+    column-gap: var(--spacing-large);
+    padding: var(--spacing-medium);
+    border: 1px solid transparent;
+}
+
+/*
+    In overflow mode, rows must expand to cover their full grid content so the
+    white card background extends behind all checkboxes. Without this, flex
+    stretch caps the row at container width and checkboxes overflow the card's
+    rendered edge.
+
+    The text columns switch from minmax(120px, 1fr) to a fixed 120px. With
+    `min-width: max-content` on the row, 1fr tracks expand to the content's
+    `max-content` size (full unbroken text), preventing text from wrapping.
+    Fixed pixel widths keep the row's max-content predictable (360 + N×80 +
+    gaps + padding) so text wraps within the 120px allocation and the row
+    doesn't grow wider than it needs to.
+*/
+.schedule-grid-overflow .schedule-grid-header,
+.schedule-grid-overflow .schedule-row {
+    min-width: max-content;
+    grid-template-columns: 120px 120px repeat(var(--schedule-count, 0), 80px);
+}
+
+/*----------------------------------------
+    GRID HEADER
+----------------------------------------*/
+.schedule-grid-header {
+    align-items: end;
+    background-color: var(--color-interface-softer);
+    height: 95px;
+}
+
+.schedule-grid-header-sticky {
+    position: sticky;
+    top: var(--sticky-element-offset);
+    z-index: 11;
+}
+
+.schedule-grid-header-group,
+.schedule-grid-header-location {
+    font-size: var(--font-size-small);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-interface-strong);
+}
+
+.schedule-grid-header-schedule {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: end;
+    text-align: center;
+    gap: var(--spacing-tiny);
+    font-size: var(--font-size-small);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-interface-strong);
+    overflow: hidden;
+}
+
+.schedule-grid-header-schedule p {
+    width: 100%;
+    margin-bottom: 0;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-height: 1.3;
+    overflow: hidden;
+}
+
+.schedule-grid-header-schedule a.disabled {
+    cursor: default;
+    pointer-events: none;
+    opacity: 0.5;
+}
+
+/*----------------------------------------
+    GRID ROWS (each group's data card)
+----------------------------------------*/
+.schedule-row {
+    border-color: var(--color-interface-soft);
+    background-color: var(--color-interface-softest);
+    border-radius: var(--rounded-medium);
+    align-items: start;
+}
+
+/*
+    GROUP cell: spans all location rows within its card via grid-row set as an
+    inline style by Vue (1 / span N). Sticky so the group name stays visible
+    while scrolling through many locations.
+*/
+.schedule-col-group {
+    grid-column: 1;
+    position: sticky;
+    top: calc(var(--sticky-element-offset) + 95px + var(--spacing-small));
+    background-color: var(--color-interface-softest);
+    z-index: 10;
+    align-self: start;
+    min-width: 0;
+    overflow-wrap: break-word;
+}
+
+.schedule-col-group > h5 {
+    margin: 0;
+    line-height: var(--line-height-normal);
+    max-width: 100%;
+    overflow-wrap: break-word;
+    word-break: break-word;
+}
+
+.schedule-context {
+    font-size: var(--font-size-small);
+    color: var(--color-interface-medium);
+    max-width: 100%;
+    overflow-wrap: break-word;
+    word-break: break-word;
+}
+
+/* LOCATION DETAIL cells (column 2) */
+.schedule-col-location-details {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-width: 0;
+}
+
+.schedule-col-location-details p {
+    margin: 0;
+    max-width: 100%;
+    overflow-wrap: break-word;
+    word-break: break-word;
+}
+
+/* SCHEDULE CHECKBOX cells (columns 3 to N+2) */
+.schedule-col {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.schedule-col .checkbox {
+    padding: 0 0 0 14px;
+    margin: 0;
+}
+
+/*
+    Separator between location rows within a card.
+
+    `grid-column: 2 / -1` spans from the location column through the last
+    schedule column, including all column gaps in between, so the border draws
+    as one continuous line across the full row (excluding the group cell in
+    column 1, which spans all location rows and has no separator).
+*/
+.schedule-location-separator {
+    grid-column: 2 / -1;
+    border-top: 1px solid var(--color-interface-soft);
+    margin-top: var(--spacing-small);
+    padding-top: var(--spacing-small);
+}
+
+.check-in-schedule-builder-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-tiny);
+}
+
+// ====================== END CHECKIN SCHEDULE BUILDER ======================

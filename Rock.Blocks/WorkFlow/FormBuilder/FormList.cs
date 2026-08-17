@@ -25,6 +25,7 @@ using Rock.Data;
 using Rock.Model;
 using Rock.Security;
 using Rock.ViewModels.Blocks.WorkFlow.FormBuilder.FormList;
+using Rock.ViewModels.Utility;
 using Rock.Web;
 using Rock.Web.Cache;
 using Rock.Web.UI.Controls;
@@ -538,7 +539,11 @@ namespace Rock.Blocks.WorkFlow.FormBuilder
         /// Deletes the specified category.
         /// </summary>
         /// <param name="categoryGuid">The unique identifier of the category to delete.</param>
-        /// <returns>A result indicating success or failure.</returns>
+        /// <returns>
+        /// On success, returns a <see cref="ListItemBag"/> describing the deleted
+        /// category's parent (or <c>null</c> when the category was top-level) so
+        /// the client can shift the selection up one level after the delete.
+        /// </returns>
         [BlockAction]
         public BlockActionResult DeleteCategory( Guid categoryGuid )
         {
@@ -568,10 +573,27 @@ namespace Rock.Blocks.WorkFlow.FormBuilder
                 return ActionBadRequest( "This category cannot be deleted because it contains forms. (Some forms may not be displayed here.)" );
             }
 
+            // Capture the parent before deleting so the client can fall back to
+            // it. Null is a valid response and means the category was at the
+            // root; the client should fall back to first-category selection.
+            ListItemBag parentBag = null;
+            if ( category.ParentCategoryId.HasValue )
+            {
+                var parentCategory = categoryService.Get( category.ParentCategoryId.Value );
+                if ( parentCategory != null )
+                {
+                    parentBag = new ListItemBag
+                    {
+                        Value = parentCategory.Guid.ToString(),
+                        Text = parentCategory.Name
+                    };
+                }
+            }
+
             categoryService.Delete( category );
             RockContext.SaveChanges();
 
-            return ActionOk();
+            return ActionOk( parentBag );
         }
 
         /// <summary>
@@ -591,17 +613,16 @@ namespace Rock.Blocks.WorkFlow.FormBuilder
             }
 
             var workflowEntryBlockType = BlockTypeCache.Get( Rock.SystemGuid.BlockType.WORKFLOW_ENTRY );
-            var obsidianWorkflowEntryBlockType = BlockTypeCache.Get( Rock.SystemGuid.BlockType.OBSIDIAN_WORKFLOW_ENTRY );
 
             var pages = PageCache.All()
-                .Where( p => p.Blocks.Any( b => b.BlockTypeId == workflowEntryBlockType.Id || b.BlockTypeId == obsidianWorkflowEntryBlockType.Id ) )
+                .Where( p => p.Blocks.Any( b => b.BlockTypeId == workflowEntryBlockType.Id ) )
                 .ToList();
 
             var filteredPages = new List<PageCache>();
 
             foreach ( var page in pages.Where( p => p.IsAuthorized( Authorization.VIEW, RequestContext.CurrentPerson ) ) )
             {
-                var workflowEntryBlocks = page.Blocks.Where( b => b.BlockTypeId == workflowEntryBlockType.Id || b.BlockTypeId == obsidianWorkflowEntryBlockType.Id ).ToList();
+                var workflowEntryBlocks = page.Blocks.Where( b => b.BlockTypeId == workflowEntryBlockType.Id ).ToList();
 
                 // Only show pages with a "Workflow Entry" block on them that are not configured to show a single specific workflow type.
                 foreach ( var block in workflowEntryBlocks )
