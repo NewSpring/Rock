@@ -421,6 +421,17 @@ namespace RockWeb.Blocks.Security.Oidc
                 return;
             }
 
+            // The "openid" scope not a traditional scope. It is used by the
+            // OpenID Connect provider to indicate that the client is
+            // requesting an id_token. Therefore it is safe to add it to the
+            // list of allowed scopes if it was requested without checking if
+            // the client is allowed to request it via the
+            // NarrowRequestedScopesToApprovedScopes() method.
+            if ( requestedScopes.Contains( "openid" ) )
+            {
+                clientAllowedScopes.Add( "openid" );
+            }
+
             // Create a new ClaimsIdentity containing the claims that
             // will be used to create an id_token, a token or a code.
             var identity = RockIdentityHelper.GetRockClaimsIdentity( CurrentUser, clientAllowedClaims, authClient.ClientId );
