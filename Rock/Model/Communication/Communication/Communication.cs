@@ -25,6 +25,8 @@ using System.Runtime.Serialization;
 using Newtonsoft.Json;
 using Rock.Communication;
 using Rock.Data;
+using Rock.Enums.Security;
+using Rock.Security;
 using Rock.Utility;
 
 namespace Rock.Model
@@ -49,6 +51,7 @@ namespace Rock.Model
         /// </value>
         [DataMember]
         [MaxLength( 100 )]
+        [StringValidation( StringValidationProfile.Name )]
         public string Name { get; set; }
 
         /// <summary>
@@ -69,6 +72,7 @@ namespace Rock.Model
         /// </value>
         [DataMember]
         [MaxLength( 200 )]
+        [StringValidation( StringValidationProfile.PlainText )]
         public string UrlReferrer { get; set; }
 
         /// <summary>
@@ -88,6 +92,7 @@ namespace Rock.Model
         /// The segments.
         /// </value>
         [DataMember]
+        [StringValidation( StringValidationProfile.PlainText )]
         public string Segments { get; set; }
 
         /// <summary>
@@ -97,6 +102,7 @@ namespace Rock.Model
         /// The comma-delimited list of <see cref="PersonalizationSegment"/> ids.
         /// </value>
         [DataMember]
+        [StringValidation( StringValidationProfile.PlainText )]
         public string PersonalizationSegments { get; set; }
 
         /// <summary>
@@ -191,6 +197,7 @@ namespace Rock.Model
         /// A <see cref="System.String"/> representing a note that was entered by the reviewer.
         /// </value>
         [DataMember]
+        [StringValidation( StringValidationProfile.PlainText )]
         public string ReviewerNote { get; set; }
 
         /// <summary>
@@ -200,6 +207,7 @@ namespace Rock.Model
         /// A Json formatted <see cref="System.String"/> that contains any additional merge fields for the Communication.
         /// </value>
         [DataMember]
+        [StringValidation( StringValidationProfile.Unrestricted )]
         public string AdditionalMergeFieldsJson
         {
             get
@@ -220,6 +228,7 @@ namespace Rock.Model
         /// The enabled lava commands.
         /// </value>
         [DataMember]
+        [StringValidation( StringValidationProfile.PlainText )]
         public string EnabledLavaCommands { get; set; }
 
         #region Email Fields
@@ -232,6 +241,7 @@ namespace Rock.Model
         /// </value>
         [DataMember]
         [MaxLength( 1000 )]
+        [StringValidation( StringValidationProfile.Unrestricted )]
         public string Subject { get; set; }
 
         /// <summary>
@@ -242,6 +252,7 @@ namespace Rock.Model
         /// </value>
         [DataMember]
         [MaxLength( 100 )]
+        [StringValidation( StringValidationProfile.Unrestricted )]
         public string FromName { get; set; }
 
         /// <summary>
@@ -252,6 +263,7 @@ namespace Rock.Model
         /// </value>
         [DataMember]
         [MaxLength( 100 )]
+        [StringValidation( StringValidationProfile.Unrestricted )]
         public string FromEmail { get; set; }
 
         /// <summary>
@@ -262,6 +274,7 @@ namespace Rock.Model
         /// </value>
         [DataMember]
         [MaxLength( 100 )]
+        [StringValidation( StringValidationProfile.Unrestricted )]
         public string ReplyToEmail { get; set; }
 
         /// <summary>
@@ -271,6 +284,7 @@ namespace Rock.Model
         /// A comma separated list of CC'ed email addresses.
         /// </value>
         [DataMember]
+        [StringValidation( StringValidationProfile.Unrestricted )]
         public string CCEmails { get; set; }
 
         /// <summary>
@@ -280,6 +294,7 @@ namespace Rock.Model
         /// A comma separated list of BCC'ed email addresses.
         /// </value>
         [DataMember]
+        [StringValidation( StringValidationProfile.Unrestricted )]
         public string BCCEmails { get; set; }
 
         /// <summary>
@@ -289,6 +304,7 @@ namespace Rock.Model
         /// The message.
         /// </value>
         [DataMember]
+        [StringValidation( StringValidationProfile.Unrestricted )]
         public string Message { get; set; }
 
         /// <summary>
@@ -298,6 +314,7 @@ namespace Rock.Model
         /// The message meta data.
         /// </value>
         [DataMember]
+        [StringValidation( StringValidationProfile.Unrestricted )]
         public string MessageMetaData { get; set; }
 
         /// <summary>
@@ -309,17 +326,6 @@ namespace Rock.Model
         #endregion
 
         #region SMS Properties
-
-        /// <summary>
-        /// Gets or sets the SMS from number.
-        /// </summary>
-        /// <value>
-        /// From number.
-        /// </value>
-        [DataMember]
-        [Obsolete( "Use SmsFromSystemPhoneNumberId instead." )]
-        [RockObsolete( "1.15" )]
-        public int? SMSFromDefinedValueId { get; set; }
 
         /// <summary>
         /// Gets or sets the system phone number identifier used for SMS sending.
@@ -337,6 +343,7 @@ namespace Rock.Model
         /// The message.
         /// </value>
         [DataMember]
+        [StringValidation( StringValidationProfile.Unrestricted )]
         public string SMSMessage { get; set; }
 
         #endregion
@@ -351,6 +358,7 @@ namespace Rock.Model
         /// </value>
         [DataMember]
         [MaxLength( 100 )]
+        [StringValidation( StringValidationProfile.Unrestricted )]
         public string PushTitle { get; set; }
 
         /// <summary>
@@ -360,6 +368,7 @@ namespace Rock.Model
         /// The message.
         /// </value>
         [DataMember]
+        [StringValidation( StringValidationProfile.Unrestricted )]
         public string PushMessage { get; set; }
 
         /// <summary>
@@ -370,6 +379,7 @@ namespace Rock.Model
         /// </value>
         [DataMember]
         [MaxLength( 100 )]
+        [StringValidation( StringValidationProfile.Unrestricted )]
         public string PushSound { get; set; }
 
         /// <summary>
@@ -397,6 +407,7 @@ namespace Rock.Model
         /// The push open message.
         /// </value>
         [DataMember]
+        [StringValidation( StringValidationProfile.Unrestricted )]
         public string PushOpenMessage { get; set; }
 
         /// <summary>
@@ -406,6 +417,7 @@ namespace Rock.Model
         /// The push open message structured content JSON.
         /// </value>
         [DataMember]
+        [StringValidation( StringValidationProfile.Unrestricted )]
         public string PushOpenMessageJson { get; set; }
 
         /// <summary>
@@ -415,6 +427,7 @@ namespace Rock.Model
         /// The push data.
         /// </value>
         [DataMember]
+        [StringValidation( StringValidationProfile.Unrestricted )]
         public string PushData { get; set; }
         #endregion
 
@@ -483,6 +496,7 @@ namespace Rock.Model
         /// </value>
         [DataMember]
         [MaxLength( 600 )]
+        [StringValidation( StringValidationProfile.Unrestricted )]
         public string Summary { get; set; }
 
         #endregion
@@ -584,17 +598,6 @@ namespace Rock.Model
         }
 
         private List<string> _additionalMergeFields = new List<string>();
-
-        /// <summary>
-        /// Gets or sets the SMS from defined value.
-        /// </summary>
-        /// <value>
-        /// The SMS from defined value.
-        /// </value>
-        [DataMember]
-        [Obsolete( "Use SmsFromSystemPhoneNumber instead." )]
-        [RockObsolete( "1.15" )]
-        public virtual DefinedValue SMSFromDefinedValue { get; set; }
 
         /// <summary>
         /// Gets or sets the system phone number used for SMS sending.

@@ -47,8 +47,8 @@
                         <a href="<%= Request.RawUrl %>&action=approve&token=<%= HttpUtility.UrlEncode(_antiXsrfTokenValue) %>" class="btn btn-success btn-lg">Accept</a>
                     </div>
                 </div>
-            </div>
-        </asp:Panel>
+           </div>
+        </div>
 
     </ContentTemplate>
 </asp:UpdatePanel>

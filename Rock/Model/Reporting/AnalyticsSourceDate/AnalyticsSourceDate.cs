@@ -223,17 +223,6 @@ namespace Rock.Model
         public string CalendarMonthNameAbbreviated { get; set; }
 
         /// <summary>
-        /// Gets or sets the calendar in month name abbreviated. Format: "MMM"
-        /// </summary>
-        /// <value>
-        /// The calendar in month name abbreviated.
-        /// </value>
-        [RockObsolete("1.13")]
-        [Obsolete("Use CalendarMonthNameAbbreviated instead", true)]
-        [DatabaseGenerated(DatabaseGeneratedOption.Computed)]
-        public string CalendarMonthNameAbbrevated { get; set; }
-
-        /// <summary>
         /// Gets or sets the calendar year month. Format: "yyyyMM"
         /// </summary>
         /// <value>
@@ -294,6 +283,7 @@ namespace Rock.Model
         /// <summary>
         /// Gets or sets the fiscal week number in year.
         /// </summary>
+        /// <remarks>This is the same value as FiscalWeek and may be marked obsolete in the future.</remarks>
         /// <value>
         /// The fiscal week number in year.
         /// </value>
@@ -319,17 +309,6 @@ namespace Rock.Model
         [DataMember]
         [MaxLength( 450 )]
         public string FiscalMonthAbbreviated { get; set; }
-
-        /// <summary>
-        /// Gets or sets the fiscal month abbreviated.
-        /// </summary>
-        /// <value>
-        /// The fiscal month abbreviated.
-        /// </value>
-        [RockObsolete("1.13")]
-        [Obsolete("Use FiscalMonthAbbreviated instead", true)]
-        [DatabaseGenerated(DatabaseGeneratedOption.Computed)]
-        public string FiscalMonthAbbrevated { get; set; }
 
         /// <summary>
         /// Gets or sets the fiscal month number in year.

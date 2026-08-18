@@ -21,6 +21,7 @@ using System.Runtime.CompilerServices;
 [assembly: InternalsVisibleTo( "Rock.Blocks" )]
 [assembly: InternalsVisibleTo( "Rock.CodeGeneration" )]
 [assembly: InternalsVisibleTo( "Rock.Migrations" )]
+[assembly: InternalsVisibleTo( "Rock.Oidc" )]
 [assembly: InternalsVisibleTo( "Rock.RealTime.Dynamic" )]
 [assembly: InternalsVisibleTo( "Rock.Rest" )]
 [assembly: InternalsVisibleTo( "Rock.Tests.Shared" )]
@@ -171,3 +172,10 @@ using System.Runtime.CompilerServices;
 
 // The following type forwardings were setup in Rock 20.0.1
 [assembly: TypeForwardedTo( typeof( Rock.Model.ReminderNotificationType ) )]
+
+// The following type forwardings were setup in Rock 20.0.3
+[assembly: TypeForwardedTo( typeof( Rock.Model.AddressStatus ) )]
+
+// The following type forwardings were setup in Rock 20.0.4
+[assembly: TypeForwardedTo( typeof( Rock.Utility.Enums.ElevatedSecurityLevel ) )] 
+[assembly: TypeForwardedTo( typeof( Rock.Utility.Enums.AccountProtectionProfile ) )]

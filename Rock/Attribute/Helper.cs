@@ -233,6 +233,7 @@ namespace Rock.Attribute
             var categoryService = new CategoryService( rockContext );
 
             var propertyCategories = property.Category.SplitDelimitedValues( false ).ToList();
+            var abbreviatedName = property.Name.Truncate( 100, false );
 
             // Look for an existing attribute record based on the entity, entityQualifierColumn and entityQualifierValue
             var attributeCache = AttributeCache.GetByEntityTypeQualifier( entityTypeId, entityQualifierColumn, entityQualifierValue, true )
@@ -246,8 +247,9 @@ namespace Rock.Attribute
 
                 // Check to see if the existing attribute record needs to be updated
                 if ( attributeCache.Name != property.Name ||
-                    attributeCache.DefaultValue != property.DefaultValue ||
-                    attributeCache.Description != property.Description ||
+                    attributeCache.AbbreviatedName != abbreviatedName ||
+                    attributeCache.DefaultValue != ( property.DefaultValue ?? string.Empty ) ||
+                    attributeCache.Description != ( property.Description ?? string.Empty ) ||
                     attributeCache.Order != property.Order ||
                     attributeCache.FieldType.Assembly != property.FieldTypeAssembly ||
                     attributeCache.FieldType.Class != property.FieldTypeClass ||
@@ -257,8 +259,8 @@ namespace Rock.Attribute
                 }
 
                 // Check category
-                else if ( attributeCache.Categories.Select( c => c.Name ).Except( propertyCategories ).Any() ||
-                    propertyCategories.Except( attributeCache.Categories.Select( c => c.Name ) ).Any() )
+                else if ( attributeCache.Categories.Select( c => c.Name ).Except( propertyCategories, StringComparer.OrdinalIgnoreCase ).Any() ||
+                    propertyCategories.Except( attributeCache.Categories.Select( c => c.Name ), StringComparer.OrdinalIgnoreCase ).Any() )
                 {
                     updated = true;
                 }
@@ -318,8 +320,9 @@ namespace Rock.Attribute
 
             // Update the attribute
             attribute.Name = property.Name;
-            attribute.Description = property.Description;
-            attribute.DefaultValue = property.DefaultValue;
+            attribute.AbbreviatedName = abbreviatedName;
+            attribute.Description = property.Description ?? string.Empty;
+            attribute.DefaultValue = property.DefaultValue ?? string.Empty;
             attribute.Order = property.Order;
             attribute.IsRequired = property.IsRequired;
 
@@ -3186,11 +3189,21 @@ INSERT INTO [AttributeValueReferencedEntity] ([AttributeValueId], [EntityTypeId]
 
                             The attributeCol controls helps add the Attributes to the page.
                             But, not having the attributeCol.ID set causes the Page to throw View State Exception as DynamicControlsHtmlGenericControl instances are required to have an Id.
-                            
+
                             Reason: https://github.com/SparkDevNetwork/Rock/issues/3867
+
+                            4/10/2026 - MSE
+
+                            Changed from attribute.Key to attribute.Id to prevent duplicate
+                            control ID errors. ASP.NET control IDs are case-insensitive, so
+                            two attributes whose keys differ only in case (e.g. "Image" vs
+                            "image") would collide. Using the integer Id guarantees uniqueness.
+
+                            Reason: Prevents HttpException when the same entity has attributes
+                            from different qualifier sources with the same key.
                          */
 
-                        attributeCol.ID = "attributeCol_" + attribute.Key;
+                        attributeCol.ID = "attributeCol_" + attribute.Id;
 
                         attributeRow.Controls.Add( attributeCol );
                         attributeCol.AddCssClass( $"col-md-{colSize}" );

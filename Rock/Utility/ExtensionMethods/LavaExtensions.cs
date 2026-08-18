@@ -642,9 +642,8 @@ namespace Rock
                 enabledLavaCommands = GlobalAttributesCache.Value( "DefaultEnabledLavaCommands" );
             }
 
-            var context = LavaService.NewRenderContext( mergeObjects );
-
-            context.SetEnabledCommands( enabledLavaCommands, "," );
+            var enabledCommands = enabledLavaCommands.SplitDelimitedValues( "," );
+            var context = LavaService.NewRenderContext( mergeObjects, enabledCommands );
 
             if ( currentPersonOverride != null )
             {
@@ -718,30 +717,6 @@ namespace Rock
         /// Compiled RegEx for finding Lava tokens that produce unique output or side effects.
         /// </summary>
         private static Regex _nonIdempotentLavaTokens = new Regex( @"{%[^\S\r\n]*((webrequest|workflowactivate)[^\S\r\n]+|(.+\|[^\S\r\n]*PersonTokenCreate)).*%}", RegexOptions.Compiled );
-
-        /// <summary>
-        /// Determines whether the string potentially has lava merge fields in it.
-        /// NOTE: Might return true even though it doesn't really have merge fields, but something like looks like it. For example '{56408602-5E41-4D66-98C7-BD361CD93AED}'
-        /// </summary>
-        /// <param name="content">The content.</param>
-        /// <returns></returns>
-        [Obsolete("Use the LavaHelper.IsLavaTemplate method instead.")]
-        [RockObsolete("1.13.3")]
-        public static bool HasMergeFields( this string content )
-        {
-            if ( content == null )
-            {
-                return false;
-            }
-
-            // If there are no lava codes, return false
-            if ( !hasLavaMergeFields.IsMatch( content ) )
-            {
-                return false;
-            }
-
-            return true;
-        }
 
         /// <summary>
         /// Determines whether the string potentially has lava command {% %} fields in it.
