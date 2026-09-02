@@ -41,6 +41,7 @@ RockWeb/Scripts/Rock/UI/structuredcontenteditor/
 .localhistory/
 .vshistory/
 TestResults/
+RockWeb/Themes/NewSpringNextGen
 
 Packages/*
 
