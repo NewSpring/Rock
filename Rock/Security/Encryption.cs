@@ -15,6 +15,7 @@
 // </copyright>
 //
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Configuration;
 using System.IO;
@@ -170,16 +171,92 @@ namespace Rock.Security
             return EncryptString( plainText, _dataEncryptionKeyBytes );
         }
 
-        ///// <summary>
-        ///// Encrypts using v2: AES-CBC + HMAC-SHA256 (encrypt-then-MAC) and appends "V2" footer.
-        ///// Layout (before Base64): [ivLen:int][IV][CIPHERTEXT][TAG:32]["V2"].
-        ///// </summary>
-        ///// <param name="plainText">The UTF-8 text to encrypt. If null or empty, returns an empty string.</param>
-        ///// <param name="keyBytes">The data encryption key bytes. Used to derive separate ENC and MAC keys via HKDF-SHA256.</param>
-        ///// <returns>Base64 string of the v2 payload; empty string if <paramref name="plainText"/> is null/empty.</returns>
-        ///// <remarks>
-        ///// Authenticate-then-encrypt: tag is computed over [ivLen||IV||CIPHERTEXT]. Consumers must verify the tag before decryption.
-        ///// </remarks>
+        /// <summary>
+        /// Encrypts using v2: AES-CBC + HMAC-SHA256 (encrypt-then-MAC) and appends "V2" footer.
+        /// Layout (before Base64): [ivLen:int][IV][CIPHERTEXT][TAG:32]["V2"].
+        /// </summary>
+        /// <param name="plainText">The unencrypted data to encrypt. If null then an exception is thrown.</param>
+        /// <param name="contextInfo">The context information used in the key derivation process.</param>
+        /// <returns>The encrypted byte array.</returns>
+        /// <remarks>
+        /// Authenticate-then-encrypt: tag is computed over [ivLen||IV||CIPHERTEXT]. Consumers must verify the tag before decryption.
+        /// </remarks>
+        internal static byte[] EncryptBytes( byte[] plainText, byte[] contextInfo )
+        {
+            return EncryptBytes( plainText, contextInfo, _dataEncryptionKeyBytes );
+        }
+
+        /// <summary>
+        /// Encrypts using v2: AES-CBC + HMAC-SHA256 (encrypt-then-MAC) and appends "V2" footer.
+        /// Layout (before Base64): [ivLen:int][IV][CIPHERTEXT][TAG:32]["V2"].
+        /// </summary>
+        /// <param name="plainText">The unencrypted data to encrypt. If null then an exception is thrown.</param>
+        /// <param name="contextInfo">The context information used in the key derivation process.</param>
+        /// <param name="keyBytes">The data encryption key bytes. Used to derive separate ENC and MAC keys via HKDF-SHA256.</param>
+        /// <returns>The encrypted byte array.</returns>
+        /// <remarks>
+        /// Authenticate-then-encrypt: tag is computed over [ivLen||IV||CIPHERTEXT]. Consumers must verify the tag before decryption.
+        /// </remarks>
+        internal static byte[] EncryptBytes( byte[] plainText, byte[] contextInfo, byte[] keyBytes )
+        {
+            if ( plainText == null )
+            {
+                throw new ArgumentNullException( nameof( plainText ) );
+            }
+
+            if ( keyBytes == null || keyBytes.Length == 0 )
+            {
+                throw new ArgumentNullException( "DataEncryptionKey must be specified in configuration file" );
+            }
+
+            // derive distinct ENC/MAC keys from the single DataEncryptionKey
+            byte[] encKey;
+            byte[] macKey;
+            DeriveKeys( keyBytes, contextInfo, out encKey, out macKey );
+
+            using ( Aes aes = Aes.Create() )
+            {
+                aes.Mode = CipherMode.CBC;
+                aes.Padding = PaddingMode.PKCS7;
+                aes.Key = encKey;
+
+                // Create the streams used for encryption.
+                using ( MemoryStream msEncrypt = new MemoryStream() )
+                {
+                    // Create a decryptor to perform the stream transform.
+                    using ( ICryptoTransform encryptor = aes.CreateEncryptor( aes.Key, aes.IV ) )
+                    {
+                        // prepend the IV
+                        msEncrypt.Write( BitConverter.GetBytes( aes.IV.Length ), 0, sizeof( int ) );
+                        msEncrypt.Write( aes.IV, 0, aes.IV.Length );
+
+                        using ( CryptoStream csEncrypt = new CryptoStream( msEncrypt, encryptor, CryptoStreamMode.Write, true ) )
+                        {
+                            csEncrypt.Write( plainText, 0, plainText.Length );
+                        }
+                    }
+
+                    byte[] data = msEncrypt.ToArray();                 // [ivLen][IV][CIPHERTEXT]
+                    byte[] tag = ComputeHmacSha256( macKey, data );
+
+                    msEncrypt.Write( tag, 0, tag.Length );             // [..][TAG]
+                    msEncrypt.Write( _v2Footer, 0, _v2Footer.Length ); // [..][TAG]["V2"]
+
+                    return msEncrypt.ToArray();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Encrypts using v2: AES-CBC + HMAC-SHA256 (encrypt-then-MAC) and appends "V2" footer.
+        /// Layout (before Base64): [ivLen:int][IV][CIPHERTEXT][TAG:32]["V2"].
+        /// </summary>
+        /// <param name="plainText">The UTF-8 text to encrypt. If null or empty, returns an empty string.</param>
+        /// <param name="keyBytes">The data encryption key bytes. Used to derive separate ENC and MAC keys via HKDF-SHA256.</param>
+        /// <returns>Base64 string of the v2 payload; empty string if <paramref name="plainText"/> is null/empty.</returns>
+        /// <remarks>
+        /// Authenticate-then-encrypt: tag is computed over [ivLen||IV||CIPHERTEXT]. Consumers must verify the tag before decryption.
+        /// </remarks>
         private static string EncryptString( string plainText, byte[] keyBytes )
         {
             if ( string.IsNullOrEmpty( plainText ) )
@@ -367,6 +444,287 @@ namespace Rock.Security
         }
 
         /// <summary>
+        /// Encrypts and authenticates the string using keys that are derived
+        /// from the data encryption key and the specified purpose. Text
+        /// encrypted for one purpose can only be decrypted by
+        /// <see cref="DecryptStringForPurpose(string, string)"/> with the same
+        /// purpose, never by <see cref="DecryptString(string)"/> or with a
+        /// different purpose, and it can't be modified without detection.
+        /// </summary>
+        /// <param name="plainText">The text to encrypt.</param>
+        /// <param name="purpose">The purpose the encrypted text will be used for.</param>
+        /// <returns>The encrypted text.</returns>
+        internal static string EncryptStringForPurpose( string plainText, string purpose )
+        {
+            var keyBytes = _dataEncryptionKeyBytes;
+            var cipherText = EncryptString( plainText, GetPurposeKeyBytes( "DataEncryptionKey", keyBytes, PurposeEncryptionKeyUse, purpose ) );
+
+            if ( string.IsNullOrEmpty( cipherText ) )
+            {
+                return cipherText;
+            }
+
+            var mac = ComputePurposeMac( cipherText, GetPurposeKeyBytes( "DataEncryptionKey", keyBytes, PurposeAuthenticationKeyUse, purpose ) );
+
+            return $"{cipherText}{PurposeMacSeparator}{mac}";
+        }
+
+        /// <summary>
+        /// Decrypts text that was encrypted by <see cref="EncryptStringForPurpose(string, string)"/>
+        /// with the same purpose. The text is only decrypted if it has not
+        /// been modified. Old data encryption keys are also tried, the same
+        /// as <see cref="DecryptString(string)"/>.
+        /// </summary>
+        /// <param name="cipherText">The text to decrypt.</param>
+        /// <param name="purpose">The purpose the encrypted text is being used for.</param>
+        /// <returns>The decrypted text; otherwise <c>null</c>.</returns>
+        internal static string DecryptStringForPurpose( string cipherText, string purpose )
+        {
+            if ( string.IsNullOrWhiteSpace( cipherText ) )
+            {
+                return null;
+            }
+
+            var separatorIndex = cipherText.LastIndexOf( PurposeMacSeparator );
+
+            if ( separatorIndex <= 0 || separatorIndex == cipherText.Length - 1 )
+            {
+                return null;
+            }
+
+            var encryptedText = cipherText.Substring( 0, separatorIndex );
+            var mac = cipherText.Substring( separatorIndex + 1 );
+
+            try
+            {
+                var plainText = DecryptStringForPurpose( encryptedText, mac, "DataEncryptionKey", _dataEncryptionKeyBytes, purpose );
+
+                if ( plainText != null )
+                {
+                    return plainText;
+                }
+            }
+            catch
+            {
+                // Intentionally left blank
+            }
+
+            if ( _oldDataEncryptionKeyBytes != null )
+            {
+                foreach ( var oldDataEncryptionKeyBytes in _oldDataEncryptionKeyBytes )
+                {
+                    try
+                    {
+                        var plainText = DecryptStringForPurpose( encryptedText, mac, oldDataEncryptionKeyBytes.Key, oldDataEncryptionKeyBytes.Value, purpose );
+
+                        if ( plainText.IsNotNullOrWhiteSpace() )
+                        {
+                            return plainText;
+                        }
+                    }
+                    catch
+                    {
+                        // Intentionally left blank
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Encrypts a root folder path, such as "~/Content", so that it can be
+        /// sent to the browser and later trusted by <see cref="DecryptRootFolder(string)"/>.
+        /// Root folders must always be encrypted with this method so that they
+        /// can't be produced by any other use of encryption.
+        /// </summary>
+        /// <param name="rootFolder">The root folder path.</param>
+        /// <returns>The encrypted root folder, or an empty string if <paramref name="rootFolder"/> is empty.</returns>
+        public static string EncryptRootFolder( string rootFolder )
+        {
+            if ( string.IsNullOrEmpty( rootFolder ) )
+            {
+                return string.Empty;
+            }
+
+            return EncryptStringForPurpose( rootFolder, RootFolderEncryptionPurpose );
+        }
+
+        /// <summary>
+        /// Decrypts a root folder that was encrypted by <see cref="EncryptRootFolder(string)"/>.
+        /// </summary>
+        /// <param name="encryptedRootFolder">The encrypted root folder.</param>
+        /// <returns>The root folder path; otherwise <c>null</c>.</returns>
+        public static string DecryptRootFolder( string encryptedRootFolder )
+        {
+            if ( string.IsNullOrWhiteSpace( encryptedRootFolder ) )
+            {
+                return null;
+            }
+
+            var rootFolder = DecryptStringForPurpose( encryptedRootFolder, RootFolderEncryptionPurpose );
+
+            if ( rootFolder != null )
+            {
+                return rootFolder;
+            }
+
+            /*
+                10/6/2026 - MSE
+
+                Root folders used to be encrypted with EncryptString(). Values
+                in that format are still accepted, but only for the content
+                folder, which is the default root folder anyway. This keeps
+                existing links and custom code working.
+
+                Reason: Root folders should only come from Rock.
+            */
+            rootFolder = DecryptString( encryptedRootFolder, false );
+
+            return IsLegacyRootFolderAllowed( rootFolder ) ? rootFolder : null;
+        }
+
+        /// <summary>
+        /// Determines whether a root folder that was encrypted with
+        /// <see cref="EncryptString(string)"/> can still be used. Only the
+        /// content folder and folders inside of it are allowed.
+        /// </summary>
+        /// <param name="rootFolder">The root folder path.</param>
+        /// <returns><c>true</c> if the root folder can be used; otherwise <c>false</c>.</returns>
+        private static bool IsLegacyRootFolderAllowed( string rootFolder )
+        {
+            if ( string.IsNullOrWhiteSpace( rootFolder ) )
+            {
+                return false;
+            }
+
+            var segments = rootFolder.Trim().Replace( '\\', '/' ).TrimEnd( '/' ).Split( '/' );
+
+            if ( segments.Length < 2 || segments[0] != "~" || !segments[1].Equals( LegacyRootFolderName, StringComparison.OrdinalIgnoreCase ) )
+            {
+                return false;
+            }
+
+            return segments.Skip( 1 ).All( s => s.Length > 0 && s.Trim( '.', ' ' ).Length > 0 && s.IndexOfAny( Path.GetInvalidFileNameChars() ) < 0 );
+        }
+
+        /// <summary>
+        /// Verifies the authentication code and then decrypts the text using
+        /// the keys derived from a single data encryption key.
+        /// </summary>
+        /// <param name="encryptedText">The encrypted text.</param>
+        /// <param name="mac">The authentication code that was stored with the encrypted text.</param>
+        /// <param name="keyName">The name of the data encryption key, used to cache the derived keys.</param>
+        /// <param name="keyBytes">The data encryption key bytes.</param>
+        /// <param name="purpose">The purpose the encrypted text is being used for.</param>
+        /// <returns>The decrypted text, or <c>null</c> if it could not be verified or decrypted.</returns>
+        private static string DecryptStringForPurpose( string encryptedText, string mac, string keyName, byte[] keyBytes, string purpose )
+        {
+            var macKeyBytes = GetPurposeKeyBytes( keyName, keyBytes, PurposeAuthenticationKeyUse, purpose );
+
+            if ( macKeyBytes == null || !FixedTimeEquals( ComputePurposeMac( encryptedText, macKeyBytes ), mac ) )
+            {
+                return null;
+            }
+
+            return DecryptString( encryptedText, GetPurposeKeyBytes( keyName, keyBytes, PurposeEncryptionKeyUse, purpose ), false );
+        }
+
+        /// <summary>
+        /// Gets the key bytes derived from the data encryption key bytes for
+        /// the specified purpose. The derived keys are cached.
+        /// </summary>
+        /// <param name="keyName">The name of the data encryption key, used to cache the derived key.</param>
+        /// <param name="keyBytes">The data encryption key bytes.</param>
+        /// <param name="keyUse">What the derived key is used for, either encryption or authentication.</param>
+        /// <param name="purpose">The purpose the key will be used for.</param>
+        /// <returns>The derived key bytes.</returns>
+        private static byte[] GetPurposeKeyBytes( string keyName, byte[] keyBytes, string keyUse, string purpose )
+        {
+            if ( keyBytes == null )
+            {
+                return null;
+            }
+
+            return _purposeKeyBytes.GetOrAdd( $"{keyName}|{keyUse}|{purpose}", _ =>
+            {
+                using ( var hmac = new HMACSHA256( keyBytes ) )
+                {
+                    // HMACSHA256 produces 32 bytes, which is the size of an
+                    // AES-256 key.
+                    return hmac.ComputeHash( Encoding.UTF8.GetBytes( $"Rock.Encryption.Purpose.{keyUse}:{purpose}" ) );
+                }
+            } );
+        }
+
+        /// <summary>
+        /// Computes the authentication code for the encrypted text.
+        /// </summary>
+        /// <param name="encryptedText">The encrypted text.</param>
+        /// <param name="macKeyBytes">The key used to compute the authentication code.</param>
+        /// <returns>The authentication code as a Base64 string.</returns>
+        private static string ComputePurposeMac( string encryptedText, byte[] macKeyBytes )
+        {
+            using ( var hmac = new HMACSHA256( macKeyBytes ) )
+            {
+                return Convert.ToBase64String( hmac.ComputeHash( Encoding.UTF8.GetBytes( encryptedText ) ) );
+            }
+        }
+
+        /// <summary>
+        /// Compares two strings in a way that takes the same amount of time
+        /// regardless of where they differ.
+        /// </summary>
+        /// <param name="a">The first string.</param>
+        /// <param name="b">The second string.</param>
+        /// <returns><c>true</c> if the strings are equal; otherwise <c>false</c>.</returns>
+        private static bool FixedTimeEquals( string a, string b )
+        {
+            if ( a == null || b == null || a.Length != b.Length )
+            {
+                return false;
+            }
+
+            var difference = 0;
+
+            for ( var i = 0; i < a.Length; i++ )
+            {
+                difference |= a[i] ^ b[i];
+            }
+
+            return difference == 0;
+        }
+
+        /// <summary>
+        /// The character that separates the encrypted text from its
+        /// authentication code. This never appears in Base64 text.
+        /// </summary>
+        private const char PurposeMacSeparator = '.';
+
+        /// <summary>
+        /// The key use for the derived key that encrypts the text.
+        /// </summary>
+        private const string PurposeEncryptionKeyUse = "Encryption";
+
+        /// <summary>
+        /// The key use for the derived key that authenticates the encrypted text.
+        /// </summary>
+        private const string PurposeAuthenticationKeyUse = "Authentication";
+
+        private static readonly ConcurrentDictionary<string, byte[]> _purposeKeyBytes = new ConcurrentDictionary<string, byte[]>();
+
+        /// <summary>
+        /// The purpose used when encrypting root folders.
+        /// </summary>
+        private const string RootFolderEncryptionPurpose = "Rock.RootFolder";
+
+        /// <summary>
+        /// The only top level folder that root folders in the old format
+        /// can be in.
+        /// </summary>
+        private const string LegacyRootFolderName = "Content";
+
+        /// <summary>
         /// Decrypts the string. Dual-mode Decrypt (footer → v2; else v2-no-footer; else v1)
         /// </summary>
         /// <param name="cipherText">The cipher text.</param>
@@ -455,6 +813,55 @@ namespace Rock.Security
             }
 
             return plaintext;
+        }
+
+        /// <summary>
+        /// Decrypts the array of bytes. Dual-mode Decrypt (footer → v2; else v2-no-footer; else v1)
+        /// </summary>
+        /// <param name="cipherData">The encrypted cipher data. If null then an exception is thrown.</param>
+        /// <param name="contextInfo">The context information used in the key derivation process.</param>
+        /// <returns>The decrypted byte array; otherwise <c>null</c>.</returns>
+        /// <exception cref="System.ArgumentNullException">DataEncryptionKey must be specified in configuration file</exception>
+        internal static byte[] DecryptBytes( byte[] cipherData, byte[] contextInfo )
+        {
+            return DecryptBytes( cipherData, contextInfo, _dataEncryptionKeyBytes );
+        }
+
+        /// <summary>
+        /// Decrypts the array of bytes. Dual-mode Decrypt (footer → v2; else v2-no-footer; else v1)
+        /// </summary>
+        /// <param name="cipherData">The encrypted cipher data. If null then an exception is thrown.</param>
+        /// <param name="contextInfo">The context information used in the key derivation process.</param>
+        /// <param name="keyBytes">The key bytes.</param>
+        /// <returns>The decrypted byte array; otherwise <c>null</c>.</returns>
+        /// <exception cref="System.ArgumentNullException">DataEncryptionKey must be specified in configuration file</exception>
+        internal static byte[] DecryptBytes( byte[] cipherData, byte[] contextInfo, byte[] keyBytes )
+        {
+            if ( cipherData == null )
+            {
+                throw new ArgumentNullException( nameof( cipherData ) );
+            }
+
+            if ( keyBytes == null || keyBytes.Length == 0 )
+            {
+                throw new ArgumentNullException( "DataEncryptionKey must be specified in configuration file" );
+            }
+
+            // Look for the V2 footer... and skip V1 attempt when the V2
+            // footer is present.
+            if ( cipherData.Length >= _hmacTagSize + _v2Footer.Length )
+            {
+                bool hasFooter =
+                    cipherData[cipherData.Length - 2] == _v2Footer[0] &&
+                    cipherData[cipherData.Length - 1] == _v2Footer[1];
+
+                if ( hasFooter )
+                {
+                    return TryDecryptV2Bytes_WithFooter( cipherData, keyBytes, contextInfo );
+                }
+            }
+
+            return null;
         }
 
         /// <summary>
@@ -555,6 +962,101 @@ namespace Rock.Security
             }
 
             return plaintext;
+        }
+
+        /// <summary>
+        /// Decrypts a v2 payload that ends with the "V2" footer.
+        /// </summary>
+        /// <param name="allBytes">The full Base64-decoded payload bytes.</param>
+        /// <param name="keyBytes">The DataEncryptionKey (root secret).</param>
+        /// <param name="contextInfo">The context information used in the key derivation process.</param>
+        /// <returns>Decrypted bytes on success; otherwise <c>null</c> if footer is missing, authentication fails, or decryption fails.</returns>
+        /// <remarks>
+        /// Flow:
+        ///     (1) confirm "V2" footer,
+        ///     (2) verify HMAC-SHA256 over [ivLen||IV||CIPHERTEXT],
+        ///     (3) only if the tag matches, decrypt with AES-CBC/PKCS7. No decrypt is attempted on tag failure.
+        /// </remarks>
+        private static byte[] TryDecryptV2Bytes_WithFooter( byte[] allBytes, byte[] keyBytes, byte[] contextInfo )
+        {
+            try
+            {
+                int footerLen = _v2Footer.Length;
+                int tagOffset = allBytes.Length - footerLen - _hmacTagSize;
+                if ( tagOffset <= 0 )
+                {
+                    return null;
+                }
+
+                if ( allBytes[allBytes.Length - 2] != _v2Footer[0] ||
+                     allBytes[allBytes.Length - 1] != _v2Footer[1] )
+                {
+                    return null;
+                }
+
+                byte[] data = new byte[tagOffset];
+                Buffer.BlockCopy( allBytes, 0, data, 0, data.Length );
+
+                byte[] tag = new byte[_hmacTagSize];
+                Buffer.BlockCopy( allBytes, tagOffset, tag, 0, _hmacTagSize );
+
+                byte[] encKey;
+                byte[] macKey;
+                DeriveKeys( keyBytes, contextInfo, out encKey, out macKey );
+
+                byte[] expected = ComputeHmacSha256( macKey, data );
+                if ( !ConstantTimeEquals( tag, expected ) )
+                {
+                    return null;
+                }
+
+                int offset = 0;
+                if ( data.Length < sizeof( int ) )
+                {
+                    return null;
+                }
+
+                int ivLen = BitConverter.ToInt32( data, offset );
+                if ( ivLen <= 0 || ivLen > 64 )
+                {
+                    return null;
+                }
+
+                offset += sizeof( int );
+                if ( data.Length < offset + ivLen )
+                {
+                    return null;
+                }
+
+                byte[] iv = new byte[ivLen];
+                Buffer.BlockCopy( data, offset, iv, 0, ivLen );
+                offset += ivLen;
+
+                byte[] cipherBytes = new byte[data.Length - offset];
+                Buffer.BlockCopy( data, offset, cipherBytes, 0, cipherBytes.Length );
+
+                // Decrypt with AES (CBC/PKCS7)
+                using ( Aes aes = Aes.Create() )
+                {
+                    //Explicit to avoid mode/padding surprises at runtime.
+                    aes.Mode = CipherMode.CBC;
+                    aes.Padding = PaddingMode.PKCS7;
+
+                    aes.Key = encKey;
+                    aes.IV = iv;
+
+                    using ( MemoryStream ms = new MemoryStream( cipherBytes ) )
+                    using ( ICryptoTransform decryptor = aes.CreateDecryptor( aes.Key, aes.IV ) )
+                    using ( CryptoStream cs = new CryptoStream( ms, decryptor, CryptoStreamMode.Read ) )
+                    {
+                        return cs.ReadBytesToEnd();
+                    }
+                }
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         /// <summary>
@@ -684,12 +1186,35 @@ namespace Rock.Security
 
         private static void DeriveKeys( byte[] ikm, out byte[] encKey, out byte[] macKey )
         {
+            DeriveKeys( ikm, _hkdfInfo, out encKey, out macKey );
+        }
+
+        private static void DeriveKeys( byte[] ikm, byte[] contextInfo, out byte[] encKey, out byte[] macKey )
+        {
             var prk = HkdfExtract( _salt, ikm );
-            var okm = HkdfExpand( prk, _hkdfInfo, 64 );
+            var okm = HkdfExpand( prk, contextInfo, 64 );
             encKey = new byte[32];
             macKey = new byte[32];
             Buffer.BlockCopy( okm, 0, encKey, 0, 32 );
             Buffer.BlockCopy( okm, 32, macKey, 0, 32 );
+        }
+
+        internal static byte[] BuildPurposeContext( string[] purposes )
+        {
+            using ( var ms = new MemoryStream() )
+            {
+                var label = Encoding.UTF8.GetBytes( "Rock.Security.Encryption.v2.Purpose" );
+                ms.Write( label, 0, label.Length );
+
+                foreach ( var purpose in purposes )
+                {
+                    var p = Encoding.UTF8.GetBytes( purpose );
+                    ms.Write( BitConverter.GetBytes( p.Length ), 0, sizeof( int ) ); // length-prefix
+                    ms.Write( p, 0, p.Length );
+                }
+
+                return ms.ToArray();
+            }
         }
 
         private static byte[] HkdfExtract( byte[] salt, byte[] ikm )

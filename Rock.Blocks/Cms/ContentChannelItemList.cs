@@ -148,6 +148,14 @@ namespace Rock.Blocks.Cms
         Order = 0,
         IsRequired = true )]
 
+    [LinkedPage(
+        "Content Channel Item Metrics Page",
+        Key = AttributeKey.MetricsPage,
+        Description = "The page that links to the metrics for the content channel item.",
+        Category = AttributeCategory.Pages,
+        Order = 1,
+        IsRequired = false )]
+
     #endregion Pages
 
     #endregion Block Attributes
@@ -161,6 +169,13 @@ namespace Rock.Blocks.Cms
     {
 
         private ContentChannel SelectedContentChannel { get; set; }
+
+        /// <summary>
+        /// The identifiers of items in the current channel that have at least one event occurrence.
+        /// Populated in <see cref="GetListItems"/> so the grid can check existence
+        /// without lazy-loading <see cref="ContentChannelItem.EventItemOccurrences"/> per row.
+        /// </summary>
+        private HashSet<int> _itemIdsWithEventOccurrences = new HashSet<int>();
 
         #region Keys
 
@@ -179,6 +194,7 @@ namespace Rock.Blocks.Cms
 
             // Pages
             public const string DetailPage = "DetailPage";
+            public const string MetricsPage = "MetricsPage";
         }
 
         private static class AttributeCategory
@@ -201,6 +217,7 @@ namespace Rock.Blocks.Cms
             public const string NewItemPage = "NewItemPage";
             public const string LibraryDownloadPage = "LibraryDownloadPage";
             public const string MediaElementPage = "MediaElementPage";
+            public const string MetricsPage = "MetricsPage";
         }
 
         #endregion Keys
@@ -222,8 +239,8 @@ namespace Rock.Blocks.Cms
             var box = new ListBlockBox<ContentChannelItemListOptionsBag>();
             var builder = GetGridBuilder();
 
-            box.IsAddEnabled = GetIsAddEnabled();
-            box.IsDeleteEnabled = GetIsAddEnabled();
+            box.IsAddEnabled = GetIsAddDeleteEnabled();
+            box.IsDeleteEnabled = GetIsAddDeleteEnabled();
             box.ExpectedRowCount = null;
             box.NavigationUrls = GetBoxNavigationUrls();
             box.Options = GetBoxOptions();
@@ -279,14 +296,25 @@ namespace Rock.Blocks.Cms
         }
 
         /// <summary>
-        /// Determines if the add button should be enabled in the grid.
-        /// <summary>
-        /// <returns>A boolean value that indicates if the add button should be enabled.</returns>
-        private bool GetIsAddEnabled()
+        /// Determines if the add and delete buttons should be enabled in the grid.
+        /// </summary>
+        /// <returns>A boolean value that indicates if the add and delete buttons should be enabled.</returns>
+        private bool GetIsAddDeleteEnabled()
         {
-            var entity = new ContentChannelItem();
+            /*
+                7/9/2026 - MSE
 
-            return entity.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson );
+                Authorization must be checked against the content channel rather than a new
+                ContentChannelItem instance. A new instance has no ContentChannel assigned, so its
+                ParentAuthority falls back to the ContentChannelItem entity-type security, which
+                ignores EDIT access granted on the specific channel. This matches the behavior of
+                the legacy WebForms block.
+
+                Reason: A person granted EDIT access on a content channel could not manage its items. (Fixes #6914)
+            */
+            var contentChannel = GetContentChannel();
+
+            return contentChannel != null && contentChannel.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson );
         }
 
         /// <summary>
@@ -330,7 +358,11 @@ namespace Rock.Blocks.Cms
                     ["ContentChannelId"] = contentChannel.IdKey
                 } ),
                 [NavigationUrlKey.LibraryDownloadPage] = libraryDownloadUrl,
-                [NavigationUrlKey.MediaElementPage] = "/admin/cms/media-accounts/items/((Key))"
+                [NavigationUrlKey.MediaElementPage] = "/admin/cms/media-accounts/items/((Key))",
+                [NavigationUrlKey.MetricsPage] = this.GetLinkedPageUrl( AttributeKey.MetricsPage, new Dictionary<string, string>
+                {
+                    ["ContentChannelItemId"] = "((Key))"
+                } )
             };
         }
 
@@ -344,7 +376,29 @@ namespace Rock.Blocks.Cms
                 return Enumerable.Empty<ContentChannelItem>().AsQueryable();
             }
 
-            var query = base.GetListQueryable( rockContext ).Where( i => i.ContentChannelId == contentChannel.Id );
+            /*
+                9/16/26 - CLAUDE
+
+                GetGridDataBag materializes this query with AsNoTracking().
+                ContentChannelItem.IsAuthorized walks ParentAuthority through
+                ContentChannel then ContentChannelType, and itemUrl reads
+                ContentChannelItemSlugs via PrimarySlug. Without eager loading,
+                EF lazy-loads those navigations once per row. All items share
+                the same channel, so Include the 1-to-1 parents (and slugs when
+                ItemUrl will be resolved). Event occurrence existence is batched
+                in GetListItems instead of Included, to avoid loading unused
+                occurrence rows and a cartesian product with slugs.
+
+                Reason: Eliminate N+1 queries in Content Channel Item List. (Fixes #7044)
+            */
+            var query = base.GetListQueryable( rockContext )
+                .Include( i => i.ContentChannel.ContentChannelType )
+                .Where( i => i.ContentChannelId == contentChannel.Id );
+
+            if ( contentChannel.ItemUrl.IsNotNullOrWhiteSpace() )
+            {
+                query = query.Include( i => i.ContentChannelItemSlugs );
+            }
 
             // Filter by person who created content if context entity is a person
             var contextEntity = GetContextEntity();
@@ -403,7 +457,35 @@ namespace Rock.Blocks.Cms
         protected override List<ContentChannelItem> GetListItems( IQueryable<ContentChannelItem> queryable, RockContext rockContext )
         {
             var items = queryable.ToList();
-            return items.Where( cci => cci.IsAuthorized( Authorization.VIEW, GetCurrentPerson() ) ).ToList();
+            var authorizedItems = items.Where( cci => cci.IsAuthorized( Authorization.VIEW, GetCurrentPerson() ) ).ToList();
+
+            LoadItemIdsWithEventOccurrences( rockContext );
+
+            return authorizedItems;
+        }
+
+        /// <summary>
+        /// Loads the identifiers of items in the current channel that have at least
+        /// one event item occurrence. One query for the whole channel, used by the
+        /// occurrences grid column instead of per-row lazy loads.
+        /// </summary>
+        /// <param name="rockContext">The context used to query event item occurrences.</param>
+        private void LoadItemIdsWithEventOccurrences( RockContext rockContext )
+        {
+            var contentChannel = GetContentChannel();
+            if ( contentChannel == null )
+            {
+                _itemIdsWithEventOccurrences = new HashSet<int>();
+                return;
+            }
+
+            _itemIdsWithEventOccurrences = new HashSet<int>(
+                new EventItemOccurrenceChannelItemService( rockContext )
+                    .Queryable()
+                    .AsNoTracking()
+                    .Where( o => o.ContentChannelItem.ContentChannelId == contentChannel.Id )
+                    .Select( o => o.ContentChannelItemId )
+                    .Distinct() );
         }
 
         /// <inheritdoc/>
@@ -418,7 +500,6 @@ namespace Rock.Blocks.Cms
 
             var builder = new GridBuilder<ContentChannelItem>()
                 .WithBlock( this )
-                .AddTextField( "id", a => a.Id.ToString() )
                 .AddTextField( "idKey", a => a.IdKey )
                 .AddField( "contentChannelId", a => a.ContentChannelId )
                 .AddField( "order", a => a.Order )
@@ -426,7 +507,7 @@ namespace Rock.Blocks.Cms
                 .AddDateTimeField( "startDateTime", a => a.StartDateTime )
                 .AddDateTimeField( "expireDateTime", a => a.ExpireDateTime )
                 .AddField( "isScheduled", a => a.StartDateTime > RockDateTime.Now )
-                .AddField( "occurrences", a => a.EventItemOccurrences.Any() )
+                .AddField( "occurrences", a => _itemIdsWithEventOccurrences.Contains( a.Id ) )
                 .AddField( "status", a => a.Status )
                 .AddField( "priority", a => a.Priority )
                 .AddField( "isContentLibraryOwner", a => a.IsContentLibraryOwner )
@@ -450,7 +531,7 @@ namespace Rock.Blocks.Cms
                     return contentChannel.ItemUrl.ResolveMergeFields( itemUrlMergeFields );
                 } )
                 .AddField( "hasLinkedMediaElements", a => false )
-                .AddAttributeFields( GetGridAttributes() );
+                .AddAttributeFields( GetDistinctGridAttributes() );
 
             return builder;
         }
@@ -466,6 +547,8 @@ namespace Rock.Blocks.Cms
                 return new List<AttributeCache>();
             }
 
+            // Return all matching attributes (including same Key on type and channel)
+            // so LoadFilteredAttributes can still resolve values for either AttributeId.
             return AttributeCache.All().AsQueryable()
                 .Where( a =>
                     a.EntityTypeId == entityTypeId &&
@@ -478,6 +561,41 @@ namespace Rock.Blocks.Cms
                     ) ) )
                 .OrderBy( a => a.Order )
                 .ThenBy( a => a.Name ).ToList();
+        }
+
+        /// <summary>
+        /// Gets grid attributes de-duplicated by Key for column definitions.
+        /// </summary>
+        /// <remarks>
+        /// Type and channel item attributes can share a Key. The grid field name is
+        /// <c>attr_{Key}</c>, so only one column is registered per Key. Values still load
+        /// from the full list returned by <see cref="GetGridAttributes"/>.
+        /// </remarks>
+        /// <returns>A distinct list of <see cref="AttributeCache"/> objects for grid columns.</returns>
+        private List<AttributeCache> GetDistinctGridAttributes()
+        {
+            /*
+                7/17/26 - MSE
+
+                De-dupe by Key so attr_{Key} is only registered once when the same Key exists
+                on both the Content Channel Type and Content Channel. Prefer non-Boolean, then
+                channel-level, then Order/Name. Full attribute list still loads for values.
+
+                Reason: Prevent grid crash on duplicate item attribute Keys.
+            */
+            var booleanFieldTypeGuid = Rock.SystemGuid.FieldType.BOOLEAN.AsGuid();
+
+            return GetGridAttributes()
+                .GroupBy( a => a.Key )
+                .Select( group => group
+                    .OrderBy( a => a.FieldType?.Guid == booleanFieldTypeGuid )
+                    .ThenByDescending( a => a.EntityTypeQualifierColumn.Equals( "ContentChannelId", StringComparison.OrdinalIgnoreCase ) )
+                    .ThenBy( a => a.Order )
+                    .ThenBy( a => a.Name )
+                    .First() )
+                .OrderBy( a => a.Order )
+                .ThenBy( a => a.Name )
+                .ToList();
         }
 
         private ContentChannel GetContentChannel()
@@ -495,6 +613,35 @@ namespace Rock.Blocks.Cms
             }
 
             return SelectedContentChannel;
+        }
+
+        /// <summary>
+        /// Determines whether the content channel item can be used by the
+        /// content library actions. The content library must be enabled for
+        /// the channel and the item must be one of the items shown in the list.
+        /// </summary>
+        /// <param name="contentChannelItemId">The content channel item identifier.</param>
+        /// <param name="rockContext">The rock context.</param>
+        /// <param name="errorMessage">The error message if the item cannot be used.</param>
+        /// <returns><c>true</c> if the item can be used; otherwise <c>false</c>.</returns>
+        private bool IsContentLibraryItemAllowed( int contentChannelItemId, RockContext rockContext, out string errorMessage )
+        {
+            if ( GetContentChannel()?.ContentLibraryConfiguration?.IsEnabled != true )
+            {
+                errorMessage = "The content library is not enabled for this content channel.";
+                return false;
+            }
+
+            var qry = GetListQueryable( rockContext ).Where( i => i.Id == contentChannelItemId );
+
+            if ( !GetListItems( qry, rockContext ).Any() )
+            {
+                errorMessage = $"{ContentChannelItem.FriendlyTypeName} not found.";
+                return false;
+            }
+
+            errorMessage = null;
+            return true;
         }
 
         #endregion Methods
@@ -742,6 +889,11 @@ WHERE em.[Key] = {SqlParamKey.EntityMetadataKey}
         [BlockAction]
         public BlockActionResult ReorderItem( string key, string beforeKey )
         {
+            if ( !GetIsAddDeleteEnabled() )
+            {
+                return ActionBadRequest( "Not authorized to reorder items." );
+            }
+
             // Get the queryable and make sure it is ordered correctly.
             var qry = GetListQueryable( RockContext );
             qry = GetOrderedListQueryable( qry, RockContext );
@@ -769,7 +921,13 @@ WHERE em.[Key] = {SqlParamKey.EntityMetadataKey}
         {
             try
             {
-                var contentChannelItemId = key.AsInteger();
+                var contentChannelItemId = IdHasher.Instance.GetId( key ) ?? 0;
+
+                if ( !IsContentLibraryItemAllowed( contentChannelItemId, RockContext, out var errorMessage ) )
+                {
+                    return ActionBadRequest( errorMessage );
+                }
+
                 var contentChannelItemService = new ContentChannelItemService( RockContext );
                 contentChannelItemService.UploadToContentLibrary(
                     new ContentLibraryItemUploadOptions
@@ -797,7 +955,13 @@ WHERE em.[Key] = {SqlParamKey.EntityMetadataKey}
         {
             try
             {
-                var contentChannelItemId = key.AsInteger();
+                var contentChannelItemId = IdHasher.Instance.GetId( key ) ?? 0;
+
+                if ( !IsContentLibraryItemAllowed( contentChannelItemId, RockContext, out var errorMessage ) )
+                {
+                    return ActionBadRequest( errorMessage );
+                }
+
                 var contentChannelItemService = new ContentChannelItemService( RockContext );
                 contentChannelItemService.UploadToContentLibrary(
                     new ContentLibraryItemUploadOptions
@@ -824,7 +988,13 @@ WHERE em.[Key] = {SqlParamKey.EntityMetadataKey}
         [BlockAction]
         public BlockActionResult ReDownloadContentLibraryItem( string key )
         {
-            var contentChannelItemId = key.AsInteger();
+            var contentChannelItemId = IdHasher.Instance.GetId( key ) ?? 0;
+
+            if ( !IsContentLibraryItemAllowed( contentChannelItemId, RockContext, out var errorMessage ) )
+            {
+                return ActionBadRequest( errorMessage );
+            }
+
             var contentChannelItemService = new ContentChannelItemService( RockContext );
 
             var contentLibraryItemGuid = contentChannelItemService.AsNoFilter().AsNoTracking().Where( i => i.Id == contentChannelItemId ).Select( i => i.ContentLibrarySourceIdentifier ).FirstOrDefault();

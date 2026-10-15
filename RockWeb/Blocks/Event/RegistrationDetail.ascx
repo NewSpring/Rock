@@ -1,5 +1,4 @@
 ﻿<%@ Control Language="C#" AutoEventWireup="true" CodeFile="RegistrationDetail.ascx.cs" Inherits="RockWeb.Blocks.Event.RegistrationDetail" %>
-<%@ Reference Control="~/Blocks/Finance/TransactionList.ascx" %>
 
 <asp:UpdatePanel ID="upnlRegistrationDetail" runat="server">
     <ContentTemplate>
@@ -51,6 +50,8 @@
                 </div>
             </div>
         </div>
+
+        <Rock:NotificationBox ID="nbSecurityWarning" runat="server" NotificationBoxType="Warning" Visible="false" />
 
         <asp:Panel ID="pnlDetails" runat="server">
 

@@ -532,7 +532,7 @@ namespace Rock.Blocks.Group
         /// <summary>
         /// Gets the Schedule ID page parameter.
         /// </summary>
-        private int? ScheduleIdPageParameter => PageParameter( PageParameterKey.ScheduleId ).AsIntegerOrNull();
+        private int? ScheduleIdPageParameter => Rock.Utility.IdHasher.Instance.GetId( PageParameter( PageParameterKey.ScheduleId ) ) ?? ( !PageCache.Layout.Site.DisablePredictableIds ? PageParameter( PageParameterKey.ScheduleId ).AsIntegerOrNull() : null );
 
         /// <summary>
         /// Gets the entity set identifier page parameter.
@@ -1276,6 +1276,7 @@ namespace Rock.Blocks.Group
                 .Where( gl => gl.Location.Guid == bag.LocationGuid.Value )
                 .Where( gl => gl.Schedules.Any() )
                 .SelectMany( gl => gl.Schedules )
+                .Where( s => s.IsActive )
                 .OrderBy( s => s.Name )
                 .Distinct()
                 .ToList();
@@ -1669,7 +1670,7 @@ namespace Rock.Blocks.Group
             // that prevented it from being used for it's normal purpose. So
             // it was decided to treat it like a normal "returnUrl" parameter
             // and just redirect to this URL when the back button is clicked.
-            if ( returnUrl.IsNotNullOrWhiteSpace() )
+            if ( this.PageCache.Layout.Site.IsSafeRedirectUrl( returnUrl, this.RequestContext.RequestUri ) )
             {
                 return returnUrl;
             }
@@ -2335,10 +2336,16 @@ namespace Rock.Blocks.Group
                     .Include( a => a.Location )
                     .Include( a => a.Attendees );
 
+                // Only allow a specific occurrence to be loaded if it belongs
+                // to the authorized group.
+                var authorizedGroupId = attendanceOccurrenceSearchParameters.Group.Id;
+
                 // Check if an occurrence guid was specified, and if so, query for it.
                 if ( attendanceOccurrenceSearchParameters.AttendanceOccurrenceGuid.HasValue )
                 {
-                    var query = baseQuery.Where( o => o.Guid == attendanceOccurrenceSearchParameters.AttendanceOccurrenceGuid );
+                    var query = baseQuery.Where( o => o.Guid == attendanceOccurrenceSearchParameters.AttendanceOccurrenceGuid
+                        && o.GroupId.HasValue
+                        && o.GroupId.Value == authorizedGroupId );
 
                     if ( !withTracking )
                     {
@@ -2359,7 +2366,9 @@ namespace Rock.Blocks.Group
                 // Check if an occurrence ID was specified on the query string, and if so, query for it.
                 if ( attendanceOccurrenceSearchParameters.AttendanceOccurrenceId.HasValue && attendanceOccurrenceSearchParameters.AttendanceOccurrenceId.Value > 0 )
                 {
-                    var query = baseQuery.Where( o => o.Id == attendanceOccurrenceSearchParameters.AttendanceOccurrenceId.Value );
+                    var query = baseQuery.Where( o => o.Id == attendanceOccurrenceSearchParameters.AttendanceOccurrenceId.Value
+                        && o.GroupId.HasValue
+                        && o.GroupId.Value == authorizedGroupId );
 
                     if ( !withTracking )
                     {

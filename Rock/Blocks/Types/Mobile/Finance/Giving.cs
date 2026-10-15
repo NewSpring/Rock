@@ -849,6 +849,13 @@ namespace Rock.Blocks.Types.Mobile.Finance
 
             var isSavedAccount = bag.SavedAccountId.IsNotNullOrWhiteSpace();
             var paymentInfo = isSavedAccount ? GetSavedAccountReferenceInfo( bag.SavedAccountId ) : new ReferencePaymentInfo();
+
+            if ( paymentInfo == null )
+            {
+                errorMessage = "The selected payment method was not found.";
+                return null;
+            }
+
             paymentInfo.Email = bag.Email;
 
             var commonTransactionAccountDetails = new List<FinancialTransactionDetail>();
@@ -906,6 +913,26 @@ namespace Rock.Blocks.Types.Mobile.Finance
                 return null;
             }
 
+            // Validate the saved account before creating any person records.
+            if ( bag.SavedAccountId.IsNotNullOrWhiteSpace() && GetCurrentPersonSavedAccount( bag.SavedAccountId ) == null )
+            {
+                errorMessage = "The selected payment method was not found.";
+                return null;
+            }
+
+            // The frequency is only used when scheduled gifts are allowed, and
+            // then it must be a valid transaction frequency.
+            if ( AllowScheduled )
+            {
+                var frequency = DefinedValueCache.Get( bag.FrequencyValueId, false );
+
+                if ( frequency == null || frequency.DefinedTypeId != DefinedTypeCache.Get( Rock.SystemGuid.DefinedType.FINANCIAL_FREQUENCY.AsGuid() )?.Id )
+                {
+                    errorMessage = "A valid frequency is required.";
+                    return null;
+                }
+            }
+
             Person person = GetPerson( bag, true );
 
             if ( person == null )
@@ -928,6 +955,12 @@ namespace Rock.Blocks.Types.Mobile.Finance
 
             PaymentSchedule schedule = GetSchedule( bag.ProcessDate, bag.FrequencyValueId );
             var mergeFields = RequestContext.GetCommonMergeFields();
+
+            // Let the success template tell an immediate charge apart from a gift that
+            // was handed to the gateway as a schedule, and know whether a receipt email
+            // is actually going to be sent.
+            mergeFields.Add( "IsScheduled", schedule != null );
+            mergeFields.Add( "IsReceiptEmailConfigured", ReceiptEmailSystemCommunicationGuid.HasValue );
 
             if ( schedule != null )
             {
@@ -1076,7 +1109,12 @@ namespace Rock.Blocks.Types.Mobile.Finance
         /// </summary>
         private PaymentSchedule GetSchedule( DateTime? startDate, string frequencyIdKey )
         {
-            startDate = startDate ?? RockDateTime.Today;
+            // ProcessDate arrives bound to the host server's clock, which is not
+            // necessarily the organization's time zone. Normalize it to a Rock date so
+            // the comparisons below are made against a single clock.
+            startDate = startDate.HasValue
+                ? RockDateTime.ConvertLocalDateTimeToRockDateTime( startDate.Value ).Date
+                : RockDateTime.Today;
 
             // Figure out if this is a one-time transaction or a future scheduled transaction
             if ( AllowScheduled )
@@ -1277,13 +1315,34 @@ namespace Rock.Blocks.Types.Mobile.Finance
         /// <param name="savedAccountId">The saved account unique identifier.</param>
         private ReferencePaymentInfo GetSavedAccountReferenceInfo( string savedAccountId )
         {
-            var savedAccount = new FinancialPersonSavedAccountService( new RockContext() ).Get( savedAccountId );
-            if ( savedAccount != null )
+            return GetCurrentPersonSavedAccount( savedAccountId )?.GetReferencePayment();
+        }
+
+        /// <summary>
+        /// Gets the saved account if it belongs to the current person and
+        /// the gateway used by this block.
+        /// </summary>
+        /// <param name="savedAccountId">The saved account identifier.</param>
+        /// <returns>The saved account or <c>null</c> if not found or not authorized.</returns>
+        private FinancialPersonSavedAccount GetCurrentPersonSavedAccount( string savedAccountId )
+        {
+            var currentPerson = RequestContext.CurrentPerson;
+
+            if ( currentPerson == null || savedAccountId.IsNullOrWhiteSpace() || MyWellGateway == null )
             {
-                return savedAccount.GetReferencePayment();
+                return null;
             }
 
-            return null;
+            var savedAccount = new FinancialPersonSavedAccountService( RockContext ).Get( savedAccountId, !this.PageCache.Layout.Site.DisablePredictableIds );
+
+            if ( savedAccount == null
+                || savedAccount.PersonAlias?.PersonId != currentPerson.Id
+                || savedAccount.FinancialGatewayId != MyWellGateway.Id )
+            {
+                return null;
+            }
+
+            return savedAccount;
         }
 
         /// <summary>
@@ -1357,6 +1416,12 @@ namespace Rock.Blocks.Types.Mobile.Finance
             if ( scheduledTransaction == null )
             {
                 errorMessage = "Could not find the scheduled transaction.";
+                return false;
+            }
+
+            if ( scheduledTransaction.AuthorizedPersonAlias.PersonId != RequestContext.CurrentPerson?.Id )
+            {
+                errorMessage = "You are not authorized to delete this scheduled transaction.";
                 return false;
             }
 
@@ -1572,16 +1637,13 @@ namespace Rock.Blocks.Types.Mobile.Finance
             }
             else if ( useSavedAccount )
             {
-                var savedAccount = new FinancialPersonSavedAccountService( RockContext ).Get( options.SavedAccountId, !this.PageCache.Layout.Site.DisablePredictableIds );
-                if ( savedAccount != null )
+                var savedAccount = GetCurrentPersonSavedAccount( options.SavedAccountId );
+                if ( savedAccount == null )
                 {
-                    referencePaymentInfo = savedAccount.GetReferencePayment();
+                    return ActionBadRequest( "The selected payment method was not found." );
                 }
-                else
-                {
-                    // shouldn't happen
-                    throw new Exception( "Unable to determine Saved Account" );
-                }
+
+                referencePaymentInfo = savedAccount.GetReferencePayment();
             }
             else
             {
@@ -1710,10 +1772,12 @@ namespace Rock.Blocks.Types.Mobile.Finance
                 HorizontalOptions=""Center""
                 StyleClass=""text-interface-strong, body"" />
 
-            <Label Text=""We sent a confirmation email to {{ Transaction.AuthorizedPersonAlias.Person.Email }}.""
-                HorizontalTextAlignment=""Center""
-                HorizontalOptions=""Center""
-                StyleClass=""text-interface-medium, body"" />
+            {% if IsReceiptEmailConfigured == true and IsScheduled == false %}
+                <Label Text=""We sent a confirmation email to {{ Transaction.AuthorizedPersonAlias.Person.Email }}.""
+                    HorizontalTextAlignment=""Center""
+                    HorizontalOptions=""Center""
+                    StyleClass=""text-interface-medium, body"" />
+            {% endif %}
         </StackLayout>
     </StackLayout>
 </Grid>";

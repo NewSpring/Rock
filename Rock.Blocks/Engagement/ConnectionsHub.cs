@@ -107,6 +107,21 @@ namespace Rock.Blocks.Engagement
         EditorMode = CodeEditorMode.Lava,
         Order = 7 )]
 
+    [ConnectionTypeField(
+        "Connection Type",
+        Key = AttributeKey.ConnectionType,
+        Description = "Optional connection type to limit the block to. When set, the block always displays this type and ignores the ConnectionType page parameter.",
+        IsRequired = false,
+        Order = 8 )]
+
+    [BooleanField(
+        "Limit to Assigned Connections",
+        Key = AttributeKey.OnlyShowAssigned,
+        Description = "When enabled, only requests assigned to the current person will be shown.",
+        DefaultBooleanValue = false,
+        IsRequired = true,
+        Order = 9 )]
+
     #endregion
 
     [Rock.SystemGuid.EntityTypeGuid( "CEE15B88-3B23-4378-9CB1-E59A97A94D1B" )]
@@ -125,6 +140,8 @@ namespace Rock.Blocks.Engagement
             public const string Badges = "Badges";
             public const string LavaHeadingTemplate = "LavaHeadingTemplate";
             public const string LavaBadgeBar = "LavaBadgeBar";
+            public const string ConnectionType = "ConnectionType";
+            public const string OnlyShowAssigned = "OnlyShowAssigned";
         }
 
         private static class NavigationUrlKey
@@ -148,7 +165,6 @@ namespace Rock.Blocks.Engagement
         {
             public const string ConnectionmOpportunityFilterConnectionTypeIdKey = "ConnectionOpportunityFilter_ConnectionTypeIdKey_{0}";
             public const string SelectedGroupByMode = "SelectedGroupByMode";
-            public const string AreOnlyMyRequestsVisible = "AreOnlyMyRequestsVisible";
             public const string SelectedConnector = "SelectedConnector";
             public const string FilterStateConnectionTypeIdKey = "FilterState_ConnectionTypeIdKey_{0}";
             public const string FilterAttributeValuesConnectionTypeIdKey = "FilterAttributeValues_ConnectionTypeIdKey_{0}";
@@ -176,10 +192,6 @@ namespace Rock.Blocks.Engagement
 
         #region Properties
 
-        protected bool AreOnlyMyRequestsVisible => GetBlockPersonPreferences()
-            .GetValue( PreferenceKey.AreOnlyMyRequestsVisible )
-            .AsBoolean( true );
-
         /// <summary>
         /// Gets a value indicating whether the block is rendering in "My Connections" mode:
         /// a Connector page parameter is supplied without a specific Connection Type or
@@ -188,13 +200,42 @@ namespace Rock.Blocks.Engagement
         protected bool IsMyConnectionsMode =>
             PageParameter( PageParameterKey.IsMyConnectionsView ).AsBoolean() == true;
 
-        protected Guid? SelectedConnector => GetBlockPersonPreferences()
-            .GetValue( PreferenceKey.SelectedConnector )
-            .AsGuidOrNull();
+        protected string SelectedConnector => GetBlockPersonPreferences()
+            .GetValue( PreferenceKey.SelectedConnector );
 
         protected Guid? FilterConnectionType => GetBlockPersonPreferences()
             .GetValue( PreferenceKey.FilterConnectionType )
             .AsGuidOrNull();
+
+        /// <summary>
+        /// Gets the identifier of the active Connection Type pinned by the "Connection Type"
+        /// block setting, or null when the setting is empty or points at an inactive or
+        /// deleted type. When set, the block always displays this type: Standard view ignores
+        /// the ConnectionType page parameter and My Connections view hides its type filter.
+        /// </summary>
+        private int? ConfiguredConnectionTypeId
+        {
+            get
+            {
+                var configuredGuid = GetAttributeValue( AttributeKey.ConnectionType ).AsGuidOrNull();
+
+                if ( !configuredGuid.HasValue )
+                {
+                    return null;
+                }
+
+                var connectionTypeCache = ConnectionTypeCache.Get( configuredGuid.Value );
+
+                return connectionTypeCache?.IsActive == true ? connectionTypeCache.Id : ( int? ) null;
+            }
+        }
+
+        /// <summary>
+        /// Gets a value indicating whether the "Limit to Assigned Connections" block setting is
+        /// enabled, in which case every request query is restricted to the current person as
+        /// connector and the slicer's connector filter is locked to "My Requests".
+        /// </summary>
+        private bool IsLimitedToAssignedConnections => GetAttributeValue( AttributeKey.OnlyShowAssigned ).AsBoolean();
 
         public PersonPreferenceCollection PersonPreferences
         {
@@ -291,16 +332,37 @@ namespace Rock.Blocks.Engagement
             ConnectionType connectionType;
 
             var connectionOpportunity = new ConnectionOpportunityService( RockContext ).GetInclude( PageParameter( PageParameterKey.ConnectionOpportunity ), o => o.ConnectionType, !PageCache.Layout.Site.DisablePredictableIds );
+            var configuredConnectionTypeId = ConfiguredConnectionTypeId;
 
-            if ( connectionOpportunity != null )
+            // The Connection Type block setting pins the block to one type. A ConnectionOpportunity
+            // page parameter is only honored as a filter seed when it belongs to that type; the
+            // ConnectionType page parameter is ignored entirely.
+            if ( configuredConnectionTypeId.HasValue && connectionOpportunity != null && connectionOpportunity.ConnectionTypeId != configuredConnectionTypeId.Value )
             {
-                options.ConnectionOpportunityGuidFromPageParameter = connectionOpportunity.Guid;
+                connectionOpportunity = null;
+            }
+
+            if ( configuredConnectionTypeId.HasValue )
+            {
+                connectionType = new ConnectionTypeService( RockContext ).Queryable()
+                    .Include( a => a.ConnectionStatuses )
+                    .FirstOrDefault( a => a.Id == configuredConnectionTypeId.Value );
+            }
+            else if ( connectionOpportunity != null )
+            {
                 connectionType = connectionOpportunity.ConnectionType;
             }
             else
             {
                 connectionType = new ConnectionTypeService( RockContext ).GetInclude( PageParameter( PageParameterKey.ConnectionType ), a => a.ConnectionStatuses, !PageCache.Layout.Site.DisablePredictableIds );
             }
+
+            if ( connectionOpportunity != null )
+            {
+                options.ConnectionOpportunityGuidFromPageParameter = connectionOpportunity.Guid;
+            }
+
+            options.IsLimitedToAssignedConnections = IsLimitedToAssignedConnections;
 
             string preferenceKey;
             options.GridDataToShowItems = new List<GridDataToShowItemBag>();
@@ -330,9 +392,15 @@ namespace Rock.Blocks.Engagement
                 SetSingleConnectionTypeHubOptions( connectionType, connectionOpportunity, options );
             }
 
-            if ( PageParameter( PageParameterKey.Request ).IsNotNullOrWhiteSpace() )
+            var requestParameter = PageParameter( PageParameterKey.Request );
+
+            if ( requestParameter == "0" )
             {
-                options.ConnectionRequestIdKey = new ConnectionRequestService( RockContext ).Get( PageParameter( PageParameterKey.Request ), !PageCache.Layout.Site.DisablePredictableIds )?.IdKey ?? string.Empty;
+                options.IsAddConnectionRequestRequested = true;
+            }
+            else if ( requestParameter.IsNotNullOrWhiteSpace() )
+            {
+                options.ConnectionRequestIdKey = new ConnectionRequestService( RockContext ).Get( requestParameter, !PageCache.Layout.Site.DisablePredictableIds )?.IdKey ?? string.Empty;
             }
 
             if ( options.ErrorMessage.IsNotNullOrWhiteSpace() )
@@ -350,17 +418,16 @@ namespace Rock.Blocks.Engagement
             }
 
             var connectorPerson = new PersonService( RockContext ).Get( PageParameter( PageParameterKey.Connector ), !PageCache.Layout.Site.DisablePredictableIds );
-            if ( connectorPerson != null )
+            if ( IsLimitedToAssignedConnections )
             {
-                var connectorListItemBag = new ListItemBag
-                {
-                    Text = $"{connectorPerson.FullName.ToPossessive()} Requests",
-                    Value = connectorPerson.PrimaryAliasGuid.ToString()
-                };
-
-                options.SelectedConnector = connectorListItemBag;
-                options.SelectedConnectorIdKey = connectorPerson.IdKey;
-                this.PersonPreferences.SetValue( PreferenceKey.SelectedConnector, connectorPerson.PrimaryAliasGuid.ToString() );
+                // The block setting locks the connector filter to the current person, so the
+                // Connector page parameter and any previously saved selection are ignored.
+                this.PersonPreferences.SetValue( PreferenceKey.SelectedConnector, RequestContext.CurrentPerson.IdKey );
+                this.PersonPreferences.Save();
+            }
+            else if ( connectorPerson != null )
+            {
+                this.PersonPreferences.SetValue( PreferenceKey.SelectedConnector, connectorPerson.IdKey );
 
                 // Connector Grouping is intentionally hidden in My Connections View.
                 if ( !IsMyConnectionsMode )
@@ -368,6 +435,12 @@ namespace Rock.Blocks.Engagement
                     this.PersonPreferences.SetValue( PreferenceKey.SelectedGroupByMode, "connectorGrouping" );
                 }
 
+                this.PersonPreferences.Save();
+            }
+            else if ( SelectedConnector.IsNullOrWhiteSpace() || ( !IdHasher.Instance.GetId( SelectedConnector ).HasValue && SelectedConnector != "All Requests" ) )
+            {
+                // Default the connector filter to the current person.
+                this.PersonPreferences.SetValue( PreferenceKey.SelectedConnector, RequestContext.CurrentPerson.IdKey );
                 this.PersonPreferences.Save();
             }
 
@@ -461,6 +534,11 @@ namespace Rock.Blocks.Engagement
                 return;
             }
 
+            // Limit every opportunity-derived surface (filter detail, board groupings, connector
+            // columns, attribute columns, and the per-type options) to the opportunities the current
+            // person may view, matching the legacy Connection Request Board.
+            var viewAuthorizedOpportunityIds = GetViewAuthorizedConnectionOpportunityIds( connectionType );
+
             options.Title = connectionType.Name + " Requests";
             options.IconCssClass = connectionType.IconCssClass;
 
@@ -489,7 +567,7 @@ namespace Rock.Blocks.Engagement
             {
                 connectionOpportunity = new ConnectionOpportunityService( RockContext ).Get( connectionOpportunityFilter.Value );
             }
-            if ( connectionOpportunity != null )
+            if ( connectionOpportunity != null && viewAuthorizedOpportunityIds.Contains( connectionOpportunity.Id ) )
             {
                 options.ConnectionOpportunityDetailsFromFilter = GetConnectionOpportunityDetailBag( connectionOpportunity );
             }
@@ -507,35 +585,45 @@ namespace Rock.Blocks.Engagement
                 .Select( s => GetGroupingFieldBag( s.Id, "text", s.Name, s.Order, "ti ti-circle-filled", null, null, $"color: {s.HighlightColor};" ) )
                 .ToList();
 
-            // Opportunity groupings: all active opportunities for the connection type.
+            // Opportunity groupings: all active opportunities for the connection type the person may view.
             availableGroupings["opportunityGrouping"] = connectionType.ConnectionOpportunities
-                .Where( o => o.IsActive )
+                .Where( o => o.IsActive && viewAuthorizedOpportunityIds.Contains( o.Id ) )
                 .OrderBy( o => o.Order )
                 .ThenBy( o => o.Name )
                 .Select( o => GetGroupingFieldBag( o.Id, "text", o.Name, o.Order, o.IconCssClass ) )
                 .ToList();
 
-            // Connector groupings — all connectors from connector groups plus the current person.
+            /*
+                7/2/26 - CLAUDE
+
+                The connector grouping dimension is keyed by PersonId, not PersonAliasId. A
+                request's ConnectorPersonAliasId is not necessarily the person's primary alias
+                (e.g. after a person merge), so alias-based keys could split one person into
+                multiple groups and cause the grouped panel to fall back to a raw IdKey label.
+                Every code path that emits a connectorGrouping key must use PersonId.
+
+                Reason: Connector grouping keys must be person-based to stay consistent across aliases.
+            */
+            // Connector groupings: all connectors from connector groups plus the current person.
             // Exclude inactive and archived connector groups. A global query filter sets the
             // ConnectorGroup navigation to null for archived groups, so guard against null as well.
             // Also exclude inactive/archived group members so they do not appear as connectors.
             var connectorGroupings = connectionType.ConnectionOpportunities
-                .Where( o => o.IsActive )
+                .Where( o => o.IsActive && viewAuthorizedOpportunityIds.Contains( o.Id ) )
                 .SelectMany( o => o.ConnectionOpportunityConnectorGroups )
                 .Where( g => g.ConnectorGroup != null && g.ConnectorGroup.IsActive && !g.ConnectorGroup.IsArchived )
                 .SelectMany( g => g.ConnectorGroup.Members.Where( m => m.GroupMemberStatus == GroupMemberStatus.Active && !m.IsArchived ) )
-                .Where( m => m.Person.PrimaryAlias != null )
-                .DistinctBy( m => m.Person.PrimaryAlias.Id )
-                .Select( m => GetGroupingFieldBag( m.Person.PrimaryAlias.Id, "person", m.Person.FullName, null, null, m.Person.PhotoUrl ) )
+                .DistinctBy( m => m.PersonId )
+                .Select( m => GetGroupingFieldBag( m.Person.Id, "person", m.Person.FullName, null, null, m.Person.PhotoUrl ) )
                 .ToList();
 
             // Add current person if not already in the list.
-            if ( RequestContext.CurrentPerson?.PrimaryAlias != null )
+            if ( RequestContext.CurrentPerson != null )
             {
-                var currentAliasId = RequestContext.CurrentPerson.PrimaryAlias.Id;
-                if ( !connectorGroupings.Any( g => g.Key == GetGroupingKey( currentAliasId ) ) )
+                var currentPersonId = RequestContext.CurrentPerson.Id;
+                if ( !connectorGroupings.Any( g => g.Key == GetGroupingKey( currentPersonId ) ) )
                 {
-                    connectorGroupings.Add( GetGroupingFieldBag( currentAliasId, "person", RequestContext.CurrentPerson.FullName, null, null, RequestContext.CurrentPerson.PhotoUrl ) );
+                    connectorGroupings.Add( GetGroupingFieldBag( currentPersonId, "person", RequestContext.CurrentPerson.FullName, null, null, RequestContext.CurrentPerson.PhotoUrl ) );
                 }
             }
 
@@ -567,7 +655,7 @@ namespace Rock.Blocks.Engagement
                 typeLevelAttributeKeys.Add( attribute.Key );
             }
 
-            foreach ( var opportunity in connectionType.ConnectionOpportunities.Where( o => o.IsActive ) )
+            foreach ( var opportunity in connectionType.ConnectionOpportunities.Where( o => o.IsActive && viewAuthorizedOpportunityIds.Contains( o.Id ) ) )
             {
                 var tempOpportunityRequest = new ConnectionRequest
                 {
@@ -638,13 +726,17 @@ namespace Rock.Blocks.Engagement
             // follow-up changes.
             options.ConnectionTypeOptionsByIdKey = new Dictionary<string, ConnectionTypeOptionsBag>
             {
-                [connectionType.IdKey] = GetConnectionTypeOptions( connectionType )
+                [connectionType.IdKey] = GetConnectionTypeOptions( connectionType, viewAuthorizedOpportunityIds )
             };
         }
 
         private void SetMyConnectionsModeOptions( ConnectionsHubOptionsBag options )
         {
-            var connectorPerson = new PersonService( RockContext ).Get( PageParameter( PageParameterKey.Connector ), !PageCache.Layout.Site.DisablePredictableIds );
+            // When limited to assigned connections the view is always the current person's,
+            // regardless of the Connector page parameter.
+            var connectorPerson = IsLimitedToAssignedConnections
+                ? RequestContext.CurrentPerson
+                : new PersonService( RockContext ).Get( PageParameter( PageParameterKey.Connector ), !PageCache.Layout.Site.DisablePredictableIds );
 
             if ( connectorPerson == null )
             {
@@ -671,12 +763,18 @@ namespace Rock.Blocks.Engagement
             // My Connections mode only supports the List and Grid views, so limit the options to those.
             options.EnabledViews = EnabledViewFlags.List | EnabledViewFlags.Grid;
 
+            // The Connection Type block setting pins My Connections view to one type, which also
+            // hides the slicer's type filter since there is nothing left to choose between.
+            var configuredConnectionTypeId = ConfiguredConnectionTypeId;
+            options.IsConnectionTypeFilterHidden = configuredConnectionTypeId.HasValue;
+
             var connectionTypes = new ConnectionTypeService( RockContext ).Queryable()
                 .Include( ct => ct.ConnectionOpportunities )
                 .Include( ct => ct.ConnectionTypeSources )
                 .Include( ct => ct.ConnectionActivityTypes )
                 .Include( ct => ct.ConnectionWorkflows )
                 .Where( ct => ct.IsActive )
+                .Where( ct => !configuredConnectionTypeId.HasValue || ct.Id == configuredConnectionTypeId.Value )
                 .ToList();
 
             options.ConnectionTypeItems = connectionTypes.ToListItemBagList();
@@ -685,7 +783,7 @@ namespace Rock.Blocks.Engagement
 
             foreach ( var connectionType in connectionTypes )
             {
-                options.ConnectionTypeOptionsByIdKey.Add( connectionType.IdKey, GetConnectionTypeOptions( connectionType ) );
+                options.ConnectionTypeOptionsByIdKey.Add( connectionType.IdKey, GetConnectionTypeOptions( connectionType, GetViewAuthorizedConnectionOpportunityIds( connectionType ) ) );
             }
 
             // Build the available groupings for each grouping dimension. These are
@@ -712,7 +810,7 @@ namespace Rock.Blocks.Engagement
             options.AvailableGroupings = availableGroupings;
         }
 
-        private ConnectionTypeOptionsBag GetConnectionTypeOptions( ConnectionType connectionType )
+        private ConnectionTypeOptionsBag GetConnectionTypeOptions( ConnectionType connectionType, HashSet<int> viewAuthorizedOpportunityIds )
         {
             var options = new ConnectionTypeOptionsBag();
 
@@ -724,34 +822,55 @@ namespace Rock.Blocks.Engagement
             // Exclude inactive and archived connector groups. A global query filter sets the
             // ConnectorGroup navigation to null for archived groups, so guard against null as well.
             // Also exclude inactive/archived group members so they do not appear as connectors.
-            var connectors = connectionType.ConnectionOpportunities
-                .Where( o => o.IsActive )
+            var connectorData = connectionType.ConnectionOpportunities
+                .Where( o => o.IsActive && viewAuthorizedOpportunityIds.Contains( o.Id ) )
                 .SelectMany( o => o.ConnectionOpportunityConnectorGroups )
                 .Where( g => g.ConnectorGroup != null && g.ConnectorGroup.IsActive && !g.ConnectorGroup.IsArchived )
                 .SelectMany( g => g.ConnectorGroup.Members.Where( m => m.GroupMemberStatus == GroupMemberStatus.Active && !m.IsArchived ) )
                 .DistinctBy( m => m.Person.PrimaryAlias.Guid )
-                .Select( m => new ListItemBag
+                .Select( m => new
                 {
-                    Value = m.Person.PrimaryAlias.Guid.ToString(),
-                    Text = m.Person.FullName
+                    PrimaryAliasGuid = m.Person.PrimaryAlias.Guid.ToString(),
+                    PersonIdKey = m.Person.IdKey,
+                    ConnectorName = m.Person.FullName
                 } )
                 .ToList();
 
             var currentPersonAliasGuid = RequestContext.CurrentPerson.PrimaryAlias?.Guid;
+            var connectorAliasItems = connectorData.Select( c => new ListItemBag
+            {
+                Text = c.ConnectorName,
+                Value = c.PrimaryAliasGuid
+            } ).ToList();
+
+            var connectorKeyItems = connectorData.Where( c => c.PersonIdKey != RequestContext.CurrentPerson.IdKey )
+                .OrderBy( c => c.ConnectorName )
+                .Select( c => new ListItemBag
+                {
+                    Text = $"{c.ConnectorName.ToPossessive()} Requests",
+                    Value = c.PersonIdKey
+                } ).ToList();
+
+            connectorKeyItems.Insert( 0, new ListItemBag
+            {
+                Text = "My Requests",
+                Value = RequestContext.CurrentPerson.IdKey
+            } );
 
             // Add current person to the connector list to mirror Webforms
-            if ( currentPersonAliasGuid.HasValue && !connectors.Any( c => c.Value == currentPersonAliasGuid.Value.ToString() ) )
+            if ( currentPersonAliasGuid.HasValue && !connectorAliasItems.Any( c => c.Value == currentPersonAliasGuid.Value.ToString() ) )
             {
-                connectors.Add( new ListItemBag
+                connectorAliasItems.Add( new ListItemBag
                 {
                     Text = RequestContext.CurrentPerson.FullName,
                     Value = currentPersonAliasGuid.Value.ToString()
                 } );
             }
 
-            options.AllPossibleConnectors = connectors;
+            options.ConnectorKeyItems = connectorKeyItems;
+            options.ConnectorAliasItems = connectorAliasItems;
 
-            options.ConnectionOpportunities = connectionType.ConnectionOpportunities.Where( o => o.IsActive ).Select( o => new ListItemBag
+            options.ConnectionOpportunities = connectionType.ConnectionOpportunities.Where( o => o.IsActive && viewAuthorizedOpportunityIds.Contains( o.Id ) ).Select( o => new ListItemBag
             {
                 Text = o.Name,
                 Value = o.Guid.ToString(),
@@ -846,6 +965,115 @@ namespace Rock.Blocks.Engagement
             }
 
             return connectionOpportunity;
+        }
+
+        /// <summary>
+        /// Gets the Ids of the active Connection Opportunities under the specified Connection Type
+        /// that the current person is authorized to VIEW. This mirrors the legacy Connection Request
+        /// Board: an opportunity is viewable when the person has native VIEW authorization on it, or
+        /// (only when Request Security is enabled on the type) when the person is the assigned
+        /// connector on at least one request in that opportunity. Authorization is evaluated over the
+        /// opportunity set, and the self-assigned lookup is a single query keyed on
+        /// ConnectorPersonAlias.PersonId, so the cost does not grow with total Connection Request volume.
+        /// </summary>
+        /// <param name="connectionType">The Connection Type whose opportunities are evaluated.</param>
+        /// <returns>The set of Connection Opportunity Ids the current person is authorized to view.</returns>
+        private HashSet<int> GetViewAuthorizedConnectionOpportunityIds( ConnectionType connectionType )
+        {
+            var authorizedOpportunityIds = new HashSet<int>();
+
+            if ( connectionType == null )
+            {
+                return authorizedOpportunityIds;
+            }
+
+            // When Request Security is enabled, the board also lets a person view any opportunity
+            // where they are the assigned connector on a request. Query these once up front rather
+            // than per opportunity so the cost is independent of Connection Request volume.
+            var selfAssignedOpportunityIds = new HashSet<int>();
+            if ( connectionType.EnableRequestSecurity )
+            {
+                selfAssignedOpportunityIds = new HashSet<int>( new ConnectionRequestService( RockContext )
+                    .Queryable()
+                    .AsNoTracking()
+                    .Where( r => r.ConnectorPersonAlias.PersonId == RequestContext.CurrentPerson.Id
+                        && r.ConnectionOpportunity.ConnectionTypeId == connectionType.Id )
+                    .Select( r => r.ConnectionOpportunityId )
+                    .Distinct() );
+            }
+
+            foreach ( var opportunity in connectionType.ConnectionOpportunities.Where( o => o.IsActive ) )
+            {
+                // Check native VIEW authorization on the opportunity directly (matching the board),
+                // falling back to the self-assigned connector check only when Request Security is enabled.
+                var canView = opportunity.IsAuthorized( Authorization.VIEW, RequestContext.CurrentPerson )
+                    || ( connectionType.EnableRequestSecurity && selfAssignedOpportunityIds.Contains( opportunity.Id ) );
+
+                if ( canView )
+                {
+                    authorizedOpportunityIds.Add( opportunity.Id );
+                }
+            }
+
+            return authorizedOpportunityIds;
+        }
+
+        /// <summary>
+        /// Filters the materialized grid rows down to the Connection Requests the current person is
+        /// authorized to view, mirroring ConnectionRequestService.GetConnectionRequestViewModelSecurityQuery.
+        /// When Request Security is enabled on the type, each request is evaluated individually (the person
+        /// sees it only if they are its connector or the request itself grants VIEW). When it is disabled,
+        /// the person sees every request in opportunities they can view, plus requests in any opportunity
+        /// where they belong to a connector group (global, or a campus group matching the request's campus).
+        /// </summary>
+        /// <param name="rows">The grid rows returned by the SQL query.</param>
+        /// <param name="connectionType">The Connection Type the rows belong to.</param>
+        /// <returns>The subset of rows the current person is authorized to view.</returns>
+        private List<ConnectionRequestSqlRow> FilterRowsByViewAuthorization( List<ConnectionRequestSqlRow> rows, ConnectionType connectionType )
+        {
+            if ( rows.Count == 0 || connectionType == null )
+            {
+                return rows;
+            }
+
+            var currentPerson = RequestContext.CurrentPerson;
+            var currentPersonId = currentPerson?.Id;
+
+            if ( connectionType.EnableRequestSecurity )
+            {
+                return rows.Where( row =>
+                {
+                    // The assigned connector always has direct access to their own request.
+                    if ( currentPersonId.HasValue && row.ConnectorPersonId == currentPersonId.Value )
+                    {
+                        return true;
+                    }
+
+                    var requestStub = new ConnectionRequest
+                    {
+                        Id = row.Id,
+                        ConnectionTypeId = connectionType.Id,
+                        ConnectionOpportunityId = row.ConnectionOpportunityId,
+                        ConnectionOpportunity = new ConnectionOpportunity
+                        {
+                            Id = row.ConnectionOpportunityId,
+                            ConnectionTypeId = connectionType.Id,
+                            ConnectionType = connectionType
+                        },
+                        CampusId = row.CampusId
+                    };
+
+                    return requestStub.IsAuthorized( Authorization.VIEW, currentPerson );
+                } ).ToList();
+            }
+
+            // Request Security disabled: requests in opportunities the person can view are all visible.
+            var viewableOpportunityIds = GetViewAuthorizedConnectionOpportunityIds( connectionType );
+
+            return rows.Where( row =>
+            {
+                return viewableOpportunityIds.Contains( row.ConnectionOpportunityId );
+            } ).ToList();
         }
 
         /// <summary>
@@ -1242,6 +1470,20 @@ namespace Rock.Blocks.Engagement
 
             connectionOpportunity = new ConnectionOpportunityService( RockContext ).Get( PageParameter( PageParameterKey.ConnectionOpportunity ), !PageCache.Layout.Site.DisablePredictableIds );
 
+            var configuredConnectionTypeId = ConfiguredConnectionTypeId;
+
+            if ( configuredConnectionTypeId.HasValue )
+            {
+                // The Connection Type block setting pins the block to one type. An opportunity
+                // from another type is discarded rather than allowed to redirect the request.
+                if ( connectionOpportunity != null && connectionOpportunity.ConnectionTypeId != configuredConnectionTypeId.Value )
+                {
+                    connectionOpportunity = null;
+                }
+
+                return ConnectionTypeCache.Get( configuredConnectionTypeId.Value );
+            }
+
             if ( connectionOpportunity != null )
             {
                 return ConnectionTypeCache.Get( connectionOpportunity.ConnectionTypeId );
@@ -1267,6 +1509,39 @@ namespace Rock.Blocks.Engagement
                 : Regex.Replace( value, @"\s*\[\d+\]\s*$", "" );
         }
 
+        /// <summary>
+        /// Extracts the trailing bracketed numeric ID from a History value string, e.g. returns 5 for
+        /// "In Progress [5]". History stores entity references as "&lt;Name&gt; [&lt;Id&gt;]", so for a
+        /// status change the bracketed ID is the ConnectionStatusId. Returns <c>null</c> when the value
+        /// has no trailing bracketed ID.
+        /// </summary>
+        /// <param name="value">The History value to parse.</param>
+        /// <returns>The parsed identifier, or <c>null</c> if none is present.</returns>
+        private int? GetTrailingBracketId( string value )
+        {
+            if ( value.IsNullOrWhiteSpace() )
+            {
+                return null;
+            }
+
+            var match = Regex.Match( value, @"\[(\d+)\]\s*$" );
+            return match.Success ? match.Groups[1].Value.AsIntegerOrNull() : null;
+        }
+
+        /*
+            7/13/26 - CLAUDE
+
+            The [History] and [ConnectionRequestStatusHistory] rows for a single status change are written
+            together by the ConnectionRequest save hook but on different contexts, so their timestamps are
+            close but not identical. When correlating the two (to attach a status-change note to its History
+            activity entry) we allow this much skew between History.CreatedDateTime and the status-history
+            EndDateTime. The tolerance also stops a pre-v19 History row (which has no status-history row) from
+            being mismatched to a later transition off the same status.
+
+            Reason: Timestamp tolerance used to link a status-change History row to its status-history note.
+        */
+        private const double StatusHistoryNoteCorrelationToleranceMinutes = 5;
+
         private CompletionMetricsBag GetCompletionMetrics()
         {
             var lastNDays = 28;
@@ -1274,7 +1549,18 @@ namespace Rock.Blocks.Engagement
             var connectionOpportunityGuid = preferences.GetValue( string.Format( PreferenceKey.ConnectionmOpportunityFilterConnectionTypeIdKey, "my-connections" ) ).AsGuidOrNull();
 
             var connectionTypeService = new ConnectionTypeService( RockContext );
-            var connectionTypeQry = connectionTypeService.Queryable().Where( ct => !FilterConnectionType.HasValue || ct.Guid == FilterConnectionType.Value );
+            var configuredConnectionTypeId = ConfiguredConnectionTypeId;
+            var filterConnectionType = FilterConnectionType;
+
+            // The Connection Type block setting pins the metrics to one type; otherwise the
+            // optional slicer type filter applies.
+            var connectionTypeQry = configuredConnectionTypeId.HasValue
+                ? connectionTypeService.Queryable().Where( ct => ct.Id == configuredConnectionTypeId.Value )
+                : connectionTypeService.Queryable().Where( ct => !filterConnectionType.HasValue || ct.Guid == filterConnectionType.Value );
+
+            var selectedConnector = IsLimitedToAssignedConnections
+                ? RequestContext.CurrentPerson
+                : new PersonService( RockContext ).Get( SelectedConnector, !PageCache.Layout.Site.DisablePredictableIds );
 
             // Use the aggregate variant so that when FilterConnectionType is null and the queryable
             // spans multiple ConnectionTypes, we get a single row that combines all of them rather
@@ -1288,7 +1574,7 @@ namespace Rock.Blocks.Engagement
                     {
                         CampusGuid = RequestContext.GetContextEntity<Campus>()?.Guid,
                         ConnectionOpportunityGuid = connectionOpportunityGuid,
-                        ConnectorPersonAliasGuid = SelectedConnector
+                        ConnectorPersonAliasGuid = selectedConnector?.PrimaryAliasGuid
                     } )
                 .Select( c => new CompletionMetricsBag
                 {
@@ -1308,16 +1594,9 @@ namespace Rock.Blocks.Engagement
 
             string dashboardTitle = "Connection Dashboard";
 
-            if ( SelectedConnector.HasValue )
+            if ( selectedConnector != null )
             {
-                var connectorPersonAlias = new PersonAliasService( RockContext ).GetInclude( SelectedConnector.Value, pa => pa.Person );
-
-                // The connector alias may not resolve (e.g. a stale preference referencing a
-                // merged or deleted alias). Fall back to the generic title rather than throwing.
-                if ( connectorPersonAlias?.Person != null )
-                {
-                    dashboardTitle = RequestContext.CurrentPerson.Id == connectorPersonAlias.PersonId ? "Your Connection Dashboard" : $"{connectorPersonAlias.Person.FullName.ToPossessive()} Connection Dashboard";
-                }
+                dashboardTitle = RequestContext.CurrentPerson.Id == selectedConnector.Id ? "Your Connection Dashboard" : $"{selectedConnector.FullName.ToPossessive()} Connection Dashboard";
             }
 
             completionMetricsComparison ??= new CompletionMetricsBag();
@@ -1984,20 +2263,24 @@ namespace Rock.Blocks.Engagement
                 return null;
             }
 
-            // Exclude inactive and archived placement groups. A global query filter sets the
-            // Group navigation property to null for archived groups, so guard against null as well.
-            var placementGroups = connectionOpportunity.ConnectionOpportunityGroups
-                .Where( g => g.Group != null && g.Group.IsActive && !g.Group.IsArchived )
-                .Select( g => g.Group )
-                .Where( g => !campusId.HasValue || !g.CampusId.HasValue || g.CampusId.Value == campusId.Value )
+            // Fetch the groups available for placement on this opportunity (both explicitly
+            // assigned groups and every group of a Group Type configured with "use all groups of
+            // this type"), filtered to the requested campus. The Campus is eager loaded for the
+            // display text below, and groups are ordered by name for the picker.
+            var placementGroups = new ConnectionOpportunityService( RockContext )
+                .GetPlacementGroups( connectionOpportunity.Id, campusId )
+                .Include( g => g.Campus )
+                .OrderBy( g => g.Name )
+                .ThenBy( g => g.Id )
+                .ToList();
+
+            return placementGroups
                 .Select( g => new ListItemBag
                 {
                     Text = g.CampusId.HasValue ? $"{g.Name} ({g.Campus.Name})" : $"{g.Name} (No Campus)",
                     Value = g.Guid.ToString()
                 } )
                 .ToList();
-
-            return placementGroups;
         }
 
         /// <summary>
@@ -2475,6 +2758,27 @@ namespace Rock.Blocks.Engagement
         /// <returns>True if the logged in user has edit permissions for all specified Connection Requests; otherwise false.</returns>
         private bool CanEditSpecifiedConnectionRequests( ConnectionTypeCache connectionType, List<string> connectionRequestIdKeys, out List<ConnectionRequest> connectionRequests, out BlockActionResult error, Func<IQueryable<ConnectionRequest>, IQueryable<ConnectionRequest>> queryModifier = null )
         {
+            if ( !TryGetSpecifiedConnectionRequests( connectionType, connectionRequestIdKeys, out connectionRequests, out error, queryModifier ) )
+            {
+                return false;
+            }
+
+            return CanEditSpecifiedConnectionRequests( connectionRequests, out error );
+        }
+
+        /// <summary>
+        /// Loads the Connection Requests identified by the IdKeys sent by the client. Every IdKey
+        /// must be valid and resolve to a request of the specified Connection Type, otherwise the
+        /// load fails so a crafted request cannot slip in a request from another Connection Type.
+        /// </summary>
+        /// <param name="connectionType">The Connection Type Cache that all of the Connection Requests must belong to.</param>
+        /// <param name="connectionRequestIdKeys">The list of IdKeys for the Connection Requests to load.</param>
+        /// <param name="connectionRequests">When this method returns, contains the resolved list of Connection Requests; empty if any IdKeys could not be decoded.</param>
+        /// <param name="error">When this method returns, contains a Block Action Result error if any requests could not be found; otherwise null.</param>
+        /// <param name="queryModifier">An optional function to apply additional filtering or modification to the Connection Request query before it is executed.</param>
+        /// <returns>True if every IdKey resolved to a Connection Request of the Connection Type; otherwise false.</returns>
+        private bool TryGetSpecifiedConnectionRequests( ConnectionTypeCache connectionType, List<string> connectionRequestIdKeys, out List<ConnectionRequest> connectionRequests, out BlockActionResult error, Func<IQueryable<ConnectionRequest>, IQueryable<ConnectionRequest>> queryModifier = null )
+        {
             error = null;
             var decodedIds = connectionRequestIdKeys.Select( key => Rock.Utility.IdHasher.Instance.GetId( key ) ).ToList();
 
@@ -2513,7 +2817,209 @@ namespace Rock.Blocks.Engagement
                 return false;
             }
 
-            return CanEditSpecifiedConnectionRequests( connectionRequests, out error );
+            return true;
+        }
+
+        /// <summary>
+        /// Determines if the logged in user can view the specified Connection Request. This mirrors
+        /// the single request actions of this block (for example GetConnectionRequestDetails) which
+        /// use the request's own VIEW authorization, and also allows anybody who can edit the request
+        /// (such as an active connector group member) since the hub lets those people act on it.
+        /// </summary>
+        /// <param name="connectionRequest">
+        /// The already-loaded Connection Request to check. The <see cref="ConnectionRequest.ConnectionOpportunity"/>,
+        /// its <see cref="ConnectionOpportunity.ConnectionType"/> and the <see cref="ConnectionRequest.ConnectorPersonAlias"/>
+        /// navigation properties should be loaded (or lazy loadable).
+        /// </param>
+        /// <returns>True if the logged in user can view the Connection Request; otherwise false.</returns>
+        private bool CanViewConnectionRequest( ConnectionRequest connectionRequest )
+        {
+            if ( connectionRequest == null )
+            {
+                return false;
+            }
+
+            if ( connectionRequest.IsAuthorized( Authorization.VIEW, RequestContext.CurrentPerson ) )
+            {
+                return true;
+            }
+
+            return CanEditSpecifiedConnectionRequest( connectionRequest, out _ );
+        }
+
+        /// <summary>
+        /// Filters the specified Connection Request Ids down to the ones the logged in user can view.
+        /// Used by actions that receive request IdKeys from the client so a crafted request cannot
+        /// read data about Connection Requests the hub would never show the person.
+        /// </summary>
+        /// <param name="connectionRequestIds">The Connection Request Ids sent by the client.</param>
+        /// <returns>The subset of Connection Request Ids the logged in user can view.</returns>
+        private List<int> GetViewAuthorizedConnectionRequestIds( List<int> connectionRequestIds )
+        {
+            if ( connectionRequestIds == null || !connectionRequestIds.Any() )
+            {
+                return new List<int>();
+            }
+
+            var connectionRequests = new ConnectionRequestService( RockContext )
+                .GetByIds( connectionRequestIds.Distinct().ToList() )
+                .Include( cr => cr.ConnectionOpportunity.ConnectionType )
+                .Include( cr => cr.ConnectorPersonAlias )
+                .ToList();
+
+            return connectionRequests
+                .Where( cr => CanViewConnectionRequest( cr ) )
+                .Select( cr => cr.Id )
+                .ToList();
+        }
+
+        /// <summary>
+        /// Determines if the placement group and group member role assigned to the Connection Request
+        /// are ones the hub offers for the request's opportunity. The group must be one of the
+        /// opportunity's placement groups (the same list <see cref="GetPlacementGroupItems"/> builds for
+        /// the picker) and the role must be one of the opportunity's configured roles for that group's
+        /// type (the same list <see cref="FetchPlacementGroupDetails"/> returns). This prevents a crafted
+        /// request from placing the requester into an arbitrary group or role when the request is connected.
+        /// </summary>
+        /// <param name="connectionRequest">The Connection Request whose placement assignment should be validated.</param>
+        /// <returns>True if the placement group and role are offered for the request's opportunity; otherwise false.</returns>
+        private bool IsPlacementAssignmentAllowed( ConnectionRequest connectionRequest )
+        {
+            // Without a group nothing will be placed, so there is nothing to validate.
+            if ( !connectionRequest.AssignedGroupId.HasValue )
+            {
+                return true;
+            }
+
+            var connectionType = ConnectionTypeCache.Get( connectionRequest.ConnectionTypeId );
+            var isGroupPlacementEnabled = connectionType != null && connectionType.EnabledFeatures.HasFlag( EnabledFeatureFlags.GroupPlacement );
+
+            if ( !isGroupPlacementEnabled )
+            {
+                return false;
+            }
+
+            var assignedGroupId = connectionRequest.AssignedGroupId.Value;
+            var placementGroupTypeId = new ConnectionOpportunityService( RockContext )
+                .GetPlacementGroups( connectionRequest.ConnectionOpportunityId )
+                .Where( g => g.Id == assignedGroupId )
+                .Select( g => ( int? ) g.GroupTypeId )
+                .FirstOrDefault();
+
+            if ( !placementGroupTypeId.HasValue )
+            {
+                return false;
+            }
+
+            // Without a role the requester will not be placed, so the group alone is enough.
+            if ( !connectionRequest.AssignedGroupMemberRoleId.HasValue )
+            {
+                return true;
+            }
+
+            var assignedGroupMemberRoleId = connectionRequest.AssignedGroupMemberRoleId.Value;
+
+            return new ConnectionOpportunityGroupConfigService( RockContext ).Queryable()
+                .AsNoTracking()
+                .Any( c => c.ConnectionOpportunityId == connectionRequest.ConnectionOpportunityId
+                    && c.GroupTypeId == placementGroupTypeId.Value
+                    && c.GroupMemberRoleId == assignedGroupMemberRoleId );
+        }
+
+        /// <summary>
+        /// Gets the system phone numbers the person may send SMS messages from: the active numbers
+        /// they are authorized to view. The SMS modal is built from this list and sending checks
+        /// the selected number against it.
+        /// </summary>
+        /// <param name="person">The person sending the SMS message.</param>
+        /// <returns>The system phone numbers the person may send from.</returns>
+        private IEnumerable<SystemPhoneNumberCache> GetAvailableSmsFromSystemPhoneNumbers( Rock.Model.Person person )
+        {
+            return SystemPhoneNumberCache
+                .All( includeInactive: false )
+                .Where( spn => spn.IsAuthorized( Authorization.VIEW, person ) );
+        }
+
+        /// <summary>
+        /// Validates the client supplied values of a communication against what the send email and
+        /// send SMS modals offer. Recipients must be the requesters of Connection Requests the person
+        /// can view (the modals only list recipients returned by GetSmsConfiguration and
+        /// GetEmailConfiguration), the SMS number must be an active number the person is authorized
+        /// to view, and attachments must be temporary files uploaded by the person.
+        /// </summary>
+        /// <param name="bag">The communication bag sent by the client.</param>
+        /// <param name="error">When this method returns, contains a Block Action Result error if validation failed; otherwise null.</param>
+        /// <returns>True if the communication may be sent; otherwise false.</returns>
+        private bool TryValidateCommunicationBag( CommunicationBag bag, out BlockActionResult error )
+        {
+            error = null;
+            var currentPerson = RequestContext.CurrentPerson;
+
+            if ( bag == null || bag.CommunicationRecipients == null )
+            {
+                error = ActionBadRequest( "Request is required" );
+                return false;
+            }
+
+            var connectionRequestGuids = bag.CommunicationRecipients
+                .Select( r => r.ConnectionRequestGuid )
+                .Distinct()
+                .ToList();
+
+            // This WHERE IN query is expected to be small since it only contains the requests selected in the hub.
+            var connectionRequests = new ConnectionRequestService( RockContext ).Queryable()
+                .Include( cr => cr.PersonAlias )
+                .Include( cr => cr.ConnectionOpportunity.ConnectionType )
+                .Include( cr => cr.ConnectorPersonAlias )
+                .Where( cr => connectionRequestGuids.Contains( cr.Guid ) )
+                .ToList()
+                .ToDictionary( cr => cr.Guid );
+
+            // Each recipient must be the requester of a Connection Request the person can view.
+            var areRecipientsAllowed = bag.CommunicationRecipients.All( r =>
+            {
+                return connectionRequests.TryGetValue( r.ConnectionRequestGuid, out var connectionRequest )
+                    && connectionRequest.PersonAlias != null
+                    && connectionRequest.PersonAlias.Guid == r.PersonAliasGuid
+                    && CanViewConnectionRequest( connectionRequest );
+            } );
+
+            if ( !areRecipientsAllowed )
+            {
+                error = ActionForbidden( "You are not authorized to send a communication to one or more of the selected recipients." );
+                return false;
+            }
+
+            if ( bag.CommunicationType == Enums.Communication.CommunicationType.SMS )
+            {
+                var isSystemPhoneNumberAllowed = bag.SmsFromSystemPhoneNumberGuid.HasValue
+                    && GetAvailableSmsFromSystemPhoneNumbers( currentPerson ).Any( spn => spn.Guid == bag.SmsFromSystemPhoneNumberGuid.Value );
+
+                if ( !isSystemPhoneNumberAllowed )
+                {
+                    error = ActionBadRequest( "Invalid SMS From Number." );
+                    return false;
+                }
+            }
+
+            var attachments = bag.CommunicationType == Enums.Communication.CommunicationType.SMS
+                ? bag.SmsAttachments
+                : bag.EmailAttachments;
+
+            // The modals only let the person upload new files, so only temporary files they uploaded are allowed.
+            var binaryFileService = new BinaryFileService( RockContext );
+            var areAttachmentsAllowed = ( attachments ?? new List<ListItemBag>() )
+                .Select( a => a?.Value.AsGuidOrNull() )
+                .Where( g => g.HasValue )
+                .All( g => binaryFileService.IsUploadedBinaryFileAllowedForPerson( g, null, currentPerson ) );
+
+            if ( !areAttachmentsAllowed )
+            {
+                error = ActionBadRequest( "One or more attachments are invalid." );
+                return false;
+            }
+
+            return true;
         }
 
         /// <summary>
@@ -2641,6 +3147,14 @@ namespace Rock.Blocks.Engagement
 
             box.GridRow = GetConnectionRequestGridRow( connectionRequest );
 
+            // Include the connector's grouping metadata so the client can label the
+            // group even when the connector is not in the block-load groupings list.
+            if ( connectionRequest.ConnectorPersonAlias != null )
+            {
+                var connectorPerson = connectionRequest.ConnectorPersonAlias.Person;
+                box.ConnectorGroupingField = GetGroupingFieldBag( connectorPerson.Id, "person", connectorPerson.FullName, null, null, connectorPerson.PhotoUrl );
+            }
+
             if ( includeRequestDetails )
             {
                 box.DetailBox = GetConnectionRequestDetailBox( connectionRequest );
@@ -2744,7 +3258,7 @@ namespace Rock.Blocks.Engagement
                 ConnectionRequest = connectionRequest,
                 ConnectionRequestId = connectionRequest.Id,
                 Order = connectionRequest.Order,
-                ConnectorGrouping = GetGroupingKey( connectionRequest.ConnectorPersonAliasId ),
+                ConnectorGrouping = GetGroupingKey( connectionRequest.ConnectorPersonAlias?.PersonId ),
                 OpportunityGrouping = GetGroupingKey( connectionRequest.ConnectionOpportunityId ),
                 CampusGrouping = GetGroupingKey( connectionRequest.CampusId ),
                 StatusGrouping = GetGroupingKey( connectionRequest.ConnectionStatusId ),
@@ -2923,10 +3437,15 @@ namespace Rock.Blocks.Engagement
                     .Where( c => c.ConnectionOpportunityId == connectionRequest.ConnectionOpportunityId )
                     .ToList();
 
-                var opportunityGroups = new ConnectionOpportunityGroupService( RockContext )
-                    .Queryable()
-                    .Include( g => g.Group.Campus )
-                    .Where( g => g.ConnectionOpportunityId == connectionRequest.ConnectionOpportunityId )
+                // Fetch the groups available for placement on this opportunity (both explicitly
+                // assigned groups and every group of a Group Type configured with "use all groups
+                // of this type"). The Campus is eager loaded for the display text below, and groups
+                // are ordered by name for the picker.
+                var placementGroups = new ConnectionOpportunityService( RockContext )
+                    .GetPlacementGroups( connectionRequest.ConnectionOpportunityId )
+                    .Include( g => g.Campus )
+                    .OrderBy( g => g.Name )
+                    .ThenBy( g => g.Id )
                     .ToList();
 
                 var configsByGroupTypeId = groupConfigs
@@ -2936,24 +3455,24 @@ namespace Rock.Blocks.Engagement
                         grp => grp.Select( c => new { Role = c.GroupMemberRole, Status = c.GroupMemberStatus } ).ToList()
                     );
 
-                optionsBag.PlacementGroups = opportunityGroups
-                    .Where( g => g.Group != null && g.Group.IsActive && !g.Group.IsArchived )
-                    .Where( g => configsByGroupTypeId.ContainsKey( g.Group.GroupTypeId ) )
+                optionsBag.PlacementGroups = placementGroups
+                    .Where( g => g != null && g.IsActive && !g.IsArchived )
+                    .Where( g => configsByGroupTypeId.ContainsKey( g.GroupTypeId ) )
                     .Select( g =>
                     {
-                        var configs = configsByGroupTypeId[g.Group.GroupTypeId];
+                        var configs = configsByGroupTypeId[g.GroupTypeId];
 
-                        var tempGroupMember = new Rock.Model.GroupMember { GroupId = g.GroupId };
+                        var tempGroupMember = new Rock.Model.GroupMember { GroupId = g.Id };
                         tempGroupMember.LoadAttributes();
 
                         return new PlacementGroupDetailsBag
                         {
                             ListItemBag = new ListItemBag
                             {
-                                Text = g.Group.CampusId.HasValue ? $"{g.Group.Name} ({g.Group.Campus.Name})" : $"{g.Group.Name} (No Campus)",
-                                Value = g.Group.Guid.ToString()
+                                Text = g.CampusId.HasValue ? $"{g.Name} ({g.Campus.Name})" : $"{g.Name} (No Campus)",
+                                Value = g.Guid.ToString()
                             },
-                            CampusGuid = g.Group.Campus?.Guid,
+                            CampusGuid = g.Campus?.Guid,
                             GroupMemberRoles = configs
                                 .DistinctBy( c => c.Role.Guid )
                                 .Select( c => c.Role.ToListItemBag() )
@@ -3219,6 +3738,8 @@ namespace Rock.Blocks.Engagement
 
             detailsBag.ActivityEntries = GetActivityEntries( connectionRequest, mergeFields );
 
+            detailsBag.Workflows = GetConnectionRequestWorkflowBags( connectionRequest.Id );
+
             return detailsBag;
         }
 
@@ -3229,12 +3750,13 @@ namespace Rock.Blocks.Engagement
         /// from family members of the requester.
         /// </summary>
         /// <remarks>
-        /// Each settings entry is queried independently and the results are combined via union.
+        /// Each settings entry is queried independently and the results are combined via union,
+        /// then ordered by created date descending with Id descending as a tiebreaker.
         /// Returns an empty list if no settings are provided.
         /// </remarks>
         /// <param name="settingsList">The list of additional request display settings that define which Connection Types, states, and persons to include.</param>
         /// <param name="requesterPerson">The requester person whose Connection Requests (and optionally their family members') are retrieved.</param>
-        /// <returns>A list of <see cref="AdditionalRequestBag"/> objects representing the matching Connection Requests across all configured settings.</returns>
+        /// <returns>A list of <see cref="AdditionalRequestBag"/> objects representing the matching Connection Requests across all configured settings, ordered newest first.</returns>
         public List<AdditionalRequestBag> GetAdditionalConnectionRequests( List<AdditionalRequestToShowSettings> settingsList, Rock.Model.Person requesterPerson )
         {
             if ( settingsList == null || !settingsList.Any() )
@@ -3282,19 +3804,25 @@ namespace Rock.Blocks.Engagement
                     : combinedQuery.Union( query );
             }
 
-            var additionalRequestsProjection = combinedQuery.Select( r => new
-            {
-                RequestId = r.Id,
-                ConnectionOpportunityId = r.ConnectionOpportunity.Id,
-                ConnectionOpportunityName = r.ConnectionOpportunity.Name,
-                ConnectionStatus = r.ConnectionStatus.Name,
-                r.ConnectorPersonAlias,
-                ConnectorNickName = r.ConnectorPersonAlias != null ? r.ConnectorPersonAlias.Person.NickName : string.Empty,
-                ConnectorLastName = r.ConnectorPersonAlias != null ? r.ConnectorPersonAlias.Person.LastName : string.Empty,
-                RequestCreatedDateTime = r.CreatedDateTime,
-                RequesterNickName = r.PersonAlias.Person.NickName,
-                RequesterLastName = r.PersonAlias.Person.LastName
-            } ).ToList();
+            // UNION carries no ordering guarantee and the client only shows the first five rows,
+            // so order newest first here. Id breaks ties for batch-created requests that share a timestamp.
+            var additionalRequestsProjection = combinedQuery
+                .OrderByDescending( r => r.CreatedDateTime )
+                .ThenByDescending( r => r.Id )
+                .Select( r => new
+                {
+                    RequestId = r.Id,
+                    ConnectionOpportunityId = r.ConnectionOpportunity.Id,
+                    ConnectionOpportunityName = r.ConnectionOpportunity.Name,
+                    ConnectionStatus = r.ConnectionStatus.Name,
+                    r.ConnectorPersonAlias,
+                    ConnectorNickName = r.ConnectorPersonAlias != null ? r.ConnectorPersonAlias.Person.NickName : string.Empty,
+                    ConnectorLastName = r.ConnectorPersonAlias != null ? r.ConnectorPersonAlias.Person.LastName : string.Empty,
+                    RequestCreatedDateTime = r.CreatedDateTime,
+                    RequesterNickName = r.PersonAlias.Person.NickName,
+                    RequesterLastName = r.PersonAlias.Person.LastName
+                } )
+                .ToList();
 
             return additionalRequestsProjection.Select( r => new AdditionalRequestBag
             {
@@ -3306,6 +3834,83 @@ namespace Rock.Blocks.Engagement
                 RequestCreatedDateTime = r.RequestCreatedDateTime?.ToRockDateTimeOffset(),
                 Requester = r.RequesterNickName + " " + r.RequesterLastName
             } ).ToList();
+        }
+
+        /// <summary>
+        /// Gets the persisted workflows that were launched from the specified Connection Request
+        /// and that the current person is authorized to view, ordered newest first.
+        /// </summary>
+        /// <remarks>
+        /// Mirrors the legacy Connection Request Board's Workflows grid. Rows are filtered by VIEW
+        /// authorization on the Workflow Type so that workflows the viewer cannot open are never sent
+        /// to the client. The row URL targets the Workflow Entry page when the current person has an
+        /// active entry form on the workflow, otherwise the Workflow Detail page.
+        /// </remarks>
+        /// <param name="connectionRequestId">The identifier of the Connection Request.</param>
+        /// <returns>A list of <see cref="ConnectionRequestWorkflowBag"/> objects ordered by activation date descending.</returns>
+        private List<ConnectionRequestWorkflowBag> GetConnectionRequestWorkflowBags( int connectionRequestId )
+        {
+            // Eager load the navigation properties that ActiveActivities and HasActiveEntryForm
+            // read so that each row does not trigger its own set of lazy loads.
+            var connectionRequestWorkflows = new ConnectionRequestWorkflowService( RockContext ).Queryable()
+                .AsNoTracking()
+                .Include( c => c.Workflow.WorkflowType )
+                .Include( c => c.Workflow.Activities.Select( a => a.ActivityType ) )
+                .Include( c => c.Workflow.Activities.Select( a => a.AssignedPersonAlias ) )
+                .Include( c => c.Workflow.Activities.Select( a => a.AssignedGroup.Members ) )
+                .Where( c => c.ConnectionRequestId == connectionRequestId
+                    && c.Workflow != null
+                    && c.Workflow.WorkflowType != null )
+                .ToList();
+
+            var workflowBags = new List<ConnectionRequestWorkflowBag>();
+
+            foreach ( var connectionRequestWorkflow in connectionRequestWorkflows )
+            {
+                var workflow = connectionRequestWorkflow.Workflow;
+                var workflowType = WorkflowTypeCache.Get( workflow.WorkflowTypeId );
+
+                if ( workflowType == null || !workflowType.IsAuthorized( Authorization.VIEW, RequestContext.CurrentPerson ) )
+                {
+                    continue;
+                }
+
+                string workflowUrl;
+
+                if ( workflow.HasActiveEntryForm( RequestContext.CurrentPerson ) )
+                {
+                    var queryParams = new Dictionary<string, string>
+                    {
+                        ["WorkflowTypeId"] = workflow.WorkflowTypeId.ToString(),
+                        ["WorkflowGuid"] = workflow.Guid.ToString()
+                    };
+
+                    workflowUrl = this.GetLinkedPageUrl( AttributeKey.WorkflowEntryPage, queryParams );
+                }
+                else
+                {
+                    workflowUrl = this.GetLinkedPageUrl( AttributeKey.WorkflowDetailPage, "WorkflowId", workflow.IdKey );
+                }
+
+                workflowBags.Add( new ConnectionRequestWorkflowBag
+                {
+                    IdKey = connectionRequestWorkflow.IdKey,
+                    WorkflowTypeName = workflowType.Name,
+                    TriggerType = connectionRequestWorkflow.TriggerType,
+                    ActiveActivityNames = workflow.ActiveActivities
+                        .Select( a => a.ActivityTypeCache?.Name )
+                        .Where( n => n.IsNotNullOrWhiteSpace() )
+                        .ToList(),
+                    ActivatedDateTime = workflow.ActivatedDateTime?.ToRockDateTimeOffset(),
+                    IsCompleted = workflow.CompletedDateTime.HasValue,
+                    Status = workflow.Status,
+                    WorkflowUrl = workflowUrl.IsNotNullOrWhiteSpace() ? workflowUrl : null
+                } );
+            }
+
+            return workflowBags
+                .OrderByDescending( w => w.ActivatedDateTime )
+                .ToList();
         }
 
         /// <summary>
@@ -3338,6 +3943,15 @@ namespace Rock.Blocks.Engagement
                 .Where( a => a.ConnectionRequestId == connectionRequest.Id )
                 .ToList();
 
+            // These activities all belong to the loaded Connection Request, which is their parent
+            // authority. Set the navigation property so the per-activity edit/delete authorization
+            // check resolves against the loaded request (with its authorization chain) instead of
+            // falling back to the global default under the no-tracking query.
+            foreach ( var activity in connectionRequestActivities )
+            {
+                activity.ConnectionRequest = connectionRequest;
+            }
+
             var entries = new List<ActivityEntryBag>();
 
             entries.AddRange( connectionRequestActivities.Select( a => new ActivityEntryBag
@@ -3354,7 +3968,11 @@ namespace Rock.Blocks.Engagement
                     ActivityTypeGuid = a.ConnectionActivityType?.Guid.ToString(),
                     ActivityTypeName = a.ConnectionActivityType?.Name,
                     IsSystemActivityType = a.ConnectionActivityType != null && a.ConnectionActivityType.ConnectionTypeId == null,
-                    ConnectorPersonAliasGuid = a.ConnectorPersonAlias?.Guid.ToString()
+                    ConnectorPersonAliasGuid = a.ConnectorPersonAlias?.Guid.ToString(),
+
+                    // Use the same authorization the UpdateActivity/DeleteActivity actions enforce so
+                    // edit and delete are only offered when the server will actually allow them.
+                    CanEdit = CanCurrentPersonEditActivity( a )
                 }
             } ) );
 
@@ -3402,7 +4020,12 @@ namespace Rock.Blocks.Engagement
                         ConnectionRequestIdKey = IdHasher.Instance.GetHash( a.ConnectionRequestId ),
                         ConnectionOpportunityIdKey = IdHasher.Instance.GetHash( a.ConnectionOpportunityId ),
                         ConnectionOpportunityName = a.ConnectionOpportunityName,
-                        ConnectionRequestStatus = a.ConnectionStatusName
+                        ConnectionRequestStatus = a.ConnectionStatusName,
+
+                        // Activities surfaced from the requester's other requests are shown for
+                        // historical context only; they are edited and deleted from their own
+                        // request, so no edit/delete actions are offered here.
+                        CanEdit = false
                     }
                 } ) );
             }
@@ -3419,7 +4042,14 @@ SELECT
     h.[Verb],
     h.[ValueName],
     h.[NewValue],
-    h.[OldValue]
+    h.[OldValue],
+    p.[NickName],
+    p.[LastName],
+    p.[PhotoId],
+    p.[Age],
+    p.[Gender],
+    p.[RecordTypeValueId],
+    p.[AgeClassification]
 FROM [History] h
 LEFT JOIN [PersonAlias] pa
     ON pa.[Id] = h.[CreatedByPersonAliasId]
@@ -3483,6 +4113,64 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
                 .SqlQuery<CommunicationRow>( communicationSQL, sqlParams.ToArray() )
                 .ToList();
 
+            // Load the status-change notes (v19+) for this request in a single indexed query so the note
+            // can be shown on the corresponding status-change activity entry. There is no foreign key
+            // between [History] and [ConnectionRequestStatusHistory]; the save hook writes a status-history
+            // row whose ConnectionStatusId is the status that *ended* (which matches the bracketed ID in the
+            // History row's OldValue) with EndDateTime at the moment of the change. IsEndedStatusNoteRequired
+            // is projected here to avoid any per-row database access below.
+            var statusHistoryNoteRows = new ConnectionRequestStatusHistoryService( RockContext ).Queryable()
+                .AsNoTracking()
+                .Where( h => h.ConnectionRequestId == connectionRequest.Id )
+                .Select( h => new StatusHistoryNoteRow
+                {
+                    Id = h.Id,
+                    ConnectionStatusId = h.ConnectionStatusId,
+                    EndDateTime = h.EndDateTime,
+                    Note = h.Note,
+                    IsEndedStatusNoteRequired = h.ConnectionStatus.IsNoteRequiredOnCompletion
+                } )
+                .ToList();
+
+            // A status-change note is editable by whoever can change the request's status, so it uses the
+            // same permission check as the status-change block actions. Computed once for the request.
+            var canEditStatusNote = RequestContext.CurrentPerson != null
+                && CanEditSpecifiedConnectionRequest( connectionRequest, out _ );
+
+            // Group status-history rows by the ended status, oldest first, so that when a request has moved
+            // off the same status more than once each transition pairs with its own note in chronological order.
+            var statusHistoryRowsByEndedStatusId = statusHistoryNoteRows
+                .GroupBy( h => h.ConnectionStatusId )
+                .ToDictionary( g => g.Key, g => new Queue<StatusHistoryNoteRow>( g.OrderBy( h => h.EndDateTime ) ) );
+
+            // Map each status-change History row to its status-history note row (if any), pairing the two
+            // chronologically and rejecting matches whose timestamps are further apart than the tolerance.
+            var statusHistoryNoteByHistoryRowId = new Dictionary<int, StatusHistoryNoteRow>();
+            var statusChangeHistoryRows = historyRows
+                .Where( r => r.ValueName == "ConnectionStatus" && r.Verb != "Add" && r.OldValue.IsNotNullOrWhiteSpace() )
+                .OrderBy( r => r.CreatedDateTime );
+
+            foreach ( var statusChangeHistoryRow in statusChangeHistoryRows )
+            {
+                var endedStatusId = GetTrailingBracketId( statusChangeHistoryRow.OldValue );
+                if ( !endedStatusId.HasValue
+                    || !statusHistoryRowsByEndedStatusId.TryGetValue( endedStatusId.Value, out var candidateQueue )
+                    || candidateQueue.Count == 0 )
+                {
+                    continue;
+                }
+
+                var candidate = candidateQueue.Peek();
+                var historyDateTime = statusChangeHistoryRow.CreatedDateTime ?? candidate.EndDateTime;
+
+                if ( Math.Abs( ( candidate.EndDateTime - historyDateTime ).TotalMinutes ) > StatusHistoryNoteCorrelationToleranceMinutes )
+                {
+                    continue;
+                }
+
+                statusHistoryNoteByHistoryRowId[statusChangeHistoryRow.Id] = candidateQueue.Dequeue();
+            }
+
             entries.AddRange( historyRows.Select( r =>
             {
                 SystemUpdateType systemUpdateType = SystemUpdateType.Creation;
@@ -3512,6 +4200,10 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
                                 systemUpdateType = SystemUpdateType.Assignment;
                             }
                             break;
+
+                        // ConnectionStatus rows never render as a system update (they are surfaced as
+                        // StatusChange card entries below), but the classification is still needed
+                        // because the status-change card's Title is derived from this systemUpdateType.
                         case "ConnectionStatus":
                             if ( r.NewValue.IsNotNullOrWhiteSpace() && r.OldValue.IsNotNullOrWhiteSpace() )
                             {
@@ -3553,6 +4245,74 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
                             systemUpdateType = SystemUpdateType.DueSoonDateChange;
                             break;
                     }
+                }
+
+                // Status changes are surfaced as card entries (not system updates) so the accompanying
+                // note reads as editable card content. All other History-derived changes remain system
+                // updates. The Verb != "Add" guard excludes the record-creation row (ValueName
+                // "ConnectionRequest"), leaving the ConnectionStatus set/updated/cleared transitions.
+                var isStatusChange = r.ValueName == "ConnectionStatus" && r.Verb != "Add";
+
+                if ( isStatusChange )
+                {
+                    // Build the author's avatar URL the same way the communication entries do, so the
+                    // status-change card can show the person's photo. Left null when the change has no
+                    // associated person (e.g. a system-generated change).
+                    string photoUrl = null;
+                    if ( r.NickName.IsNotNullOrWhiteSpace() || r.LastName.IsNotNullOrWhiteSpace() )
+                    {
+                        var initials = $"{r.NickName?.Truncate( 1, false )}{r.LastName?.Truncate( 1, false )}";
+                        photoUrl = Rock.Model.Person.GetPersonPhotoUrl(
+                            initials,
+                            r.PhotoId,
+                            r.Age,
+                            r.Gender ?? Gender.Unknown,
+                            r.RecordTypeValueId,
+                            r.AgeClassification );
+                    }
+
+                    // Title describes how the status changed (cleared, set for the initial status, or
+                    // changed). The author is carried separately on ActivityEntryBag.CreatedBy and is
+                    // composed with the title by the client, matching the other card entries.
+                    string statusChangeTitle;
+                    switch ( systemUpdateType )
+                    {
+                        case SystemUpdateType.StatusCleared:
+                            statusChangeTitle = previousValue;
+                            break;
+                        default:
+                            statusChangeTitle = newValue;
+                            break;
+                    }
+
+                    var statusChangeCard = new CardEntryBag
+                    {
+                        Title = statusChangeTitle,
+                        PreviousValue = previousValue,
+                        NewValue = newValue,
+                        PhotoUrl = photoUrl
+                    };
+
+                    // When this status change correlates to a status-history record (v19+ status updates
+                    // only; the initial status set and pre-v19 changes have no such record), surface its
+                    // note as the card content and expose the flags the client needs to gate the note's
+                    // add/edit/delete actions. Content and CanEdit reuse the standard card-entry fields.
+                    if ( statusHistoryNoteByHistoryRowId.TryGetValue( r.Id, out var statusHistoryNote ) )
+                    {
+                        statusChangeCard.Content = statusHistoryNote.Note;
+                        statusChangeCard.StatusHistoryIdKey = IdHasher.Instance.GetHash( statusHistoryNote.Id );
+                        statusChangeCard.IsNoteRequired = statusHistoryNote.IsEndedStatusNoteRequired;
+                        statusChangeCard.CanEdit = canEditStatusNote;
+                    }
+
+                    return new ActivityEntryBag
+                    {
+                        Key = $"{ActivityEntryType.StatusChange}_{IdHasher.Instance.GetHash( r.Id )}",
+                        EntryType = ActivityEntryType.StatusChange,
+                        EntryDateTime = r.CreatedDateTime?.ToRockDateTimeOffset(),
+                        CreatedBy = createdBy.IsNullOrWhiteSpace() ? "Rock" : createdBy,
+                        CardEntry = statusChangeCard
+                    };
                 }
 
                 // Get unique key.
@@ -3815,7 +4575,15 @@ WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
             // access to, and the slicer's optional Connection Type filter is read from a
             // person preference (FilterConnectionType) like every other slicer filter.
             ConnectionType connectionType;
-            if ( IsMyConnectionsMode )
+            var configuredConnectionTypeId = ConfiguredConnectionTypeId;
+
+            if ( configuredConnectionTypeId.HasValue )
+            {
+                // The Connection Type block setting wins over both the page parameters and the
+                // FilterConnectionType preference so a crafted request cannot target another type.
+                connectionType = new ConnectionTypeService( RockContext ).Get( configuredConnectionTypeId.Value );
+            }
+            else if ( IsMyConnectionsMode )
             {
                 connectionType = FilterConnectionType.HasValue
                     ? new ConnectionTypeService( RockContext ).Get( FilterConnectionType.Value )
@@ -4036,20 +4804,38 @@ WHERE 1 = 1" );
             }
 
             // Connector filter
-            if ( PageParameter( PageParameterKey.Connector ).IsNotNullOrWhiteSpace() && SelectedConnector.HasValue )
+            if ( IsLimitedToAssignedConnections )
             {
-                sql.Append( "\n  AND cpa.[Guid] = @ConnectorGuid" );
-                sqlParams.Add( new SqlParameter( "@ConnectorGuid", SelectedConnector.Value ) );
+                // The block setting restricts every request to the current person as connector,
+                // regardless of the saved SelectedConnector preference.
+                sql.Append( "\n  AND cp.[Id] = @CurrentPersonId" );
             }
-            else if ( AreOnlyMyRequestsVisible && !IsMyConnectionsMode )
+            else if ( SelectedConnector.IsNotNullOrWhiteSpace() )
             {
-                // @CurrentPersonId is already in sqlParams for the reminder subquery.
+                // "All Requests" is the sentinel for "show every connector," so it intentionally
+                // decodes to no Id and applies no filter. Any other value is a connector's IdKey.
+                var personId = IdHasher.Instance.GetId( SelectedConnector );
+
+                if ( personId.HasValue )
+                {
+                    sql.Append( "\n  AND cp.[Id] = @ConnectorPersonId" );
+                    sqlParams.Add( new SqlParameter( "@ConnectorPersonId", personId ) );
+                }
+            }
+            else if ( !IsMyConnectionsMode )
+            {
+                // No connector chosen yet: default to the current person's own requests.
                 sql.Append( "\n  AND cp.[Id] = @CurrentPersonId" );
             }
 
             var sqlRows = RockContext.Database
                 .SqlQuery<ConnectionRequestSqlRow>( sql.ToString(), sqlParams.ToArray() )
                 .ToList();
+
+            // Apply view security to the materialized rows, mirroring the legacy board's authority,
+            // ConnectionRequestService.GetConnectionRequestViewModelSecurityQuery. EnableRequestSecurity
+            // is a Connection Type level flag, so the whole result set follows a single branch.
+            sqlRows = FilterRowsByViewAuthorization( sqlRows, connectionType );
 
             var connectionRequests = new List<ConnectionRow>( sqlRows.Count );
 
@@ -4199,7 +4985,7 @@ WHERE 1 = 1" );
                 request.DueStatus = dueStatus;
                 request.ConnectorDetails = connectorItem;
 
-                request.ConnectorGrouping = GetGroupingKey( row.ConnectorPersonAliasId );
+                request.ConnectorGrouping = GetGroupingKey( row.ConnectorPersonId );
                 request.OpportunityGrouping = GetGroupingKey( row.ConnectionOpportunityId );
                 request.CampusGrouping = GetGroupingKey( row.CampusId );
                 request.StatusGrouping = GetGroupingKey( row.ConnectionStatusId );
@@ -4243,7 +5029,27 @@ WHERE 1 = 1" );
             }
 
             var gridDataBag = GetGridBuilder().Build( connectionRequests );
-            return ActionOk( gridDataBag );
+
+            /*
+                7/2/26 - CLAUDE
+
+                The block-load connector groupings only cover connector group members plus the
+                current person, but a request's connector can be anyone (e.g. a person with edit
+                rights can assign themselves without being in a connector group). Return the
+                distinct connectors present in this result set so the client can label those
+                groups instead of falling back to a raw IdKey.
+
+                Reason: Grid data must carry grouping metadata for connectors outside the connector groups.
+            */
+            var connectorGroupings = connectorByPersonId
+                .Select( kvp => GetGroupingFieldBag( kvp.Key, "person", kvp.Value.FullName, null, null, kvp.Value.PhotoUrl ) )
+                .ToList();
+
+            return ActionOk( new ConnectionsHubGridDataBag
+            {
+                GridData = gridDataBag,
+                ConnectorGroupings = connectorGroupings
+            } );
         }
 
         /// <summary>
@@ -4296,6 +5102,13 @@ WHERE 1 = 1" );
                 return ActionNotFound( $"{Rock.Model.ConnectionOpportunity.FriendlyTypeName} not found." );
             }
 
+            // Reject opportunities the current person is not authorized to view so a crafted request
+            // cannot retrieve opportunity-scoped data that the UI would otherwise hide.
+            if ( !GetViewAuthorizedConnectionOpportunityIds( connectionOpportunity.ConnectionType ).Contains( connectionOpportunity.Id ) )
+            {
+                return ActionNotFound( $"{Rock.Model.ConnectionOpportunity.FriendlyTypeName} not found." );
+            }
+
             int? campusId = null;
 
             if ( campusGuid.HasValue )
@@ -4338,6 +5151,13 @@ WHERE 1 = 1" );
                 return ActionNotFound( $"{Rock.Model.ConnectionOpportunity.FriendlyTypeName} not found." );
             }
 
+            // Reject opportunities the current person is not authorized to view so a crafted request
+            // cannot retrieve opportunity-scoped data that the UI would otherwise hide.
+            if ( !GetViewAuthorizedConnectionOpportunityIds( connectionOpportunity.ConnectionType ).Contains( connectionOpportunity.Id ) )
+            {
+                return ActionNotFound( $"{Rock.Model.ConnectionOpportunity.FriendlyTypeName} not found." );
+            }
+
             int? campusId = null;
 
             if ( campusGuid.HasValue )
@@ -4375,6 +5195,13 @@ WHERE 1 = 1" );
                 return ActionNotFound( $"{Rock.Model.ConnectionOpportunity.FriendlyTypeName} not found." );
             }
 
+            // Reject opportunities the current person is not authorized to view so a crafted request
+            // cannot retrieve opportunity-scoped data that the UI would otherwise hide.
+            if ( !GetViewAuthorizedConnectionOpportunityIds( connectionOpportunity.ConnectionType ).Contains( connectionOpportunity.Id ) )
+            {
+                return ActionNotFound( $"{Rock.Model.ConnectionOpportunity.FriendlyTypeName} not found." );
+            }
+
             int? campusId = null;
 
             if ( campusGuid.HasValue )
@@ -4407,6 +5234,13 @@ WHERE 1 = 1" );
             // excludes archived via the global filter, but a defensive check here prevents
             // a stale client reference from surfacing an inactive group.
             if ( connectionOpportunity == null || placementGroup == null || !placementGroup.IsActive || placementGroup.IsArchived )
+            {
+                return ActionNotFound();
+            }
+
+            // Reject opportunities the current person is not authorized to view so a crafted request
+            // cannot retrieve opportunity-scoped placement group data that the UI would otherwise hide.
+            if ( !GetViewAuthorizedConnectionOpportunityIds( connectionOpportunity.ConnectionType ).Contains( connectionOpportunity.Id ) )
             {
                 return ActionNotFound();
             }
@@ -4478,6 +5312,10 @@ WHERE 1 = 1" );
                 .Select( id => id.Value )
                 .ToList();
 
+            // Only evaluate requests the person can view so a crafted request cannot learn the
+            // placement requirement status of requests the hub would not show them.
+            connectionRequestIds = GetViewAuthorizedConnectionRequestIds( connectionRequestIds );
+
             var idsNotMeeting = GetConnectionRequestIdsNotMeetingGroupRequirements( connectionRequestIds );
 
             var idKeysNotMeeting = idsNotMeeting.Select( id => IdHasher.Instance.GetHash( id ) ).ToList();
@@ -4499,6 +5337,13 @@ WHERE 1 = 1" );
             if ( !connectionRequestId.HasValue )
             {
                 return ActionBadRequest( "Connection Request not found." );
+            }
+
+            // Only evaluate a request the person can view so a crafted request cannot learn the
+            // placement requirement status of a request the hub would not show them.
+            if ( !GetViewAuthorizedConnectionRequestIds( new List<int> { connectionRequestId.Value } ).Any() )
+            {
+                return ActionBadRequest( "You are not authorized to view this Connection Request." );
             }
 
             var isMeetingRequirements = ConnectionRequestMeetsGroupRequirements( connectionRequestId.Value );
@@ -4615,6 +5460,7 @@ WHERE 1 = 1" );
 
             List<ConnectionListGridUpdateBag> gridUpdateBags = new List<ConnectionListGridUpdateBag>();
             ListItemBag connectorItem = null;
+            GroupingFieldBag connectorGroupingField = null;
 
             if ( newConnectorPersonAlias != null )
             {
@@ -4623,6 +5469,10 @@ WHERE 1 = 1" );
                     Value = newConnectorPersonAlias.Person.IdKey,
                     Text = newConnectorPersonAlias.Person.FullName
                 };
+
+                // Include the connector's grouping metadata so the client can label the
+                // group even when the connector is not in the block-load groupings list.
+                connectorGroupingField = GetGroupingFieldBag( newConnectorPersonAlias.PersonId, "person", newConnectorPersonAlias.Person.FullName, null, null, newConnectorPersonAlias.Person.PhotoUrl );
             }
             else
             {
@@ -4641,8 +5491,9 @@ WHERE 1 = 1" );
                 gridUpdateBags.Add( new ConnectionListGridUpdateBag
                 {
                     IdKey = connectionRequest.IdKey,
-                    ConnectorGrouping = GetGroupingKey( newConnectorPersonAlias?.Id ),
-                    ConnectorDetails = connectorItem
+                    ConnectorGrouping = GetGroupingKey( newConnectorPersonAlias?.PersonId ),
+                    ConnectorDetails = connectorItem,
+                    ConnectorGroupingField = connectorGroupingField
                 } );
             }
 
@@ -5011,7 +5862,19 @@ WHERE 1 = 1" );
 
             var connectionWorkflow = new ConnectionWorkflowService( RockContext ).GetInclude( bag.ConnectionWorkflowGuid.AsGuid(), w => w.WorkflowType );
 
-            if ( !connectionWorkflow.WorkflowTypeId.HasValue )
+            if ( connectionWorkflow == null || !connectionWorkflow.WorkflowTypeId.HasValue )
+            {
+                return ActionBadRequest( "Invalid Workflow." );
+            }
+
+            // The UI only offers the manual workflows of this Connection Type and of its
+            // opportunities (see GetOptions). An opportunity workflow only runs for requests in
+            // that opportunity (see IsEligibleForWorkflow) and the requests are limited to this
+            // Connection Type below, so only a Connection Type workflow needs checking here.
+            var isOtherConnectionTypeWorkflow = !connectionWorkflow.ConnectionOpportunityId.HasValue
+                && connectionWorkflow.ConnectionTypeId != connectionType.Id;
+
+            if ( isOtherConnectionTypeWorkflow )
             {
                 return ActionBadRequest( "Invalid Workflow." );
             }
@@ -5047,12 +5910,23 @@ WHERE 1 = 1" );
                 excludedDataViewValues = GetDataViewValues( connectionWorkflow.ExcludeDataViewId.Value );
             }
 
-            var decodedIds = bag.ConnectionRequestIdKeys.Select( key => Rock.Utility.IdHasher.Instance.GetId( key ) )
-                .Where( id => id.HasValue )
-                .Select( id => id.Value )
-                .ToList();
+            // The Launch Workflow button is offered to anybody who can see the request in the hub,
+            // so require view authorization for every request sent by the client.
+            var areRequestsLoaded = TryGetSpecifiedConnectionRequests( connectionType, bag.ConnectionRequestIdKeys, out var connectionRequests, out var actionError, q => q
+                .Include( r => r.PersonAlias.Person )
+                .Include( r => r.ConnectionOpportunity.ConnectionType )
+                .Include( r => r.ConnectorPersonAlias ) );
 
-            var connectionRequests = new ConnectionRequestService( RockContext ).GetByIds( decodedIds ).Include( r => r.PersonAlias.Person ).ToList();
+            if ( !areRequestsLoaded )
+            {
+                return actionError;
+            }
+
+            if ( !connectionRequests.All( r => CanViewConnectionRequest( r ) ) )
+            {
+                return ActionForbidden( "Not authorized to launch workflows for one or more of the selected Connection Requests." );
+            }
+
             var isSingleRequest = connectionRequests.Count == 1;
 
             var eligibleRequests = connectionRequests
@@ -5095,7 +5969,25 @@ WHERE 1 = 1" );
                     } );
                 }
 
-                if ( workflow.HasActiveEntryForm( RequestContext.CurrentPerson ) )
+                var hasActiveEntryForm = workflow.HasActiveEntryForm( RequestContext.CurrentPerson );
+
+                /*
+                    7/29/2026 - KBH
+
+                    A workflow can also pause on an action that presents its own UI
+                    rather than an entry form, such as Redirect to Page or Show HTML.
+                    Those actions deliberately do nothing when they are processed from
+                    a block action, because they expect the Workflow Entry block to
+                    start them and render the result. Without this check the workflow
+                    was left parked with no way to finish and the individual was told
+                    the workflow had started, so a redirect silently went nowhere.
+
+                    Reason: Redirect workflow action did not navigate when launched from the Connections Hub. (Fixes #6920)
+                */
+                var hasPendingInteractiveAction = !hasActiveEntryForm
+                    && workflow.GetNextInteractiveAction( RequestContext.CurrentPerson, null, false ) != null;
+
+                if ( hasActiveEntryForm || hasPendingInteractiveAction )
                 {
                     var qryParam = new Dictionary<string, string>
                     {
@@ -5104,7 +5996,15 @@ WHERE 1 = 1" );
                     };
 
                     launchWorkflowResultBag.WorkflowEntryPageUrl = this.GetLinkedPageUrl( AttributeKey.WorkflowEntryPage, qryParam );
-                    launchWorkflowResultBag.StatusMessage = $"A '{workflowType.Name}' workflow has been started. The new workflow has an active form that is ready for input.";
+
+                    if ( hasActiveEntryForm )
+                    {
+                        launchWorkflowResultBag.StatusMessage = $"A '{workflowType.Name}' workflow has been started. The new workflow has an active form that is ready for input.";
+                    }
+                    else
+                    {
+                        launchWorkflowResultBag.StatusMessage = $"A '{workflowType.Name}' workflow has been started and needs your attention.";
+                    }
                 }
                 else
                 {
@@ -5162,6 +6062,8 @@ WHERE 1 = 1" );
             }
 
             var isInEditMode = entity.Id != 0;
+            var originalAssignedGroupId = entity.AssignedGroupId;
+            var originalAssignedGroupMemberRoleId = entity.AssignedGroupMemberRoleId;
 
             // Update the entity instance from the information in the bag.
             if ( !UpdateEntityFromBox( entity, box ) )
@@ -5189,6 +6091,32 @@ WHERE 1 = 1" );
                 {
                     return ActionBadRequest( "The selected placement group is inactive and cannot be assigned." );
                 }
+            }
+
+            /*
+                9/29/26 - CLAUDE
+
+                ApplyDefaultGroupMemberRoleAndStatus fills in a missing role from the
+                opportunity's group config, so a defaulted role is always one the config
+                offers. Only a role sent by the client counts as a change here; otherwise
+                an older request with a group but no role would fail to save once its
+                group stopped being a placement group, without the user touching placement.
+
+                Reason: Do not reject saves because of a role the server defaulted.
+            */
+            var isRoleSentByClient = box.IsValidProperty( nameof( box.Bag.GroupMemberRoleGuid ) )
+                && box.Bag.GroupMemberRoleGuid.AsGuidOrNull().HasValue;
+
+            // The placement group and role are used to add the requester to the group when the
+            // request is connected, so they must be ones the UI offers for this opportunity. Only
+            // validate when they change so saving an existing request with an older assignment
+            // (for example one made before the opportunity's configuration changed) still works.
+            var isPlacementAssignmentChanged = entity.AssignedGroupId != originalAssignedGroupId
+                || ( isRoleSentByClient && entity.AssignedGroupMemberRoleId != originalAssignedGroupMemberRoleId );
+
+            if ( isPlacementAssignmentChanged && !IsPlacementAssignmentAllowed( entity ) )
+            {
+                return ActionBadRequest( "The selected placement group or group member role is not available for this opportunity." );
             }
 
             RockContext.WrapTransaction( () =>
@@ -5339,15 +6267,61 @@ WHERE 1 = 1" );
         }
 
         /// <summary>
+        /// Determines whether the current person owns the specified Connection Request Activity,
+        /// meaning they either created it or are its assigned connector. Activity owners are
+        /// permitted to edit or delete their own activity even when they do not hold explicit
+        /// edit authorization on the parent Connection Request (for example, a connector who is
+        /// not a Rock administrator). This mirrors the behavior of the legacy Connection Request
+        /// Detail block, which allowed activity editing for the creator or connector.
+        /// </summary>
+        /// <param name="activity">The Connection Request Activity to evaluate.</param>
+        /// <returns><c>true</c> if the current person created the activity or is its connector; otherwise <c>false</c>.</returns>
+        private bool IsCurrentPersonActivityOwner( ConnectionRequestActivity activity )
+        {
+            var currentPerson = RequestContext.CurrentPerson;
+            if ( currentPerson == null || activity == null )
+            {
+                return false;
+            }
+
+            var isActivityCreator = activity.CreatedByPersonAlias?.PersonId == currentPerson.Id;
+            var isActivityConnector = activity.ConnectorPersonAlias?.PersonId == currentPerson.Id;
+
+            return isActivityCreator || isActivityConnector;
+        }
+
+        /// <summary>
+        /// Determines whether the current person is authorized to edit or delete the specified
+        /// Connection Request Activity. This is the single authorization check shared by the
+        /// <see cref="UpdateActivity"/> and <see cref="DeleteActivity"/> block actions and by the
+        /// activity feed when deciding whether to surface the edit and delete actions, so the UI
+        /// never offers an action the server would reject. The current person may modify an activity
+        /// when they own it (creator or connector) or hold edit authorization on the activity, which
+        /// is inherited from the parent Connection Request.
+        /// </summary>
+        /// <param name="activity">The Connection Request Activity to evaluate. Its <see cref="ConnectionRequestActivity.ConnectionRequest"/> must be loaded so the inherited authorization resolves correctly.</param>
+        /// <returns><c>true</c> if the current person may edit or delete the activity; otherwise <c>false</c>.</returns>
+        private bool CanCurrentPersonEditActivity( ConnectionRequestActivity activity )
+        {
+            if ( activity == null )
+            {
+                return false;
+            }
+
+            return IsCurrentPersonActivityOwner( activity )
+                || activity.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson );
+        }
+
+        /// <summary>
         /// Updates an existing Connection Request Activity's note, connector, and activity type.
         /// The activity type may only be changed if it is not a system activity type.
         /// Returns an updated activity entry bag to refresh the activity in the detail panel
         /// without a full page reload.
         /// </summary>
         /// <remarks>
-        /// Edit authorization is checked both at the Connection Request level via
-        /// <see cref="CanEditSpecifiedConnectionRequests"/> and at the activity level via Rock's
-        /// standard authorization check, requiring both to pass before any changes are applied.
+        /// Edit authorization is checked at the Connection Request level via
+        /// <see cref="CanEditSpecifiedConnectionRequests"/> and at the activity level via
+        /// <see cref="CanCurrentPersonEditActivity"/>, requiring both to pass before any changes are applied.
         /// </remarks>
         /// <param name="bag">A bag containing the Activity IdKey, updated note, connector Person Alias GUID, activity type GUID, and the associated Connection Request IdKeys.</param>
         /// <param name="connectionTypeIdKey">An optional Connection Type IdKey used to resolve the Connection Type, in addition to the standard page parameter resolution.</param>
@@ -5376,7 +6350,7 @@ WHERE 1 = 1" );
                 return ActionBadRequest( $"{ConnectionRequestActivity.FriendlyTypeName} not found." );
             }
 
-            if ( !activity.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson ) )
+            if ( !CanCurrentPersonEditActivity( activity ) )
             {
                 return ActionBadRequest( "You are not authorized to edit this Activity." );
             }
@@ -5417,7 +6391,11 @@ WHERE 1 = 1" );
                     ActivityTypeGuid = activityType.Guid.ToString(),
                     ActivityTypeName = activityType.Name,
                     IsSystemActivityType = activityType.ConnectionTypeId == null,
-                    ConnectorPersonAliasGuid = connectorPersonAlias?.Guid.ToString()
+                    ConnectorPersonAliasGuid = connectorPersonAlias?.Guid.ToString(),
+
+                    // Carry the edit/delete authorization on the refreshed entry so the feed keeps
+                    // showing the actions after an edit, matching what GetActivityEntries returns.
+                    CanEdit = CanCurrentPersonEditActivity( activity )
                 }
             };
 
@@ -5826,6 +6804,92 @@ WHERE 1 = 1" );
         }
 
         /// <summary>
+        /// Adds or edits the note on an existing Connection Request Status History record (the note that
+        /// explains why the request moved from one status to another). This single action covers both
+        /// adding a note where none existed and editing an existing note. When the status that ended
+        /// requires a note (<see cref="ConnectionStatus.IsNoteRequiredOnCompletion"/>), an empty note is
+        /// rejected so the requirement holds regardless of the client.
+        /// </summary>
+        /// <param name="bag">A bag containing the Status History IdKey, the note text, and the activity feed entry key to echo back.</param>
+        /// <returns>A Block Action Result containing a <see cref="SaveStatusHistoryNoteBag"/> with the saved note so the client can refresh the corresponding activity feed entry. Returns a bad request result if the record cannot be found, the current user is not authorized, or a required note is missing.</returns>
+        [BlockAction]
+        public BlockActionResult SaveStatusHistoryNote( SaveStatusHistoryNoteBag bag )
+        {
+            var statusHistoryService = new ConnectionRequestStatusHistoryService( RockContext );
+            var statusHistory = statusHistoryService.Get( bag.StatusHistoryIdKey, !PageCache.Layout.Site.DisablePredictableIds );
+            if ( statusHistory == null )
+            {
+                return ActionBadRequest( $"{ConnectionRequestStatusHistory.FriendlyTypeName} not found." );
+            }
+
+            if ( !CanCurrentPersonEditStatusHistoryNote( statusHistory ) )
+            {
+                return ActionBadRequest( "You are not authorized to edit this note." );
+            }
+
+            // The status that ended governs whether a note is required, matching the status-change save
+            // behavior. Enforce it here so the requirement cannot be bypassed by the client.
+            if ( bag.Note.IsNullOrWhiteSpace() && IsNoteRequiredForStatusHistory( statusHistory ) )
+            {
+                return ActionBadRequest( "A note is required." );
+            }
+
+            statusHistory.Note = bag.Note;
+
+            RockContext.SaveChanges();
+
+            var resultBag = new SaveStatusHistoryNoteBag
+            {
+                StatusHistoryIdKey = statusHistory.IdKey,
+                Note = statusHistory.Note,
+                Key = bag.Key
+            };
+
+            return ActionOk( resultBag );
+        }
+
+        /// <summary>
+        /// Determines whether the current person may add or edit the note on the specified Connection
+        /// Request Status History record. This delegates to the same permission check used when changing
+        /// a request's status, so anyone who could have made the status change can edit its note (request-
+        /// or opportunity-level EDIT depending on EnableRequestSecurity, the assigned connector, or an
+        /// active connector-group member for the request's campus).
+        /// </summary>
+        /// <param name="statusHistory">The status history record to evaluate. May be <c>null</c>.</param>
+        /// <returns><c>true</c> if the current person may edit the note; otherwise <c>false</c>.</returns>
+        private bool CanCurrentPersonEditStatusHistoryNote( ConnectionRequestStatusHistory statusHistory )
+        {
+            if ( statusHistory == null || RequestContext.CurrentPerson == null )
+            {
+                return false;
+            }
+
+            var connectionRequest = statusHistory.ConnectionRequest
+                ?? new ConnectionRequestService( RockContext ).Get( statusHistory.ConnectionRequestId );
+
+            if ( connectionRequest == null )
+            {
+                return false;
+            }
+
+            return CanEditSpecifiedConnectionRequest( connectionRequest, out _ );
+        }
+
+        /// <summary>
+        /// Determines whether the status that ended in the specified status history record requires a note
+        /// (<see cref="ConnectionStatus.IsNoteRequiredOnCompletion"/>).
+        /// </summary>
+        /// <param name="statusHistory">The status history record to evaluate.</param>
+        /// <returns><c>true</c> if the ended status requires a note; otherwise <c>false</c>.</returns>
+        private bool IsNoteRequiredForStatusHistory( ConnectionRequestStatusHistory statusHistory )
+        {
+            return new ConnectionStatusService( RockContext ).Queryable()
+                .Where( s => s.Id == statusHistory.ConnectionStatusId )
+                .Select( s => s.IsNoteRequiredOnCompletion )
+                .FirstOrDefault();
+        }
+
+        /// <summary>
         /// Deletes the specified Connection Request Activity after verifying that the current user
         /// is authorized to edit the associated Connection Request. Returns the activity feed entry
         /// key of the deleted activity so the client can remove it from the activity feed
@@ -5844,7 +6908,7 @@ WHERE 1 = 1" );
                 return ActionBadRequest( $"{ConnectionRequestActivity.FriendlyTypeName} not found." );
             }
 
-            if ( !activity.ConnectionRequest.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson ) )
+            if ( !CanCurrentPersonEditActivity( activity ) )
             {
                 return ActionBadRequest( "You are not authorized to delete this activity." );
             }
@@ -5969,7 +7033,9 @@ WHERE 1 = 1" );
                 return ActionBadRequest( $"{Rock.Model.ConnectionOpportunity.FriendlyTypeName} not found." );
             }
 
-            if ( newOpportunity == null )
+            // The transfer UI (GetBulkTransferDetails) only offers opportunities of the same
+            // Connection Type, so reject any other target opportunity.
+            if ( newOpportunity == null || newOpportunity.ConnectionTypeId != connectionType.Id )
             {
                 return ActionBadRequest( $"{Rock.Model.ConnectionOpportunity.FriendlyTypeName} not found." );
             }
@@ -6039,10 +7105,15 @@ WHERE 1 = 1" );
             }
 
             // If we are assigning a new Connector Person then set the connectorItem for the grid row update.
+            GroupingFieldBag connectorGroupingField = null;
             if ( newConnectorPerson != null )
             {
                 connectorItem.Value = newConnectorPerson.IdKey;
                 connectorItem.Text = newConnectorPerson.FullName;
+
+                // Include the connector's grouping metadata so the client can label the
+                // group even when the connector is not in the block-load groupings list.
+                connectorGroupingField = GetGroupingFieldBag( newConnectorPerson.Id, "person", newConnectorPerson.FullName, null, null, newConnectorPerson.PhotoUrl );
             }
 
             foreach ( var connectionRequest in connectionRequests )
@@ -6149,8 +7220,9 @@ WHERE 1 = 1" );
                 // If the ConnectorOption is not equal to current then we need to update the connector data.
                 if ( bag.ConnectorOption != "current" )
                 {
-                    gridUpdateBag.ConnectorGrouping = GetGroupingKey( connectorPersonAliasId );
+                    gridUpdateBag.ConnectorGrouping = GetGroupingKey( newConnectorPerson?.Id );
                     gridUpdateBag.ConnectorDetails = connectorItem;
+                    gridUpdateBag.ConnectorGroupingField = connectorGroupingField;
                 }
 
                 gridUpdateBags.Add( gridUpdateBag );
@@ -6308,7 +7380,9 @@ WHERE 1 = 1" );
 
             var newOpportunity = new ConnectionOpportunityService( RockContext ).Get( newOpportunityGuid.Value );
 
-            if ( newOpportunity == null )
+            // The transfer UI (GetTransferDetails) only offers opportunities of the request's own
+            // Connection Type, so reject any other target opportunity.
+            if ( newOpportunity == null || newOpportunity.ConnectionTypeId != connectionRequest.ConnectionTypeId )
             {
                 return ActionBadRequest( $"{Rock.Model.ConnectionOpportunity.FriendlyTypeName} not found." );
             }
@@ -6448,6 +7522,34 @@ WHERE 1 = 1" );
             return ActionOk( activityEntries );
         }
 
+        /// <summary>
+        /// Gets the persisted workflows launched from the specified Connection Request that the
+        /// current person is authorized to view, used to refresh the Workflows list in the detail
+        /// panel after a workflow is launched without a full details reload.
+        /// </summary>
+        /// <param name="connectionRequestIdKey">The IdKey of the Connection Request to retrieve workflows for.</param>
+        /// <returns>A Block Action Result containing a list of <see cref="ConnectionRequestWorkflowBag"/> objects ordered by activation date descending. Returns a bad request result if the Connection Request cannot be found or the current user is not authorized to view it.</returns>
+        [BlockAction]
+        public BlockActionResult GetConnectionRequestWorkflows( string connectionRequestIdKey )
+        {
+            var connectionRequestService = new ConnectionRequestService( RockContext );
+            var connectionRequest = connectionRequestService.Get( connectionRequestIdKey, !PageCache.Layout.Site.DisablePredictableIds );
+
+            if ( connectionRequest == null )
+            {
+                return ActionBadRequest( $"{Rock.Model.ConnectionRequest.FriendlyTypeName} not found." );
+            }
+
+            if ( !connectionRequest.IsAuthorized( Authorization.VIEW, RequestContext.CurrentPerson ) )
+            {
+                return ActionBadRequest( "You are not authorized to view this Connection Request." );
+            }
+
+            var workflows = GetConnectionRequestWorkflowBags( connectionRequest.Id );
+
+            return ActionOk( workflows );
+        }
+
         #endregion Detail View Block Actions
 
         #region Grid View Block Actions
@@ -6560,6 +7662,10 @@ WHERE 1 = 1" );
                 .Select( id => id.Value )
                 .ToList();
 
+            // Only return requester details for requests the person can view so a crafted request
+            // cannot read names and phone numbers the hub would not show them.
+            connectionRequestIds = GetViewAuthorizedConnectionRequestIds( connectionRequestIds );
+
             var connectionRequestService = new ConnectionRequestService( RockContext );
             var mobilePhoneDefinedValueId = DefinedValueCache.GetId( SystemGuid.DefinedValue.PERSON_PHONE_TYPE_MOBILE.AsGuid() );
             var personalDeviceQuery = new PersonalDeviceService( RockContext ).Queryable().AsNoTracking();
@@ -6597,9 +7703,7 @@ WHERE 1 = 1" );
 
             var currentPerson = GetCurrentPerson();
             var currentPersonAliasIds = currentPerson?.Aliases?.Select( a => a.Id ).ToList() ?? new List<int>();
-            var smsFromSystemPhoneNumbers = SystemPhoneNumberCache
-                    .All( includeInactive: false )
-                    .Where( spn => spn.IsAuthorized( Authorization.VIEW, currentPerson ) )
+            var smsFromSystemPhoneNumbers = GetAvailableSmsFromSystemPhoneNumbers( currentPerson )
                     .OrderByDescending( spn => spn.AssignedToPersonAliasId.HasValue && currentPersonAliasIds.Contains( spn.AssignedToPersonAliasId.Value ) )
                     .ThenBy( spn => spn.Order )
                     .ThenBy( spn => spn.Name )
@@ -6676,6 +7780,10 @@ WHERE 1 = 1" );
                 .Select( id => id.Value )
                 .ToList();
 
+            // Only return requester details for requests the person can view so a crafted request
+            // cannot read names and email addresses the hub would not show them.
+            connectionRequestIds = GetViewAuthorizedConnectionRequestIds( connectionRequestIds );
+
             var connectionRequestService = new ConnectionRequestService( RockContext );
             var mobilePhoneDefinedValueId = DefinedValueCache.GetId( SystemGuid.DefinedValue.PERSON_PHONE_TYPE_MOBILE.AsGuid() );
             //var personalDeviceQuery = new PersonalDeviceService( RockContext ).Queryable().AsNoTracking();
@@ -6740,13 +7848,22 @@ WHERE 1 = 1" );
             return ActionOk( new GetEmailConfigurationResponseBag
             {
                 CommunicationRecipients = communicationRecipients,
-                CommunicationTemplates = communicationTemplates
+                CommunicationTemplates = communicationTemplates,
+                // Default the sender to the current person so the From fields are not blank when the composer opens.
+                FromName = currentPerson?.FullName,
+                FromEmail = currentPerson?.Email
             } );
         }
 
         [BlockAction]
         public BlockActionResult SendCommunication( CommunicationBag bag )
         {
+            // Make sure the recipients, SMS number and attachments are ones the UI would offer.
+            if ( !TryValidateCommunicationBag( bag, out var error ) )
+            {
+                return error;
+            }
+
             var communication = CreateCommunication( bag );
 
             var msg = new ProcessSendCommunication.Message
@@ -7393,6 +8510,42 @@ WHERE 1 = 1" );
             public string NewValue { get; set; }
 
             public string OldValue { get; set; }
+
+            public string NickName { get; set; }
+
+            public string LastName { get; set; }
+
+            public int? PhotoId { get; set; }
+
+            public int? Age { get; set; }
+
+            public Gender? Gender { get; set; }
+
+            public int? RecordTypeValueId { get; set; }
+
+            public AgeClassification? AgeClassification { get; set; }
+        }
+
+        /// <summary>
+        /// Projection of a ConnectionRequestStatusHistory record used to attach a status-change note to
+        /// its corresponding History activity entry.
+        /// </summary>
+        private class StatusHistoryNoteRow
+        {
+            /// <summary>The ConnectionRequestStatusHistory record Id.</summary>
+            public int Id { get; set; }
+
+            /// <summary>The status that ended, which matches the bracketed ID in the History row's OldValue.</summary>
+            public int ConnectionStatusId { get; set; }
+
+            /// <summary>When the status ended; used to pair the record with its History row.</summary>
+            public DateTime EndDateTime { get; set; }
+
+            /// <summary>The recorded note, if any.</summary>
+            public string Note { get; set; }
+
+            /// <summary>Whether the status that ended requires a note (ConnectionStatus.IsNoteRequiredOnCompletion).</summary>
+            public bool IsEndedStatusNoteRequired { get; set; }
         }
 
         public class CommunicationRow

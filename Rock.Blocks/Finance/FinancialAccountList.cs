@@ -180,11 +180,20 @@ namespace Rock.Blocks.Finance
             var accountService = new FinancialAccountService( rockContext );
             var accountQuery = accountService.Queryable();
 
+            /*
+                7/17/26 - MSE
+
+                When neither AccountId nor TopLevel is provided, return all accounts (matching
+                the legacy WebForms AccountList). The #6465 fix incorrectly treated the no-parameter
+                case as top-level-only, which prevented reordering child accounts for the give page.
+
+                Reason: Restore all-accounts mode for global Order reordering.
+            */
             if ( parentAccountId.HasValue )
             {
                 accountQuery = accountQuery.Where( account => account.ParentAccountId == parentAccountId.Value );
             }
-            else if ( topLevelOnly || !parentAccountId.HasValue )
+            else if ( topLevelOnly )
             {
                 accountQuery = accountQuery.Where( account => account.ParentAccountId == null );
             }
@@ -227,6 +236,11 @@ namespace Rock.Blocks.Finance
         [BlockAction]
         public BlockActionResult ReorderItem( string key, string beforeKey )
         {
+            if ( !GetIsAddDeleteEnabled() )
+            {
+                return ActionBadRequest( "Not authorized to reorder items." );
+            }
+
             using ( var rockContext = new RockContext() )
             {
                 // Get the queryable and make sure it is ordered correctly.

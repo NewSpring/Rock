@@ -252,9 +252,17 @@ namespace RockWeb.Blocks.Security.Oidc
                 }.SaveAfterDelay();
             }
 
+            // An unknown client or unregistered redirect URI must not be redirected to (RFC 6749 section 4.1.2.1).
+            var redirectUri = GetValidatedRedirectUri( authClient );
+            if ( redirectUri == null )
+            {
+                divContent.Visible = false;
+                ShowError( "The application requesting access could not be verified." );
+                return;
+            }
+
             // Notify the client that the authorization grant has been denied by the resource owner.
             var owinContext = Context.GetOwinContext();
-            var redirectUri = owinContext.Request.Query["redirect_uri"];
             var state = owinContext.Request.Query["state"];
 
             var separator = redirectUri.Contains( "?" ) ? "&" : "?";
@@ -267,6 +275,36 @@ namespace RockWeb.Blocks.Security.Oidc
 
             Response.Redirect( $"{redirectUri}{separator}{qs}", true );
             ApplicationInstance.CompleteRequest();
+        }
+
+        /// <summary>
+        /// Gets the redirect URI registered for the auth client.
+        /// </summary>
+        /// <param name="authClient">The <see cref="AuthClient"/> for which authorization is being requested.</param>
+        /// <returns>
+        /// The request's <c>redirect_uri</c> if it's registered for the client, the client's redirect URI if the
+        /// request has none, or <c>null</c> if the client is unknown or the request's <c>redirect_uri</c> isn't
+        /// registered.
+        /// </returns>
+        private string GetValidatedRedirectUri( AuthClient authClient )
+        {
+            if ( authClient == null || authClient.RedirectUri.IsNullOrWhiteSpace() )
+            {
+                return null;
+            }
+
+            var requestedRedirectUri = Context.GetOwinContext().Request.Query["redirect_uri"];
+            if ( requestedRedirectUri.IsNullOrWhiteSpace() )
+            {
+                return authClient.RedirectUri;
+            }
+
+            if ( !AuthClientService.IsRedirectUriAllowed( authClient, requestedRedirectUri ) )
+            {
+                return null;
+            }
+
+            return requestedRedirectUri;
         }
 
         /// <summary>
@@ -408,7 +446,7 @@ namespace RockWeb.Blocks.Security.Oidc
             var authClient = GetAuthClient();
             IDictionary<string, string> clientAllowedClaims = null;
 
-            IEnumerable<string> clientAllowedScopes = null;
+            List<string> clientAllowedScopes = null;
             using ( var rockContext = new RockContext() )
             {
                 clientAllowedScopes = RockIdentityHelper.NarrowRequestedScopesToApprovedScopes( rockContext, authClient, requestedScopes ).ToList();
@@ -419,6 +457,26 @@ namespace RockWeb.Blocks.Security.Oidc
             {
                 // TODO: Error
                 return;
+            }
+
+            // The "openid" scope not a traditional scope. It is used by the
+            // OpenID Connect provider to indicate that the client is
+            // requesting an id_token. Therefore it is safe to add it to the
+            // list of allowed scopes if it was requested without checking if
+            // the client is allowed to request it via the
+            // NarrowRequestedScopesToApprovedScopes() method.
+            if ( requestedScopes.Contains( "openid" ) )
+            {
+                clientAllowedScopes.Add( "openid" );
+            }
+
+            // This is a hack since we don't store the grant_types during DCR
+            // to know if the client supports refresh tokens. So we'll just
+            // assume that if the client is asking for the mcp:invoke scope,
+            // then they support refresh tokens.
+            if ( clientAllowedScopes.Contains( "mcp:invoke" ) && !clientAllowedScopes.Contains( "offline_access" ) )
+            {
+                clientAllowedScopes.Add( "offline_access" );
             }
 
             // Create a new ClaimsIdentity containing the claims that
