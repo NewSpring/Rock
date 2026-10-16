@@ -21,8 +21,6 @@
                       :showAsLink="true"
                       :detailField="false"
                       :filter="textValueFilter"
-                      :filterValue="getInviteeFilterValue"
-                      :quickFilterValue="getInviteeFilterValue"
                       visiblePriority="xs"
                       width="18%" />
 
@@ -39,6 +37,7 @@
                     <DropDownList :modelValue="(row.status as string) ?? AttendeeStatus.NoResponse"
                                   :items="statusItems"
                                   :showBlankItem="false"
+                                  :disabled="!bag.isEditable"
                                   formGroupClasses="mb-0"
                                   @update:modelValue="onStatusChanged(row, $event as string)" />
                 </div>
@@ -61,7 +60,7 @@
                     <DropDownList :modelValue="(row.declineReasonValueGuid as string) ?? ''"
                                   :items="bag.attendeeDeclineReasons ?? []"
                                   :showBlankItem="true"
-                                  :disabled="row.status !== AttendeeStatus.Decline"
+                                  :disabled="!bag.isEditable || row.status !== AttendeeStatus.Decline"
                                   formGroupClasses="mb-0"
                                   @update:modelValue="onDeclineReasonChanged(row, $event as string)" />
                 </div>
@@ -78,13 +77,14 @@
                 :exportValue="getDeclineNoteSortValue"
                 width="37%">
             <template #format="{ row }">
-                <button v-if="row.status === AttendeeStatus.Decline"
+                <button v-if="bag.isEditable && row.status === AttendeeStatus.Decline"
                         type="button"
                         class="btn btn-link p-0 text-decoration-none d-flex align-items-center w-100 text-left"
                         @click="onEditNoteClick($event, row)">
                     <span class="flex-grow-1 text-truncate" :class="row.declineNote ? 'text-body' : 'text-muted'">{{ (row.declineNote as string) || "Add note..." }}</span>
                     <i class="ti ti-pencil text-muted ml-1"></i>
                 </button>
+                <span v-else-if="row.status === AttendeeStatus.Decline" class="d-block text-truncate">{{ row.declineNote as string }}</span>
             </template>
         </Column>
     </Grid>
@@ -130,7 +130,6 @@
     import { EntityType } from "@Obsidian/SystemGuids/entityType";
     import { useInvokeBlockAction } from "@Obsidian/Utility/block";
     import { GridDataBag } from "@Obsidian/ViewModels/Core/Grid/gridDataBag";
-    import { PersonFieldBag } from "@Obsidian/ViewModels/Core/Grid/personFieldBag";
     import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
     import { RsvpDetailBag } from "@Obsidian/ViewModels/Blocks/Rsvp/RsvpDetail/rsvpDetailBag";
     import { RsvpAttendeeBag } from "@Obsidian/ViewModels/Blocks/Rsvp/RsvpDetail/rsvpAttendeeBag";
@@ -191,15 +190,6 @@
     const editingNote = ref<string>("");
     const isNoteSaving = ref<boolean>(false);
     const noteErrorMessage = ref<string>("");
-
-    /** Returns the invitee's display name for the column's filter, quick search, and Excel export. */
-    function getInviteeFilterValue(row: Record<string, unknown>): string {
-        const person = row.person as PersonFieldBag | null | undefined;
-        if (!person) {
-            return "";
-        }
-        return `${person.nickName ?? ""} ${person.lastName ?? ""}`.trim();
-    }
 
     /** Resolves the decline reason Guid to its friendly text for filtering, quick search, sorting, and Excel export. */
     function getDeclineReasonFilterValue(row: Record<string, unknown>): string {

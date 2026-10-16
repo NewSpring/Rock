@@ -313,6 +313,7 @@ namespace Rock.Blocks.Group
                 AllowGroupSpecificRecordSource = entity.AllowGroupSpecificRecordSource,
                 AllowGroupSync = entity.AllowGroupSync,
                 AllowMultipleLocations = entity.AllowMultipleLocations,
+                IsMeetingStyleEnabled = entity.IsMeetingStyleEnabled,
                 AllowSpecificGroupMemberAttributes = entity.AllowSpecificGroupMemberAttributes,
                 AllowSpecificGroupMemberWorkflows = entity.AllowSpecificGroupMemberWorkflows,
                 AttendanceCountsAsWeekendService = entity.AttendanceCountsAsWeekendService,
@@ -459,6 +460,9 @@ namespace Rock.Blocks.Group
 
             box.IfValidProperty( nameof( box.Bag.AllowMultipleLocations ),
                 () => entity.AllowMultipleLocations = box.Bag.AllowMultipleLocations );
+
+            box.IfValidProperty( nameof( box.Bag.IsMeetingStyleEnabled ),
+                () => entity.IsMeetingStyleEnabled = box.Bag.IsMeetingStyleEnabled );
 
             box.IfValidProperty( nameof( box.Bag.AllowSpecificGroupMemberAttributes ),
                 () => entity.AllowSpecificGroupMemberAttributes = box.Bag.AllowSpecificGroupMemberAttributes );
@@ -1432,6 +1436,20 @@ namespace Rock.Blocks.Group
             if ( !ValidateGroupType( entity, box.Bag, out var validationMessage ) )
             {
                 return ActionBadRequest( validationMessage );
+            }
+
+            // Make sure each attribute list only references attributes that are
+            // new or already belong to this group type, using the same entity
+            // type and qualifier that SaveAttributes() will save them with.
+            // Otherwise a tampered Guid could take over an unrelated attribute.
+            var attributeQualifierValue = entity.Id == 0 ? null : entity.Id.ToString();
+            var areGroupAttributeEditsAllowed = PublicAttributeHelper.AreAttributeEditsAllowed( box.Bag.GroupAttributes, new Rock.Model.Group().TypeId, "GroupTypeId", attributeQualifierValue, RockContext );
+            var areGroupMemberAttributeEditsAllowed = PublicAttributeHelper.AreAttributeEditsAllowed( box.Bag.GroupMemberAttributes, new GroupMember().TypeId, "GroupTypeId", attributeQualifierValue, RockContext );
+            var areGroupTypeAttributeEditsAllowed = PublicAttributeHelper.AreAttributeEditsAllowed( box.Bag.GroupTypeAttributes, new GroupType().TypeId, "Id", attributeQualifierValue, RockContext );
+
+            if ( !areGroupAttributeEditsAllowed || !areGroupMemberAttributeEditsAllowed || !areGroupTypeAttributeEditsAllowed )
+            {
+                return ActionBadRequest( "Invalid attribute." );
             }
 
             var isNew = entity.Id == 0;

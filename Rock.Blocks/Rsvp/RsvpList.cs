@@ -22,6 +22,7 @@ using System.Data.Entity;
 using System.Linq;
 
 using Rock.Attribute;
+using Rock.Constants;
 using Rock.Data;
 using Rock.Enums.Controls;
 using Rock.Model;
@@ -148,8 +149,7 @@ namespace Rock.Blocks.Rsvp
                 Locations = new List<ListItemBag>()
             };
 
-            var groupId = PageParameter( PageParameterKey.GroupId );
-            var group = new GroupService( RockContext ).Get( groupId );
+            var group = GetViewableGroup( RockContext );
 
             if ( group == null )
             {
@@ -204,7 +204,44 @@ namespace Rock.Blocks.Rsvp
         /// <returns>A boolean value that indicates if the add button should be enabled.</returns>
         private bool GetIsAddEnabled()
         {
-            return BlockCache.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson );
+            var group = GetViewableGroup( RockContext );
+
+            return BlockCache.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson )
+                && group != null
+                && CanEditRsvp( group );
+        }
+
+        /// <summary>
+        /// Gets the group from the page parameter, if the current person is allowed to view it.
+        /// </summary>
+        /// <param name="rockContext">The database context.</param>
+        /// <returns>The group, or <c>null</c> if it does not exist or the current person can not view it.</returns>
+        private Rock.Model.Group GetViewableGroup( RockContext rockContext )
+        {
+            var groupId = PageParameter( PageParameterKey.GroupId );
+            var group = new GroupService( rockContext ).Get( groupId, !PageCache.Layout.Site.DisablePredictableIds );
+
+            if ( group == null || !group.IsAuthorized( Authorization.VIEW, GetCurrentPerson() ) )
+            {
+                return null;
+            }
+
+            return group;
+        }
+
+        /// <summary>
+        /// Determines whether the current person can edit the occurrences and RSVP responses of the group.
+        /// This matches the rule in the RSVP Detail block.
+        /// </summary>
+        /// <param name="group">The group.</param>
+        /// <returns><c>true</c> if the current person can edit the RSVP details; otherwise, <c>false</c>.</returns>
+        private bool CanEditRsvp( Rock.Model.Group group )
+        {
+            var currentPerson = GetCurrentPerson();
+
+            return group.IsAuthorized( Authorization.EDIT, currentPerson )
+                || group.IsAuthorized( Authorization.MANAGE_MEMBERS, currentPerson )
+                || group.IsAuthorized( Authorization.TAKE_ATTENDANCE, currentPerson );
         }
 
         /// <summary>
@@ -244,11 +281,32 @@ namespace Rock.Blocks.Rsvp
             return new List<AttributeCache>();
         }
 
+        /// <summary>
+        /// Resolves the occurrence date window from the person's filter preference.
+        /// Defaults to the last 2 months when no valid range is stored so the database
+        /// query and the virtual schedule occurrences always share the same window.
+        /// </summary>
+        /// <returns>The resolved <see cref="DateRange"/> used to filter occurrences.</returns>
+        private DateRange GetOccurrenceDateRange()
+        {
+            var defaultSlidingDateRange = new SlidingDateRangeBag
+            {
+                RangeType = SlidingDateRangeType.Last,
+                TimeUnit = TimeUnitType.Month,
+                TimeValue = 2
+            };
+
+            // Fall back to the default range when no valid preference is stored so the
+            // window is applied consistently on first load (matching the WebForms block).
+            var filterDateRange = FilterDateRange ?? defaultSlidingDateRange;
+
+            return filterDateRange.Validate( defaultSlidingDateRange ).ActualDateRange;
+        }
+
         /// <inheritdoc/>
         protected override IQueryable<RsvpListBag> GetListQueryable( RockContext rockContext )
         {
-            var groupId = PageParameter( PageParameterKey.GroupId );
-            var group = new GroupService( rockContext ).Get( groupId, !PageCache.Layout.Site.DisablePredictableIds );
+            var group = GetViewableGroup( rockContext );
 
             if ( group == null )
             {
@@ -259,33 +317,20 @@ namespace Rock.Blocks.Rsvp
                 .Queryable()
                 .Where( o => o.GroupId == group.Id );
 
-            // Apply date range filter from person preferences.
-            var filterDateRange = FilterDateRange;
+            // Apply the resolved date window (defaults to the last 2 months when no
+            // preference is set) so the DB query uses the same window as the virtual occurrences.
+            var dateRange = GetOccurrenceDateRange();
 
-            if ( filterDateRange != null )
+            if ( dateRange.Start.HasValue )
             {
-                // Default to the last 2 months if a null/invalid range was selected,
-                // matching the GetGroupOccurrences default window.
-                var defaultSlidingDateRange = new SlidingDateRangeBag
-                {
-                    RangeType = SlidingDateRangeType.Last,
-                    TimeUnit = TimeUnitType.Month,
-                    TimeValue = 2
-                };
+                var startDate = dateRange.Start.Value.Date;
+                occurrenceQry = occurrenceQry.Where( o => o.OccurrenceDate >= startDate );
+            }
 
-                var dateRange = filterDateRange.Validate( defaultSlidingDateRange ).ActualDateRange;
-
-                if ( dateRange.Start.HasValue )
-                {
-                    var startDate = dateRange.Start.Value.Date;
-                    occurrenceQry = occurrenceQry.Where( o => o.OccurrenceDate >= startDate );
-                }
-
-                if ( dateRange.End.HasValue )
-                {
-                    var endDate = dateRange.End.Value.Date;
-                    occurrenceQry = occurrenceQry.Where( o => o.OccurrenceDate <= endDate );
-                }
+            if ( dateRange.End.HasValue )
+            {
+                var endDate = dateRange.End.Value.Date;
+                occurrenceQry = occurrenceQry.Where( o => o.OccurrenceDate <= endDate );
             }
 
             // Apply location filter.
@@ -312,7 +357,7 @@ namespace Rock.Blocks.Rsvp
                 InvitedCount = o.Attendees.Count(),
                 AcceptedCount = o.Attendees.Count( at => at.RSVP == RSVP.Yes ),
                 DeclinedCount = o.Attendees.Count( at => at.RSVP == RSVP.No ),
-                NoResponseCount = o.Attendees.Count( at => at.RSVP == RSVP.Unknown )
+                NoResponseCount = o.Attendees.Count( at => at.RSVP != RSVP.Yes && at.RSVP != RSVP.No )
             } );
 
             return qry;
@@ -326,8 +371,7 @@ namespace Rock.Blocks.Rsvp
             // Virtual occurrences from the group's schedules are always appended regardless
             // of the location filter, matching GetGroupOccurrences behavior where the location
             // filter only applies to the DB query and not to schedule-generated rows.
-            var groupId = PageParameter( PageParameterKey.GroupId );
-            var group = new GroupService( RockContext ).Get( groupId );
+            var group = GetViewableGroup( RockContext );
 
             // Mirror GetGroupOccurrences exactly: only Group.ScheduleId is used for virtual
             // occurrence generation. Location schedules do not produce virtual occurrences.
@@ -385,30 +429,11 @@ namespace Rock.Blocks.Rsvp
                 return newOccurrences;
             }
 
-            // Mirror GetGroupOccurrences: when no date filter is set, default to the last
-            // 2 months so the row count matches the WebForms block out of the box.
-            DateTime startDate;
-            DateTime endDate;
-
-            var filterDateRange = FilterDateRange;
-            if ( filterDateRange != null )
-            {
-                var defaultSlidingDateRange = new SlidingDateRangeBag
-                {
-                    RangeType = SlidingDateRangeType.Last,
-                    TimeUnit = TimeUnitType.Month,
-                    TimeValue = 2
-                };
-
-                var dateRange = filterDateRange.Validate( defaultSlidingDateRange ).ActualDateRange;
-                startDate = dateRange.Start?.Date ?? RockDateTime.Today.AddMonths( -2 );
-                endDate = dateRange.End?.Date.AddDays( 1 ) ?? RockDateTime.Today.AddDays( 1 );
-            }
-            else
-            {
-                startDate = RockDateTime.Today.AddMonths( -2 );
-                endDate = RockDateTime.Today.AddDays( 1 );
-            }
+            // Use the same resolved date window as the DB query (defaults to the last
+            // 2 months when no preference is set) so both share one window.
+            var dateRange = GetOccurrenceDateRange();
+            var startDate = dateRange.Start?.Date ?? RockDateTime.Today.AddMonths( -2 );
+            var endDate = dateRange.End?.Date.AddDays( 1 ) ?? RockDateTime.Today.AddDays( 1 );
 
             var existingDates = existingOccurrences
                 .Where( o => o.ScheduleId.HasValue && o.ScheduleId == groupSchedule.Id )
@@ -539,6 +564,11 @@ namespace Rock.Blocks.Rsvp
                 return ActionBadRequest( "Group not found." );
             }
 
+            if ( !group.IsAuthorized( Authorization.VIEW, GetCurrentPerson() ) )
+            {
+                return ActionForbidden( EditModeMessage.NotAuthorizedToView( Rock.Model.Group.FriendlyTypeName ) );
+            }
+
             var attendanceOccurrenceService = new AttendanceOccurrenceService( RockContext );
 
             //If this occurrence has already been created, just return the existing one.
@@ -553,6 +583,11 @@ namespace Rock.Blocks.Rsvp
             if ( id != 0 )
             {
                 return ActionOk( id.AsIdKey() );
+            }
+
+            if ( !CanEditRsvp( group ) )
+            {
+                return ActionForbidden( EditModeMessage.NotAuthorizedToEdit( Rock.Model.Group.FriendlyTypeName ) );
             }
 
             var attendanceOccurrence = new AttendanceOccurrence();

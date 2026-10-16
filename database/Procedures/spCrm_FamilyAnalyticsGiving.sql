@@ -378,7 +378,7 @@ BEGIN
 						WHERE 
 							gp.[GivingGroupId] = i.[GivingGroupId]
 							AND ft.TransactionTypeValueId = @ContributionTypeId
-							AND ft.TransactionDateTime >= @SundayGivingDurationShort
+							AND ft.SundayDate > @SundayGivingDurationShort
 							AND ft.SundayDate <= @SundayDateStart) AS [GiftCountDurationShort]
 	    	FROM cteIndividual i
 	    	WHERE [FamilyRole] = 'Adult') AS g
@@ -458,7 +458,7 @@ BEGIN
 						WHERE 
 							gp.[Id] = i.[PersonId] -- match by person id
 							AND ft.TransactionTypeValueId = @ContributionTypeId
-							AND ft.TransactionDateTime >= @SundayGivingDurationShort
+							AND ft.SundayDate > @SundayGivingDurationShort
 							AND ft.SundayDate <= @SundayDateStart) AS [GiftCountDurationShort]
 	    	FROM cteIndividual i
 	    	WHERE [FamilyRole] = 'Adult') AS g
@@ -539,7 +539,7 @@ BEGIN
 						WHERE 
 							gp.[GivingGroupId] = i.[GivingGroupId]
 							AND ft.TransactionTypeValueId = @ContributionTypeId
-							AND ft.TransactionDateTime >= @SundayGivingDurationLong
+							AND ft.SundayDate > @SundayGivingDurationLong
 							AND ft.SundayDate <= @SundayDateStart) AS [GiftCountDurationLong]
 	    	FROM cteIndividual i
 	    	WHERE [FamilyRole] = 'Adult') AS g
@@ -619,7 +619,7 @@ BEGIN
 						WHERE 
 							gp.[Id] = i.[PersonId] -- match by person id
 							AND ft.TransactionTypeValueId = @ContributionTypeId
-							AND ft.TransactionDateTime >= @SundayGivingDurationLong
+							AND ft.SundayDate > @SundayGivingDurationLong
 							AND ft.SundayDate <= @SundayDateStart) AS [GiftCountDurationLong]
 	    		, 0 AS [IsSystem]
 	    		, newid() AS [Guid]

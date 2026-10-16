@@ -728,6 +728,7 @@ mission. We are so grateful for your commitment.</p>
             public const string AvailableAccountsJSON = "AvailableAccountsJSON";
             public const string SelectedAccountsJSON = "SelectedAccountsJSON";
             public const string CaptchaFailCount = "CaptchaFailCount";
+            public const string TransactionGuid = "TransactionGuid";
         }
 
         #endregion Block Keys
@@ -785,6 +786,16 @@ mission. We are so grateful for your commitment.</p>
         {
             get { return ViewState[ViewStateKey.ScheduleId] as int?; }
             set { ViewState[ViewStateKey.ScheduleId] = value; }
+        }
+
+        /// <summary>
+        /// Gets or sets the unique guid used for the transaction being processed.
+        /// This is kept in ViewState so it cannot be changed by the client.
+        /// </summary>
+        protected Guid TransactionGuid
+        {
+            get { return ViewState[ViewStateKey.TransactionGuid] as Guid? ?? Guid.Empty; }
+            set { ViewState[ViewStateKey.TransactionGuid] = value; }
         }
 
         protected bool DisplayPhone
@@ -1051,7 +1062,7 @@ mission. We are so grateful for your commitment.</p>
 
             if ( !Page.IsPostBack )
             {
-                hfTransactionGuid.Value = Guid.NewGuid().ToString();
+                TransactionGuid = Guid.NewGuid();
                 if ( this.Request.UrlReferrer != null )
                 {
                     lHistoryBackButton.HRef = this.Request.UrlReferrer.ToString();
@@ -1250,6 +1261,34 @@ mission. We are so grateful for your commitment.</p>
                     var parameterAccountAmounts = parameterAccountOptions.Select( a => new CampusAccountAmountPicker.AccountIdAmount( a.AccountId, a.Amount ) { ReadOnly = !a.Enabled } );
                     accountAmounts = parameterAccountAmounts.ToArray();
                 }
+            }
+
+            // If this is a transfer (page params carried Transfer=true and
+            // ScheduledTransactionGuid, and InitializeTransfer resolved a
+            // schedule), pre-populate the account amounts from the schedule's
+            // existing details so the transfer form arrives pre-filled. Also
+            // add any of the schedule's accounts that aren't already in the
+            // block's selectable list so they can be rendered (mirrors the
+            // AvailableAccounts.Except / SelectedAccounts.AddRange behavior
+            // that TransactionEntry.ascx.cs used to do). URL-provided amounts
+            // (populated above from ParseAccountUrlOptions) take precedence
+            // over the transfer amounts if both were supplied.
+            if ( accountAmounts == null && _scheduledTransactionToBeTransferred != null )
+            {
+                var transferAccountAmounts = _scheduledTransactionToBeTransferred.ScheduledTransactionDetails
+                    .GroupBy( d => d.AccountId )
+                    .Select( g => new CampusAccountAmountPicker.AccountIdAmount( g.Key, g.Sum( d => d.Amount ) ) )
+                    .ToArray();
+
+                foreach ( var transferAccountId in transferAccountAmounts.Select( a => a.AccountId ) )
+                {
+                    if ( !selectableAccountIds.Contains( transferAccountId ) )
+                    {
+                        selectableAccountIds.Add( transferAccountId );
+                    }
+                }
+
+                accountAmounts = transferAccountAmounts;
             }
 
             caapPromptForAccountAmounts.SelectableAccountIds = selectableAccountIds.ToArray();
@@ -1528,7 +1567,8 @@ mission. We are so grateful for your commitment.</p>
 
             DatabindAddAccountsButton( GetAttributeValue( AttributeKey.EnableAccountHierarchy ).AsBoolean() );
 
-            if ( accountId.HasValue )
+            // Only add the account if it was one of the available accounts offered to the individual.
+            if ( accountId.HasValue && selected.Any() )
             {
                 var selectableAccountIds = caapPromptForAccountAmounts.SelectableAccountIds.ToList();
                 selectableAccountIds.Add( accountId.Value );
@@ -1894,7 +1934,7 @@ $('#{btnHostedPaymentInfoNext.ClientID}, #{btnSavedAccountPaymentInfoNext.Client
         {
             // They are hitting Confirm on the "Possible Duplicate" warning, so reset the TransactionCode and Transaction.Guid which would have preventing them from doing a duplicate
             TransactionCode = string.Empty;
-            hfTransactionGuid.Value = Guid.NewGuid().ToString();
+            TransactionGuid = Guid.NewGuid();
 
             string errorMessage = string.Empty;
             if ( ProcessTransaction( out errorMessage ) )
@@ -1994,16 +2034,11 @@ $('#{btnHostedPaymentInfoNext.ClientID}, #{btnSavedAccountPaymentInfoNext.Client
                 var transactionEntityType = EntityTypeCache.Get( transactionEntityTypeGuid.Value );
                 if ( transactionEntityType != null )
                 {
-                    var entityId = this.PageParameter( this.GetAttributeValue( AttributeKey.EntityIdParam ) ).AsIntegerOrNull();
-                    if ( entityId.HasValue )
+                    var entityKey = this.PageParameter( this.GetAttributeValue( AttributeKey.EntityIdParam ) );
+                    if ( entityKey.IsNotNullOrWhiteSpace() )
                     {
-                        var dbContext = Reflection.GetDbContextForEntityType( transactionEntityType.GetEntityType() );
-                        IService serviceInstance = Reflection.GetServiceForEntityType( transactionEntityType.GetEntityType(), dbContext );
-                        if ( serviceInstance != null )
-                        {
-                            System.Reflection.MethodInfo getMethod = serviceInstance.GetType().GetMethod( "Get", new Type[] { typeof( int ) } );
-                            transactionEntity = getMethod.Invoke( serviceInstance, new object[] { entityId.Value } ) as Rock.Data.IEntity;
-                        }
+                        // Resolve as an Id, IdKey, or Guid; integer ids stay accepted so existing links keep working.
+                        transactionEntity = Reflection.GetIEntityForEntityType( transactionEntityType.GetEntityType(), entityKey );
                     }
                 }
             }
@@ -2298,9 +2333,9 @@ $('#{btnHostedPaymentInfoNext.ClientID}, #{btnSavedAccountPaymentInfoNext.Client
 
                 mergeFields.Add( "AmountLimit", this.PageParameter( PageParameterKey.AmountLimit ).AsDecimalOrNull() );
 
-                if ( hfTransactionGuid.Value.AsGuidOrNull().HasValue )
+                if ( TransactionGuid != Guid.Empty )
                 {
-                    var financialTransaction = new FinancialTransactionService( rockContext ).Get( hfTransactionGuid.Value.AsGuid() );
+                    var financialTransaction = new FinancialTransactionService( rockContext ).Get( TransactionGuid );
                     mergeFields.Add( "FinancialTransaction", financialTransaction );
                 }
 
@@ -3448,7 +3483,7 @@ $('#{btnHostedPaymentInfoNext.ClientID}, #{btnSavedAccountPaymentInfoNext.Client
             var rockContext = new RockContext();
             if ( string.IsNullOrWhiteSpace( TransactionCode ) )
             {
-                var transactionGuid = hfTransactionGuid.Value.AsGuid();
+                var transactionGuid = TransactionGuid;
 
                 var gateway = this.FinancialGatewayComponent;
                 var financialGateway = this.FinancialGateway;
@@ -3802,7 +3837,7 @@ $('#{btnHostedPaymentInfoNext.ClientID}, #{btnSavedAccountPaymentInfoNext.Client
             IEntity transactionEntity = GetTransactionEntity();
             mergeFields.Add( "TransactionEntity", transactionEntity );
 
-            var transactionGuid = hfTransactionGuid.Value.AsGuid();
+            var transactionGuid = TransactionGuid;
 
             var rockContext = new RockContext();
 

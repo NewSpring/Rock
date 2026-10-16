@@ -12,7 +12,7 @@
           :onAddItem="config.isAddEnabled ? onAddItem : undefined"
           @selectItem="onSelectItem">
 
-        <ReorderColumn @orderChanged="onOrderChanged" />
+        <ReorderColumn v-if="config.isAddEnabled" @orderChanged="onOrderChanged" />
 
         <Column name="icon"
                 field="icon"
@@ -53,13 +53,11 @@
                     width="160px"
                     visiblePriority="xs">
             <template #format="{ row }">
-                <div>
-                    <HighlightLabel v-if="row.isPublicViewable"
-                                    labelType="warning"
-                                    iconCssClass="ti ti-lock-open">
-                        Public Viewable
-                    </HighlightLabel>
-                </div>
+                <HighlightLabel v-if="row.isPublicViewable"
+                                labelType="warning"
+                                iconCssClass="ti ti-lock-open">
+                    Public Viewable
+                </HighlightLabel>
             </template>
         </TextColumn>
 

@@ -3,6 +3,7 @@
   <PropertyGroup>
     <OutputType>Library</OutputType>
     <TargetFramework>net472</TargetFramework>
+    <IsPackable>False</IsPackable>
   </PropertyGroup>
 
   <ItemGroup>
@@ -36,6 +37,10 @@
       <HintPath>..\libs\Slingshot\net472\Slingshot.Core.dll</HintPath>
     </Reference>
     <Reference Include="System.Web" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Lava\Tags\StylesheetLessCompilerTests.less" />
   </ItemGroup>
 
 </Project>

@@ -25,6 +25,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Rock;
 using Rock.AI.Agent;
 using Rock.Attribute;
+using Rock.Configuration;
+using Rock.Configuration.ConnectedServices;
 using Rock.Enums.AI.Agent;
 using Rock.Enums.Cms;
 using Rock.Model;
@@ -47,10 +49,10 @@ namespace Rock.Blocks.AI
     [SupportedSiteTypes( SiteType.Web )]
     [ConfigurationChangedReload( BlockReloadMode.Block )]
 
-    [CustomDropdownListField( "Agent",
-        Description = "The AI agent to use for this chat bot.",
-        IsRequired = true,
-        Key = AttributeKey.Agent,
+    [CustomDropdownListField( "Default Agent",
+        Description = "The default AI agent to use for this chat bot. If not specified then the first available chat agent will be used.",
+        IsRequired = false,
+        Key = AttributeKey.DefaultAgent,
         ListSource = "SELECT [Guid] AS [Value], [Name] AS [Text] FROM [AIAgent] ORDER BY [Name]",
         Order = 0 )]
 
@@ -65,7 +67,7 @@ namespace Rock.Blocks.AI
     {
         #region Constants
 
-        private static string DockedChatBotInitScript = @"(function () {
+        private static readonly string DockedChatBotInitScript = @"(function () {
     const panelContent = sessionStorage.getItem(""Rock.AI.ChatBot.DockedChat"");
 
     if (!panelContent) {
@@ -101,7 +103,7 @@ namespace Rock.Blocks.AI
                 document.body.dataset.dockedPanelMode = ""push"";
                 document.body.appendChild(dockedElement);
 
-                dockedElement.querySelector("".messages-container"").scrollTop = panelData.scrollTop;
+                dockedElement.querySelector("".conversation-container"").scrollTop = panelData.scrollTop;
             }
 
             if (!updatedIcon) {
@@ -143,7 +145,7 @@ namespace Rock.Blocks.AI
         /// </summary>
         private static class AttributeKey
         {
-            public const string Agent = "Agent";
+            public const string DefaultAgent = "DefaultAgent";
             public const string DockedMode = "DockedMode";
         }
 
@@ -213,11 +215,27 @@ namespace Rock.Blocks.AI
             return await GetConfigurationBag();
         }
 
+        private AIAgentCache GetConfiguredAgent()
+        {
+            var agentGuid = GetAttributeValue( AttributeKey.DefaultAgent ).AsGuidOrNull();
+
+            if ( agentGuid.HasValue )
+            {
+                return agentGuid.HasValue ? AIAgentCache.Get( agentGuid.Value, RockContext ) : null;
+            }
+            else
+            {
+                return AIAgentCache.All( RockContext )
+                    .Where( a => a.AgentType == AgentType.Chat
+                        && a.IsAuthorized( Authorization.VIEW, RequestContext.CurrentPerson ) )
+                    .OrderBy( a => a.Id )
+                    .FirstOrDefault();
+            }
+        }
+
         private bool TryGetConfiguredAgent( out AIAgentCache agentCache, out object errorConfiguration )
         {
-            var agentGuid = GetAttributeValue( AttributeKey.Agent ).AsGuidOrNull();
-
-            agentCache = agentGuid.HasValue ? AIAgentCache.Get( agentGuid.Value, RockContext ) : null;
+            agentCache = GetConfiguredAgent();
 
             if ( agentCache == null )
             {
@@ -246,6 +264,19 @@ namespace Rock.Blocks.AI
                 errorConfiguration = new Dictionary<string, object>
                 {
                     ["error"] = "The AI Agent Provider is not configured. Please contact your system administrator.",
+                    ["isDockedMode"] = IsDockedMode,
+                };
+
+                return false;
+            }
+
+            var csp = RockApp.Current.GetRequiredService<ConnectedServicesProvider>();
+
+            if ( csp.GetConfiguration()?.RockIntelligence?.Bundle?.Settings?.ApiKey.IsNotNullOrWhiteSpace() != true )
+            {
+                errorConfiguration = new Dictionary<string, object>
+                {
+                    ["error"] = "The Rock IQ service is not enabled. Please contact your system administrator.",
                     ["isDockedMode"] = IsDockedMode,
                 };
 
@@ -489,6 +520,30 @@ namespace Rock.Blocks.AI
             }
         }
 
+        /// <summary>
+        /// Determines whether the chat session belongs to the current person and
+        /// the specified agent. Session identifiers come from the client, so this
+        /// must be checked before a session is loaded.
+        /// </summary>
+        /// <param name="sessionId">The chat session identifier.</param>
+        /// <param name="agentId">The agent identifier.</param>
+        /// <returns><c>true</c> if the session belongs to the current person; otherwise <c>false</c>.</returns>
+        private bool IsSessionOwnedByCurrentPerson( int sessionId, int agentId )
+        {
+            var currentPersonId = RequestContext.CurrentPerson?.Id;
+
+            if ( !currentPersonId.HasValue )
+            {
+                return false;
+            }
+
+            return new AIAgentSessionService( RockContext )
+                .Queryable()
+                .Any( s => s.Id == sessionId
+                    && s.AIAgentId == agentId
+                    && s.PersonAlias.PersonId == currentPersonId.Value );
+        }
+
         #endregion
 
         #region Block Actions
@@ -507,8 +562,7 @@ namespace Rock.Blocks.AI
         [BlockAction]
         public async Task<BlockActionResult> SendMessage( SendMessageRequestBag request )
         {
-            var agentGuid = GetAttributeValue( AttributeKey.Agent ).AsGuidOrNull();
-            var agentCache = agentGuid.HasValue ? AIAgentCache.Get( agentGuid.Value, RockContext ) : null;
+            var agentCache = GetConfiguredAgent();
 
             if ( agentCache == null )
             {
@@ -520,16 +574,26 @@ namespace Rock.Blocks.AI
                 return ActionBadRequest( "You are not authorized to access this agent." );
             }
 
+            var sessionId = IdHasher.Instance.GetId( request.SessionIdKey ) ?? 0;
+
+            if ( !IsSessionOwnedByCurrentPerson( sessionId, agentCache.Id ) )
+            {
+                return ActionBadRequest( "Invalid session." );
+            }
+
+            // Debug output includes the agent's internal prompts and tool calls,
+            // so only honor the request for debug output from administrators.
+            var isDebugEnabled = request.IsDebugEnabled && BlockCache.IsAuthorized( Authorization.ADMINISTRATE, RequestContext.CurrentPerson );
+
             var startTimestamp = RockDateTime.Now;
             var sw = System.Diagnostics.Stopwatch.StartNew();
 
             var agent = _agentBuilder.Build( agentCache.Id, new ChatAgentOptions
             {
-                IsDebugEnabled = request.IsDebugEnabled,
-                IsSecurityEnabled = true
+                IsDebugEnabled = isDebugEnabled,
             } );
 
-            await agent.LoadSessionAsync( IdHasher.Instance.GetId( request.SessionIdKey ) ?? 0 );
+            await agent.LoadSessionAsync( sessionId );
             await AddTransientAnchorsAsync( agent );
             await agent.AddMessageAsync( AuthorRole.User, request.Message );
 
@@ -575,7 +639,7 @@ namespace Rock.Blocks.AI
                         Message = messageBag
                     };
 
-                    if ( request.IsDebugEnabled && response.Debug != null )
+                    if ( isDebugEnabled && response.Debug != null )
                     {
                         responseBag.Logs = response.Debug
                             ?.Logs
@@ -613,8 +677,7 @@ namespace Rock.Blocks.AI
         [BlockAction]
         public async Task<BlockActionResult> StartNewSession()
         {
-            var agentGuid = GetAttributeValue( AttributeKey.Agent ).AsGuidOrNull();
-            var agentCache = agentGuid.HasValue ? AIAgentCache.Get( agentGuid.Value, RockContext ) : null;
+            var agentCache = GetConfiguredAgent();
 
             if ( agentCache == null )
             {
@@ -626,10 +689,7 @@ namespace Rock.Blocks.AI
                 return ActionBadRequest( "You are not authorized to access this agent." );
             }
 
-            var agent = _agentBuilder.Build( agentCache.Id, new ChatAgentOptions
-            {
-                IsSecurityEnabled = true
-            } );
+            var agent = _agentBuilder.Build( agentCache.Id, new ChatAgentOptions() );
 
             // Start a new session.
             await agent.StartNewSessionAsync( IsDockedMode ? SessionType.Docked : SessionType.Standard );
@@ -649,8 +709,7 @@ namespace Rock.Blocks.AI
         [BlockAction]
         public BlockActionResult LoadSession( string sessionIdKey )
         {
-            var agentGuid = GetAttributeValue( AttributeKey.Agent ).AsGuidOrNull();
-            var agentCache = agentGuid.HasValue ? AIAgentCache.Get( agentGuid.Value, RockContext ) : null;
+            var agentCache = GetConfiguredAgent();
             var sessionId = IdHasher.Instance.GetId( sessionIdKey ) ?? 0;
 
             if ( agentCache == null )
@@ -694,8 +753,7 @@ namespace Rock.Blocks.AI
         [BlockAction]
         public BlockActionResult ClearSession( string sessionIdKey )
         {
-            var agentGuid = GetAttributeValue( AttributeKey.Agent ).AsGuidOrNull();
-            var agentCache = agentGuid.HasValue ? AIAgentCache.Get( agentGuid.Value, RockContext ) : null;
+            var agentCache = GetConfiguredAgent();
             var sessionId = IdHasher.Instance.GetId( sessionIdKey ) ?? 0;
 
             if ( agentCache == null )
@@ -742,8 +800,7 @@ namespace Rock.Blocks.AI
         [BlockAction]
         public BlockActionResult DeleteSession( string sessionIdKey )
         {
-            var agentGuid = GetAttributeValue( AttributeKey.Agent ).AsGuidOrNull();
-            var agentCache = agentGuid.HasValue ? AIAgentCache.Get( agentGuid.Value, RockContext ) : null;
+            var agentCache = GetConfiguredAgent();
             var sessionId = IdHasher.Instance.GetId( sessionIdKey ) ?? 0;
 
             if ( agentCache == null )
@@ -785,8 +842,7 @@ namespace Rock.Blocks.AI
         [BlockAction]
         public async Task<BlockActionResult> CreateAnchor( string sessionIdKey, string entityTypeName, int entityId )
         {
-            var agentGuid = GetAttributeValue( AttributeKey.Agent ).AsGuidOrNull();
-            var agentCache = agentGuid.HasValue ? AIAgentCache.Get( agentGuid.Value, RockContext ) : null;
+            var agentCache = GetConfiguredAgent();
             var sessionId = IdHasher.Instance.GetId( sessionIdKey ) ?? 0;
 
             if ( agentCache == null )
@@ -799,6 +855,11 @@ namespace Rock.Blocks.AI
                 return ActionBadRequest( "You are not authorized to access this agent." );
             }
 
+            if ( !IsSessionOwnedByCurrentPerson( sessionId, agentCache.Id ) )
+            {
+                return ActionBadRequest( "Invalid session." );
+            }
+
             var entityTypeCache = EntityTypeCache.Get( "Rock.Model." + entityTypeName, false, RockContext );
 
             if ( entityTypeCache == null )
@@ -808,15 +869,13 @@ namespace Rock.Blocks.AI
 
             var entity = Reflection.GetIEntityForEntityType( entityTypeCache.Id, entityId, RockContext );
 
-            if ( entity == null )
+            // Only allow anchoring entities the person is allowed to view.
+            if ( entity == null || ( entity is ISecured securedEntity && !securedEntity.IsAuthorized( Authorization.VIEW, RequestContext.CurrentPerson ) ) )
             {
                 return ActionBadRequest( "Entity not found." );
             }
 
-            var agent = _agentBuilder.Build( agentCache.Id, new ChatAgentOptions
-            {
-                IsSecurityEnabled = true
-            } );
+            var agent = _agentBuilder.Build( agentCache.Id, new ChatAgentOptions() );
 
             await agent.LoadSessionAsync( sessionId );
             await agent.AddAnchorAsync( entity );
@@ -833,8 +892,7 @@ namespace Rock.Blocks.AI
         [BlockAction]
         public async Task<BlockActionResult> DeleteAnchor( string sessionIdKey, int entityTypeId )
         {
-            var agentGuid = GetAttributeValue( AttributeKey.Agent ).AsGuidOrNull();
-            var agentCache = agentGuid.HasValue ? AIAgentCache.Get( agentGuid.Value, RockContext ) : null;
+            var agentCache = GetConfiguredAgent();
             var sessionId = IdHasher.Instance.GetId( sessionIdKey ) ?? 0;
 
             if ( agentCache == null )
@@ -847,10 +905,12 @@ namespace Rock.Blocks.AI
                 return ActionBadRequest( "You are not authorized to access this agent." );
             }
 
-            var agent = _agentBuilder.Build( agentCache.Id, new ChatAgentOptions
+            if ( !IsSessionOwnedByCurrentPerson( sessionId, agentCache.Id ) )
             {
-                IsSecurityEnabled = true
-            } );
+                return ActionBadRequest( "Invalid session." );
+            }
+
+            var agent = _agentBuilder.Build( agentCache.Id, new ChatAgentOptions() );
 
             await agent.LoadSessionAsync( sessionId );
             await agent.RemoveAnchorAsync( entityTypeId );

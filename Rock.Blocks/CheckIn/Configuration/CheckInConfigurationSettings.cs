@@ -520,6 +520,29 @@ namespace Rock.Blocks.CheckIn.Configuration
                 return false;
             }
 
+            // This block only manages check-in templates (the ones the check-in
+            // configuration list shows), so a key for any other group type is
+            // treated as not found.
+            if ( entity.Id != 0 )
+            {
+                var templatePurposeId = DefinedValueCache.GetId( Rock.SystemGuid.DefinedValue.GROUPTYPE_PURPOSE_CHECKIN_TEMPLATE.AsGuid() );
+
+                if ( !templatePurposeId.HasValue || entity.GroupTypePurposeValueId != templatePurposeId.Value )
+                {
+                    error = ActionBadRequest( $"{FRIENDLY_TYPE_NAME} not found." );
+                    return false;
+                }
+
+                // The initial view shows an error instead of the edit button
+                // when the person can not view the template, so require the
+                // same here.
+                if ( !entity.IsAuthorized( Authorization.VIEW, RequestContext.CurrentPerson ) )
+                {
+                    error = ActionBadRequest( $"Not authorized to edit {FRIENDLY_TYPE_NAME}." );
+                    return false;
+                }
+            }
+
             if ( !BlockCache.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson ) )
             {
                 error = ActionBadRequest( $"Not authorized to edit {FRIENDLY_TYPE_NAME}." );
@@ -566,8 +589,6 @@ namespace Rock.Blocks.CheckIn.Configuration
         [BlockAction]
         public BlockActionResult Save( ValidPropertiesBox<CheckInConfigurationSettingsBag> box )
         {
-            var entityService = new GroupTypeService( RockContext );
-
             if ( !TryGetEntityForEditAction( box.Bag.IdKey, out var entity, out var actionError ) )
             {
                 return actionError;
@@ -608,23 +629,10 @@ namespace Rock.Blocks.CheckIn.Configuration
 
             if ( isNew )
             {
-                return ActionContent( System.Net.HttpStatusCode.Created, this.GetCurrentPageUrl( new Dictionary<string, string>
-                {
-                    [PageParameterKey.CheckInConfiguration] = entity.IdKey
-                } ) );
+                return ActionContent( System.Net.HttpStatusCode.Created, this.GetParentPageUrl() );
             }
 
-            // Ensure navigation properties will work now.
-            entity = entityService.Get( entity.Id );
-            entity.LoadAttributes( RockContext );
-
-            var bag = GetEntityBagForView( entity );
-
-            return ActionOk( new ValidPropertiesBox<CheckInConfigurationSettingsBag>
-            {
-                Bag = bag,
-                ValidProperties = GetValidProperties( bag )
-            } );
+            return ActionOk( this.GetParentPageUrl() );
         }
 
         /// <summary>
@@ -658,15 +666,7 @@ namespace Rock.Blocks.CheckIn.Configuration
 
             RefreshConnectedKiosks();
 
-            var pageRef = new Rock.Web.PageReference( PageCache.Id );
-            var routeId = PageCache.PageRoutes.FirstOrDefault()?.Id;
-
-            if ( routeId.HasValue )
-            {
-                pageRef.RouteId = routeId.Value;
-            }
-
-            return ActionOk( pageRef.BuildUrl() );
+            return ActionOk( this.GetParentPageUrl() );
         }
 
         #endregion Block Actions

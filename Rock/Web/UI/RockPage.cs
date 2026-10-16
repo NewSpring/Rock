@@ -81,6 +81,16 @@ namespace Rock.Web.UI
         private PageStatePersister _PageStatePersister = null;
 
         /// <summary>
+        /// The session key that holds the user who started the current impersonation.
+        /// </summary>
+        private const string ImpersonatedByUserSessionKey = "ImpersonatedByUser";
+
+        /// <summary>
+        /// The session key that holds the impersonation token the stored impersonated-by user is bound to.
+        /// </summary>
+        private const string ImpersonatedByUserTokenSessionKey = "ImpersonatedByUserToken";
+
+        /// <summary>
         /// Will be <c>true</c> if the page has anything on it that requires
         /// Obsidian libraries to be loaded.
         /// </summary>
@@ -849,6 +859,7 @@ namespace Rock.Web.UI
                     message.Send();
                 }
 
+                ClearImpersonatedByUser();
                 Authorization.SignOut();
 
                 // After logging out check to see if an anonymous user is allowed to view the current page.  If so
@@ -1109,9 +1120,8 @@ namespace Rock.Web.UI
                     if ( !canAdministratePage || !canEditPage )
                     {
                         // if the current user is being impersonated by another user (typically an admin), then check their security
-                        var impersonatedByUser = Session["ImpersonatedByUser"] as UserLogin;
-                        var currentUserIsImpersonated = ( HttpContext.Current?.User?.Identity?.Name ?? string.Empty ).StartsWith( "rckipid=" );
-                        if ( impersonatedByUser != null && currentUserIsImpersonated )
+                        var impersonatedByUser = GetImpersonatedByUser();
+                        if ( impersonatedByUser != null )
                         {
                             canAdministratePage = canAdministratePage || _pageCache.IsAuthorized( Authorization.ADMINISTRATE, impersonatedByUser.Person );
                             canEditPage = canEditPage || _pageCache.IsAuthorized( Authorization.EDIT, impersonatedByUser.Person );
@@ -1281,7 +1291,7 @@ namespace Rock.Web.UI
                                     nbBlockLoad.Dismissable = true;
                                     control = nbBlockLoad;
 
-                                    if ( this.IsPostBack )
+                                    if ( block.BlockType.Path.IsNotNullOrWhiteSpace() && this.IsPostBack )
                                     {
                                         // throw an error on PostBack so that the ErrorPage gets shown (vs nothing happening)
                                         throw;
@@ -1399,9 +1409,8 @@ namespace Rock.Web.UI
                         adminFooter.Controls.Add( lbCacheControl );
 
                         // If the current user is Impersonated by another user, show a link on the admin bar to log back in as the original user
-                        var impersonatedByUser = Session["ImpersonatedByUser"] as UserLogin;
-                        var currentUserIsImpersonated = ( HttpContext.Current?.User?.Identity?.Name ?? string.Empty ).StartsWith( "rckipid=" );
-                        if ( canAdministratePage && currentUserIsImpersonated && impersonatedByUser != null )
+                        var impersonatedByUser = GetImpersonatedByUser();
+                        if ( canAdministratePage && impersonatedByUser != null )
                         {
                             HtmlGenericControl impersonatedByUserDiv = new HtmlGenericControl( "span" );
                             impersonatedByUserDiv.AddCssClass( "label label-default margin-l-md" );
@@ -1621,10 +1630,10 @@ namespace Rock.Web.UI
                     continue; // Couldn't load EntityType.
                 }
 
-                int? contextId = parts[1].AsIntegerOrNull();
-                if ( contextId == null )
+                var contextKey = parts[1];
+                if ( contextKey.IsNullOrWhiteSpace() )
                 {
-                    continue;  // Invalid Entity Id.
+                    continue;  // Invalid Entity key.
                 }
 
                 var contextModelType = contextModelEntityType.GetEntityType();
@@ -1640,13 +1649,15 @@ namespace Rock.Web.UI
                     continue; // Couldn't load Entity service.
                 }
 
-                MethodInfo getMethod = contextService.GetType().GetMethod( "Get", new Type[] { typeof( int ) } );
+                // Load by Id, Guid or IdKey. Integer Ids are only allowed if the
+                // site has not disabled predictable Ids.
+                MethodInfo getMethod = contextService.GetType().GetMethod( "Get", new Type[] { typeof( string ), typeof( bool ) } );
                 if ( getMethod == null )
                 {
                     continue;  // Couldn't find method to fetch Entity.
                 }
 
-                var getResult = getMethod.Invoke( contextService, new object[] { contextId.Value } );
+                var getResult = getMethod.Invoke( contextService, new object[] { contextKey, !Site.DisablePredictableIds } );
                 var contextEntity = getResult as IEntity;
                 if ( contextEntity == null )
                 {
@@ -1763,8 +1774,8 @@ namespace Rock.Web.UI
             foreach ( string param in PageParameter( "context", true ).Split( delim, StringSplitOptions.RemoveEmptyEntries ) )
             {
                 string contextItem = Rock.Security.Encryption.DecryptString( param );
-                string[] parts = contextItem.Split( '|' );
-                if ( parts.Length == 2 )
+                string[] parts = contextItem?.Split( '|' );
+                if ( parts != null && parts.Length == 2 )
                 {
                     keyEntityDictionary.AddOrReplace( parts[0], new Data.KeyEntity( parts[1] ) );
                 }
@@ -2035,13 +2046,6 @@ namespace Rock.Web.UI
         {
             base.OnLoadComplete( e );
 
-            // Set the title displayed in the browser on the base page.
-            string pageTitle = BrowserTitle ?? string.Empty;
-            string siteTitle = _pageCache.Layout.Site.Name;
-            string seperator = pageTitle.Trim() != string.Empty && siteTitle.Trim() != string.Empty ? " | " : "";
-
-            base.Title = pageTitle + seperator + siteTitle;
-
             // Make the last breadcrumb on this page the only one active. This
             // takes care of any late additions to the breadcrumbs by Lava or
             // Obsidian blocks.
@@ -2067,13 +2071,31 @@ namespace Rock.Web.UI
         }
 
         /// <summary>
+        /// Raises the <see cref="E:System.Web.UI.Page.PreRenderComplete" /> event after
+        /// the page's registered asynchronous tasks have completed.
+        /// </summary>
+        /// <param name="e">An <see cref="T:System.EventArgs" /> that contains the event data.</param>
+        protected override void OnPreRenderComplete( EventArgs e )
+        {
+            base.OnPreRenderComplete( e );
+
+            string pageTitle = BrowserTitle ?? string.Empty;
+            string siteTitle = _pageCache.Layout.Site.Name;
+            string seperator = pageTitle.Trim() != string.Empty && siteTitle.Trim() != string.Empty ? " | " : "";
+
+            base.Title = pageTitle + seperator + siteTitle;
+        }
+
+        /// <summary>
         /// Handles the Click event of the _btnRestoreImpersonatedByUser control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
         /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
         private void _btnRestoreImpersonatedByUser_Click( object sender, EventArgs e )
         {
-            var impersonatedByUser = Session["ImpersonatedByUser"] as UserLogin;
+            var impersonatedByUser = GetImpersonatedByUser();
+            ClearImpersonatedByUser();
+
             if ( impersonatedByUser != null )
             {
                 Authorization.SignOut();
@@ -2104,6 +2126,36 @@ namespace Rock.Web.UI
         }
 
         /// <summary>
+        /// Gets the user who started the impersonation the current request is authenticated with.
+        /// </summary>
+        /// <returns>The impersonating user, or <c>null</c> if the current request isn't the impersonation that user started.</returns>
+        private UserLogin GetImpersonatedByUser()
+        {
+            var identityName = HttpContext.Current?.User?.Identity?.Name ?? string.Empty;
+            if ( !identityName.StartsWith( "rckipid=" ) )
+            {
+                return null;
+            }
+
+            var boundToken = Session[ImpersonatedByUserTokenSessionKey] as string;
+            if ( !string.Equals( identityName.Substring( 8 ), boundToken, StringComparison.Ordinal ) )
+            {
+                return null;
+            }
+
+            return Session[ImpersonatedByUserSessionKey] as UserLogin;
+        }
+
+        /// <summary>
+        /// Removes the impersonated-by user and its bound token from session.
+        /// </summary>
+        private void ClearImpersonatedByUser()
+        {
+            Session.Remove( ImpersonatedByUserSessionKey );
+            Session.Remove( ImpersonatedByUserTokenSessionKey );
+        }
+
+        /// <summary>
         /// Checks for and processes any impersonation parameters
         /// Returns False if an invalid token was specified
         /// </summary>
@@ -2119,6 +2171,23 @@ namespace Rock.Web.UI
                     // get the impersonatedPersonKey from the Auth ticket
                     impersonatedPersonKeyIdentity = HttpContext.Current.User.Identity.Name.Substring( 8 );
                 }
+            }
+
+            /*
+                10/8/26 - JMH
+
+                The impersonated-by user is only valid for the impersonation token it was stored with.
+                This runs on every page request and clears it whenever the current identity no longer matches that token.
+
+                Reason: Keep the impersonated-by user scoped to the impersonation that created it.
+            */
+            var boundImpersonationToken = Session[ImpersonatedByUserTokenSessionKey] as string;
+            var isImpersonatedByUserStale = string.IsNullOrEmpty( impersonatedPersonKeyIdentity )
+                || !string.Equals( impersonatedPersonKeyIdentity, boundImpersonationToken, StringComparison.Ordinal );
+
+            if ( Session[ImpersonatedByUserSessionKey] != null && isImpersonatedByUserStale )
+            {
+                ClearImpersonatedByUser();
             }
 
             // if there is a impersonatedPersonKeyParam specified, and it isn't already associated with the current HttpContext.Current.User.Identity,
@@ -2148,6 +2217,30 @@ namespace Rock.Web.UI
                             return true;
                         }
                     */
+
+                    /*
+                        7/6/2026 - MSE
+
+                        The WebForms Person Bio block set this session value in its click
+                        handler, but the Obsidian version starts impersonation from a
+                        block action where session state is unavailable. Setting it here,
+                        while the request is still authenticated as the original user,
+                        keeps the admin bar "Restore" button and elevated page rights
+                        working. If the request is already impersonated, the existing
+                        value is kept so Restore returns to the original user.
+
+                        Reason: Support the impersonation Restore button for the new Obsidian Bio block.
+                    */
+                    if ( string.IsNullOrEmpty( impersonatedPersonKeyIdentity ) && CurrentUser != null )
+                    {
+                        Session[ImpersonatedByUserSessionKey] = CurrentUser;
+                        Session[ImpersonatedByUserTokenSessionKey] = impersonatedPersonKeyParam;
+                    }
+                    else if ( Session[ImpersonatedByUserSessionKey] != null )
+                    {
+                        // Opening another personalized link while impersonating moves the binding to the new token so Restore still works.
+                        Session[ImpersonatedByUserTokenSessionKey] = impersonatedPersonKeyParam;
+                    }
 
                     Authorization.SignOut();
 
@@ -2214,7 +2307,7 @@ namespace Rock.Web.UI
         {
             var googleAPIKey = GlobalAttributesCache.Get().GetValue( "GoogleAPIKey" );
             string keyParameter = string.IsNullOrWhiteSpace( googleAPIKey ) ? "" : string.Format( "key={0}&", googleAPIKey );
-            string scriptUrl = string.Format( "https://maps.googleapis.com/maps/api/js?{0}v=3.64&libraries=drawing,visualization,geometry,marker", keyParameter );
+            string scriptUrl = string.Format( "https://maps.googleapis.com/maps/api/js?{0}libraries=visualization,geometry,marker", keyParameter );
 
             // first, add it to the page to handle cases where the api is needed on first page load
             if ( this.Page != null && this.Page.Header != null )
@@ -2339,6 +2432,21 @@ Sys.Application.add_load(function () {
                 return;
             }
 
+            /*
+                8/24/2026 - CLAUDE
+
+                Reject speculative navigations before anything is recorded.
+                Chrome Speculation Rules and link prefetchers request pages the
+                visitor never actually opens, and every one of those was being
+                written as a page view.
+
+                Reason: Prefetched pages were inflating page view counts.
+            */
+            if ( WebRequestHelper.IsPrefetchRequest( Request?.Headers ) )
+            {
+                return;
+            }
+
             // Attempt to retrieve geolocation data.
             var geolocation = this.RequestContext?.ClientInformation?.Geolocation;
 
@@ -2387,6 +2495,22 @@ Sys.Application.add_load(function () {
             // database records used to track interactions for visitors until we know that the page has been executed
             // on a valid client with Javascript and cookies enabled.
             if ( ClientScript.IsStartupScriptRegistered( "rock-js-register-interaction" ) )
+            {
+                return;
+            }
+
+            /*
+                8/24/2026 - CLAUDE
+
+                Skip the callback entirely for a user agent we already know is a
+                crawler. The API endpoint rejects these too, but there is no
+                reason to hand a bot the script and pay for the round trip when
+                the user agent is identifiable from this request.
+
+                Reason: Avoids a pointless request and an Anonymous Visitor
+                cookie for traffic that will be rejected anyway.
+            */
+            if ( CrawlerUserAgents.IsCrawler( Request.UserAgent ) )
             {
                 return;
             }
@@ -2443,6 +2567,10 @@ Sys.Application.add_load(function () {
             // that only unique interactions are tracked during the session. This additional change was needed to prevent the
             // scenario where a duplicate interaction would be sent whenever an individual used a browser's back arrow to navigate
             // back to a page that had already sent an interaction. 
+            // The sendInteraction wrapper exists so the callback can be deferred
+            // until a prerendered page is actually activated. Chrome prerenders
+            // pages the visitor may never open; recording those on load counted
+            // page views for pages nobody saw. This mirrors what gtag.js does.
             string script = @"
 Sys.Application.add_load(function () {
     const getCookieValue = (name) => {
@@ -2451,22 +2579,31 @@ Sys.Application.add_load(function () {
         return !match ? '' : match.pop();
     };
 
-    var interactionGuid = '<interactionGuid>';
-    var interactionGuids = JSON.parse(sessionStorage.getItem('interactionGuids')) || [];
+    var sendInteraction = function () {
+        var interactionGuid = '<interactionGuid>';
+        var interactionGuids = JSON.parse(sessionStorage.getItem('interactionGuids')) || [];
 
-    if (!interactionGuids.includes(interactionGuid)) {
-        interactionGuids.push(interactionGuid);
-        sessionStorage.setItem('interactionGuids', JSON.stringify(interactionGuids));
+        if (!interactionGuids.includes(interactionGuid)) {
+            interactionGuids.push(interactionGuid);
+            sessionStorage.setItem('interactionGuids', JSON.stringify(interactionGuids));
 
-        var interactionArgs = <jsonData>;
-        if (!interactionArgs.<userIdProperty>) {
-            interactionArgs.<userIdProperty> = getCookieValue('<rockVisitorCookieName>');
+            var interactionArgs = <jsonData>;
+            if (!interactionArgs.<userIdProperty>) {
+                interactionArgs.<userIdProperty> = getCookieValue('<rockVisitorCookieName>');
+            }
+            $.ajax({
+                url: '/api/Interactions/RegisterPageInteraction',
+                type: 'POST',
+                data: interactionArgs
+                });
         }
-        $.ajax({
-            url: '/api/Interactions/RegisterPageInteraction',
-            type: 'POST',
-            data: interactionArgs
-            });
+    };
+
+    if (document.prerendering) {
+        document.addEventListener('prerenderingchange', sendInteraction, { once: true });
+    }
+    else {
+        sendInteraction();
     }
 });
 ";
@@ -3064,6 +3201,13 @@ Sys.Application.add_load(function () {
                         Attribute.Helper.LoadAttributes( keyModel.Entity as IHasAttributes );
                     }
 
+                }
+
+                // Don't provide a context entity the current person isn't
+                // allowed to view.
+                if ( keyModel.Entity is ISecured securedEntity && !securedEntity.IsAuthorized( Authorization.VIEW, CurrentPerson ) )
+                {
+                    return null;
                 }
 
                 return keyModel.Entity;

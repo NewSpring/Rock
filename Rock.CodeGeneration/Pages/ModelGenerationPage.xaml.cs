@@ -599,7 +599,6 @@ namespace Rock.CodeGeneration.Pages
                             "Rock.Field.Types.EnumFieldType`1._EnumValues",
                             "Rock.Financial.TestGateway.MostRecentException",
                             "Rock.Financial.TestRedirectionGateway.MostRecentException",
-                            "Rock.Security.BackgroundCheck.ProtectMyMinistry._httpStatusCode",
                             "Rock.Security.ExternalAuthentication.Twitter._oauthToken",
                             "Rock.Security.ExternalAuthentication.Twitter._oauthTokenSecret",
                             "Rock.Security.ExternalAuthentication.Twitter._returnUrl",
@@ -1804,7 +1803,7 @@ GO
         /// <summary>
         /// The ignore files
         /// </summary>
-        static readonly string[] IgnoreFiles = new string[] { "\\DoubleMetaphone.cs", "\\Rock.Version\\AssemblySharedInfo.cs" };
+        static readonly string[] IgnoreFiles = new string[] { "\\DoubleMetaphone.cs", "\\Rock.Version\\AssemblySharedInfo.cs", "\\Rock\\Data\\LinqKit\\LinqKit.cs" };
 
         /// <summary>
         /// The ignore folders
