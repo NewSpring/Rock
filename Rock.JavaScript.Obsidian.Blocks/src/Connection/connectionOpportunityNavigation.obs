@@ -37,6 +37,12 @@
                             @click="onOperationalSnapshotClick">
                     <i class="ti ti-chart-bar"></i> <span v-if="breakpointHelper?.isSmOrLarger">{{ operationalSnapshotBtnText }}</span>
                 </RockButton>
+
+                <RockButton v-if="isCelebrationReportEnabled"
+                            :title="celebrationsBtnTooltip"
+                            @click="onCelebrationReportClick">
+                    <i class="ti ti-confetti"></i> <span v-if="breakpointHelper?.isSmOrLarger">Celebrations</span>
+                </RockButton>
             </template>
 
             <template v-if="anyConnectionOpportunities" #preBody>
@@ -256,6 +262,7 @@
     import { onConfigurationValuesChanged, useBlockBrowserBus, useConfigurationValues, useInvokeBlockAction, usePersonPreferences, useReloadBlock } from "@Obsidian/Utility/block";
     import { PageMessages } from "@Obsidian/Utility/browserBus";
     import { updateRefValue } from "@Obsidian/Utility/component";
+    import { getCssVariableValue } from "@Obsidian/Utility/cssUtils";
     import { areEqual } from "@Obsidian/Utility/guid";
     import { useHttp } from "@Obsidian/Utility/http";
     import { Enumerable } from "@Obsidian/Utility/linq";
@@ -307,6 +314,7 @@
     // Connection Type-level URLs.
     const typeConnectionsHubListViewPageUrl = ref(config.navigationUrls?.[NavigationUrlKey.TypeConnectionsHubListViewPage]);
     const typeOperationalSnapshotPageUrl = ref(config.navigationUrls?.[NavigationUrlKey.TypeOperationalSnapshotPage]);
+    const typeCelebrationsReportPageUrl = ref(config.navigationUrls?.[NavigationUrlKey.TypeCelebrationsReportPage]);
 
     // Connection Opportunity-level URLs.
     const opportunityConnectionsHubListViewPageUrl = ref(config.navigationUrls?.[NavigationUrlKey.OpportunityConnectionsHubListViewPage]);
@@ -360,8 +368,12 @@
         return connectionTypeSummary.value?.isSnapshotViewEnabled ?? false;
     });
 
+    const isCelebrationReportEnabled = computed((): boolean => {
+        return !!typeCelebrationsReportPageUrl.value && (connectionTypeSummary.value?.isCelebrationEnabled ?? false);
+    });
+
     const showPanelHeaderActions = computed((): boolean => {
-        return isListViewEnabled.value || isSnapshotViewEnabled.value;
+        return isListViewEnabled.value || isSnapshotViewEnabled.value || isCelebrationReportEnabled.value;
     });
 
     const viewRequestsBtnTooltip = computed((): string | undefined => {
@@ -380,15 +392,23 @@
         return operationalSnapshotBtnText.value;
     });
 
+    const celebrationsBtnTooltip = computed((): string | undefined => {
+        if (breakpointHelper.value?.isSmOrLarger) {
+            return undefined;
+        }
+
+        return "Celebrations";
+    });
+
     const linearGaugeChartData = computed<LinearGaugeSeries[]>(() => {
         if (!navigationDetails.value) {
             return [];
         }
 
         return [
-            { label: "On Track", data: [navigationDetails.value.totalOnTrackRequestsCount], color: "var(--color-success-strong)" },
-            { label: "Due Soon", data: [navigationDetails.value.totalDueSoonRequestsCount], color: "#F59E0B" },
-            { label: "Overdue", data: [navigationDetails.value.totalOverdueRequestsCount], color: "#EF4444" }
+            { label: "On Track", data: [navigationDetails.value.totalOnTrackRequestsCount], color: "var(--color-positive-primary)" },
+            { label: "Due Soon", data: [navigationDetails.value.totalDueSoonRequestsCount], color: "var(--color-caution-primary)" },
+            { label: "Overdue", data: [navigationDetails.value.totalOverdueRequestsCount], color: "var(--color-negative-primary)" }
         ];
     });
 
@@ -452,12 +472,12 @@
             {
                 label: "New",
                 data: newRequestCountsPlusOne.value,
-                color: "#06B6D4"
+                color: getCssVariableValue("--color-metric-primary", "#06B6D4")
             },
             {
                 label: "Completed",
                 data: completedRequestCountsPlusOne.value,
-                color: "#22C55E"
+                color: getCssVariableValue("--color-positive-primary", "#22C55E")
             }
         ];
 
@@ -657,6 +677,16 @@
         }
 
         window.location.href = url.toString();
+    }
+
+    /**
+     * Handles the click event for the "Celebrations" button in the panel header.
+     * Navigates the individual to the celebrations report page for the connection type.
+     */
+    function onCelebrationReportClick(): void {
+        if (typeCelebrationsReportPageUrl.value) {
+            window.location.href = typeCelebrationsReportPageUrl.value;
+        }
     }
 
     /**

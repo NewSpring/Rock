@@ -39,7 +39,7 @@ namespace Rock.Blocks.Engagement
     [Category( "Engagement" )]
     [Description( "Displays a list of connection opportunities." )]
     [IconCssClass( "ti ti-list" )]
-    // [SupportedSiteTypes( Model.SiteType.Web )]
+    [SupportedSiteTypes( Model.SiteType.Web )]
 
     [LinkedPage( "Detail Page",
         Description = "The page that will show the connection opportunity details.",
@@ -293,6 +293,17 @@ namespace Rock.Blocks.Engagement
             var entity = entityService.Get( key, !PageCache.Layout.Site.DisablePredictableIds );
 
             if ( entity == null )
+            {
+                return ActionBadRequest( $"{ConnectionOpportunity.FriendlyTypeName} not found." );
+            }
+
+            // Only allow deleting an opportunity the grid would show: it must
+            // belong to the page's connection type and pass the same View filter
+            // that GetListItems applies to the rows.
+            var entityId = entity.Id;
+            var isListItem = GetListItems( GetListQueryable( RockContext ).Where( co => co.Id == entityId ), RockContext ).Any();
+
+            if ( !isListItem )
             {
                 return ActionBadRequest( $"{ConnectionOpportunity.FriendlyTypeName} not found." );
             }

@@ -195,21 +195,15 @@ $(document).ready(function () {
             {
                 bool isAccept = ( PageParameter( PageParameterKey.IsAccept ) == "1" );
                 bool isDecline = ( PageParameter( PageParameterKey.IsAccept ) == "0" );
-                var attendanceOccurrenceId = PageParameter( PageParameterKey.AttendanceOccurrenceId ).AsIntegerOrNull();
+                var attendanceOccurrenceId = GetSingleOccurrenceId();
                 var attendanceOccurrenceIdList = GetMultipleOccurrenceIds();
-
-                if ( ( attendanceOccurrenceId == null ) && ( attendanceOccurrenceIdList.Count == 1 ) )
-                {
-                    // If only one occurrence ID is specified in the list, move it to the individual occurrence ID and treat it as a single RSVP response.
-                    attendanceOccurrenceId = attendanceOccurrenceIdList.First();
-                }
 
                 if ( attendanceOccurrenceId != null )
                 {
                     // Using a single occurrece.
                     if ( isAccept )
                     {
-                        if ( GroupHasAttributes() )
+                        if ( GroupHasAttributes( attendanceOccurrenceId.Value, person ) )
                         {
                             // If the group has GroupMember attributes, write the RSVP but show the decision form.
                             WriteEmailAcceptResponse( attendanceOccurrenceId.Value, person );
@@ -245,15 +239,19 @@ $(document).ready(function () {
             }
             else
             {
-                var attendanceOccurrenceId = PageParameter( PageParameterKey.AttendanceOccurrenceId ).AsIntegerOrNull();
+                // Rebuild the same mode that was displayed on the initial load.
+                var attendanceOccurrenceId = GetSingleOccurrenceId();
                 if ( attendanceOccurrenceId != null )
                 {
-                    BuildAttributeControls();
+                    BuildAttributeControls( attendanceOccurrenceId.Value, person );
                 }
-                var attendanceOccurrenceIdList = GetMultipleOccurrenceIds();
-                if ( attendanceOccurrenceIdList.Any() )
+                else
                 {
-                    RebuildMultipleOccurrenceDataItems( attendanceOccurrenceIdList, person );
+                    var attendanceOccurrenceIdList = GetMultipleOccurrenceIds();
+                    if ( attendanceOccurrenceIdList.Any() )
+                    {
+                        RebuildMultipleOccurrenceDataItems( attendanceOccurrenceIdList, person );
+                    }
                 }
             }
         }
@@ -290,7 +288,7 @@ $(document).ready(function () {
         protected void lbAccept_Single_Click( object sender, EventArgs e )
         {
             var person = GetPerson();
-            var attendanceOccurrenceId = PageParameter( PageParameterKey.AttendanceOccurrenceId ).AsIntegerOrNull();
+            var attendanceOccurrenceId = GetSingleOccurrenceId();
             if ( person == null || attendanceOccurrenceId == null )
             {
                 // Invalid person action identifier.
@@ -309,7 +307,7 @@ $(document).ready(function () {
         protected void lbDecline_Single_Click( object sender, EventArgs e )
         {
             var person = GetPerson();
-            var attendanceOccurrenceId = PageParameter( PageParameterKey.AttendanceOccurrenceId ).AsIntegerOrNull();
+            var attendanceOccurrenceId = GetSingleOccurrenceId();
             if ( person == null || attendanceOccurrenceId == null )
             {
                 // Invalid person action identifier.
@@ -317,7 +315,8 @@ $(document).ready(function () {
                 return;
             }
 
-            ShowSingleOccurrence_Decline( attendanceOccurrenceId.Value, person );
+            // Pass the attribute placeholder so any values the person entered on the choice form are saved (for existing group members).
+            ShowSingleOccurrence_Decline( attendanceOccurrenceId.Value, person, phAttributes );
         }
 
         protected void lbAccept_Multiple_Click( object sender, EventArgs e )
@@ -345,11 +344,32 @@ $(document).ready(function () {
             if ( declineReason.HasValue )
             {
                 int occurrenceId = hfDeclineReason_OccurrenceId.Value.AsInteger();
+
+                // The occurrence must be the one specified in the query string.
+                var attendanceOccurrenceId = PageParameter( PageParameterKey.AttendanceOccurrenceId ).AsIntegerOrNull();
+                if ( attendanceOccurrenceId != occurrenceId && !GetMultipleOccurrenceIds().Contains( occurrenceId ) )
+                {
+                    return;
+                }
+
                 using ( var rockContext = new RockContext() )
                 {
                     var person = GetPerson();
+                    if ( person == null )
+                    {
+                        nbNotAuthorized.Visible = true;
+                        return;
+                    }
+
                     var attendanceOccurrenceService = new AttendanceOccurrenceService( rockContext );
                     var occurrence = attendanceOccurrenceService.Get( occurrenceId );
+
+                    // The same expiration rule that is applied when displaying the decline form.
+                    if ( occurrence == null || occurrence.OccurrenceDate.EndOfDay() < RockDateTime.Now )
+                    {
+                        return;
+                    }
+
                     person = new PersonService( rockContext ).Get( person.Guid );
                     UpdateOrCreateAttendanceRecord( occurrence, person, rockContext, Rock.Model.RSVP.No, null, declineReason.Value, rtbDeclineNote.Text );
                 }
@@ -371,9 +391,36 @@ $(document).ready(function () {
             using ( var rockContext = new RockContext() )
             {
                 var occurrence = new AttendanceOccurrenceService( rockContext ).Get( occurrenceId );
+
+                // The same expiration rule that is applied when displaying the choice form.
+                if ( occurrence == null || occurrence.OccurrenceDate.EndOfDay() < RockDateTime.Now )
+                {
+                    return;
+                }
+
                 person = new PersonService( rockContext ).Get( person.Guid );
                 UpdateOrCreateAttendanceRecord( occurrence, person, rockContext, Rock.Model.RSVP.Yes );
             }
+        }
+
+        /// <summary>
+        /// Gets the single Occurrence ID from the query string. This is the AttendanceOccurrenceId
+        /// parameter or, if that is not specified, the only ID in the AttendanceOccurrenceIds list.
+        /// </summary>
+        private int? GetSingleOccurrenceId()
+        {
+            var attendanceOccurrenceId = PageParameter( PageParameterKey.AttendanceOccurrenceId ).AsIntegerOrNull();
+            if ( attendanceOccurrenceId == null )
+            {
+                var attendanceOccurrenceIdList = GetMultipleOccurrenceIds();
+                if ( attendanceOccurrenceIdList.Count == 1 )
+                {
+                    // If only one occurrence ID is specified in the list, treat it as a single RSVP response.
+                    attendanceOccurrenceId = attendanceOccurrenceIdList.First();
+                }
+            }
+
+            return attendanceOccurrenceId;
         }
 
         /// <summary>
@@ -562,13 +609,18 @@ $(document).ready(function () {
         /// <summary>
         /// Rebuilds the dynamic attribute value controls (for single occurrence mode) after a postback.
         /// </summary>
-        private void BuildAttributeControls()
+        /// <param name="occurrenceId">The ID of the AttendanceOccurrence.</param>
+        /// <param name="person">The Person record of the respondent.</param>
+        private void BuildAttributeControls( int occurrenceId, Person person )
         {
             using ( var rockContext = new RockContext() )
             {
-                var person = GetPerson();
-                var occurrenceId = PageParameter( PageParameterKey.AttendanceOccurrenceId ).AsInteger();
                 var occurrence = new AttendanceOccurrenceService( rockContext ).Get( occurrenceId );
+                if ( occurrence == null )
+                {
+                    return;
+                }
+
                 var groupMember = occurrence.Group.Members.Where( gm => gm.PersonId == person.Id ).FirstOrDefault();
                 if ( groupMember == null )
                 {
@@ -588,14 +640,19 @@ $(document).ready(function () {
         /// <summary>
         /// Tests the group to see if there are any GroupMember attributes.
         /// </summary>
+        /// <param name="occurrenceId">The ID of the AttendanceOccurrence.</param>
+        /// <param name="person">The Person record of the respondent.</param>
         /// <returns></returns>
-        private bool GroupHasAttributes()
+        private bool GroupHasAttributes( int occurrenceId, Person person )
         {
             using ( var rockContext = new RockContext() )
             {
-                var person = GetPerson();
-                var occurrenceId = PageParameter( PageParameterKey.AttendanceOccurrenceId ).AsInteger();
                 var occurrence = new AttendanceOccurrenceService( rockContext ).Get( occurrenceId );
+                if ( occurrence == null )
+                {
+                    return false;
+                }
+
                 var groupMember = occurrence.Group.Members.Where( gm => gm.PersonId == person.Id ).FirstOrDefault();
                 if ( groupMember == null )
                 {
@@ -609,6 +666,27 @@ $(document).ready(function () {
                 var publicAttributes = new GroupMemberPublicAttributeCollection( groupMember );
                 return publicAttributes.Attributes.Any();
             }
+        }
+
+        /// <summary>
+        /// Gets the friendly names of the public GroupMember attributes defined on the occurrence's group. Used to tell a non-member which fields aren't saved on Decline.
+        /// </summary>
+        /// <param name="occurrence">The AttendanceOccurrence whose group defines the attributes.</param>
+        /// <param name="person">The responding person.</param>
+        private List<string> GetPublicAttributeNames( AttendanceOccurrence occurrence, Person person )
+        {
+            var transientMember = new GroupMember
+            {
+                PersonId = person.Id,
+                GroupId = occurrence.Group.Id,
+                GroupRoleId = occurrence.Group.GroupType.DefaultGroupRoleId ?? 0
+            };
+            var publicAttributes = new GroupMemberPublicAttributeCollection( transientMember );
+
+            return publicAttributes.Attributes.Values
+                .OrderBy( a => a.Order )
+                .Select( a => a.Name )
+                .ToList();
         }
 
         /// <summary>
@@ -634,6 +712,9 @@ $(document).ready(function () {
                     Show404( true, GetOccurrenceTitle( occurrence ) );
                     return;
                 }
+
+                // Override the markup default ("RSVP for Event") with the actual occurrence name.
+                lHeading.Text = GetOccurrenceTitle( occurrence );
 
                 person = new PersonService( rockContext ).Get( person.Guid );
                 UpdateOrCreateAttendanceRecord( occurrence, person, rockContext, Rock.Model.RSVP.Yes, phAttributes );
@@ -696,10 +777,12 @@ $(document).ready(function () {
 
             // Note that GroupMember attributes are being set, here.  If this control saves multiple attendance records for a same group (e.g., the same group meets on multiple dates and the user RSVPs to
             // more than one) it will overwrite values.
-            if ( ( attributePlaceHolder != null ) && ( rsvpStatus == Rock.Model.RSVP.Yes ) )
+            if ( attributePlaceHolder != null )
             {
                 var groupMember = occurrence.Group.Members.Where( gm => gm.PersonId == person.Id ).FirstOrDefault();
-                if ( groupMember == null )
+
+                // Only auto-enroll a new GroupMember when the RSVP is accepted, so declining doesn't silently add the person to the group.
+                if ( groupMember == null && rsvpStatus == Rock.Model.RSVP.Yes )
                 {
                     groupMember = new GroupMember();
                     groupMember.PersonId = person.Id;
@@ -710,11 +793,15 @@ $(document).ready(function () {
                     rockContext.SaveChanges();
                 }
 
-                groupMember.LoadAttributes();
+                // Save attribute values for existing group members regardless of accept/decline, so values typed into the form aren't discarded.
+                if ( groupMember != null )
+                {
+                    groupMember.LoadAttributes();
 
-                Helper.GetEditValues( attributePlaceHolder, groupMember );
+                    Helper.GetEditValues( attributePlaceHolder, groupMember );
 
-                groupMember.SaveAttributeValues();
+                    groupMember.SaveAttributeValues();
+                }
             }
 
             rockContext.SaveChanges();
@@ -725,7 +812,8 @@ $(document).ready(function () {
         /// </summary>
         /// <param name="occurrenceId">The ID of the AttendanceOccurrence.</param>
         /// <param name="person">The Person record of the respondent.</param>
-        private void ShowSingleOccurrence_Decline( int occurrenceId, Person person )
+        /// <param name="attributePlaceHolder">(Optional) PlaceHolder containing the GroupMember attribute editor. Passed when the user clicked Decline from the choice form so any values they entered are saved.</param>
+        private void ShowSingleOccurrence_Decline( int occurrenceId, Person person, PlaceHolder attributePlaceHolder = null )
         {
             using ( var rockContext = new RockContext() )
             {
@@ -744,15 +832,37 @@ $(document).ready(function () {
                     return;
                 }
 
+                // Override the markup default ("RSVP for Event") with the actual occurrence name.
+                lHeading.Text = GetOccurrenceTitle( occurrence );
+
                 pnlForm.Visible = false;
                 pnlSingle_Choice.Visible = false;
 
                 person = new PersonService( rockContext ).Get( person.Guid );
-                UpdateOrCreateAttendanceRecord( occurrence, person, rockContext, Rock.Model.RSVP.No );
+
+                // Capture group-member status before the save so we can tell if the responder is being treated as a non-member.
+                var isExistingGroupMember = occurrence.Group.Members.Any( gm => gm.PersonId == person.Id );
+
+                UpdateOrCreateAttendanceRecord( occurrence, person, rockContext, Rock.Model.RSVP.No, attributePlaceHolder );
                 hfDeclineReason_OccurrenceId.Value = occurrenceId.ToString();
 
                 // Show Single Occurrence Decline form.
                 pnlSingle_Decline.Visible = true;
+
+                // If the responder isn't a member of the group, GroupMember attribute values entered on the form weren't persisted (declining shouldn't silently enroll the person).
+                // Let them know which fields aren't saved so they aren't surprised later.
+                if ( attributePlaceHolder != null && !isExistingGroupMember )
+                {
+                    var publicAttributeNames = GetPublicAttributeNames( occurrence, person );
+                    if ( publicAttributeNames.Any() )
+                    {
+                        nbDeclineAttributesNotSaved.Text = string.Format(
+                            "Note: No values were saved for the {0} {1} because you aren't a member of this group.",
+                            publicAttributeNames.AsDelimited( ", ", " and " ),
+                            publicAttributeNames.Count == 1 ? "field" : "fields" );
+                        nbDeclineAttributesNotSaved.Visible = true;
+                    }
+                }
 
                 var mergeFields = Rock.Lava.LavaHelper.GetCommonMergeFields( RockPage, CurrentPerson );
                 if ( !string.IsNullOrEmpty( occurrence.DeclineConfirmationMessage ) )
@@ -992,9 +1102,22 @@ $(document).ready(function () {
                 HiddenField hfOccurrenceId = item.FindControl( "hfOccurrenceId" ) as HiddenField;
                 PlaceHolder phOccurrenceAttributes = item.FindControl( "phOccurrenceAttributes" ) as PlaceHolder;
 
-                int occurrenceId = int.Parse( hfOccurrenceId.Value );
+                int occurrenceId = hfOccurrenceId.Value.AsInteger();
+
+                // The occurrence must be one of the occurrences specified in the query string.
+                if ( !GetMultipleOccurrenceIds().Contains( occurrenceId ) )
+                {
+                    return false;
+                }
+
                 var attendanceOccurrenceService = new AttendanceOccurrenceService( rockContext );
                 var occurrence = attendanceOccurrenceService.Get( occurrenceId );
+
+                // The same expiration rule that is applied when displaying the occurrences.
+                if ( occurrence == null || occurrence.OccurrenceDate.EndOfDay() < RockDateTime.Now )
+                {
+                    return false;
+                }
 
                 person = new PersonService( rockContext ).Get( person.Guid );
                 UpdateOrCreateAttendanceRecord( occurrence, person, rockContext, Rock.Model.RSVP.Yes, phOccurrenceAttributes );

@@ -15,6 +15,7 @@
 // </copyright>
 //
 
+using System;
 using System.Collections.Generic;
 
 using Rock.Data;
@@ -35,6 +36,13 @@ namespace Rock.AI.Agent
         /// Gets the unique identifier for this AI agent configuration.
         /// </summary>
         public int AgentId { get; }
+
+        /// <summary>
+        /// Gets the unique identifier of the <see cref="Model.AIAgent"/> that this
+        /// configuration was built from. This is <c>null</c> when the configuration
+        /// was created without a backing agent, such as in tests.
+        /// </summary>
+        public Guid? AgentGuid { get; }
 
         /// <inheritdoc cref="Model.AIAgent.AgentType"/>
         public AgentType AgentType { get; }
@@ -61,6 +69,12 @@ namespace Rock.AI.Agent
         /// </summary>
         public ModelServiceRole Role { get; }
 
+        /// <summary>
+        /// Gets the reasoning effort the agent asks the language model to spend
+        /// when responding to a chat message.
+        /// </summary>
+        public ReasoningEffort ReasoningEffort { get; }
+
         /// <inheritdoc cref="ChatAgentSettings.CurrentPersonTemplate"/>
         public string CurrentPersonTemplate { get; set; }
 
@@ -83,6 +97,7 @@ namespace Rock.AI.Agent
         internal AgentConfiguration( AIAgentCache agent, List<SkillConfiguration> skills, AgentProviderComponent provider )
         {
             AgentId = agent.Id;
+            AgentGuid = agent.Guid;
             AgentType = agent.AgentType;
             AudienceType = agent.AudienceType;
             Instructions = agent.Instructions ?? string.Empty;
@@ -91,8 +106,9 @@ namespace Rock.AI.Agent
             Skills = skills ?? new List<SkillConfiguration>();
 
             var settings = agent.GetAdditionalSettings<ChatAgentSettings>();
-            AutoSummarizeThreshold = settings.AutoSummarizeThreshold;
+            AutoSummarizeThreshold = settings.AutoSummarizeThreshold ?? 60_000;
             Role = settings.Role;
+            ReasoningEffort = settings.ReasoningEffort ?? ReasoningEffort.Low;
             CurrentPersonTemplate = settings.CurrentPersonTemplate;
         }
 
@@ -123,11 +139,12 @@ namespace Rock.AI.Agent
             AgentId = agentId;
             AgentType = agentType;
             AudienceType = audienceType;
-            AutoSummarizeThreshold = settings.AutoSummarizeThreshold;
+            AutoSummarizeThreshold = settings.AutoSummarizeThreshold ?? 60_000;
             Name = name;
             Provider = provider;
             Instructions = instructions ?? string.Empty;
             Role = settings.Role;
+            ReasoningEffort = settings.ReasoningEffort ?? ReasoningEffort.Low;
             Skills = skills ?? new List<SkillConfiguration>();
         }
     }

@@ -31,7 +31,7 @@ namespace Rock.AI.Agent
         /// when a new user message is added. This only applies to persisted
         /// sessions.
         /// </summary>
-        public int AutoSummarizeThreshold { get; set; } = 60_000;
+        public int? AutoSummarizeThreshold { get; set; }
 
         /// <summary>
         /// Determines if system skills are excluded from this agent. These are
@@ -45,6 +45,13 @@ namespace Rock.AI.Agent
         /// model to use.
         /// </summary>
         public ModelServiceRole Role { get; set; }
+
+        /// <summary>
+        /// How much reasoning effort the language model should spend when
+        /// responding to a chat message. When <c>null</c> a low effort is
+        /// used, which matches the behavior before this setting existed.
+        /// </summary>
+        public ReasoningEffort? ReasoningEffort { get; set; }
 
         /// <summary>
         /// The Lava template that will be used to generate the current person

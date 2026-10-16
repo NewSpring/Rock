@@ -237,6 +237,12 @@ namespace Rock.Blocks.Communication
 
             // Build the communication template (without saving).
             var communicationTemplate = GetOrCreateFlowCommunicationTemplate( this.RockContext, bag.CommunicationTemplate );
+
+            if ( !AreTemplateBinaryFilesAllowed( this.RockContext, currentPerson, communicationTemplate, bag.CommunicationTemplate ) )
+            {
+                return ActionBadRequest( "Invalid attachment." );
+            }
+
             ApplyBagToCommunicationTemplate( this.RockContext, communicationTemplate, bag.CommunicationTemplate );
 
             // Build the communication (without saving).
@@ -595,6 +601,12 @@ namespace Rock.Blocks.Communication
         {
             communicationTemplate = GetOrCreateFlowCommunicationTemplate( this.RockContext, bag );
 
+            if ( !AreTemplateBinaryFilesAllowed( this.RockContext, currentPerson, communicationTemplate, bag ) )
+            {
+                errorResult = new ValidationResult( "Invalid attachment." );
+                return false;
+            }
+
             ApplyBagToCommunicationTemplate( this.RockContext, communicationTemplate, bag );
 
             if ( !ValidateCommunicationTemplate( this.RockContext, currentPerson, communicationTemplate, out errorResult ) )
@@ -883,6 +895,55 @@ namespace Rock.Blocks.Communication
             return true;
         }
         
+        /// <summary>
+        /// Determines whether the binary files sent by the client for the template
+        /// (image, email attachments and SMS attachment) may be used. A file is
+        /// allowed if it is already used by the template, or if it is a temporary
+        /// file that was not uploaded by somebody else.
+        /// </summary>
+        /// <param name="rockContext">The rock context.</param>
+        /// <param name="currentPerson">The current person.</param>
+        /// <param name="communicationTemplate">The existing or new communication template.</param>
+        /// <param name="bag">The template bag sent by the client.</param>
+        /// <returns><c>true</c> if all the binary files may be used; otherwise <c>false</c>.</returns>
+        private bool AreTemplateBinaryFilesAllowed( RockContext rockContext, Person currentPerson, CommunicationTemplate communicationTemplate, CommunicationFlowDetailCommunicationTemplateBag bag )
+        {
+            var binaryFileService = new BinaryFileService( rockContext );
+            var currentBinaryFileGuids = new List<Guid>();
+
+            if ( communicationTemplate.Id != 0 )
+            {
+                currentBinaryFileGuids = new CommunicationTemplateAttachmentService( rockContext )
+                    .Queryable()
+                    .Where( a => a.CommunicationTemplateId == communicationTemplate.Id )
+                    .Select( a => a.BinaryFile.Guid )
+                    .ToList();
+
+                if ( communicationTemplate.ImageFile != null )
+                {
+                    currentBinaryFileGuids.Add( communicationTemplate.ImageFile.Guid );
+                }
+
+                if ( communicationTemplate.LogoBinaryFile != null )
+                {
+                    currentBinaryFileGuids.Add( communicationTemplate.LogoBinaryFile.Guid );
+                }
+            }
+
+            var postedBinaryFileGuids = new List<Guid?>
+            {
+                bag.ImageFile?.Value?.AsGuidOrNull(),
+                bag.SmsAttachmentBinaryFile?.Value?.AsGuidOrNull()
+            };
+
+            postedBinaryFileGuids.AddRange( bag.EmailAttachmentBinaryFiles?.Select( a => a.Value?.AsGuidOrNull() ) ?? Enumerable.Empty<Guid?>() );
+
+            return postedBinaryFileGuids
+                .Where( g => g.HasValue && !g.Value.IsEmpty() && !currentBinaryFileGuids.Contains( g.Value ) )
+                .All( g => binaryFileService.IsUploadedBinaryFileAllowedForPerson( g, null, currentPerson ) );
+        }
+
+
         private CommunicationTemplate GetOrCreateFlowCommunicationTemplate( RockContext rockContext, CommunicationFlowDetailCommunicationTemplateBag bag )
         {
             var communicationTemplateService = new CommunicationTemplateService( rockContext );
@@ -1306,6 +1367,10 @@ namespace Rock.Blocks.Communication
                 .AddRule( new AssetAndFileManagerSecurityGrantRule( Authorization.VIEW ) )
                 .AddRule( new AssetAndFileManagerSecurityGrantRule( Authorization.EDIT ) )
                 .AddRule( new AssetAndFileManagerSecurityGrantRule( Authorization.DELETE ) )
+                // Uploads are checked separately from the asset manager, so
+                // allow uploads to the default folder and to providers.
+                .AddRule( new FileUploadSecurityGrantRule( "~/Content" ) )
+                .AddRule( FileUploadSecurityGrantRule.ForAssetStorageProviders() )
                 .AddRule( new EmailEditorSecurityGrantRule() )
                 .ToToken();
         }
@@ -1404,11 +1469,18 @@ namespace Rock.Blocks.Communication
                 return null;
             }
 
+            // Determine which messages already have performance data (have been sent) so the editor
+            // can warn before a delete would discard that data, even when the flow is inactive.
+            var flowCommunicationIds = entity.CommunicationFlowCommunications?.Select( cfc => cfc.Id ).ToList() ?? new List<int>();
+            var communicationIdsWithPerformanceData = flowCommunicationIds.Any()
+                ? new CommunicationFlowInstanceCommunicationService( RockContext ).GetIdsWithSentCommunications( flowCommunicationIds ).ToHashSet()
+                : new HashSet<int>();
+
             var bag = new CommunicationFlowBag
             {
                 IdKey = entity.IdKey,
                 Category = entity.Category.ToListItemBag(),
-                Communications = entity.CommunicationFlowCommunications?.Select( c => GetEntityBag( c ) )?.ToList(),
+                Communications = entity.CommunicationFlowCommunications?.Select( cfc => GetEntityBag( cfc, communicationIdsWithPerformanceData ) )?.ToList(),
                 ConversionGoalSettings = GetConversionGoalSettingsBag( entity ),
                 ConversionGoalTargetPercent = entity.ConversionGoalTargetPercent,
                 ConversionGoalTimeframeInDays = entity.ConversionGoalTimeframeInDays,
@@ -1433,7 +1505,7 @@ namespace Rock.Blocks.Communication
             return bag;
         }
 
-        private CommunicationFlowCommunicationBag GetEntityBag( CommunicationFlowCommunication entity )
+        private CommunicationFlowCommunicationBag GetEntityBag( CommunicationFlowCommunication entity, HashSet<int> communicationIdsWithPerformanceData )
         {
             if ( entity == null )
             {
@@ -1448,7 +1520,8 @@ namespace Rock.Blocks.Communication
                 CommunicationType = ( Enums.Communication.CommunicationType ) ( int ) entity.CommunicationType,
                 Name = entity.Name,
                 Order = entity.Order,
-                TimeToSend = entity.TimeToSend
+                TimeToSend = entity.TimeToSend,
+                HasPerformanceData = communicationIdsWithPerformanceData?.Contains( entity.Id ) == true
             };
 
             return bag;
@@ -1675,7 +1748,13 @@ namespace Rock.Blocks.Communication
             }
         }
 
-        /// <inheritdoc/>
+        /// <summary>
+        /// Updates the entity from the information in the bag.
+        /// </summary>
+        /// <param name="rockContext">The Rock context.</param>
+        /// <param name="entity">The entity to update.</param>
+        /// <param name="bag">The bag containing the values to apply to the entity.</param>
+        /// <returns><c>true</c> if the entity was updated; otherwise <c>false</c>.</returns>
         private bool UpdateEntityFromBag( RockContext rockContext, CommunicationFlow entity, CommunicationFlowBag bag )
         {
             var reprocessConversionsSnapshot = new ReprocessCommunicationFlowConversionsSnapshot( entity );
@@ -1683,6 +1762,7 @@ namespace Rock.Blocks.Communication
 
             var communicationTemplateService = new CommunicationTemplateService( rockContext );
             var communicationFlowCommunicationService = new CommunicationFlowCommunicationService( rockContext );
+            var communicationFlowInstanceCommunicationService = new CommunicationFlowInstanceCommunicationService( rockContext );
 
             entity.SetConversionGoalSettings( GetConversionGoalSettings( bag.ConversionGoalSettings ) );
             entity.CategoryId = bag.Category.GetEntityId<Category>( RockContext );
@@ -1728,6 +1808,37 @@ namespace Rock.Blocks.Communication
 
             // Communications
             var updatedEntityToBagMappings = new Dictionary<CommunicationFlowCommunication, CommunicationFlowCommunicationBag>();
+
+            var communicationsBeingRemoved = entity.CommunicationFlowCommunications
+                .Where( cfc => !bag.Communications.Any( cfcb => cfcb.Guid == cfc.Guid ) )
+                .ToList();
+
+            /*
+                07/01/26 - JMH
+
+                A flow message that has already been sent or scheduled has
+                CommunicationFlowInstanceCommunication rows referencing it through a non-cascading
+                foreign key, so deleting the message directly throws an FK constraint error. Deleting
+                the whole flow avoids this because those rows are removed first via the flow instance
+                cascade; a single message delete has no such path. The delete confirmation already
+                warns the user that any performance data will be lost, so remove those instance
+                communication rows first (their conversion rows cascade at the database level) before
+                deleting the message itself. The underlying Communication records are intentionally
+                left intact, matching how a full flow delete behaves.
+
+                Reason: Deleting an already-sent flow message failed with an FK constraint error (#6890).
+            */
+            if ( communicationsBeingRemoved.Any() )
+            {
+                var idsOfCommunicationsBeingRemoved = communicationsBeingRemoved.Select( cfc => cfc.Id ).ToList();
+
+                var instanceCommunicationsToDelete = communicationFlowInstanceCommunicationService
+                    .Queryable()
+                    .Where( cfic => idsOfCommunicationsBeingRemoved.Contains( cfic.CommunicationFlowCommunicationId ) )
+                    .ToList();
+
+                communicationFlowInstanceCommunicationService.DeleteRange( instanceCommunicationsToDelete );
+            }
 
             // Remove old.
             foreach ( var communicationFlowCommunication in entity.CommunicationFlowCommunications.ToList())
