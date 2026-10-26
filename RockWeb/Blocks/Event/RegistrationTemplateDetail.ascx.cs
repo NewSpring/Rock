@@ -569,7 +569,7 @@ The logged-in person's information will be used to complete the registrar inform
         {
             var breadCrumbs = new List<BreadCrumb>();
 
-            var registrationTemplateId = PageParameter( pageReference, PageParameterKey.RegistrationTemplateId ).AsIntegerOrNull();
+            var registrationTemplateId = PageParameter( pageReference, PageParameterKey.RegistrationTemplateId ).AsIntegerOrNull() ?? Rock.Utility.IdHasher.Instance.GetId( PageParameter( pageReference, PageParameterKey.RegistrationTemplateId ) );
             if ( registrationTemplateId.HasValue )
             {
                 var registrationTemplate = GetRegistrationTemplate( registrationTemplateId.Value );
@@ -871,6 +871,27 @@ The logged-in person's information will be used to complete the registrar inform
             if ( registrationTemplateId.HasValue )
             {
                 registrationTemplate = registrationTemplateService.Get( registrationTemplateId.Value );
+            }
+
+            /*
+                10/14/2026 - MSE
+
+                The template Id comes from a client posted hidden field, so a person who can
+                only edit one template could point this save at a different template's Id and
+                overwrite it (and delete its forms, fees, discounts and attributes) without any
+                rights to it. Re-authorize the loaded template here, before any posted value is
+                copied onto it, using the same Edit rights that gate opening it for edit
+                ( btnEdit_Click and ShowDetail ).
+
+                Reason: Save must not trust the posted Id; it must check edit rights on the actual template being written.
+            */
+            if ( registrationTemplate != null
+                && !UserCanEdit
+                && !registrationTemplate.IsAuthorized( Authorization.EDIT, CurrentPerson ) )
+            {
+                nbValidationError.Visible = true;
+                nbValidationError.Text = "You are not authorized to edit this registration template.";
+                return;
             }
 
             if ( registrationTemplate == null )
@@ -1466,7 +1487,7 @@ The logged-in person's information will be used to complete the registrar inform
         {
             if ( hfRegistrationTemplateId.Value.Equals( "0" ) )
             {
-                var parentCategoryId = PageParameter( PageParameterKey.ParentCategoryId ).AsIntegerOrNull();
+                var parentCategoryId = PageParameter( PageParameterKey.ParentCategoryId ).AsIntegerOrNull() ?? Rock.Utility.IdHasher.Instance.GetId( PageParameter( PageParameterKey.ParentCategoryId ) );
                 if ( parentCategoryId.HasValue )
                 {
                     // Canceling on Add, and we know the parentCategoryId, so we are probably in tree-view mode, so navigate to the current page.
@@ -2414,8 +2435,8 @@ The logged-in person's information will be used to complete the registrar inform
         /// </summary>
         private void ShowDetail()
         {
-            var registrationTemplateId = PageParameter( PageParameterKey.RegistrationTemplateId ).AsIntegerOrNull();
-            var parentCategoryId = PageParameter( PageParameterKey.ParentCategoryId ).AsIntegerOrNull();
+            var registrationTemplateId = PageParameter( PageParameterKey.RegistrationTemplateId ).AsIntegerOrNull() ?? Rock.Utility.IdHasher.Instance.GetId( PageParameter( PageParameterKey.RegistrationTemplateId ) );
+            var parentCategoryId = PageParameter( PageParameterKey.ParentCategoryId ).AsIntegerOrNull() ?? Rock.Utility.IdHasher.Instance.GetId( PageParameter( PageParameterKey.ParentCategoryId ) );
 
             if ( !registrationTemplateId.HasValue )
             {

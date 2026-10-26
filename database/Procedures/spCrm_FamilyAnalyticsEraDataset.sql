@@ -95,7 +95,7 @@ BEGIN
     INNER JOIN [FinancialAccount] fa ON fa.[Id] = ftd.AccountId
     WHERE ft.TransactionTypeValueId = @ContributionType
         AND fa.[IsTaxDeductible] = 1
-        AND ft.TransactionDateTime >= @SundayEntryGivingDurationLong
+        AND ft.SundayDate > @SundayEntryGivingDurationLong
     GROUP BY g1.GivingId
         ,ft.TransactionDateTime
         ,SundayDate
@@ -118,7 +118,7 @@ BEGIN
     INNER JOIN [Group] fg ON fg.[Id] = fgm.[GroupId]
         AND fg.[GroupTypeId] = @FamilyGroupTypeId
     WHERE a.[DidAttend] = 1
-        AND a.StartDateTime >= @SundayExitAttendanceDurationLong
+        AND O.SundayDate > @SundayExitAttendanceDurationLong
         AND fgm.IsArchived = 0
         AND fg.IsArchived = 0
     GROUP BY O.SundayDate
@@ -131,7 +131,7 @@ BEGIN
 	INSERT INTO @TempEntryGiftCountDurationShort
 	SELECT GivingId, SUM(ft.DistinctCount)
 	FROM @TempFinancialTransactionByDateAndGivingId ft
-	WHERE ft.TransactionDateTime >= @SundayEntryGivingDurationShort
+	WHERE ft.SundayDate > @SundayEntryGivingDurationShort
 		AND ft.SundayDate <= @SundayDateStart
 	GROUP BY GivingId
 	DECLARE @TempExitGiftCountDuration TABLE (
@@ -141,7 +141,7 @@ BEGIN
 	INSERT INTO @TempExitGiftCountDuration
 	SELECT GivingId, ISNULL(SUM(ft.DistinctCount), 0)
 	FROM @TempFinancialTransactionByDateAndGivingId ft
-	WHERE ft.TransactionDateTime >= @SundayExitGivingDuration
+	WHERE ft.SundayDate > @SundayExitGivingDuration
 		AND ft.SundayDate <= @SundayDateStart
 	GROUP BY GivingId
 	DECLARE @TempEntryGiftCountDurationLong TABLE (
@@ -151,7 +151,7 @@ BEGIN
 	INSERT INTO @TempEntryGiftCountDurationLong
 	SELECT GivingId, ISNULL(SUM(ft.DistinctCount), 0) AS [EntryGiftCountDurationLong]
 					FROM @TempFinancialTransactionByDateAndGivingId ft
-					WHERE ft.TransactionDateTime >= @SundayEntryGivingDurationLong
+					WHERE ft.SundayDate > @SundayEntryGivingDurationLong
 						AND ft.SundayDate <= @SundayDateStart
 	GROUP BY GivingId
 	DECLARE @TempExitAttendanceCountDurationShort TABLE (
@@ -161,8 +161,8 @@ BEGIN
 	INSERT INTO @TempExitAttendanceCountDurationShort
 	SELECT FamilyId, COUNT(DISTINCT a.SundayDate) AS [ExitAttendanceCountDurationShort]
 					FROM @TempAttendanceBySundayDateAndFamily a
-					WHERE a.StartDateTime <= @SundayDateStart
-						AND a.StartDateTime >= @SundayExitAttendanceDurationShort
+					WHERE a.SundayDate <= @SundayDateStart
+						AND a.SundayDate > @SundayExitAttendanceDurationShort
 	GROUP BY FamilyId
 	DECLARE @TempEntryAttendanceCountDuration TABLE (
 			FamilyId INT INDEX IX5 CLUSTERED
@@ -171,8 +171,8 @@ BEGIN
 	INSERT INTO @TempEntryAttendanceCountDuration
 	SELECT FamilyId, COUNT(DISTINCT a.SundayDate) AS [EntryAttendanceCountDuration]
 					FROM @TempAttendanceBySundayDateAndFamily a
-					WHERE a.StartDateTime <= @SundayDateStart
-						AND a.StartDateTime >= @SundayEntryAttendanceDuration
+					WHERE a.SundayDate <= @SundayDateStart
+						AND a.SundayDate > @SundayEntryAttendanceDuration
 	GROUP BY FamilyId
 	DECLARE @TempExitAttendanceCountDurationLong TABLE (
 			FamilyId INT INDEX IX6 CLUSTERED
@@ -181,8 +181,8 @@ BEGIN
 	INSERT INTO @TempExitAttendanceCountDurationLong
 	SELECT FamilyId, COUNT(DISTINCT a.SundayDate) AS [ExitAttendanceCountDurationLong]
 					FROM @TempAttendanceBySundayDateAndFamily a
-					WHERE a.StartDateTime <= @SundayDateStart
-						AND a.StartDateTime >= @SundayExitAttendanceDurationLong
+					WHERE a.SundayDate <= @SundayDateStart
+						AND a.SundayDate > @SundayExitAttendanceDurationLong
 	GROUP BY FamilyId
 	DECLARE @TempPersonFamilyGroupIds TABLE (
 			Id INT,
@@ -216,8 +216,8 @@ BEGIN
 		FamilyId INT,
 		INDEX IXR NONCLUSTERED([IsEra],FamilyId)
 	    )
-	DECLARE @CreatedDateTime DATETIME = GETDATE()
-	DECLARE @StartDateValue NVARCHAR(MAX) = CONVERT(nvarchar(MAX), GETDATE(), 127)
+	DECLARE @CreatedDateTime DATETIME = dbo.RockGetDate()
+	DECLARE @StartDateValue NVARCHAR(MAX) = CONVERT(nvarchar(MAX), dbo.RockGetDate(), 127)
 	INSERT INTO @TempIsEraFamilyMembers
 	SELECT p.Id,
 		Min(tgpgids.IsEra),

@@ -55,7 +55,7 @@ namespace Rock.Blocks.Types.Mobile.Core
         Description = "When enabled, swipe actions will be available for each note.",
         IsRequired = false,
         DefaultBooleanValue = true,
-        ControlType = Field.Types.BooleanFieldType.BooleanControlType.Toggle,
+        BooleanControlType = Rock.Enums.Controls.BooleanControlType.Toggle,
         Key = AttributeKey.EnableSwipeForOptions,
         Order = 1 )]
 
@@ -111,7 +111,7 @@ namespace Rock.Blocks.Types.Mobile.Core
         Description = "When enabled, notes will be grouped by date.",
         IsRequired = false,
         DefaultBooleanValue = true,
-        ControlType = Field.Types.BooleanFieldType.BooleanControlType.Toggle,
+        BooleanControlType = Rock.Enums.Controls.BooleanControlType.Toggle,
         Key = AttributeKey.GroupNotesByDate,
         Order = 9 )]
 
@@ -189,7 +189,7 @@ namespace Rock.Blocks.Types.Mobile.Core
         /// <value>
         /// The XAML template to parse on the shell.
         /// </value>
-        protected string NoteItemTemplate => Field.Types.BlockTemplateFieldType.GetTemplateContent( GetAttributeValue( AttributeKey.NoteItemTemplate ) );
+        protected string NoteItemTemplate => Field.Helper.GetBlockTemplateContent( GetAttributeValue( AttributeKey.NoteItemTemplate ) );
 
         /// <summary>
         /// Whether or not to enable swipe for options.
@@ -756,6 +756,11 @@ namespace Rock.Blocks.Types.Mobile.Core
         [BlockAction]
         public BlockActionResult LinkToPerson( LinkToPersonRequestBag options )
         {
+            if ( RequestContext.CurrentPerson == null )
+            {
+                return ActionUnauthorized();
+            }
+
             var noteService = new NoteService( RockContext );
             var personService = new PersonService( RockContext );
 
@@ -766,6 +771,26 @@ namespace Rock.Blocks.Types.Mobile.Core
             if ( note == null || person == null || noteType == null )
             {
                 return ActionNotFound();
+            }
+
+            // Check the note as it exists now, before any fields are changed,
+            // since a note's security is inherited from its note type.
+            if ( !note.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson ) )
+            {
+                return ActionForbidden( "You are not authorized to edit this note." );
+            }
+
+            if ( !person.IsAuthorized( Authorization.VIEW, RequestContext.CurrentPerson ) )
+            {
+                return ActionForbidden( "You are not authorized to view this person." );
+            }
+
+            // Only allow the person note types this block is configured for.
+            var isNoteTypeAllowed = GetLinkToPersonNoteTypes().Any( nt => nt.Id == noteType.Id );
+
+            if ( !isNoteTypeAllowed || !noteType.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson ) )
+            {
+                return ActionForbidden( "You are not authorized to use this note type." );
             }
 
             note.EntityId = person.Id;

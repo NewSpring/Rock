@@ -73,6 +73,40 @@ namespace Rock
         }
 
         /// <summary>
+        /// Determines whether this string contains the specified value, ignoring case.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Use this in place of <c>Contains</c> whenever the collection being filtered
+        /// is already in memory, such as a Rock cache or any other list. In that
+        /// situation <c>Contains</c> resolves to <see cref="string.Contains(string)"/>,
+        /// which is ordinal and therefore case sensitive. The identical expression
+        /// against an Entity Framework queryable becomes a SQL LIKE and is case
+        /// insensitive under Rock's default collation, so the two read the same in
+        /// source and behave differently at runtime.
+        /// </para>
+        /// <para>
+        /// Do not use this inside a LINQ to Entities query. Entity Framework cannot
+        /// translate it to SQL and will throw. Those queries are already case
+        /// insensitive by collation and need no helper.
+        /// </para>
+        /// </remarks>
+        /// <param name="str">The string to search within, which may be <c>null</c>.</param>
+        /// <param name="value">The string to search for, which may be <c>null</c>.</param>
+        /// <returns><c>true</c> if <paramref name="str"/> contains <paramref name="value"/> regardless of case; otherwise <c>false</c>.</returns>
+        public static bool ContainsIgnoreCase( this string str, string value )
+        {
+            if ( str == null || value == null )
+            {
+                return false;
+            }
+
+            // IndexOf rather than the Contains overload that takes a StringComparison,
+            // which does not exist on this target framework.
+            return str.IndexOf( value, StringComparison.OrdinalIgnoreCase ) >= 0;
+        }
+
+        /// <summary>
         /// Converts string to MD5 hash
         /// </summary>
         /// <param name="str">The string.</param>
@@ -270,6 +304,177 @@ namespace Rock
 
             // Everything looks okay.
             return false;
+        }
+
+        /// <summary>
+        /// Determines whether a value intended to be a redirect URL is safe to send the browser to.
+        /// A URL is safe when it contains no script injection (see <see cref="RedirectUrlContainsXss(string)"/>) and
+        /// is a local path (e.g. <c>/page/1</c> or <c>~/page/1</c>) or an absolute http(s) URL whose host matches
+        /// one of <paramref name="allowedHosts"/>.
+        /// </summary>
+        /// <param name="redirectUrl">The value intended to be used for a redirect URL.</param>
+        /// <param name="allowedHosts">
+        /// The hosts that may be redirected to. Entries may include a scheme, port or path, and a leading <c>*.</c> matches
+        /// any subdomain.
+        /// </param>
+        /// <returns><c>true</c> if <paramref name="redirectUrl"/> is safe to redirect to; otherwise, <c>false</c>.</returns>
+        public static bool IsSafeRedirectUrl( this string redirectUrl, IEnumerable<string> allowedHosts )
+        {
+            if ( redirectUrl.IsNullOrWhiteSpace() )
+            {
+                return false;
+            }
+
+            // Ensure we URL and HTML decode all characters, even if they are double/triple/etc encoded.
+            var decodedUrl = redirectUrl.GetFullyUrlDecodedValue().GetFullyHtmlDecodedValue();
+
+            if ( decodedUrl.IsNullOrWhiteSpace() || decodedUrl.RedirectUrlContainsXss() )
+            {
+                return false;
+            }
+
+            if ( IsLocalUrl( decodedUrl ) )
+            {
+                return true;
+            }
+
+            // Anything else must be a well-formed absolute URL. Rejecting what won't parse keeps browser-only forms
+            // like "https:/unsafe.com" out, and a control character (e.g. a null byte) can make parsers disagree on
+            // the host, so we'll reject those too.
+            if ( decodedUrl.Any( char.IsControl ) || !Uri.TryCreate( decodedUrl, UriKind.Absolute, out var uri ) )
+            {
+                return false;
+            }
+
+            // Only web pages are safe to redirect to. This rejects "javascript:", "ftp:" and custom app schemes.
+            if ( uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps )
+            {
+                return false;
+            }
+
+            // Text before "@" is user info, not the host, so "https://trusted.com@unsafe.com" sends the browser to
+            // unsafe.com. Redirects never need user info, so reject any such URLs.
+            if ( uri.UserInfo.IsNotNullOrWhiteSpace() )
+            {
+                return false;
+            }
+
+            return allowedHosts.Any( allowedHost => IsRedirectHostMatch( uri.Host, allowedHost ) );
+        }
+
+        /// <summary>
+        /// Determines whether a URL is a path on the current site, using the same rules as ASP.NET Core's
+        /// <c>IUrlHelper.IsLocalUrl()</c>.
+        /// </summary>
+        /// <param name="url">The URL to check.</param>
+        /// <returns><c>true</c> if <paramref name="url"/> is a local path; otherwise, <c>false</c>.</returns>
+        /// <remarks>Taken from https://github.com/dotnet/aspnetcore/blob/7c9c01bc83da59ef62638484803c8aa77e0c975e/src/Shared/ResultsHelpers/SharedUrlHelper.cs#L37-L95</remarks>
+        private static bool IsLocalUrl( string url )
+        {
+            if ( string.IsNullOrEmpty( url ) )
+            {
+                return false;
+            }
+
+            // Allows "/" or "/foo" but not "//" or "/\".
+            if ( url[0] == '/' )
+            {
+                // url is exactly "/"
+                if ( url.Length == 1 )
+                {
+                    return true;
+                }
+
+                // url doesn't start with "//" or "/\"
+                if ( url[1] != '/' && url[1] != '\\' )
+                {
+                    return !HasControlCharacter( url, 1 );
+                }
+
+                return false;
+            }
+
+            // Allows "~/" or "~/foo" but not "~//" or "~/\".
+            if ( url[0] == '~' && url.Length > 1 && url[1] == '/' )
+            {
+                // url is exactly "~/"
+                if ( url.Length == 2 )
+                {
+                    return true;
+                }
+
+                // url doesn't start with "~//" or "~/\"
+                if ( url[2] != '/' && url[2] != '\\' )
+                {
+                    return !HasControlCharacter( url, 2 );
+                }
+
+                return false;
+            }
+
+            return false;
+
+            bool HasControlCharacter( string value, int startIndex )
+            {
+                // URLs may not contain ASCII control characters.
+                for ( var i = startIndex; i < value.Length; i++ )
+                {
+                    if ( char.IsControl( value[i] ) )
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Determines whether a host matches an allowed host entry such as <c>example.com</c>, <c>https://example.com:443</c>
+        /// or <c>*.example.com</c>.
+        /// </summary>
+        /// <param name="host">The host being redirected to.</param>
+        /// <param name="allowedHost">The allowed host entry.</param>
+        /// <returns><c>true</c> if <paramref name="host"/> matches <paramref name="allowedHost"/>; otherwise, <c>false</c>.</returns>
+        private static bool IsRedirectHostMatch( string host, string allowedHost )
+        {
+            // Blank entries match nothing.
+            if ( allowedHost.IsNullOrWhiteSpace() )
+            {
+                return false;
+            }
+
+            var entry = allowedHost.Trim();
+
+            // Drop the scheme: "https://example.com" becomes "example.com".
+            var schemeIndex = entry.IndexOf( "://" );
+            if ( schemeIndex >= 0 )
+            {
+                entry = entry.Substring( schemeIndex + 3 );
+            }
+
+            // Drop the path: "example.com/page" becomes "example.com".
+            var pathIndex = entry.IndexOf( '/' );
+            if ( pathIndex >= 0 )
+            {
+                entry = entry.Substring( 0, pathIndex );
+            }
+
+            // Drop the port: "example.com:443" becomes "example.com".
+            var portIndex = entry.IndexOf( ':' );
+            if ( portIndex >= 0 )
+            {
+                entry = entry.Substring( 0, portIndex );
+            }
+
+            // "*.example.com" matches any subdomain; keeping the dot stops "unsafeexample.com" from matching.
+            if ( entry.StartsWith( "*." ) )
+            {
+                return host.EndsWith( entry.Substring( 1 ), StringComparison.OrdinalIgnoreCase );
+            }
+
+            // Everything else must match exactly, ignoring case.
+            return host.Equals( entry, StringComparison.OrdinalIgnoreCase );
         }
 
         /// <summary>
@@ -1281,6 +1486,90 @@ namespace Rock
             {
                 return null;
             }
+        }
+
+        /// <summary>
+        /// Creates a deterministic RFC 4122 version 5 (name-based, SHA-1) Guid from this string and the
+        /// specified namespace. The same namespace and string always produce the same Guid, which makes
+        /// this useful for deriving a stable identifier from a known value.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// The name is lower cased before hashing, so values differing only by letter casing (for example
+        /// "A1B2..." versus "a1b2...") produce the same Guid. This matters because the primary use is hashing
+        /// Guid strings, which reach this method in mixed casing depending on their source.
+        /// </para>
+        /// <para>
+        /// That lower casing is a deliberate deviation from canonical RFC 4122, which hashes the name bytes
+        /// exactly as supplied. Results therefore match other RFC 4122 version 5 implementations (Python's
+        /// uuid5, for example) only when the name is already lower case. Do not use this method to interoperate
+        /// with version 5 Guids generated outside of Rock from mixed-case names.
+        /// </para>
+        /// <para>
+        /// Other formatting differences are NOT normalized. A Guid string wrapped in braces or missing its
+        /// hyphens is still a different name and produces a different Guid.
+        /// </para>
+        /// </remarks>
+        /// <param name="str">The name to hash. Does not have to be a Guid.</param>
+        /// <param name="namespaceGuid">The namespace that scopes the generated Guid.</param>
+        /// <returns>A version 5 Guid derived from the namespace and this string.</returns>
+        public static Guid ToGuidV5( this string str, Guid namespaceGuid )
+        {
+            // RFC 4122 hashes the namespace in big-endian (network) byte order, but Guid.ToByteArray()
+            // returns the first three fields in little-endian order, so convert them before hashing.
+            var networkEndianNamespaceBytes = namespaceGuid.ToByteArray();
+
+            var time_low = IPAddress.HostToNetworkOrder( BitConverter.ToInt32( networkEndianNamespaceBytes, 0 ) );
+            var time_mid = IPAddress.HostToNetworkOrder( BitConverter.ToInt16( networkEndianNamespaceBytes, 4 ) );
+            var time_hi_and_version = IPAddress.HostToNetworkOrder( BitConverter.ToInt16( networkEndianNamespaceBytes, 6 ) );
+
+            Buffer.BlockCopy( BitConverter.GetBytes( time_low ), 0, networkEndianNamespaceBytes, 0, 4 );
+            Buffer.BlockCopy( BitConverter.GetBytes( time_mid ), 0, networkEndianNamespaceBytes, 4, 2 );
+            Buffer.BlockCopy( BitConverter.GetBytes( time_hi_and_version ), 0, networkEndianNamespaceBytes, 6, 2 );
+
+            // Lower case the name so Guid strings that differ only by casing hash to the same value. This is
+            // an intentional deviation from canonical RFC 4122 behavior; see the remarks on this method.
+            var nameBytes = Encoding.ASCII.GetBytes( str.ToLowerInvariant() );
+
+            var namespaceAndNameBytes = new byte[networkEndianNamespaceBytes.Length + nameBytes.Length];
+            Buffer.BlockCopy( networkEndianNamespaceBytes, 0, namespaceAndNameBytes, 0, networkEndianNamespaceBytes.Length );
+            Buffer.BlockCopy( nameBytes, 0, namespaceAndNameBytes, networkEndianNamespaceBytes.Length, nameBytes.Length );
+
+            byte[] hash;
+#if NET9_0_OR_GREATER
+            using ( var crypt = SHA1.Create() )
+#else
+            using ( var crypt = new SHA1Managed() )
+#endif
+            {
+                hash = crypt.ComputeHash( namespaceAndNameBytes );
+            }
+
+            // Use the first 16 bytes of the 20-byte SHA-1 hash as the Guid.
+            var result = new byte[16];
+            Buffer.BlockCopy( hash, 0, result, 0, 16 );
+
+            // Convert the first three fields back to the byte order the Guid constructor expects.
+            time_low = IPAddress.NetworkToHostOrder( BitConverter.ToInt32( result, 0 ) );
+            time_mid = IPAddress.NetworkToHostOrder( BitConverter.ToInt16( result, 4 ) );
+            time_hi_and_version = IPAddress.NetworkToHostOrder( BitConverter.ToInt16( result, 6 ) );
+
+            // Stamp the version as 5 in the time_hi_and_version field.
+            // https://datatracker.ietf.org/doc/html/rfc4122#section-4.1.3
+            time_hi_and_version &= 0x0FFF;
+#pragma warning disable CS0675 // Bitwise-or operator used on a sign-extended operand
+            time_hi_and_version = ( short ) ( time_hi_and_version | ( 5 << 12 ) );
+#pragma warning restore CS0675 // Bitwise-or operator used on a sign-extended operand
+
+            Buffer.BlockCopy( BitConverter.GetBytes( time_low ), 0, result, 0, 4 );
+            Buffer.BlockCopy( BitConverter.GetBytes( time_mid ), 0, result, 4, 2 );
+            Buffer.BlockCopy( BitConverter.GetBytes( time_hi_and_version ), 0, result, 6, 2 );
+
+            // Set the two most significant bits of clock_seq_hi_and_reserved to "10".
+            result[8] &= 0x3F;
+            result[8] |= 0x80;
+
+            return new Guid( result );
         }
 
         /// <summary>

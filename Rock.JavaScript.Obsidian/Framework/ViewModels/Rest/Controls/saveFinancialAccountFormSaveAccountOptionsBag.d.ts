@@ -28,6 +28,13 @@ import { Guid } from "@Obsidian/Types";
  * the SaveFinancialAccount control.
  */
 export type SaveFinancialAccountFormSaveAccountOptionsBag = {
+    /**
+     * Gets or sets the unique identifier of the system communication used to confirm a newly created
+     * login when an anonymous giver saves a payment method. Null falls back to the built-in Confirm
+     * Account system communication.
+     */
+    confirmationEmailTemplateGuid?: Guid | null;
+
     /** Gets or sets the gateway unique identifier. */
     gatewayGuid: Guid;
 
@@ -39,6 +46,19 @@ export type SaveFinancialAccountFormSaveAccountOptionsBag = {
 
     /** Gets or sets the name of the saved account. */
     savedAccountName?: string | null;
+
+    /**
+     * Gets or sets the unique identifier of the scheduled transaction to save the payment method from,
+     * when the gift was a scheduled (recurring) gift. Null for a one-time gift, which is resolved by
+     * Rock.ViewModels.Rest.Controls.SaveFinancialAccountFormSaveAccountOptionsBag.TransactionCode instead.
+     */
+    scheduledTransactionGuid?: Guid | null;
+
+    /**
+     * Gets or sets the security grant token that allows the account
+     * to be saved.
+     */
+    securityGrantToken?: string | null;
 
     /** Gets or sets the transaction code. */
     transactionCode?: string | null;

@@ -20,7 +20,6 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data.Entity;
 using System.Linq;
-using System.Web;
 
 using Rock.Attribute;
 using Rock.Cms;
@@ -929,6 +928,7 @@ namespace Rock.Blocks.Administration
                 return actionError;
             }
 
+            var originalParentPageId = entity.ParentPageId;
             var editorRoutes = box.Bag.PageRoute.SplitDelimitedValues().Distinct();
 
             // Ensure everything is valid before saving.
@@ -944,6 +944,18 @@ namespace Rock.Blocks.Administration
             }
 
             var parentPageId = entity.ParentPageId;
+
+            // Make sure the person can edit the parent page when adding a new
+            // page or moving the page to a different parent.
+            if ( parentPageId.HasValue && ( entity.Id == 0 || parentPageId != originalParentPageId ) )
+            {
+                var parentPageCache = PageCache.Get( parentPageId.Value );
+
+                if ( parentPageCache == null || !parentPageCache.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson ) )
+                {
+                    return ActionBadRequest( "Not authorized to edit the parent page." );
+                }
+            }
 
             if ( parentPageId.HasValue && parentPageId != 0 && entity.Id == 0 )
             {
@@ -978,6 +990,25 @@ namespace Rock.Blocks.Administration
                     RockContext.SaveChanges();
                 }
             } );
+
+            /*
+                7/23/26 - MSE
+
+                PageRoute is not ICacheable and the PageRoute save hook only removes
+                deleted routes from the route table, so saved routes never take effect
+                on the running node without these two calls. The page cache flush makes
+                PageCache.PageRoutes (used by PageReference.BuildUrl) pick up the route
+                changes, and ReregisterRoutes rebuilds this node's route table and
+                publishes a message bus event so other web farm nodes do the same. The
+                legacy WebForms block made the same ReregisterRoutes call after saving.
+
+                Reason: Routes saved from Page Properties did not work until an application restart.
+            */
+            PageCache.FlushPage( entity.Id );
+
+#if REVIEW_WEBFORMS
+            Rock.Web.RockRouteHandler.ReregisterRoutes();
+#endif
 
             // Ensure navigation properties will work now.
             entity = entityService.Get( entity.Id );
@@ -1049,7 +1080,7 @@ namespace Rock.Blocks.Administration
                 }
             }
 
-            string parentPageId = entity.ParentPage.IdKey;
+            string parentPageId = entity.ParentPage?.IdKey;
 
             pageService.Delete( entity );
 
@@ -1112,6 +1143,11 @@ namespace Rock.Blocks.Administration
             var pageService = new PageService( RockContext );
             var qryParams = new Dictionary<string, string>();
             var page = PageCache.GetByIdKey( bag.Key );
+
+            if ( page != null && !page.IsAuthorized( Authorization.VIEW, RequestContext.CurrentPerson ) )
+            {
+                return ActionBadRequest( $"Not authorized to view {Page.FriendlyTypeName}." );
+            }
 
             if ( page != null )
             {

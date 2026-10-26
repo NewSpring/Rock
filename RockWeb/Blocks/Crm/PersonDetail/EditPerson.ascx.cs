@@ -19,6 +19,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data.Entity;
 using System.Linq;
+using System.Web;
 using System.Web.UI;
 using System.Web.UI.WebControls;
 using Newtonsoft.Json;
@@ -450,10 +451,18 @@ namespace RockWeb.Blocks.Crm.PersonDetail
 
                         var person = personService.Get( Person.Id );
                         int? orphanedPhotoId = null;
-                        if ( person.PhotoId != imgPhoto.BinaryFileId )
+                        var photoId = imgPhoto.BinaryFileId;
+
+                        // Only accept the person's current photo or a new upload, otherwise keep the current photo.
+                        if ( !new BinaryFileService( rockContext ).IsUploadedBinaryFileAllowedForPerson( photoId, person.PhotoId, CurrentPerson ) )
+                        {
+                            photoId = person.PhotoId;
+                        }
+
+                        if ( person.PhotoId != photoId )
                         {
                             orphanedPhotoId = person.PhotoId;
-                            person.PhotoId = imgPhoto.BinaryFileId;
+                            person.PhotoId = photoId;
                         }
 
                         person.TitleValueId = dvpTitle.SelectedValueAsInt();
@@ -654,11 +663,13 @@ namespace RockWeb.Blocks.Crm.PersonDetail
                                                 }}
                                         }})";
 
+                                        // Encode values that get embedded in the JS string literals so
+                                        // apostrophes in names (e.g., "O'Reilly") don't break the confirm() call.
                                         string givingEnvelopeWarningScript = string.Format(
                                             givingEnvelopeWarningScriptFormat,
-                                            givingEnvelopeWarningText,
+                                            HttpUtility.JavaScriptStringEncode( givingEnvelopeWarningText ),
                                             hfGivingEnvelopeNumberConfirmed.ClientID,
-                                            newEnvelopeNumber );
+                                            HttpUtility.JavaScriptStringEncode( newEnvelopeNumber ) );
 
                                         ScriptManager.RegisterStartupScript( hfGivingEnvelopeNumberConfirmed, hfGivingEnvelopeNumberConfirmed.GetType(), "confirm-envelope-number", givingEnvelopeWarningScript, true );
                                         return false;
@@ -778,7 +789,9 @@ namespace RockWeb.Blocks.Crm.PersonDetail
                                 // if they used the ImageEditor, and cropped it, the uncropped file is still in BinaryFile. So clean it up
                                 if ( imgPhoto.CropBinaryFileId.HasValue )
                                 {
-                                    if ( imgPhoto.CropBinaryFileId != person.PhotoId )
+                                    // Only clean up the uncropped file if it is the person's own upload.
+                                    if ( imgPhoto.CropBinaryFileId != person.PhotoId
+                                        && new BinaryFileService( rockContext ).IsUploadedBinaryFileAllowedForPerson( imgPhoto.CropBinaryFileId, null, CurrentPerson ) )
                                     {
                                         BinaryFileService binaryFileService = new BinaryFileService( rockContext );
                                         var binaryFile = binaryFileService.Get( imgPhoto.CropBinaryFileId.Value );
@@ -993,9 +1006,16 @@ namespace RockWeb.Blocks.Crm.PersonDetail
 
             var phoneNumbers = new List<PhoneNumber>();
             var phoneNumberTypes = DefinedTypeCache.Get( new Guid( Rock.SystemGuid.DefinedType.PERSON_PHONE_TYPE ) );
-            if ( phoneNumberTypes.DefinedValues.Any() )
+
+            // Only show active phone types. An admin can reactivate the type if they
+            // need to view or edit a value stored against an inactive type.
+            var activePhoneNumberTypes = phoneNumberTypes.DefinedValues
+                .Where( dv => dv.IsActive )
+                .ToList();
+
+            if ( activePhoneNumberTypes.Any() )
             {
-                foreach ( var phoneNumberType in phoneNumberTypes.DefinedValues )
+                foreach ( var phoneNumberType in activePhoneNumberTypes )
                 {
                     var phoneNumber = Person.PhoneNumbers.FirstOrDefault( n => n.NumberTypeValueId == phoneNumberType.Id );
                     if ( phoneNumber == null )

@@ -12,15 +12,17 @@
                 <i class="ti ti-plus"></i>
             </DropDownMenu>
         </template>
-        <TreeList v-if="isTreeListDataInitialized"
-                  v-model="treeListSelectedItems"
-                  :items="treeListItems"
-                  :initiallyExpanded="treeListInitiallyExpandedGuids"
-                  @update:modelValue="onSelect"
-                  @update:items="onUpdateItems"
-                  @treeitem-expanded="onTreeItemExpanded"
-                  @treeitem-collapsed="onTreeItemCollapsed"
-                  autoExpand />
+        <div class="rock-tree-view-tree">
+            <TreeList v-if="isTreeListDataInitialized"
+                      v-model="treeListSelectedItems"
+                      :items="treeListItems"
+                      :initiallyExpanded="treeListInitiallyExpandedGuids"
+                      @update:modelValue="onSelect"
+                      @update:items="onUpdateItems"
+                      @treeitem-expanded="onTreeItemExpanded"
+                      @treeitem-collapsed="onTreeItemCollapsed"
+                      autoExpand />
+        </div>
     </Panel>
 </template>
 

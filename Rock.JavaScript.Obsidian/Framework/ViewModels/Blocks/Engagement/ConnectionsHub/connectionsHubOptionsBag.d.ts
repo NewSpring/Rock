@@ -72,9 +72,6 @@ export type ConnectionsHubOptionsBag = {
      * Populated with a single entry in standard mode and with one entry per active Connection Type in My Connections mode.
      * This allows the client to adjust its behavior and available UI actions based on the Connection Type that owns
      * the currently selected request or opportunity.
-     * TODO - Migrate remaining consumers off the flat per-Type fields on this bag (ConnectionStatuses, RequestSourceItems,
-     * IsSequentialStatusMode, AllPossibleConnectors, ConnectionActivities, WorkflowItems, ConnectionOpportunities) so they
-     * can be removed.
      */
     connectionTypeOptionsByIdKey?: Record<string, ConnectionTypeOptionsBag> | null;
 
@@ -90,23 +87,37 @@ export type ConnectionsHubOptionsBag = {
     /** Gets or sets the CSS class for the icon to display alongside the block title. */
     iconCssClass?: string | null;
 
+    /**
+     * Gets or sets a value indicating whether the block should open the Add Connection Request
+     * modal on load.
+     */
+    isAddConnectionRequestRequested: boolean;
+
     /** Gets whether board view is enabled for this connection type. */
     isBoardViewEnabled: boolean;
 
+    /**
+     * Gets or sets a value indicating whether the context slicer's Connection Type filter
+     * should be hidden in the "My Connections" view because the block is pinned to a single
+     * Connection Type by its block setting.
+     */
+    isConnectionTypeFilterHidden: boolean;
+
     /** Gets whether grid view is enabled for this connection type. */
     isGridViewEnabled: boolean;
+
+    /**
+     * Gets or sets a value indicating whether the block is limited to requests assigned to
+     * the current person. When true the context slicer's connector filter is rendered
+     * disabled and locked to "My Requests".
+     */
+    isLimitedToAssignedConnections: boolean;
 
     /** Gets whether list view is enabled for this connection type. */
     isListViewEnabled: boolean;
 
     /** Gets or sets a value indicating whether the current view is the "My Connections" view. */
     isMyConnectionsView: boolean;
-
-    /** Gets or sets the currently selected connector used to filter the request list. */
-    selectedConnector?: ListItemBag | null;
-
-    /** Gets or sets the person id key for the selected connector */
-    selectedConnectorIdKey?: string | null;
 
     /** Gets or sets the title to display for the Connections Hub block. */
     title?: string | null;

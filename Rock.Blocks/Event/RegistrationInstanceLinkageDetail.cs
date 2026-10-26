@@ -20,10 +20,8 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data.Entity;
 using System.Linq;
-using System.Web.UI.WebControls;
 
 using Rock.Attribute;
-using Rock.Constants;
 using Rock.Data;
 using Rock.Model;
 using Rock.Security;
@@ -59,13 +57,6 @@ namespace Rock.Blocks.Event
         /// Gets the friendly type name of the entity being managed.
         /// </summary>
         private string FriendlyTypeName => "Registration Instance Linkage";
-
-        /// <summary>
-        /// Gets a value indicating whether the current person has authorization to administrate or edit the block.
-        /// </summary>
-        private bool IsCurrentPersonAuthorized =>
-                BlockCache.IsAuthorized( Authorization.ADMINISTRATE, RequestContext.CurrentPerson ) ||
-                BlockCache.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson );
 
         private EventItemOccurrenceGroupMapService EventItemOccurrenceGroupMapService => new EventItemOccurrenceGroupMapService( RockContext );
         private EventCalendarService EventCalendarService => new EventCalendarService( RockContext );
@@ -121,9 +112,13 @@ namespace Rock.Blocks.Event
         {
             var options = new RegistrationInstanceLinkageDetailOptionsBag()
             {
+                // Only include calendars the current person is authorized to view,
+                // matching the legacy WebForms block.
                 Calendars = EventCalendarService.Queryable().AsNoTracking()
                     .Where( c => c.IsActive )
                     .OrderBy( c => c.Name )
+                    .ToList()
+                    .Where( c => c.IsAuthorized( Authorization.VIEW, RequestContext.CurrentPerson ) )
                     .Select( c => new ListItemBag
                     {
                         Text = c.Name,
@@ -147,7 +142,7 @@ namespace Rock.Blocks.Event
 
             if ( instance != null )
             {
-                qryParams.Add( "RegistrationInstanceId", instance.Id.ToString() );
+                qryParams.Add( "RegistrationInstanceId", instance.IdKey );
             }
 
             return new Dictionary<string, string>
@@ -171,17 +166,16 @@ namespace Rock.Blocks.Event
                 return;
             }
 
-            box.IsEditable = BlockCache.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson );
+            /*
+                6/10/26 - MSE
 
-            // New entity is being created, prepare for edit mode by default.
-            if ( box.IsEditable )
-            {
-                box.Entity = GetEntityBagForEdit( entity );
-            }
-            else
-            {
-                box.ErrorMessage = EditModeMessage.NotAuthorizedToEdit( EventItem.FriendlyTypeName );
-            }
+                This block intentionally has no EDIT security gate. The legacy WebForms
+                block allowed anyone who could view the page to add or edit linkages.
+
+                Reason: https://github.com/SparkDevNetwork/Rock/issues/6865
+            */
+            box.IsEditable = true;
+            box.Entity = GetEntityBagForEdit( entity );
         }
 
         /// <summary>
@@ -302,6 +296,28 @@ namespace Rock.Blocks.Event
             return true;
         }
 
+        /// <summary>
+        /// Determines whether the event item occurrence belongs to an event item on at least
+        /// one calendar the current person is authorized to view. This is the base filter the
+        /// calendar item dialog uses when listing calendars; its date and status filters are
+        /// user choices and are intentionally not re-applied here.
+        /// </summary>
+        /// <param name="eventItemOccurrenceId">The event item occurrence identifier.</param>
+        /// <returns><c>true</c> if the occurrence is on a viewable calendar; otherwise, <c>false</c>.</returns>
+        private bool IsOccurrenceOnViewableCalendar( int eventItemOccurrenceId )
+        {
+            var calendarIds = new EventItemOccurrenceService( RockContext )
+                .Queryable()
+                .AsNoTracking()
+                .Where( o => o.Id == eventItemOccurrenceId )
+                .SelectMany( o => o.EventItem.EventCalendarItems.Select( ci => ci.EventCalendarId ) )
+                .ToList();
+
+            return calendarIds
+                .Select( id => EventCalendarCache.Get( id ) )
+                .Any( c => c != null && c.IsAuthorized( Authorization.VIEW, RequestContext.CurrentPerson ) );
+        }
+
         #endregion
 
         #region Block Actions
@@ -314,11 +330,6 @@ namespace Rock.Blocks.Event
         [BlockAction]
         public BlockActionResult Save( DetailBlockBox<RegistrationInstanceLinkageDetailBag, RegistrationInstanceLinkageDetailOptionsBag> box )
         {
-            if ( !IsCurrentPersonAuthorized )
-            {
-                return ActionBadRequest( EditModeMessage.NotAuthorizedToEdit( FriendlyTypeName ) );
-            }
-
             var service = new EventItemOccurrenceGroupMapService( RockContext );
 
             EventItemOccurrenceGroupMap linkage = null;
@@ -326,17 +337,28 @@ namespace Rock.Blocks.Event
             var bag = box.Entity;
             if ( bag != null )
             {
+                var instance = RegistrationInstanceService.Get( PageParameter( PageParameterKey.RegistrationInstanceId ) );
                 var linkageId = bag.IdKey;
                 if ( !string.IsNullOrEmpty( linkageId ) )
                 {
                     linkage = service.Get( linkageId );
                 }
 
+                // This block only manages linkages of the registration instance
+                // the page is for, so do not allow an existing linkage from a
+                // different instance to be edited through a tampered IdKey.
+                var isLinkageFromOtherInstance = linkage != null
+                    && ( instance == null || linkage.RegistrationInstanceId != instance.Id );
+
+                if ( isLinkageFromOtherInstance )
+                {
+                    return ActionBadRequest( "Invalid linkage." );
+                }
+
                 if ( linkage == null )
                 {
                     linkage = new EventItemOccurrenceGroupMap();
 
-                    var instance = RegistrationInstanceService.Get( PageParameter( PageParameterKey.RegistrationInstanceId ) );
                     if ( instance != null )
                     {
                         linkage.RegistrationInstanceId = instance.Id;
@@ -359,6 +381,16 @@ namespace Rock.Blocks.Event
                         o.Guid == selectedOccurenceGuid
                     )
                     .FirstOrDefault();
+
+                // The occurrence Guid comes from the client. Allow it only if it is unchanged
+                // or on a calendar the person can view, which is where the dialog offers them from.
+                var isOccurrenceChanged = eventCalendarItem != null
+                    && eventCalendarItem.Id != linkage.EventItemOccurrenceId;
+
+                if ( isOccurrenceChanged && !IsOccurrenceOnViewableCalendar( eventCalendarItem.Id ) )
+                {
+                    return ActionBadRequest( "The selected event occurrence is not available." );
+                }
 
                 linkage.EventItemOccurrenceId = eventCalendarItem?.Id;
                 linkage.GroupId = GroupCache.Get( bag.Group.Value )?.Id;
@@ -383,11 +415,6 @@ namespace Rock.Blocks.Event
         [BlockAction]
         public BlockActionResult FetchGroupType( Guid groupGuid )
         {
-            if ( !IsCurrentPersonAuthorized )
-            {
-                return ActionBadRequest( EditModeMessage.NotAuthorizedToEdit( FriendlyTypeName ) );
-            }
-
             var group = GroupCache.Get( groupGuid );
 
             if ( group != null && group.GroupType != null )
