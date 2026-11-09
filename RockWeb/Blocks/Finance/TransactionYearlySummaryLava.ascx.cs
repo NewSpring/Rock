@@ -97,7 +97,7 @@ namespace RockWeb.Blocks.Finance
         }
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         private class SummaryRecord
         {
@@ -111,6 +111,8 @@ namespace RockWeb.Blocks.Finance
         /// </summary>
         private void BindGrid()
         {
+            nbNotAuthorized.Visible = false;
+
             var contributionType = DefinedValueCache.Get( Rock.SystemGuid.DefinedValue.TRANSACTION_TYPE_CONTRIBUTION.AsGuid() );
             if ( contributionType != null )
             {
@@ -129,6 +131,7 @@ namespace RockWeb.Blocks.Finance
                     if ( !IsAuthorizedForPerson( targetPerson ) )
                     {
                         lLavaOutput.Text = string.Empty;
+                        nbNotAuthorized.Visible = true;
                         return;
                     }
 
@@ -195,19 +198,14 @@ namespace RockWeb.Blocks.Finance
 
         /// <summary>
         /// Determines whether the current person is allowed to view the giving of
-        /// the specified person. This is allowed if they share the same giving unit,
-        /// the person is one of the current person's businesses, or the current
-        /// person is authorized to edit this block.
+        /// the specified person. This is allowed if the person is the current person,
+        /// shares the same giving unit, is one of the current person's businesses, or
+        /// the current person is authorized to view financial transactions.
         /// </summary>
         /// <param name="person">The person whose giving will be displayed.</param>
         /// <returns><c>true</c> if the current person is allowed to view the giving; otherwise, <c>false</c>.</returns>
         private bool IsAuthorizedForPerson( Person person )
         {
-            if ( IsUserAuthorized( Authorization.EDIT ) )
-            {
-                return true;
-            }
-
             var currentPerson = CurrentPerson;
 
             if ( currentPerson == null )
@@ -215,10 +213,16 @@ namespace RockWeb.Blocks.Finance
                 return false;
             }
 
+            var isCurrentPerson = person.Id == currentPerson.Id;
             var isInGivingUnit = person.GivingId.IsNotNullOrWhiteSpace()
                 && person.GivingId == currentPerson.GivingId;
 
-            return isInGivingUnit || currentPerson.GetBusinesses().Any( b => b.Id == person.Id );
+            if ( isCurrentPerson || isInGivingUnit || currentPerson.GetBusinesses().Any( b => b.Id == person.Id ) )
+            {
+                return true;
+            }
+
+            return new FinancialTransaction().IsAuthorized( Authorization.VIEW, currentPerson );
         }
 
         /// <summary>
