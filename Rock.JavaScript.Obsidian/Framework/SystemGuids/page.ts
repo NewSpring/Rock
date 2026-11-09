@@ -285,7 +285,7 @@ export const Page = {
     CheckInRockSettings: "66C5DD58-094C-4FF9-9AFB-44801FCFCC2D",
     /**
      * Gets the Check-in page guid
-     * ParentPage: 
+     * ParentPage:
      */
     CheckInRoot: "CDF2C599-D341-42FD-B7DC-CD402EA96050",
     /**
@@ -531,6 +531,11 @@ export const Page = {
      */
     ContentItemDetail: "ABF26679-1051-4F4F-8A67-5958E5BF71F8",
     /**
+     * Gets the Content Item Metrics page guid
+     * ParentPage: Content Channel Detail
+     */
+    ContentItemMetrics: "B917B620-C172-4E52-9695-917E3833DB09",
+    /**
      * Gets the Content Type Detail page guid
      * ParentPage: Content Channel Types
      */
@@ -713,7 +718,7 @@ export const Page = {
     ExternalApplications: "5A676DCC-37F0-4624-8CCD-408A5A471D8A",
     /**
      * Gets the External Homepage page guid
-     * ParentPage: 
+     * ParentPage:
      */
     ExternalHomepage: "85F25819-E948-4960-9DDF-00F54D32444E",
     /**
@@ -932,7 +937,7 @@ export const Page = {
     HtmleditorRockmergefieldPluginFrame: "1FC09F0D-72F2-44E6-9D16-2884F9AF33DD",
     /**
      * Gets the Internal Homepage page guid
-     * ParentPage: 
+     * ParentPage:
      */
     InternalHomepage: "20F97A93-7949-4C2A-8A5E-C756FE8585CA",
     /**
@@ -1047,6 +1052,8 @@ export const Page = {
      * ParentPage: Reporting
      */
     Metrics: "78D84825-EB1A-43C6-9AD5-5F0F84CC9A53",
+    /** The Mobile Page Layout Detail Page */
+    MobileLayout: "5583A55D-7398-48E9-971F-6A1EF8158943",
     /** The mobile site pages */
     MobileSitePages: "37E21200-DF91-4426-89CC-7D067237A037",
     /**
@@ -1055,7 +1062,12 @@ export const Page = {
      */
     MyAccountSecurity: "290C53DC-0960-484C-B314-8301882A454C",
     /**
-     * Gets the My Connections page guid.
+     * Gets the My Connection Opportunities page guid.
+     * ParentPage: Connections
+     */
+    MyConnectionOpportunities: "29C23E3B-13E3-4FF6-883C-0EFA1C7C40B9",
+    /**
+     * Gets the My Connection Requests page guid.
      * ParentPage: Connections
      */
     MyConnections: "3E55BE64-C8E8-487B-9BD4-E94C7F99BE1B",
@@ -1125,6 +1137,12 @@ export const Page = {
      * ParentPage: Office Information
      */
     OrgChart: "C3909F1A-6908-4035-BB93-EC4FBFDCC536",
+    /**
+     * Gets the Orphaned Pages page guid. This is a hidden system page that acts as a
+     * holding place for child pages whose parent page has been deleted by a migration.
+     * ParentPage: CMS Configuration
+     */
+    OrphanedPages: "51457268-8F59-4E2A-8E22-2B57F2E3607B",
     /**
      * Gets the Package Detail page guid
      * ParentPage: Rock Shop
@@ -1382,7 +1400,7 @@ export const Page = {
      */
     RestKeys: "881AB1C2-4E00-4A73-80CC-9886B3717A20",
     /**
-     * Gets the Rock Settings page guid
+     * Gets the Rock Settings (Administration) page guid
      * ParentPage: Admin Tools
      */
     RockSettings: "550A898C-EDEA-48B5-9C58-B20EC13AF13B",
@@ -1500,6 +1518,11 @@ export const Page = {
      * ParentPage: Communications
      */
     SmsPhoneNumbers: "3F1EA6E5-6C61-444A-A80E-5B66F96F521B",
+    /**
+     * The Spark Connected SErvices page guid.
+     * ParentPage: System Settings
+     */
+    SparkConnectedServices: "42c6994a-76e0-48e1-87a3-a011e238b906",
     /**
      * Gets the SQL Command page guid
      * ParentPage: Power Tools

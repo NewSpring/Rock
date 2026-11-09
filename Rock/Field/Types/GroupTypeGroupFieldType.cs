@@ -24,6 +24,8 @@ using System.Web.UI;
 using Rock.Attribute;
 using Rock.Data;
 using Rock.Model;
+using Rock.Security;
+using Rock.Security.SecurityGrantRules;
 using Rock.ViewModels.Utility;
 using Rock.Web.Cache;
 using Rock.Web.UI.Controls;
@@ -37,7 +39,7 @@ namespace Rock.Field.Types
     [FieldTypeUsage( FieldTypeUsage.System )]
     [RockPlatformSupport( Utility.RockPlatform.WebForms, Utility.RockPlatform.Obsidian )]
     [Rock.SystemGuid.FieldTypeGuid( Rock.SystemGuid.FieldType.GROUP_TYPE_GROUP )]
-    public class GroupTypeGroupFieldType : FieldType, IEntityReferenceFieldType
+    public class GroupTypeGroupFieldType : FieldType, IEntityReferenceFieldType, IPublicSecurityGrantFieldType
     {
         #region Configuration
 
@@ -221,6 +223,33 @@ namespace Rock.Field.Types
                 new ReferencedProperty( EntityTypeCache.GetId<GroupType>().Value, nameof( GroupType.Name ) ),
                 new ReferencedProperty( EntityTypeCache.GetId<Group>().Value, nameof( Group.Name ) )
             };
+        }
+
+        #endregion
+
+        #region Field Type Hints
+
+        /// <inheritdoc/>
+        internal override FieldTypeHints GetFieldHints( Dictionary<string, string> privateConfigurationValues )
+        {
+            // No Values. The set is unbounded or depends on other configuration, so
+            // the shape of the value and where to get one is what can be described.
+            return new FieldTypeHints
+            {
+                IsCompleteList = false,
+                ValueFormat = "Two guids joined by a pipe, in the order GroupType.Guid|Group.Guid. Both parts are required and the order is fixed.",
+                Instructions = "To find the correct value, look up the group and take its group type guid followed by its own guid."
+            };
+        }
+
+        #endregion
+
+        #region IPublicSecurityGrantFieldType
+
+        /// <inheritdoc/>
+        public void AddRulesToSecurityGrant( SecurityGrant grant, Dictionary<string, string> privateConfigurationValues )
+        {
+            grant.AddRule( new GroupListPickerSecurityGrantRule() );
         }
 
         #endregion

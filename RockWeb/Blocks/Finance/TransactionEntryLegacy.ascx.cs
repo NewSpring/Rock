@@ -23,6 +23,8 @@ using System.Threading.Tasks;
 using System.Web.UI;
 using System.Web.UI.WebControls;
 
+using Microsoft.Extensions.Logging;
+
 using Rock;
 using Rock.Attribute;
 using Rock.Bus.Message;
@@ -560,6 +562,8 @@ namespace RockWeb.Blocks.Finance
             public const string ScheduleId = "ScheduleId";
             public const string DisplayPhone = "DisplayPhone";
             public const string PersonId = "PersonId";
+            public const string TransactionGuid = "TransactionGuid";
+            public const string Step1FormUrl = "Step1FormUrl";
         }
         #endregion Block Keys
 
@@ -670,6 +674,27 @@ namespace RockWeb.Blocks.Finance
         {
             get { return ViewState[ViewStateKey.ScheduleId] as int?; }
             set { ViewState[ViewStateKey.ScheduleId] = value; }
+        }
+
+        /// <summary>
+        /// Gets or sets the unique guid used for the transaction being processed.
+        /// This is kept in ViewState so it cannot be changed by the client.
+        /// </summary>
+        protected Guid TransactionGuid
+        {
+            get { return ViewState[ViewStateKey.TransactionGuid] as Guid? ?? Guid.Empty; }
+            set { ViewState[ViewStateKey.TransactionGuid] = value; }
+        }
+
+        /// <summary>
+        /// Gets or sets the form URL that the three-step gateway returned from step 1.
+        /// This is kept in ViewState (which is MAC protected) so it cannot be changed by
+        /// the client, and is used to verify the step 2 result before step 3 is processed.
+        /// </summary>
+        protected string Step1FormUrl
+        {
+            get { return ViewState[ViewStateKey.Step1FormUrl] as string ?? string.Empty; }
+            set { ViewState[ViewStateKey.Step1FormUrl] = value; }
         }
 
         // The URL for the Step-2 Iframe Url
@@ -906,7 +931,7 @@ namespace RockWeb.Blocks.Finance
 
             if ( !Page.IsPostBack )
             {
-                hfTransactionGuid.Value = Guid.NewGuid().ToString();
+                TransactionGuid = Guid.NewGuid();
                 if ( this.Request.UrlReferrer != null )
                 {
                     lHistoryBackButton.HRef = this.Request.UrlReferrer.ToString();
@@ -1243,7 +1268,7 @@ namespace RockWeb.Blocks.Finance
         {
             // They are hitting Confirm on the "Possible Duplicate" warning, so reset the TransactionCode and Transaction.Guid which would have preventing them from doing a duplicate
             TransactionCode = string.Empty;
-            hfTransactionGuid.Value = Guid.NewGuid().ToString();
+            TransactionGuid = Guid.NewGuid();
 
             string errorMessage = string.Empty;
             if ( ProcessConfirmation( out errorMessage ) )
@@ -1472,16 +1497,11 @@ namespace RockWeb.Blocks.Finance
                 var transactionEntityType = EntityTypeCache.Get( transactionEntityTypeGuid.Value );
                 if ( transactionEntityType != null )
                 {
-                    var entityId = this.PageParameter( this.GetAttributeValue( AttributeKey.EntityIdParam ) ).AsIntegerOrNull();
-                    if ( entityId.HasValue )
+                    var entityKey = this.PageParameter( this.GetAttributeValue( AttributeKey.EntityIdParam ) );
+                    if ( entityKey.IsNotNullOrWhiteSpace() )
                     {
-                        var dbContext = Reflection.GetDbContextForEntityType( transactionEntityType.GetEntityType() );
-                        IService serviceInstance = Reflection.GetServiceForEntityType( transactionEntityType.GetEntityType(), dbContext );
-                        if ( serviceInstance != null )
-                        {
-                            System.Reflection.MethodInfo getMethod = serviceInstance.GetType().GetMethod( "Get", new Type[] { typeof( int ) } );
-                            transactionEntity = getMethod.Invoke( serviceInstance, new object[] { entityId.Value } ) as Rock.Data.IEntity;
-                        }
+                        // Resolve as an Id, IdKey, or Guid; integer ids stay accepted so existing links keep working.
+                        transactionEntity = Reflection.GetIEntityForEntityType( transactionEntityType.GetEntityType(), entityKey );
                     }
                 }
             }
@@ -1815,9 +1835,9 @@ namespace RockWeb.Blocks.Finance
                 mergeFields.Add( "AmountLimit", this.PageParameter( PageParameterKey.AmountLimit ).AsDecimalOrNull() );
 
 
-                if ( hfTransactionGuid.Value.AsGuidOrNull().HasValue )
+                if ( TransactionGuid != Guid.Empty )
                 {
-                    var financialTransaction = new FinancialTransactionService( rockContext ).Get( hfTransactionGuid.Value.AsGuid() );
+                    var financialTransaction = new FinancialTransactionService( rockContext ).Get( TransactionGuid );
                     mergeFields.Add( "FinancialTransaction", financialTransaction );
                 }
 
@@ -2877,6 +2897,14 @@ namespace RockWeb.Blocks.Finance
             if ( string.IsNullOrWhiteSpace( errorMessage ) && !string.IsNullOrWhiteSpace( result ) )
             {
                 hfStep2Url.Value = result;
+
+                // Keep a server-side copy of the step 1 result so the token returned
+                // from step 2 can be verified against it before step 3 is processed.
+                Step1FormUrl = result;
+            }
+            else
+            {
+                Step1FormUrl = string.Empty;
             }
 
             return string.IsNullOrWhiteSpace( errorMessage );
@@ -3029,7 +3057,7 @@ namespace RockWeb.Blocks.Finance
             var rockContext = new RockContext();
             if ( string.IsNullOrWhiteSpace( TransactionCode ) )
             {
-                var transactionGuid = hfTransactionGuid.Value.AsGuid();
+                var transactionGuid = TransactionGuid;
 
                 bool isACHTxn = hfPaymentTab.Value == "ACH";
                 var financialGateway = isACHTxn ? _achGateway : _ccGateway;
@@ -3137,7 +3165,7 @@ namespace RockWeb.Blocks.Finance
         {
             var rockContext = new RockContext();
 
-            var transactionGuid = hfTransactionGuid.Value.AsGuid();
+            var transactionGuid = TransactionGuid;
 
             bool isACHTxn = hfPaymentTab.Value == "ACH";
             var financialGateway = isACHTxn ? _achGateway : _ccGateway;
@@ -3223,6 +3251,11 @@ namespace RockWeb.Blocks.Finance
                 }
                 else
                 {
+                    if ( !IsStep2ResultValid( gateway, resultQueryString, out errorMessage ) )
+                    {
+                        return false;
+                    }
+
                     scheduledTransaction = threeStepGateway.AddScheduledPaymentStep3( financialGateway, resultQueryString, out errorMessage );
                 }
 
@@ -3236,6 +3269,11 @@ namespace RockWeb.Blocks.Finance
             }
             else
             {
+                if ( !IsStep2ResultValid( gateway, resultQueryString, out errorMessage ) )
+                {
+                    return false;
+                }
+
                 var transaction = threeStepGateway.ChargeStep3( financialGateway, resultQueryString, out errorMessage );
                 if ( transaction == null || !string.IsNullOrWhiteSpace( errorMessage ) )
                 {
@@ -3251,8 +3289,57 @@ namespace RockWeb.Blocks.Finance
 
             ShowSuccess( gateway, person, paymentInfo, schedule, paymentDetail, rockContext );
 
+            // The step 1 result has been consumed, so it must not be reused.
+            Step1FormUrl = string.Empty;
+
             errorMessage = string.Empty;
             return true;
+        }
+
+        /// <summary>
+        /// Verifies that the step 2 result posted back by the client refers to the token
+        /// that the gateway issued to this block in step 1.
+        /// </summary>
+        /// <param name="gateway">The gateway component processing the payment.</param>
+        /// <param name="resultQueryString">The step 2 result query string posted back by the client.</param>
+        /// <param name="errorMessage">The error message to show when the result is rejected.</param>
+        /// <returns><c>true</c> if step 3 may proceed; otherwise <c>false</c>.</returns>
+        private bool IsStep2ResultValid( GatewayComponent gateway, string resultQueryString, out string errorMessage )
+        {
+            errorMessage = string.Empty;
+
+            var step1FormUrl = Step1FormUrl;
+            var mismatchDescription = $"The three-step gateway step 2 result did not match the token issued by the gateway at step 1. Gateway: {gateway?.GetType().FullName}.";
+
+            if ( !( gateway is Rock.NMI.Gateway ) )
+            {
+                // Unknown three-step gateway: we cannot be sure its step 1 form URL carries the token, so only log a mismatch.
+                var resultValues = System.Web.HttpUtility.ParseQueryString( ( resultQueryString ?? string.Empty ).TrimStart( '?' ) );
+                var tokenValues = resultValues.AllKeys.Select( key => resultValues[key] ).Where( value => value.IsNotNullOrWhiteSpace() ).ToList();
+
+                if ( !tokenValues.Any() || !tokenValues.All( value => step1FormUrl.Contains( value ) ) )
+                {
+                    Logger.LogWarning( mismatchDescription );
+                }
+
+                return true;
+            }
+
+            const string tokenIdPrefix = "?token-id=";
+
+            var step1Token = step1FormUrl.TrimEnd( '/' ).Split( '/' ).LastOrDefault();
+            var step2Token = ( resultQueryString ?? string.Empty ).StartsWith( tokenIdPrefix, StringComparison.Ordinal )
+                ? resultQueryString.Substring( tokenIdPrefix.Length )
+                : string.Empty;
+
+            if ( step2Token.IsNotNullOrWhiteSpace() && string.Equals( step1Token, step2Token, StringComparison.Ordinal ) )
+            {
+                return true;
+            }
+
+            ExceptionLogService.LogException( new Exception( mismatchDescription ) );
+            errorMessage = "The payment information could not be verified. Please reload the page and try again.";
+            return false;
         }
 
         private PaymentInfo GetTxnPaymentInfo( Person person, out string errorMessage )

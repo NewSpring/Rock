@@ -105,6 +105,12 @@ export const Attribute = {
     DefinedTypeCurrencyTypeIconcssclass: "CB1E9401-E1FD-4DBB-B15F-4E6994602723",
     /** The Financial Frequency DefinedType &gt; Interval Days DefinedValue Attribute Guid */
     DefinedTypeFinancialFrequencyIntervalDays: "E18CB1D2-08A9-4D12-BCEA-33369193C869",
+    /**
+     * The "Default Component Daily Counts" attribute on the "Interaction Mediums" defined type.
+     * Controls whether newly created Rock.Model.InteractionChannel records of a
+     * given medium default to having EnableComponentDailyCounts = true.
+     */
+    DefinedTypeInteractionMediumDefaultComponentDailyCount: "813B4E21-D77F-45E8-B702-120EE7C90451",
     /** The Template DefinedType &gt; Icon DefinedValue Attribute Guid */
     DefinedTypeTemplateIcon: "831403EB-262E-4BC5-8B5E-F16153493BF5",
     /** The Template DefinedType &gt; TemplateBlock DefinedValue Attribute Guid */
@@ -384,6 +390,8 @@ export const Attribute = {
     PhoneNumberVerificationTimeLimit: "4569E05C-DE8F-40D4-8DF7-4DE6A564FF6E",
     /** The same site cookie setting */
     SameSiteCookieSetting: "03F55022-C1E0-45F3-84E1-C2BE8C38E22B",
+    /** The Site attribute listing the external domains the browser may be redirected to (e.g. after login). */
+    SiteAllowedRedirectDomains: "F2EAB603-7412-46BF-A13D-5A451C4D8E1C",
     /** The statement generator configuration */
     StatementGeneratorConfig: "3C6B81A5-63AB-4EA7-A671-836505B9E444",
     /** The streak achievement number to achieve */

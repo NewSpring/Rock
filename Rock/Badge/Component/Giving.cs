@@ -35,9 +35,31 @@ namespace Rock.Badge.Component
     [Export( typeof( BadgeComponent ) )]
     [ExportMetadata( "ComponentName", "Giving" )]
 
-    [AccountsField( "Accounts", "The accounts to limit this to, or leave blank to include all accounts", false, order: 1 )]
-    [DecimalField( "Minimum Amount", "The minimum contribution amount", required: false, order: 2 )]
-    [SlidingDateRangeField( "Date Range", "The date range in which the contributions were made.", defaultValue: "Last|6|Month||", required: false, order: 3 )]
+    [AccountsField( "Accounts",
+        Description = "The accounts to limit this to, or leave blank to include all accounts",
+        IsRequired = false,
+        Order = 1 )]
+    [DecimalField( "Minimum Amount",
+        Description = "The minimum contribution amount",
+        IsRequired = false,
+        Order = 2 )]
+    [SlidingDateRangeField( "Date Range",
+        Description = "The date range in which the contributions were made.",
+        DefaultValue = "Last|6|Month||",
+        IsRequired = false,
+        Order = 3 )]
+
+    /*
+        10/14/2026 - MSE
+
+        The default template puts the tooltip in an HTML attribute, which the browser
+        decodes once, and badge tooltips are then rendered as HTML (BadgeControl sets
+        html: true). A person can set their own name (for example through a public
+        signup form), so the tooltip is escaped twice to still be encoded when it is
+        rendered.
+
+        Reason: Prevent stored XSS through a person's name in the badge tooltip.
+    */
     [CodeEditorField( "Lava Template",
         Description = "The lava template to use for the badge display",
         EditorMode = CodeEditorMode.Lava,
@@ -56,7 +78,7 @@ namespace Rock.Badge.Component
   {% capture tooltipText %}{{ Person.NickName }} has not contributed{{ dateRangeText }}.{% endcapture %}
 {% endif %}
 
-<div class='rockbadge rockbadge-giving rockbadge-id-{{Badge.Id}}' data-toggle='tooltip' data-original-title='{{ tooltipText }}'>
+<div class='rockbadge rockbadge-giving rockbadge-id-{{Badge.Id}}' data-toggle='tooltip' data-original-title='{{ tooltipText | Escape | Escape }}'>
   <i class='badge-icon ti ti-heartbeat' style='color: {{ iconColor }}'></i>
 </div>
 ",

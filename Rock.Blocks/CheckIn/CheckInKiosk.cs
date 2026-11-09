@@ -187,13 +187,15 @@ WHERE [RT].[Guid] = '" + SystemGuid.DefinedValue.PERSON_RECORD_TYPE_RESTUSER + "
             return new KioskConfigurationBag
             {
                 Kiosk = CheckInKioskSetup.GetKioskBag( kiosk ),
+                CampusId = kiosk.GetCampusId(),
                 Areas = areas.Where( a => savedConfiguration.AreaIds.Contains( a.IdKey ) )
                     .Select( a => new CheckInItemBag
                     {
                         Id = a.IdKey,
                         Name = a.Name
                     } ).ToList(),
-                Template = template
+                Template = template,
+                TemplateId = templateGroupType.Id,
             };
         }
 
@@ -370,6 +372,38 @@ WHERE [RT].[Guid] = '" + SystemGuid.DefinedValue.PERSON_RECORD_TYPE_RESTUSER + "
                 } )
                 .Where( a => a != null )
                 .ToList();
+        }
+
+        /// <summary>
+        /// Determines whether the attendance record is one of the current
+        /// attendance records that can be reprinted, using the same rules as
+        /// <see cref="GetCurrentAttendanceForReprint(int?)"/>.
+        /// </summary>
+        /// <param name="attendanceId">The attendance identifier.</param>
+        /// <param name="campusId">The campus to limit the attendance records to and determine the current timestamp.</param>
+        /// <returns><c>true</c> if the attendance record can be reprinted; otherwise <c>false</c>.</returns>
+        private bool IsAttendanceAvailableForReprint( int attendanceId, int? campusId )
+        {
+            var now = RockDateTime.Now;
+
+            if ( campusId.HasValue )
+            {
+                var campus = CampusCache.Get( campusId.Value );
+
+                if ( campus != null )
+                {
+                    now = campus.CurrentDateTime;
+                }
+            }
+
+            var attendanceQry = CheckInDirector.GetDailyAttendanceQuery( now, RockContext );
+
+            if ( campusId.HasValue )
+            {
+                attendanceQry = attendanceQry.Where( a => a.CampusId.HasValue && a.CampusId.Value == campusId.Value );
+            }
+
+            return attendanceQry.Any( a => a.Id == attendanceId );
         }
 
         /// <summary>
@@ -622,56 +656,93 @@ WHERE [RT].[Guid] = '" + SystemGuid.DefinedValue.PERSON_RECORD_TYPE_RESTUSER + "
         }
 
         /// <summary>
-        /// Prints the legacy labels for the specified attendance identifier.
+        /// Prints the legacy labels for the specified attendance identifiers.
         /// </summary>
-        /// <param name="attendanceId">The attendance identifier to print labels for.</param>
+        /// <param name="attendanceIds">The attendance identifiers to print labels for.</param>
         /// <returns>An instance of <see cref="PrintResponseBag"/> that contains the result of the operation.</returns>
-        private PrintResponseBag PrintLegacyLabelsForAttendanceId( int attendanceId )
+        private PrintResponseBag PrintLegacyLabelsForAttendanceIds( List<int> attendanceIds )
         {
 #if NET472_OR_GREATER
-            var attendance = new AttendanceService( RockContext ).Get( attendanceId );
-            var attendanceIds = new List<int> { attendance.Id };
-            var possibleLabels = ZebraPrint.GetLabelTypesForPerson( attendance.PersonAlias.PersonId, attendanceIds );
-            var fileGuids = possibleLabels.Select( pl => pl.FileGuid ).ToList();
-
-            var (errorMessages, legacyClientLabels) = ZebraPrint.ReprintZebraLabels( fileGuids, attendance.PersonAlias.PersonId, attendanceIds, null );
-
-            var legacyClientLabelBags = legacyClientLabels
-                .Select( label => new LegacyClientLabelBag
+            var attendanceData = new AttendanceService( RockContext ).Queryable()
+                .AsNoTracking()
+                .Where( a => attendanceIds.Contains( a.Id ) )
+                .Select( a => new
                 {
-                    LabelFile = RequestContext.RootUrlPath + label.LabelFile,
-                    LabelKey = label.LabelKey,
-                    MergeFields = label.MergeFields,
-                    PrinterAddress = label.PrinterAddress
+                    a.AttendanceCheckInSessionId,
+                    a.PersonAlias.PersonId,
+                    a.AttendanceData.LabelData
                 } )
                 .ToList();
 
+            var personIds = attendanceData.Select( a => a.PersonId ).Distinct().ToList();
+
+            // Every attendance record in a check-in session stores the same
+            // complete, already de-duplicated label set, so only one record
+            // per session is read. Person labels are limited to the people
+            // behind the requested records; family labels always print.
+            var labels = attendanceData
+                .Where( a => a.LabelData != null )
+                .DistinctBy( a => a.AttendanceCheckInSessionId )
+                .SelectMany( a => a.LabelData.FromJsonOrNull<List<Rock.CheckIn.CheckInLabel>>() ?? new List<Rock.CheckIn.CheckInLabel>() )
+                .Where( l => l.LabelType == KioskLabelType.Family || ( l.PersonId.HasValue && personIds.Contains( l.PersonId.Value ) ) )
+                .OrderBy( l => l.PersonId )
+                .ThenBy( l => l.Order )
+                .ToList();
+
+            if ( !labels.Any() )
+            {
+                return null;
+            }
+
+            var serverLabels = labels.Where( l => l.PrintFrom == PrintFrom.Server ).ToList();
+
             return new PrintResponseBag
             {
-                ErrorMessages = errorMessages,
-                LegacyLabels = legacyClientLabelBags
+                ErrorMessages = serverLabels.Any() ? ZebraPrint.PrintLabels( serverLabels ) : new List<string>(),
+                Labels = new List<ClientLabelBag>(),
+                LegacyLabels = labels
+                    .Where( l => l.PrintFrom == PrintFrom.Client )
+                    .Select( l => new LegacyClientLabelBag
+                    {
+                        LabelFile = RequestContext.RootUrlPath + l.LabelFile,
+                        LabelKey = l.LabelKey,
+                        MergeFields = l.MergeFields,
+                        PrinterAddress = l.PrinterAddress
+                    } )
+                    .ToList()
             };
 #else
             return new PrintResponseBag
             {
                 ErrorMessages = new List<string> { "Legacy labels are not supported." },
+                Labels = new List<ClientLabelBag>(),
                 LegacyLabels = new List<LegacyClientLabelBag>(),
             };
 #endif
         }
 
         /// <summary>
-        /// Prints the labels for the specified attendance identifier.
+        /// Prints the labels for the specified attendance identifiers. This will
+        /// determine whether to print legacy or next-gen labels.
         /// </summary>
         /// <param name="director">The instance handling the check-in process.</param>
         /// <param name="kiosk">The kiosk that we will be printing labels for.</param>
         /// <param name="printer">The printer that will be used as an override for where to print if not <c>null</c>.</param>
-        /// <param name="attendanceId">The attendance identifier to print labels for.</param>
+        /// <param name="attendanceIds">The attendance identifiers to print labels for.</param>
         /// <returns>An instance of <see cref="PrintResponseBag"/> that contains the result of the operation.</returns>
-        private async Task<PrintResponseBag> PrintLabelsForAttendanceId( CheckInDirector director, DeviceCache kiosk, DeviceCache printer, int attendanceId )
+        private async Task<PrintResponseBag> PrintLabelsForAttendanceIds( CheckInDirector director, DeviceCache kiosk, DeviceCache printer, List<int> attendanceIds )
         {
-            // Use the new label format for re-printing.
-            var labels = director.LabelProvider.RenderLabels( new List<int> { attendanceId }, kiosk, printer, false );
+            // If any attendance records for these sessions have legacy labels
+            // then use those for printing instead of the new label format.
+            if ( RockContext.Set<AttendanceData>().Any( a => attendanceIds.Contains( a.Id ) ) )
+            {
+                return PrintLegacyLabelsForAttendanceIds( attendanceIds );
+            }
+
+            // All of the attendance is rendered together so that a label configured
+            // to print once per family or once per person is not repeated for every
+            // attendance record.
+            var labels = director.LabelProvider.RenderLabels( attendanceIds, kiosk, printer, false );
 
             var errorMessages = labels.Where( l => l.Error.IsNotNullOrWhiteSpace() )
                 .Select( l => l.Error )
@@ -710,62 +781,9 @@ WHERE [RT].[Guid] = '" + SystemGuid.DefinedValue.PERSON_RECORD_TYPE_RESTUSER + "
             return new PrintResponseBag
             {
                 ErrorMessages = errorMessages,
-                Labels = clientLabelBags
-            };
-        }
-
-        /// <summary>
-        /// Prints the labels for the specified attendance identifiers. This will
-        /// determine whether or not to print legacy or next-gen labels.
-        /// </summary>
-        /// <param name="director">The instance handling the check-in process.</param>
-        /// <param name="kiosk">The kiosk that we will be printing labels for.</param>
-        /// <param name="printer">The printer that will be used as an override for where to print if not <c>null</c>.</param>
-        /// <param name="attendanceIds">The attendance identifiers to print labels for.</param>
-        /// <returns>An instance of <see cref="PrintResponseBag"/> that contains the result of the operation.</returns>
-        private async Task<PrintResponseBag> PrintLabelsForAttendanceIds( CheckInDirector director, DeviceCache kiosk, DeviceCache printer, List<int> attendanceIds )
-        {
-            var response = new PrintResponseBag
-            {
-                ErrorMessages = new List<string>(),
-                Labels = new List<ClientLabelBag>(),
+                Labels = clientLabelBags,
                 LegacyLabels = new List<LegacyClientLabelBag>()
             };
-
-            // If any attendance records for these sessions have legacy labels
-            // then use those for printing instead of the new label format.
-            var legacy = RockContext.Set<AttendanceData>().Any( a => attendanceIds.Contains( a.Id ) );
-            var hasLabels = false;
-
-            foreach ( var attendanceId in attendanceIds )
-            {
-                var attendanceResponse = legacy
-                    ? PrintLegacyLabelsForAttendanceId( attendanceId )
-                    : await PrintLabelsForAttendanceId( director, kiosk, printer, attendanceId );
-
-                if ( attendanceResponse != null )
-                {
-                    response.ErrorMessages.AddRange( attendanceResponse.ErrorMessages );
-
-                    if ( legacy )
-                    {
-                        response.LegacyLabels.AddRange( attendanceResponse.LegacyLabels );
-                    }
-                    else
-                    {
-                        response.Labels.AddRange( attendanceResponse.Labels );
-                    }
-
-                    hasLabels = true;
-                }
-            }
-
-            if ( !hasLabels )
-            {
-                return null;
-            }
-
-            return response;
         }
 
         /// <summary>
@@ -818,7 +836,10 @@ WHERE [RT].[Guid] = '" + SystemGuid.DefinedValue.PERSON_RECORD_TYPE_RESTUSER + "
 
             if ( familyId.IsNotNullOrWhiteSpace() )
             {
+                var familyGroupTypeId = GroupTypeCache.GetFamilyGroupType( rockContext ).Id;
+
                 group = new GroupService( rockContext ).GetQueryableByKey( familyId, false )
+                    .Where( g => g.GroupTypeId == familyGroupTypeId )
                     .Include( g => g.Members.Select( gm => gm.Person ) )
                     .FirstOrDefault();
 
@@ -1027,6 +1048,8 @@ WHERE [RT].[Guid] = '" + SystemGuid.DefinedValue.PERSON_RECORD_TYPE_RESTUSER + "
         public async Task<BlockActionResult> PrintPreCheckInLabels( string kioskId, string scannedCode )
         {
             var director = new CheckInDirector( RockContext );
+            var today = RockDateTime.Today;
+            var now = RockDateTime.Now;
 
             var kiosk = DeviceCache.GetByIdKey( kioskId, RockContext );
 
@@ -1037,7 +1060,17 @@ WHERE [RT].[Guid] = '" + SystemGuid.DefinedValue.PERSON_RECORD_TYPE_RESTUSER + "
 
             var sessionGuids = GetPreCheckInSessionGuids( scannedCode );
             var attendanceIds = new AttendanceService( RockContext ).Queryable()
-                .Where( a => sessionGuids.Contains( a.AttendanceCheckInSession.Guid ) )
+                .Where( a => sessionGuids.Contains( a.AttendanceCheckInSession.Guid )
+                    && a.Occurrence.OccurrenceDate == today
+                    && a.Occurrence.ScheduleId.HasValue )
+                .Select( a => new
+                {
+                    a.Id,
+                    a.Occurrence.ScheduleId
+                } )
+                .ToList()
+                // Only include attendance records if check-in is still active.
+                .Where( a => NamedScheduleCache.Get( a.ScheduleId.Value, RockContext ).WasCheckInActive( now ) )
                 .Select( a => a.Id )
                 .ToList();
 
@@ -1222,7 +1255,9 @@ WHERE [RT].[Guid] = '" + SystemGuid.DefinedValue.PERSON_RECORD_TYPE_RESTUSER + "
                 {
                     Id = l.IdKey,
                     Name = l.Name,
-                    IsOpen = l.IsActive
+                    IsOpen = l.IsActive,
+                    SoftRoomThreshold = l.SoftRoomThreshold,
+                    FirmRoomThreshold = l.FirmRoomThreshold,
                 } )
                 .ToList();
 
@@ -1273,6 +1308,16 @@ WHERE [RT].[Guid] = '" + SystemGuid.DefinedValue.PERSON_RECORD_TYPE_RESTUSER + "
             var location = new LocationService( RockContext ).Get( locationId, false );
 
             if ( location == null )
+            {
+                return ActionBadRequest( "Location not found." );
+            }
+
+            // Only allow changing the status of locations that are attached
+            // to a device, which is where the kiosk gets its list of locations.
+            var isDeviceLocation = DeviceCache.All( RockContext )
+                .Any( d => d.GetAllLocationIds().Contains( location.Id ) );
+
+            if ( !isDeviceLocation )
             {
                 return ActionBadRequest( "Location not found." );
             }
@@ -1348,6 +1393,13 @@ WHERE [RT].[Guid] = '" + SystemGuid.DefinedValue.PERSON_RECORD_TYPE_RESTUSER + "
             var attendanceIdNumber = IdHasher.Instance.GetId( attendanceId );
 
             if ( !attendanceIdNumber.HasValue )
+            {
+                return ActionBadRequest( "Invalid attendance." );
+            }
+
+            // Only allow printing attendance records that would be shown
+            // in the reprint list for this kiosk.
+            if ( !IsAttendanceAvailableForReprint( attendanceIdNumber.Value, kiosk.GetCampusId() ) )
             {
                 return ActionBadRequest( "Invalid attendance." );
             }
@@ -1634,6 +1686,50 @@ WHERE [RT].[Guid] = '" + SystemGuid.DefinedValue.PERSON_RECORD_TYPE_RESTUSER + "
                 return ActionBadRequest( "This kiosk does not support family registration." );
             }
 
+            // Existing people may only be the ones that EditFamily returned
+            // for this family: the family members and the people that can
+            // check in with the family.
+            var allowedPersonIds = new HashSet<int>();
+
+            if ( familyId.IsNotNullOrWhiteSpace() )
+            {
+                var group = new GroupService( RockContext ).Get( familyId, false );
+
+                if ( group == null || group.GroupTypeId != GroupTypeCache.GetFamilyGroupType( RockContext ).Id )
+                {
+                    return ActionBadRequest( "Family not found." );
+                }
+
+                allowedPersonIds.UnionWith( group.Members.Select( gm => gm.PersonId ) );
+
+                var canCheckInPersonIds = new CheckInDirector( RockContext )
+                    .CreateSession( template )
+                    .SearchProvider
+                    .GetCanCheckInFamilyMembersQuery( group.IdKey )
+                    .Select( gm => gm.PersonId )
+                    .ToList();
+
+                allowedPersonIds.UnionWith( canCheckInPersonIds );
+            }
+
+            var personService = new PersonService( RockContext );
+            var postedPersonIdKeys = ( options.People ?? new List<ValidPropertiesBox<RegistrationPersonBag>>() )
+                .Select( p => p?.Bag?.Id )
+                .Concat( options.RemovedPersonIds ?? new List<string>() )
+                .Where( id => id.IsNotNullOrWhiteSpace() )
+                .Distinct()
+                .ToList();
+
+            foreach ( var personIdKey in postedPersonIdKeys )
+            {
+                var personId = personService.Get( personIdKey, false )?.Id;
+
+                if ( personId.HasValue && !allowedPersonIds.Contains( personId.Value ) )
+                {
+                    return ActionBadRequest( "Invalid person." );
+                }
+            }
+
             var registration = new FamilyRegistration( RockContext, RequestContext.CurrentPerson, template );
             var result = registration.SaveRegistration( options.Family, options.People, kiosk.GetCampusId(), options.RemovedPersonIds );
 
@@ -1641,7 +1737,7 @@ WHERE [RT].[Guid] = '" + SystemGuid.DefinedValue.PERSON_RECORD_TYPE_RESTUSER + "
 
             var response = new SaveFamilyResponseBag
             {
-                FamilyId = result.PrimaryFamily.IdKey,
+                FamilyId = result.PrimaryFamily?.IdKey,
                 IsCheckInAllowed = template.IsCheckInAfterRegistrationAllowed,
                 IsSuccess = result.IsSuccess,
                 ErrorMessage = result.ErrorMessage
@@ -1677,6 +1773,29 @@ WHERE [RT].[Guid] = '" + SystemGuid.DefinedValue.PERSON_RECORD_TYPE_RESTUSER + "
                 return ActionBadRequest( "Missing family identifier." );
             }
 
+            var family = new GroupService( RockContext ).GetNoTracking( options.FamilyId, false );
+
+            if ( family == null || family.GroupTypeId != GroupTypeCache.GetFamilyGroupType( RockContext ).Id )
+            {
+                return ActionBadRequest( "Family not found." );
+            }
+
+            // Make the same kiosk check that BeginAddIndividual makes.
+            var addMode = kiosk.GetAttributeValue( SystemKey.DeviceAttributeKey.DEVICE_KIOSK_ALLOW_ADDING_INDIVIDUALS_TO_EXISTING_FAMILIES ).ConvertToEnum<AdultsOrChildrenSelectionMode>();
+
+            if ( addMode == AdultsOrChildrenSelectionMode.None )
+            {
+                return ActionBadRequest( "This kiosk does not support individual registration." );
+            }
+
+            // Adding an individual always creates (or matches) a new family
+            // member, so an existing person identifier is never sent. Without
+            // this check a posted identifier would update that person.
+            if ( options.Person?.Bag?.Id.IsNotNullOrWhiteSpace() == true )
+            {
+                return ActionBadRequest( "Invalid person." );
+            }
+
             var registration = new FamilyRegistration( RockContext, RequestContext.CurrentPerson, template );
             var result = registration.AddIndividual( options.FamilyId, options.Person, kiosk.GetCampusId() );
 
@@ -1684,7 +1803,7 @@ WHERE [RT].[Guid] = '" + SystemGuid.DefinedValue.PERSON_RECORD_TYPE_RESTUSER + "
 
             var response = new SaveFamilyResponseBag
             {
-                FamilyId = result.PrimaryFamily.IdKey,
+                FamilyId = result.PrimaryFamily?.IdKey,
                 IsCheckInAllowed = true,
                 IsSuccess = result.IsSuccess,
                 ErrorMessage = result.ErrorMessage

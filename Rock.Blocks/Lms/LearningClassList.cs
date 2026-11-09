@@ -54,7 +54,7 @@ namespace Rock.Blocks.Lms
         "Show Location Column",
         Key = AttributeKey.ShowLocationColumn,
         Description = "Determines if the Location column should be visible.",
-        ControlType = Field.Types.BooleanFieldType.BooleanControlType.Toggle,
+        BooleanControlType = Rock.Enums.Controls.BooleanControlType.Toggle,
         IsRequired = true,
         DefaultBooleanValue = false,
         Order = 1 )]
@@ -63,7 +63,7 @@ namespace Rock.Blocks.Lms
         "Show Schedule Column",
         Key = AttributeKey.ShowScheduleColumn,
         Description = "Determines if the Schedule column should be visible.",
-        ControlType = Field.Types.BooleanFieldType.BooleanControlType.Toggle,
+        BooleanControlType = Rock.Enums.Controls.BooleanControlType.Toggle,
         IsRequired = true,
         DefaultBooleanValue = false,
         Order = 2 )]
@@ -72,7 +72,7 @@ namespace Rock.Blocks.Lms
         "Show Semester Column",
         Key = AttributeKey.ShowSemesterColumn,
         Description = "Determines if the Semester column should be visible when the configuration is 'Academic Calendar'.",
-        ControlType = Field.Types.BooleanFieldType.BooleanControlType.Toggle,
+        BooleanControlType = Rock.Enums.Controls.BooleanControlType.Toggle,
         IsRequired = true,
         DefaultBooleanValue = false,
         Order = 3 )]
@@ -309,7 +309,21 @@ namespace Rock.Blocks.Lms
             }
 
             var learningClassService = new LearningClassService( RockContext );
-            var copiedEntity = learningClassService.Copy( key );
+
+            // Make sure the class exists and the person can edit it.
+            var entity = learningClassService.Get( key, !PageCache.Layout.Site.DisablePredictableIds );
+
+            if ( entity == null )
+            {
+                return ActionNotFound();
+            }
+
+            if ( !entity.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson ) )
+            {
+                return ActionBadRequest( $"Not authorized to copy {LearningClass.FriendlyTypeName}." );
+            }
+
+            var copiedEntity = learningClassService.Copy( entity );
             var currentPageParams = new Dictionary<string, string>
             {
                 [PageParameterKey.LearningProgramId] = PageParameter( PageParameterKey.LearningProgramId )

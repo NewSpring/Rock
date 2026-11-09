@@ -23,6 +23,8 @@ using System.Web.UI;
 using Rock.Attribute;
 using Rock.Data;
 using Rock.Model;
+using Rock.Security;
+using Rock.Security.SecurityGrantRules;
 using Rock.ViewModels.Utility;
 using Rock.Web.Cache;
 using Rock.Web.UI.Controls;
@@ -36,7 +38,7 @@ namespace Rock.Field.Types
     [FieldTypeUsage( FieldTypeUsage.Administrative )]
     [RockPlatformSupport( Utility.RockPlatform.WebForms, Utility.RockPlatform.Obsidian )]
     [Rock.SystemGuid.FieldTypeGuid( Rock.SystemGuid.FieldType.GROUP )]
-    public class GroupFieldType : FieldType, IEntityFieldType, IEntityReferenceFieldType
+    public class GroupFieldType : FieldType, IEntityFieldType, IEntityReferenceFieldType, IPublicSecurityGrantFieldType
     {
         #region Formatting
 
@@ -199,7 +201,22 @@ namespace Rock.Field.Types
             return new FieldTypeHints
             {
                 ValueFormat = $"A guid that represents a single entity from the Group table.",
+
+                // No Values, because every group in the database is far too many to
+                // enumerate. The format says what the value is, so this says where to
+                // go and find one.
+                Instructions = "To find the correct value, search the groups by name and use the guid of the one you want.",
             };
+        }
+
+        #endregion
+
+        #region IPublicSecurityGrantFieldType
+
+        /// <inheritdoc/>
+        public void AddRulesToSecurityGrant( SecurityGrant grant, Dictionary<string, string> privateConfigurationValues )
+        {
+            grant.AddRule( new GroupPickerSecurityGrantRule() );
         }
 
         #endregion

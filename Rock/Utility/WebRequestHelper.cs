@@ -47,7 +47,18 @@ namespace Rock.Utility
                 return forwardedHost;
             }
 
-            return context.Request.UrlProxySafe().Host;
+            /*
+                10/26/2026 - MSE
+
+                This host selects the site (route handler), the shared login cookie domain and the
+                site used for error pages, so it must be the host the request was actually received on.
+                UrlProxySafe now replaces hosts that are not configured site domains with the
+                PublicApplicationRoot host, which would route a request made by IP address to the wrong
+                site and set a cookie domain the browser rejects. Use the unvalidated request URL here.
+
+                Reason: Keep site routing and the login cookie domain on the received host.
+            */
+            return context.Request.UrlForwardedUnvalidated().Host;
         }
 
         /// <summary>
@@ -373,7 +384,16 @@ namespace Rock.Utility
 
                 // If IsSecureConnection is false then check the scheme in case the web server is behind a load balancer.
                 // The server could use unencrypted traffic to the balancer, which would encrypt it before sending to the browser.
-                var secureSetting = request.IsSecureConnection || request.UrlProxySafe().Scheme == "https" ? ";Secure" : string.Empty;
+                /*
+                    10/26/2026 - MSE
+
+                    The Secure flag must follow the scheme the browser actually used. UrlProxySafe now uses the
+                    PublicApplicationRoot scheme on hosts that are not site domains, which would mark cookies
+                    Secure on a plain http request and the browser would drop them.
+
+                    Reason: Decide the Secure flag from the received scheme.
+                */
+                var secureSetting = request.IsSecureConnection || request.UrlForwardedUnvalidated().Scheme == "https" ? ";Secure" : string.Empty;
 
                 // For browsers to recognize SameSite=none the Secure tag is required, but it doesn't hurt to add it for all samesite settings.
                 string sameSiteCookieValue = $";SameSite={sameSiteCookieSetting}{secureSetting}";
@@ -435,5 +455,65 @@ namespace Rock.Utility
             }
         }
 
+        /*
+            8/24/2026 - CLAUDE
+
+            Browsers speculatively fetch and prerender pages the visitor has not
+            navigated to, which produced page view interactions for pages nobody
+            actually looked at. Chrome Speculation Rules made this common enough
+            to matter.
+
+            Reason: Prefetched pages were being counted as real page views.
+        */
+
+        /// <summary>
+        /// Determines whether the request headers indicate the browser is
+        /// speculatively fetching or prerendering the page rather than
+        /// responding to a real navigation.
+        /// </summary>
+        /// <param name="headers">The request headers.</param>
+        /// <returns><c>true</c> if the request carries prefetch or prerender intent.</returns>
+        /// <remarks>
+        /// Covers the current <c>Sec-Purpose</c> header along with the older
+        /// <c>Purpose</c>, <c>X-Moz</c>, and <c>X-Purpose</c> headers that
+        /// Firefox and older Chromium builds send. Matomo applies the same set
+        /// of checks in its tracker.
+        /// </remarks>
+        internal static bool IsPrefetchRequest( System.Collections.Specialized.NameValueCollection headers )
+        {
+            if ( headers == null )
+            {
+                return false;
+            }
+
+            // Sec-Purpose carries values such as "prefetch" or "prefetch;prerender",
+            // so this one is a substring test rather than an equality test.
+            var secPurpose = headers["Sec-Purpose"];
+            if ( secPurpose.IsNotNullOrWhiteSpace()
+                 && ( secPurpose.IndexOf( "prefetch", StringComparison.OrdinalIgnoreCase ) >= 0
+                      || secPurpose.IndexOf( "prerender", StringComparison.OrdinalIgnoreCase ) >= 0 ) )
+            {
+                return true;
+            }
+
+            // string.Equals is used rather than the instance method because the
+            // header indexer returns null when the header is absent.
+            if ( string.Equals( headers["Purpose"], "prefetch", StringComparison.OrdinalIgnoreCase ) )
+            {
+                return true;
+            }
+
+            if ( string.Equals( headers["X-Moz"], "prefetch", StringComparison.OrdinalIgnoreCase ) )
+            {
+                return true;
+            }
+
+            if ( string.Equals( headers["X-Purpose"], "preview", StringComparison.OrdinalIgnoreCase ) )
+            {
+                return true;
+            }
+
+            return false;
+        }
     }
 }

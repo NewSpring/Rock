@@ -91,6 +91,8 @@ namespace Rock.Workflow.Action
         Description = "The name to use for the new document that is created. <span class='tip tip-lava'></span>",
         Key = AttributeKey.SignatureDocumentName,
         IsRequired = true,
+        AllowHtml = true,
+        AllowLava = true,
         Order = 7 )]
 
     [Rock.SystemGuid.EntityTypeGuid( "41491689-00BD-49A1-A3CD-A59FBBD2B2F8" )]
@@ -332,6 +334,26 @@ namespace Rock.Workflow.Action
                 return false;
             }
 
+            /*
+                10/18/2026 - MSE
+
+                The signature data is posted by the client and is later placed into
+                HTML that the server renders into a PDF. A drawn signature must be a
+                base64 PNG data URL, and a typed signature has no signature data.
+
+                Reason: Prevent SSRF and HTML injection in signed documents.
+            */
+            if ( template.SignatureType == SignatureType.Drawn && !ElectronicSignatureHelper.IsValidDrawnSignatureDataUrl( signatureData ) )
+            {
+                errorMessage = "Invalid signature data received.";
+                return false;
+            }
+
+            if ( template.SignatureType == SignatureType.Typed )
+            {
+                signatureData = null;
+            }
+
             // Get the person that will be signing the document.
             var signedByPersonAliasId = GetSignedByPersonAliasId( rockContext, action, requestContext.CurrentPerson?.PrimaryAliasId );
             var signedByPerson = signedByPersonAliasId.HasValue
@@ -447,14 +469,23 @@ namespace Rock.Workflow.Action
         /// <returns>An instance of <see cref="BinaryFile"/> that has been saved to the database or <c>null</c> on error.</returns>
         private BinaryFile CreateSignedDocumentPdf( SignatureDocumentTemplate template, SignatureDocument document, Person signedByPerson, RockContext rockContext, out string errorMessage )
         {
+            /*
+                10/18/2026 - MSE
+
+                The signed name and client IP address come from the request and are
+                placed into HTML that is rendered into the signed PDF. The helper
+                expects these to be encoded by the caller.
+
+                Reason: Prevent HTML injection in signed documents.
+            */
             var signatureInformationHtmlArgs = new GetSignatureInformationHtmlOptions
             {
                 SignatureType = template.SignatureType,
-                SignedName = document.SignedName,
+                SignedName = document.SignedName.EncodeHtml(),
                 DrawnSignatureDataUrl = document.SignatureData,
                 SignedByPerson = signedByPerson,
                 SignedDateTime = document.SignedDateTime,
-                SignedClientIp = document.SignedClientIp,
+                SignedClientIp = document.SignedClientIp.EncodeHtml(),
                 SignatureVerificationHash = document.SignatureVerificationHash
             };
 
@@ -472,6 +503,13 @@ namespace Rock.Workflow.Action
                         ?? BinaryFileTypeCache.GetId( Rock.SystemGuid.BinaryFiletype.DIGITALLY_SIGNED_DOCUMENTS.AsGuid() );
 
                     pdfFile = pdfGenerator.GetAsBinaryFileFromHtml( binaryFileTypeId ?? 0, document.Name, signedSignatureDocumentHtml );
+                    // Link the BinaryFile back to its SignatureDocumentTemplate so that downstream security checks
+                    // (e.g., BinaryFile.ParentEntityAllowsView used by GetFile.ashx) can delegate authorization to
+                    // the template's ACL. Without these, the file's authorization falls back to the BinaryFileType
+                    // security only, which does not honor the template's Deny/Allow settings. Matches the pattern
+                    // in Rock.Blocks/Event/RegistrationEntry.cs (see issue #5599 fix from Rock v16.1).
+                    pdfFile.ParentEntityId = template.Id;
+                    pdfFile.ParentEntityTypeId = EntityTypeCache.Get<SignatureDocumentTemplate>().Id;
                 }
             }
             catch ( PdfGeneratorException pdfGeneratorException )

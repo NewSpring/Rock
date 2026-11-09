@@ -103,12 +103,29 @@ namespace RockWeb
                 if ( binaryFile != null )
                 {
                     binaryFile.BinaryFileType = binaryFile.BinaryFileType ?? new BinaryFileTypeService( rockContext ).Get( binaryFile.BinaryFileTypeId.Value );
-                    //UserLogin currentUser = UserLoginService.GetCurrentUser();
-                    var currentUser = new UserLoginService( rockContext ).GetByUserName( UserLogin.GetCurrentUserName() );
-                    Person currentPerson = currentUser?.Person;
+
+                    // Resolve the current person from the request's HttpContext directly rather than via
+                    // UserLoginService.GetCurrentUser(). That helper reads identity through HttpContext.Current /
+                    // Thread.CurrentPrincipal, which is not reliable inside this IHttpAsyncHandler's EndProcessRequest
+                    // continuation: the ADO.NET completion callback runs on a thread pool worker where
+                    // HttpContext.Current can be null and Thread.CurrentPrincipal may not carry the request's identity.
+                    // The passed-in `context` (via IAsyncResult.AsyncState) IS the request's HttpContext, so read
+                    // Identity.Name from it and translate "rckipid=<token>" ourselves via PersonTokenService.
+                    Person currentPerson = null;
+                    var identityName = context.User?.Identity?.Name ?? string.Empty;
+                    if ( identityName.StartsWith( "rckipid=" ) )
+                    {
+                        var personToken = new PersonTokenService( rockContext ).GetByImpersonationToken( identityName.Substring( 8 ) );
+                        currentPerson = personToken?.PersonAlias?.Person;
+                    }
+                    else if ( identityName.IsNotNullOrWhiteSpace() )
+                    {
+                        currentPerson = new UserLoginService( rockContext ).GetByUserName( identityName )?.Person;
+                    }
+
                     var parentEntityAllowsView = binaryFile.ParentEntityAllowsView( currentPerson );
 
-                    // If no parent entity is specified then check if there is scecurity on the BinaryFileType
+                    // If no parent entity is specified then check if there is security on the BinaryFileType
                     // Use BinaryFileType.RequiresViewSecurity because checking security for every file is slow (~40ms+ per request)
                     if ( parentEntityAllowsView == null && requiresViewSecurity )
                     {
@@ -219,6 +236,8 @@ namespace RockWeb
             context.Response.AddHeader( "content-disposition", string.Format( "{1};filename={0}", fileName.MakeValidFileName(), sendAsAttachment ? "attachment" : "inline" ) );
             context.Response.AddHeader( "content-length", responseLength.ToString() );
 
+            AddResponseSecurityHeaders( context );
+
             rockCacheability.SetupHttpCachePolicy( context.Response.Cache );
 
             context.Response.Cache.SetETag( eTag ); // required for IE9 resumable downloads
@@ -296,6 +315,26 @@ namespace RockWeb
             context.Response.StatusCode = code;
             context.Response.StatusDescription = message;
             context.ApplicationInstance.CompleteRequest();
+        }
+
+        /// <summary>
+        /// Adds the security headers that prevent an uploaded file from executing script in the
+        /// context of the Rock domain. Uploaded files are stored and served with a client-supplied
+        /// mime type, so a text file can be served as text/html or image/svg+xml and would then
+        /// execute its script as an active document on the Rock domain. The sandbox directive places
+        /// the response in an opaque origin with scripting disabled (even on direct top-level
+        /// navigation), so script inside an uploaded file cannot run, read the Rock auth cookie, or
+        /// call Rock's API as the viewing user. default-src 'none' additionally blocks the file from
+        /// making any outbound request, preventing data exfiltration and hardening the response if the
+        /// sandbox is ever relaxed. nosniff is included so a file with a benign declared type cannot be
+        /// sniffed into a dangerous one.
+        /// </summary>
+        /// <param name="context">The context.</param>
+        private void AddResponseSecurityHeaders( HttpContext context )
+        {
+            // allow-downloads keeps the attachment download path working without re-enabling scripting.
+            context.Response.AddHeader( "Content-Security-Policy", "default-src 'none'; sandbox allow-downloads" );
+            context.Response.AddHeader( "X-Content-Type-Options", "nosniff" );
         }
 
         /// <summary>

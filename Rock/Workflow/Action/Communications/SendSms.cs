@@ -32,7 +32,7 @@ namespace Rock.Workflow.Action
     /// Sends email
     /// </summary>
     [ActionCategory( "Communications" )]
-    [Description( "Sends a SMS message. The recipient can either be a person or group attribute or a phone number entered in the 'To' field." )]
+    [Description( "Sends a SMS message. The recipient can either be a person or group attribute or a phone number entered in the 'To' field. The sending phone must be provided in either the 'From' attribute or the 'From (From Attribute)' setting." )]
     [Export( typeof( ActionComponent ) )]
     [ExportMetadata( "ComponentName", "SMS Send" )]
 
@@ -248,6 +248,12 @@ namespace Rock.Workflow.Action
             // NOTE: Passing 'true' as the checkWorkflowAttributeValue will also check the workflow AttributeValue
             // which allows us to remove the unneeded code.
             string message = GetAttributeValue( action, "Message", checkWorkflowAttributeValue: true );
+
+            // Attribute values can hold user-entered text, so strip any Lava before the SMS transport renders it.
+            if ( IsAttributeSourcedSetting( action, AttributeKey.Message ) )
+            {
+                message = message.SanitizeLava();
+            }
 
             // Add the attachment (if one was specified)
             var attachmentBinaryFileGuid = GetAttributeValue( action, "Attachment", true ).AsGuidOrNull();

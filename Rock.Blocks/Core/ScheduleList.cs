@@ -204,15 +204,16 @@ namespace Rock.Blocks.Core
         {
             if ( _categoryGuid == null )
             {
-                var categoryId = this.PageParameter( PageParameterKey.CategoryId ).AsIntegerOrNull();
+                var categoryParam = this.PageParameter( PageParameterKey.CategoryId );
+                var category = categoryParam.IsNotNullOrWhiteSpace() ? CategoryCache.Get( categoryParam, !PageCache.Layout.Site.DisablePredictableIds ) : null;
 
-                if ( !categoryId.HasValue )
+                if ( category == null )
                 {
                     _categoryGuid = this.PageParameter( PageParameterKey.CategoryGuid ).AsGuidOrNull();
                 }
                 else
                 {
-                    _categoryGuid = CategoryCache.Get( categoryId.Value )?.Guid;
+                    _categoryGuid = category.Guid;
                 }
             }
 
@@ -232,6 +233,11 @@ namespace Rock.Blocks.Core
         [BlockAction]
         public BlockActionResult ReorderItem( string key, string beforeKey )
         {
+            if ( !GetIsAddDeleteEnabled() )
+            {
+                return ActionBadRequest( "Not authorized to reorder items." );
+            }
+
             using ( var rockContext = new RockContext() )
             {
                 // Get the queryable and make sure it is ordered correctly.

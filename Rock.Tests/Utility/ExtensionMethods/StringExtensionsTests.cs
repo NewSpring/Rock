@@ -316,6 +316,56 @@ namespace Rock.Tests.Utility.ExtensionMethods
 
         #endregion RedirectUrlContainsXss
 
+        #region IsSafeRedirectUrl
+
+        private static readonly string[] RedirectAllowedHosts = new[] { "rock.church.org", "*.partner.org" };
+
+        [DataRow( "/page/1" )]
+        [DataRow( "~/page/1" )]
+        [DataRow( "https://rock.church.org/page/1" )]
+        [DataRow( "https://app.partner.org/" )]                         // Wildcard subdomain.
+        [DataRow( "%2Fpage%2F1" )]                                      // Encoded local path.
+        [TestMethod]
+        public void IsSafeRedirectUrl_SafeInput( string input )
+        {
+            var output = input.IsSafeRedirectUrl( RedirectAllowedHosts );
+            Assert.IsTrue( output );
+        }
+
+        [DataRow( "https://unsafe.com" )]                               // Unlisted host.
+        [DataRow( "/\\unsafe.com" )]                                    // Backslash.
+        [DataRow( "//unsafe.com" )]                                     // Protocol-relative.
+        [DataRow( "%2F%2Funsafe.com" )]                                 // Encoded protocol-relative.
+        [DataRow( "/&#47;unsafe.com" )]                                 // HTML-encoded protocol-relative.
+        [DataRow( "https://rock.church.org@unsafe.com" )]               // Userinfo.
+        [DataRow( "https://unsafepartner.org" )]                        // Wildcard suffix without the dot.
+        [DataRow( "https://partner.org" )]                              // Wildcard doesn't match the bare domain.
+        [DataRow( "ftp://rock.church.org" )]                            // Non-web scheme on an allowed host.
+        [DataRow( "myapp://rock.church.org/x" )]                        // Custom app scheme on an allowed host.
+        [DataRow( "data:text/html,hi" )]                                // Data URL.
+        [DataRow( "https://rock.church.org\0.unsafe.com" )]             // Null byte.
+        [DataRow( "https:/unsafe.com" )]                                // Single slash, which only browsers resolve.
+        [DataRow( "https://%75nsafe.com" )]                             // Encoded host, which only browsers resolve.
+        [DataRow( " https:/unsafe.com" )]                               // Leading space.
+        [DataRow( "page/1" )]                                           // Relative path without a leading slash.
+        [DataRow( "/page?x=<script>" )]                                 // Script injection in a local path.
+        [DataRow( "https://rock.church.org/?q=<b>" )]                   // Script injection on an allowed host.
+        [TestMethod]
+        public void IsSafeRedirectUrl_UnsafeInput( string input )
+        {
+            var output = input.IsSafeRedirectUrl( RedirectAllowedHosts );
+            Assert.IsFalse( output );
+        }
+
+        [TestMethod]
+        public void IsSafeRedirectUrl_EmptyEntryDoesNotAllowHostlessUrl()
+        {
+            var output = "javascript:alert(1)".IsSafeRedirectUrl( new[] { "https://" } );
+            Assert.IsFalse( output );
+        }
+
+        #endregion IsSafeRedirectUrl
+
         #region Truncate
 
         [TestMethod]
@@ -476,6 +526,141 @@ namespace Rock.Tests.Utility.ExtensionMethods
         {
             var output = @"80".AsDecimalPercentageOrNull( maxPercentage: 75 );
             Assert.AreEqual( 0.75m, output );
+        }
+
+        #endregion
+
+        #region ToGuidV5
+
+        /// <summary>
+        /// The standard RFC 4122 namespace for fully-qualified domain names, used below because it has
+        /// widely published version 5 test vectors.
+        /// </summary>
+        private static readonly Guid _dnsNamespace = new Guid( "6ba7b810-9dad-11d1-80b4-00c04fd430c8" );
+
+        /// <summary>
+        /// Verifies the implementation against published RFC 4122 version 5 test vectors. If this fails,
+        /// the hashing or byte-order handling is wrong, not merely different from what we expected. These
+        /// names are already lower case, so our lower-casing normalization does not affect them.
+        /// </summary>
+        [TestMethod]
+        [DataRow( "python.org", "886313e1-3b8a-5372-9b90-0c9aee199e5d" )]
+        [DataRow( "www.example.com", "2ed6657d-e927-568b-95e1-2665a8aea6a2" )]
+        public void ToGuidV5_WithKnownLowerCaseTestVector_ReturnsExpectedGuid( string name, string expectedGuid )
+        {
+            var result = name.ToGuidV5( _dnsNamespace );
+
+            Assert.AreEqual( new Guid( expectedGuid ), result );
+        }
+
+        /// <summary>
+        /// Pins the deliberate deviation from canonical RFC 4122: because we lower case the name first, a
+        /// mixed-case name does NOT match what a standards-compliant implementation would produce for that
+        /// same name. This test exists so the trade-off is visible rather than discovered during interop.
+        /// </summary>
+        [TestMethod]
+        public void ToGuidV5_WithMixedCaseName_DeviatesFromCanonicalRfcResult()
+        {
+            // The canonical RFC 4122 v5 value for the mixed-case name "Python.org" under the DNS namespace,
+            // as produced by a standards-compliant implementation that does not normalize casing.
+            var canonicalMixedCaseResult = new Guid( "cb620f2d-413b-52b6-a026-e87bac9b6f47" );
+
+            var result = "Python.org".ToGuidV5( _dnsNamespace );
+
+            Assert.AreNotEqual( canonicalMixedCaseResult, result );
+
+            // Instead it matches the all-lower-case name, which is the behavior we want.
+            Assert.AreEqual( "python.org".ToGuidV5( _dnsNamespace ), result );
+        }
+
+        /// <summary>
+        /// The whole point of a version 5 Guid is that it is derived, not random, so the same inputs must
+        /// always produce the same output.
+        /// </summary>
+        [TestMethod]
+        public void ToGuidV5_CalledRepeatedly_ReturnsSameGuid()
+        {
+            var input = "7e6286f7-0297-41ff-bdf6-bd5656e1bc53";
+
+            var first = input.ToGuidV5( _dnsNamespace );
+            var second = input.ToGuidV5( _dnsNamespace );
+
+            Assert.AreEqual( first, second );
+        }
+
+        /// <summary>
+        /// The generated Guid must carry version 5 in the third group and the RFC 4122 variant bits
+        /// ("10") in the fourth group.
+        /// </summary>
+        [TestMethod]
+        public void ToGuidV5_ForAnyInput_SetsVersionAndVariantBits()
+        {
+            var result = "7e6286f7-0297-41ff-bdf6-bd5656e1bc53".ToGuidV5( _dnsNamespace ).ToString( "D" );
+
+            Assert.AreEqual( '5', result[14], $"Expected version 5 in '{result}'." );
+            StringAssert.Contains( "89ab", result[19].ToString(), $"Expected RFC 4122 variant bits in '{result}'." );
+        }
+
+        /// <summary>
+        /// The namespace scopes the result, so the same name under a different namespace must not collide.
+        /// </summary>
+        [TestMethod]
+        public void ToGuidV5_WithDifferentNamespace_ReturnsDifferentGuid()
+        {
+            var input = "7e6286f7-0297-41ff-bdf6-bd5656e1bc53";
+            var otherNamespace = new Guid( "6ba7b811-9dad-11d1-80b4-00c04fd430c8" );
+
+            Assert.AreNotEqual( input.ToGuidV5( _dnsNamespace ), input.ToGuidV5( otherNamespace ) );
+        }
+
+        /// <summary>
+        /// Different names under the same namespace must not collide.
+        /// </summary>
+        [TestMethod]
+        public void ToGuidV5_WithDifferentName_ReturnsDifferentGuid()
+        {
+            Assert.AreNotEqual( "alpha".ToGuidV5( _dnsNamespace ), "beta".ToGuidV5( _dnsNamespace ) );
+        }
+
+        /// <summary>
+        /// The primary use is hashing Guid strings, which arrive in mixed casing depending on their source,
+        /// so casing must not change the result.
+        /// </summary>
+        [TestMethod]
+        public void ToGuidV5_WithDifferingCase_ReturnsSameGuid()
+        {
+            var upper = "7E6286F7-0297-41FF-BDF6-BD5656E1BC53".ToGuidV5( _dnsNamespace );
+            var lower = "7e6286f7-0297-41ff-bdf6-bd5656e1bc53".ToGuidV5( _dnsNamespace );
+            var mixed = "7e6286F7-0297-41ff-BDF6-bd5656e1BC53".ToGuidV5( _dnsNamespace );
+
+            Assert.AreEqual( lower, upper );
+            Assert.AreEqual( lower, mixed );
+        }
+
+        /// <summary>
+        /// Only casing is normalized. Formatting differences still change the name and therefore the result,
+        /// so callers must supply a consistently formatted value.
+        /// </summary>
+        [TestMethod]
+        [DataRow( "{7e6286f7-0297-41ff-bdf6-bd5656e1bc53}", DisplayName = "Braces" )]
+        [DataRow( "7e6286f7029741ffbdf6bd5656e1bc53", DisplayName = "No Hyphens" )]
+        public void ToGuidV5_WithDifferentFormatting_ReturnsDifferentGuid( string differentlyFormatted )
+        {
+            var standardFormat = "7e6286f7-0297-41ff-bdf6-bd5656e1bc53".ToGuidV5( _dnsNamespace );
+
+            Assert.AreNotEqual( standardFormat, differentlyFormatted.ToGuidV5( _dnsNamespace ) );
+        }
+
+        /// <summary>
+        /// An empty name is still hashable and must produce a stable, non-empty Guid.
+        /// </summary>
+        [TestMethod]
+        public void ToGuidV5_WithEmptyName_ReturnsStableNonEmptyGuid()
+        {
+            var result = string.Empty.ToGuidV5( _dnsNamespace );
+
+            Assert.AreNotEqual( Guid.Empty, result );
+            Assert.AreEqual( result, string.Empty.ToGuidV5( _dnsNamespace ) );
         }
 
         #endregion

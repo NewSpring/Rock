@@ -24,6 +24,9 @@ using Rock.Attribute;
 using Rock.Data;
 using Rock.Model;
 using Rock.Obsidian.UI;
+using Rock.Security;
+using Rock.Security.SecurityGrantRules;
+using Rock.Utility.Enums;
 using Rock.ViewModels.Blocks;
 using Rock.ViewModels.Blocks.Crm.NamelessPersonList;
 using Rock.ViewModels.Rest.Controls;
@@ -58,13 +61,23 @@ namespace Rock.Blocks.Crm
         [BlockAction( "LinkToExistingPerson" )]
         public BlockActionResult LinkToExistingPerson( string existingPersonAliasGuid, int namelessPersonId )
         {
+            if ( !BlockCache.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson ) )
+            {
+                return ActionBadRequest( "You are not authorized to link nameless people." );
+            }
+
             using ( var rockContext = new RockContext() )
             {
                 var personAliasService = new PersonAliasService( rockContext );
                 var personService = new PersonService( rockContext );
 
+                if ( !Guid.TryParse( existingPersonAliasGuid, out var existingPersonAliasGuidValue ) )
+                {
+                    return ActionBadRequest( "Person Alias not found" );
+                }
+
                 // Get the Person Alias and then the associated Person using the Person Alias GUID
-                var personAlias = personAliasService.Get( new Guid( existingPersonAliasGuid ) );
+                var personAlias = personAliasService.Get( existingPersonAliasGuidValue );
                 if ( personAlias == null )
                 {
                     return ActionBadRequest( "Person Alias not found" );
@@ -77,9 +90,14 @@ namespace Rock.Blocks.Crm
                     return ActionBadRequest( "Existing person not found" );
                 }
 
+                if ( existingPerson.AccountProtectionProfile >= AccountProtectionProfile.High )
+                {
+                    return ActionBadRequest( "This person has a protection profile that does not allow linking from this block. Use the Person Merge page." );
+                }
+
                 // Get the nameless person by their ID
                 var namelessPerson = personService.Get( namelessPersonId );
-                if ( namelessPerson == null )
+                if ( namelessPerson == null || !IsNamelessPerson( namelessPerson ) )
                 {
                     return ActionBadRequest( "Nameless person not found" );
                 }
@@ -99,17 +117,29 @@ namespace Rock.Blocks.Crm
         [BlockAction( "Save" )]
         public BlockActionResult Save( PersonBasicEditorBag personBag, int namelessPersonId )
         {
+            if ( !BlockCache.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson ) )
+            {
+                return ActionBadRequest( "You are not authorized to link nameless people." );
+            }
+
+            if ( personBag == null )
+            {
+                return ActionBadRequest( "Person details are required." );
+            }
+
             using ( var rockContext = new RockContext() )
             {
                 var personService = new PersonService( rockContext );
                 var cleanMobilePhone = PhoneNumber.CleanNumber( personBag.MobilePhoneNumber );
 
-                // Attempt to find an existing person by phone number
+                // Protected people are never overwritten here, so a number that
+                // only matches one falls through to creating a new person.
                 var existingPerson = personService.Queryable( "PhoneNumbers" )
+                    .Where( p => p.AccountProtectionProfile < AccountProtectionProfile.High )
                     .FirstOrDefault( p => p.PhoneNumbers.Any( n => n.Number == cleanMobilePhone ) );
 
                 var namelessPerson = personService.Get( namelessPersonId );
-                if ( namelessPerson == null )
+                if ( namelessPerson == null || !IsNamelessPerson( namelessPerson ) )
                 {
                     return ActionNotFound( "Nameless person not found." );
                 }
@@ -134,6 +164,18 @@ namespace Rock.Blocks.Crm
                 var mergePageUrl = string.Format( "/PersonMerge/{0}", mergeRequest.Id );
                 return new BlockActionResult( System.Net.HttpStatusCode.OK, mergePageUrl );
             }
+        }
+
+        /// <summary>
+        /// Determines whether the specified person is a nameless person record.
+        /// </summary>
+        /// <param name="person">The person to check.</param>
+        /// <returns><c>true</c> if the person is a nameless person record; otherwise, <c>false</c>.</returns>
+        private static bool IsNamelessPerson( Person person )
+        {
+            var namelessPersonRecordTypeId = DefinedValueCache.Get( Rock.SystemGuid.DefinedValue.PERSON_RECORD_TYPE_NAMELESS.AsGuid() )?.Id;
+
+            return namelessPersonRecordTypeId.HasValue && person.RecordTypeValueId == namelessPersonRecordTypeId.Value;
         }
 
         private void UpdatePersonFromEditorBag( Person person, PersonBasicEditorBag personBag, RockContext rockContext )
@@ -227,11 +269,39 @@ namespace Rock.Blocks.Crm
             var box = new ListBlockBox<NamelessPersonListOptionsBag>();
             var builder = GetGridBuilder();
 
+            box.IsAddEnabled = BlockCache.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson );
             box.ExpectedRowCount = null;
             box.Options = GetBoxOptions();
             box.GridDefinition = builder.BuildDefinition();
+            box.SecurityGrantToken = GetSecurityGrantToken();
 
             return box;
+        }
+
+        /// <inheritdoc/>
+        protected override string RenewSecurityGrantToken()
+        {
+            return GetSecurityGrantToken();
+        }
+
+        /// <summary>
+        /// Gets the security grant token that will be used by UI controls on
+        /// this block to ensure they have the proper permissions.
+        /// </summary>
+        /// <returns>A string that represents the security grant token.</returns>
+        private string GetSecurityGrantToken()
+        {
+            var securityGrant = new SecurityGrant();
+
+            // Allow the family role picker used when creating a new person.
+            var familyGroupType = GroupTypeCache.GetFamilyGroupType();
+
+            if ( familyGroupType != null )
+            {
+                securityGrant.AddRule( new GroupRolePickerSecurityGrantRule( familyGroupType.Id ) );
+            }
+
+            return securityGrant.ToToken();
         }
 
         /// <summary>

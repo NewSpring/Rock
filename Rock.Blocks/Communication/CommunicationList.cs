@@ -77,9 +77,6 @@ namespace Rock.Blocks.Communication
         private static class NavigationUrlKey
         {
             public const string DetailPage = "DetailPage";
-            [RockObsolete( "18.0" )]
-            [Obsolete( "This will be removed in v20.0 when the legacy detail page is removed", error: false )]
-            public const string LegacyDetailPage = "LegacyDetailPage";
         }
 
         private static class PageParameterKey
@@ -304,7 +301,6 @@ SELECT counts.*
     , pReviewer.[LastName] AS [ReviewerPersonLastName]
     , pReviewer.[SuffixValueId] AS [ReviewerPersonSuffixValueId]
     , pReviewer.[RecordTypeValueId] AS [ReviewerRecordTypeValueId]
-    , CAST(CASE WHEN (c.[Segments] IS NOT NULL AND RTRIM(c.[Segments]) <> '') OR ct.[Version] = 0 THEN 1 ELSE 0 END AS BIT) AS [IsLegacyCommunication]
 FROM (
     SELECT
         c.[Id] AS [CommunicationId]
@@ -315,8 +311,8 @@ FROM (
         , SUM(CASE WHEN cr.[Status] = {CommunicationRecipientStatus.Opened.ConvertToInt()} THEN 1 ELSE 0 END) AS [OpenedCount]
         , SUM(CASE WHEN cr.[Status] = {CommunicationRecipientStatus.Failed.ConvertToInt()} THEN 1 ELSE 0 END) AS [FailedCount]
         , SUM(CASE WHEN cr.[UnsubscribeDateTime] IS NOT NULL THEN 1 ELSE 0 END) AS [UnsubscribedCount]
-    FROM [CommunicationRecipient] cr
-    INNER JOIN [Communication] c ON c.[Id] = cr.[CommunicationId]
+    FROM [Communication] c
+    LEFT OUTER JOIN [CommunicationRecipient] cr ON cr.[CommunicationId] = c.[Id]
     LEFT OUTER JOIN [PersonAlias] paSender ON paSender.[Id] = c.[SenderPersonAliasId]
     LEFT OUTER JOIN [Person] pSender ON pSender.[Id] = paSender.[PersonId]
     LEFT OUTER JOIN [DefinedValue] dvTopic ON dvTopic.[Id] = c.[CommunicationTopicValueId]
@@ -427,11 +423,16 @@ WHERE (@RecipientCountLower IS NULL OR counts.[RecipientCount] >= @RecipientCoun
 
             if ( communicationTemplateIds.Any() )
             {
-                var authorizedCommunicationTemplateIds = new CommunicationTemplateService( RockContext )
+                var currentPerson = GetCurrentPerson();
+
+                var authorizedCommunicationTemplates = new CommunicationTemplateService( RockContext )
                     .Queryable()
                     .Where( ct => communicationTemplateIds.Contains( ct.Id ) )
                     .ToList()
-                    .Where( ct => ct.IsAuthorized( Authorization.VIEW, GetCurrentPerson() ) )
+                    .Where( ct => ct.IsAuthorized( Authorization.VIEW, currentPerson ) )
+                    .ToList();
+
+                var authorizedCommunicationTemplateIds = authorizedCommunicationTemplates
                     .Select( ct => ct.Id )
                     .ToList();
 
@@ -489,6 +490,12 @@ WHERE (@RecipientCountLower IS NULL OR counts.[RecipientCount] >= @RecipientCoun
                 return ActionBadRequest( $"{Rock.Model.Communication.FriendlyTypeName} not found." );
             }
 
+            // Only allow deleting communications that the list would show.
+            if ( !IsCommunicationListed( communication ) )
+            {
+                return ActionBadRequest( $"Not authorized to delete {Rock.Model.Communication.FriendlyTypeName}." );
+            }
+
             if ( !communicationService.CanDelete( communication, out var errorMessage ) )
             {
                 return ActionBadRequest( errorMessage );
@@ -503,6 +510,35 @@ WHERE (@RecipientCountLower IS NULL OR counts.[RecipientCount] >= @RecipientCoun
         #endregion
 
         #region Private Methods
+
+        /// <summary>
+        /// Determines whether the communication would be included in the list
+        /// for the current person, using the same rules as <see cref="GetGridData"/>.
+        /// </summary>
+        /// <param name="communication">The communication.</param>
+        /// <returns><c>true</c> if the communication would be listed; otherwise <c>false</c>.</returns>
+        private bool IsCommunicationListed( Rock.Model.Communication communication )
+        {
+            var currentPerson = GetCurrentPerson();
+
+            // Only approvers can see communications sent by other people.
+            if ( !CanApprove && ( currentPerson == null || communication.SenderPersonAlias?.PersonId != currentPerson.Id ) )
+            {
+                return false;
+            }
+
+            if ( communication.CommunicationTemplate != null && !communication.CommunicationTemplate.IsAuthorized( Authorization.VIEW, currentPerson ) )
+            {
+                return false;
+            }
+
+            if ( communication.SystemCommunication != null && !communication.SystemCommunication.IsAuthorized( Authorization.VIEW, currentPerson ) )
+            {
+                return false;
+            }
+
+            return true;
+        }
 
         /// <summary>
         /// Gets the box options required for the component to render the list.
@@ -536,34 +572,8 @@ WHERE (@RecipientCountLower IS NULL OR counts.[RecipientCount] >= @RecipientCoun
         {
             return new Dictionary<string, string>
             {
-                [NavigationUrlKey.DetailPage] = this.GetLinkedPageUrl( AttributeKey.DetailPage, PageParameterKey.CommunicationId, "((Key))" ),
-                // Remove this in v20.0 when the legacy detail page is removed.
-                [NavigationUrlKey.LegacyDetailPage] = GetLegacyCommunicationUrl( new Dictionary<string, string>()
-                {
-                    [PageParameterKey.CommunicationId] = "((Key))"
-                } )
+                [NavigationUrlKey.DetailPage] = this.GetLinkedPageUrl( AttributeKey.DetailPage, PageParameterKey.CommunicationId, "((Key))" )
             };
-        }
-
-        /// <summary>
-        /// Constructs a URL for the legacy communication page using the specified parameters.
-        /// </summary>
-        /// <param name="pageParams">A dictionary of parameters to include in the URL.</param>
-        /// <returns>A string representing the constructed URL if the page ID is valid; otherwise, <see langword="null"/>.</returns>
-        [RockObsolete( "18.0" )]
-        [Obsolete( "This will be removed in v20.0 when the legacy detail page is removed", error: false )]
-        private string GetLegacyCommunicationUrl( IDictionary<string, string> pageParams )
-        {
-            var pageReference = new Rock.Web.PageReference(
-                Rock.SystemGuid.Page.NEW_COMMUNICATION,
-                new Dictionary<string, string>( pageParams ) );
-
-            if ( pageReference.PageId > 0 )
-            {
-                return pageReference.BuildUrl();
-            }
-
-            return null;
         }
 
         /// <summary>
@@ -636,8 +646,7 @@ WHERE (@RecipientCountLower IS NULL OR counts.[RecipientCount] >= @RecipientCoun
                         a.ReviewerPersonRecordTypeValueId
                     );
                 } )
-                .AddField( "isDeleteDisabled", a => a.DeliveredCount > 0 )
-                .AddField( "isLegacyCommunication", a => a.IsLegacyCommunication );
+                .AddField( "isDeleteDisabled", a => a.DeliveredCount > 0 );
         }
 
         #endregion
@@ -777,13 +786,6 @@ WHERE (@RecipientCountLower IS NULL OR counts.[RecipientCount] >= @RecipientCoun
             /// Gets or sets the record type value identifier of the person who reviewed the <see cref="Rock.Model.Communication"/>.
             /// </summary>
             public int? ReviewerPersonRecordTypeValueId { get; set; }
-
-            /// <summary>
-            /// Gets or sets a value indicating whether the communication protocol is considered legacy.
-            /// </summary>
-            [RockObsolete( "18.0" )]
-            [Obsolete( "This will be removed in v20.0 when the legacy detail page is removed", error: false )]
-            public bool IsLegacyCommunication { get; set; }
         }
 
         #endregion Supporting Classes

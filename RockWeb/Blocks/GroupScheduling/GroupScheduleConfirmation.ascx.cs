@@ -186,6 +186,16 @@ namespace RockWeb.Blocks.GroupScheduling
 
         private Person _selectedPerson;
 
+        /// <summary>
+        /// Set by <see cref="GetAuthorizedContextPerson" /> to the context person when the current person may act for them.
+        /// </summary>
+        private Person _authorizedContextPerson;
+
+        /// <summary>
+        /// Whether <see cref="GetAuthorizedContextPerson" /> has already checked the context person on this request.
+        /// </summary>
+        private bool _isContextPersonResolved;
+
         #endregion Fields
 
         #region Base Control Methods
@@ -256,6 +266,13 @@ namespace RockWeb.Blocks.GroupScheduling
             }
 
             SetSelectedPersonId();
+
+            if ( _selectedPerson == null )
+            {
+                mdDeclineAll.Hide();
+                ShowNotAuthorizedMessage();
+                return;
+            }
 
             int? declineReasonValueId = ddlDeclineAllReason.SelectedItem.Value.AsIntegerOrNull();
             var rockContext = new RockContext();
@@ -333,7 +350,7 @@ namespace RockWeb.Blocks.GroupScheduling
         {
             var btnConfirmAttend = sender as LinkButton;
             int? attendanceId = btnConfirmAttend.CommandArgument.AsIntegerOrNull();
-            if ( attendanceId.HasValue )
+            if ( attendanceId.HasValue && IsAttendanceForSelectedPerson( attendanceId.Value ) )
             {
                 var rockContext = new RockContext();
                 new AttendanceService( rockContext ).ScheduledPersonConfirm( attendanceId.Value );
@@ -352,7 +369,7 @@ namespace RockWeb.Blocks.GroupScheduling
         {
             var btnDeclineAttend = sender as LinkButton;
             int? attendanceId = btnDeclineAttend.CommandArgument.AsIntegerOrNull();
-            if ( attendanceId.HasValue )
+            if ( attendanceId.HasValue && IsAttendanceForSelectedPerson( attendanceId.Value ) )
             {
                 var rockContext = new RockContext();
 
@@ -434,7 +451,7 @@ namespace RockWeb.Blocks.GroupScheduling
         /// </summary>
         private void BindPendingConfirmations()
         {
-            var selectedPersonId = hfSelectedPersonId.Value.AsIntegerOrNull();
+            var selectedPersonId = GetSelectedPersonIdForBinding();
 
             if ( selectedPersonId == null )
             {
@@ -466,7 +483,7 @@ namespace RockWeb.Blocks.GroupScheduling
         /// </summary>
         private void BindSelectedConfirmations()
         {
-            var selectedPersonId = hfSelectedPersonId.Value.AsIntegerOrNull();
+            var selectedPersonId = GetSelectedPersonIdForBinding();
 
             if ( selectedPersonId == null )
             {
@@ -781,7 +798,7 @@ namespace RockWeb.Blocks.GroupScheduling
                     }
                 }
 
-                var mergeFields = MergeFields( attendanceList, this.ContextEntity<Person>() );
+                var mergeFields = MergeFields( attendanceList, GetAuthorizedContextPerson() );
                 ShowDeclineMessageAfterSubmit( attendanceIds, mergeFields );
 
                 pnlDeclineReason.Visible = false;
@@ -794,14 +811,92 @@ namespace RockWeb.Blocks.GroupScheduling
         }
 
         /// <summary>
+        /// Gets the context person, but only if it is the current person or the current
+        /// person can schedule the groups of every requested attendance.
+        /// </summary>
+        /// <returns>The context person, or <c>null</c> if there is none or it is not allowed.</returns>
+        private Person GetAuthorizedContextPerson()
+        {
+            if ( _isContextPersonResolved )
+            {
+                return _authorizedContextPerson;
+            }
+
+            _isContextPersonResolved = true;
+
+            var contextPerson = this.ContextEntity<Person>();
+
+            if ( contextPerson == null )
+            {
+                return null;
+            }
+
+            if ( contextPerson.Id == this.CurrentPersonId || CanScheduleRequestedAttendances( contextPerson.Id ) )
+            {
+                _authorizedContextPerson = contextPerson;
+            }
+
+            return _authorizedContextPerson;
+        }
+
+        /// <summary>
+        /// Determines whether every attendance in the page parameters belongs to the specified
+        /// person and is in a group the current person can schedule (SCHEDULE, EDIT or MANAGE_MEMBERS).
+        /// </summary>
+        /// <param name="personId">The person identifier.</param>
+        /// <returns><c>true</c> if all requested attendances can be scheduled; otherwise, <c>false</c>.</returns>
+        private bool CanScheduleRequestedAttendances( int personId )
+        {
+            // GetAttendanceIdsFromParameters needs the selected person, which isn't known yet, so read the parameters here.
+            var attendanceIdsValue = PageParameter( PageParameterKey.AttendanceIds ).IsNotNullOrWhiteSpace()
+                ? PageParameter( PageParameterKey.AttendanceIds )
+                : PageParameter( PageParameterKey.AttendanceId );
+
+            var attendanceIds = attendanceIdsValue.SplitDelimitedValues().AsIntegerList().Distinct().ToList();
+            if ( !attendanceIds.Any() )
+            {
+                return false;
+            }
+
+            var rockContext = new RockContext();
+
+            var attendanceGroupIds = new AttendanceService( rockContext ).Queryable()
+                .Where( a => attendanceIds.Contains( a.Id ) && a.PersonAlias.PersonId == personId )
+                .Select( a => a.Occurrence.GroupId )
+                .ToList();
+
+            if ( attendanceGroupIds.Count != attendanceIds.Count || attendanceGroupIds.Any( id => !id.HasValue ) )
+            {
+                return false;
+            }
+
+            // SCHEDULE is checked first because it never queries. MANAGE_MEMBERS comes before EDIT
+            // because its group member query also matches roles that can edit.
+            return attendanceGroupIds
+                .Select( id => id.Value )
+                .Distinct()
+                .Select( id => GroupCache.Get( id, rockContext ) )
+                .All( g => g != null
+                    && ( g.IsAuthorized( Rock.Security.Authorization.SCHEDULE, this.CurrentPerson )
+                        || g.IsAuthorized( Rock.Security.Authorization.MANAGE_MEMBERS, this.CurrentPerson )
+                        || g.IsAuthorized( Rock.Security.Authorization.EDIT, this.CurrentPerson ) ) );
+        }
+
+        /// <summary>
         /// Sets the person _selectedPerson.
         /// </summary>
         private void SetSelectedPersonId()
         {
-            var targetPerson = this.ContextEntity<Person>();
+            var targetPerson = GetAuthorizedContextPerson();
             if ( targetPerson != null )
             {
                 _selectedPerson = targetPerson;
+            }
+            else if ( this.ContextEntity<Person>() != null )
+            {
+                // A context person the current person may not act for selects nobody,
+                // so the block shows the not authorized message instead of the current person.
+                _selectedPerson = null;
             }
             else
             {
@@ -822,6 +917,46 @@ namespace RockWeb.Blocks.GroupScheduling
                     hfSelectedPersonId.Value = this.CurrentPersonId.ToString();
                 }
             }
+        }
+
+        /// <summary>
+        /// Gets the selected person identifier to use when binding the confirmation lists.
+        /// This is recalculated from the request instead of trusting the posted hidden field.
+        /// The lists are only bound when there is no context person, which matches when
+        /// the hidden field was written.
+        /// </summary>
+        /// <returns>The selected person identifier, or <c>null</c> if there is none.</returns>
+        private int? GetSelectedPersonIdForBinding()
+        {
+            if ( GetAuthorizedContextPerson() != null )
+            {
+                return null;
+            }
+
+            SetSelectedPersonId();
+
+            return _selectedPerson?.Id;
+        }
+
+        /// <summary>
+        /// Determines whether the attendance belongs to the selected person.
+        /// </summary>
+        /// <param name="attendanceId">The attendance identifier.</param>
+        /// <returns><c>true</c> if the attendance belongs to the selected person; otherwise, <c>false</c>.</returns>
+        private bool IsAttendanceForSelectedPerson( int attendanceId )
+        {
+            SetSelectedPersonId();
+
+            if ( _selectedPerson == null )
+            {
+                return false;
+            }
+
+            var selectedPersonId = _selectedPerson.Id;
+
+            return new AttendanceService( new RockContext() ).Queryable()
+                .AsNoTracking()
+                .Any( a => a.Id == attendanceId && a.PersonAlias.PersonId == selectedPersonId );
         }
 
         /// <summary>

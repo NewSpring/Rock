@@ -119,7 +119,11 @@ namespace Rock.Blocks.Engagement
         #endregion Keys
 
         private int currentColorIndex = 0;
-        private readonly string[] defaultColors = { "#ea5545", "#f46a9b", "#ef9b20", "#edbf33", "#ede15b", "#bdcf32", "#87bc45", "#27aeef", "#b33dc6" };
+
+        // Fallback colors for step types that don't have their own configured HighlightColor. Each node in
+        // this flow diagram is only distinguishable by color, so this cycles through the categorical
+        // palette in sequence rather than a single flat color.
+        private readonly string[] defaultColors = { "--color-categorical-1", "--color-categorical-2", "--color-categorical-3", "--color-categorical-4", "--color-categorical-5", "--color-categorical-6", "--color-categorical-7", "--color-categorical-8" };
 
         #region Methods
 
@@ -2168,6 +2172,13 @@ namespace Rock.Blocks.Engagement
 
             var isNew = entity.Id == 0;
 
+            // Make sure the step attributes are either new or already
+            // belong to this step program.
+            if ( !PublicAttributeHelper.AreAttributeEditsAllowed( box.Bag.StepProgramAttributes, new StepType().TypeId, "StepProgramId", isNew ? null : entity.Id.ToString(), RockContext ) )
+            {
+                return ActionBadRequest( "Invalid attribute." );
+            }
+
             RockContext.WrapTransaction( () =>
             {
                 RockContext.SaveChanges();
@@ -2265,8 +2276,24 @@ namespace Rock.Blocks.Engagement
             }
 
             string errorMessage = null;
-            RockContext.WrapTransaction( () =>
+
+            /*
+                10/19/2026 - MSE
+
+                The step types used to be deleted and saved before the program's
+                CanDelete check, and WrapTransaction always commits, so a refused
+                program delete still removed its step types and every Step record.
+                Check the program first and roll back on every refusal.
+
+                Reason: A refused delete must not remove anything.
+            */
+            RockContext.WrapTransactionIf( () =>
             {
+                if ( !entityService.CanDelete( entity, out errorMessage ) )
+                {
+                    return false;
+                }
+
                 var stepTypes = entity.StepTypes.ToList();
                 var stepTypeService = new StepTypeService( RockContext );
 
@@ -2275,12 +2302,12 @@ namespace Rock.Blocks.Engagement
                     if ( stepType.IsSystem )
                     {
                         errorMessage = $"This program contains the Step Type, '{stepType.Name}', which is a system Step Type and cannot be deleted.";
-                        return;
+                        return false;
                     }
 
                     if ( !stepTypeService.CanDelete( stepType, out errorMessage ) )
                     {
-                        return;
+                        return false;
                     }
 
                     stepTypeService.Delete( stepType );
@@ -2288,13 +2315,10 @@ namespace Rock.Blocks.Engagement
 
                 RockContext.SaveChanges();
 
-                if ( !entityService.CanDelete( entity, out errorMessage ) )
-                {
-                    return;
-                }
-
                 entityService.Delete( entity );
                 RockContext.SaveChanges();
+
+                return true;
             } );
 
             return string.IsNullOrWhiteSpace( errorMessage ) ? ActionOk( this.GetParentPageUrl() ) : ActionBadRequest( errorMessage );
@@ -2313,6 +2337,12 @@ namespace Rock.Blocks.Engagement
             if ( stepProgram == null )
             {
                 return ActionBadRequest( "Could not find the specified Step Program" );
+            }
+
+            // Use the same VIEW check that is used when the block loads.
+            if ( !stepProgram.IsAuthorized( Authorization.VIEW, RequestContext.CurrentPerson ) )
+            {
+                return ActionBadRequest( "You are not authorized to view this Step Program." );
             }
 
             DateTime startDate = startDateTime.ToOrganizationDateTime();
@@ -2385,7 +2415,15 @@ namespace Rock.Blocks.Engagement
         [BlockAction]
         public BlockActionResult GetStepFlowData( SlidingDateRangeBag dateRange, int maxLevels, List<Guid> startingStepTypes )
         {
-            List<StepTypeCache> stepTypes = StepProgramCache.Get( PageParameter( PageParameterKey.StepProgramId ), !PageCache.Layout.Site.DisablePredictableIds ).StepTypes;
+            var stepProgram = StepProgramCache.Get( PageParameter( PageParameterKey.StepProgramId ), !PageCache.Layout.Site.DisablePredictableIds );
+
+            // Use the same VIEW check that is used when the block loads.
+            if ( stepProgram == null || !stepProgram.IsAuthorized( Authorization.VIEW, RequestContext.CurrentPerson ) )
+            {
+                return ActionBadRequest( "You are not authorized to view this Step Program." );
+            }
+
+            List<StepTypeCache> stepTypes = stepProgram.StepTypes;
             var nodeResults = new List<SankeyDiagramNodeBag>();
             List<int> startingStepTypeIds = new List<int>();
             int order = 0;

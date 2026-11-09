@@ -46,6 +46,7 @@ using Rock.Net;
 using Rock.Net.Geolocation;
 using Rock.Observability;
 using Rock.Utility.CaptchaApi;
+using Rock.Utility.HtmlSanitization;
 using Rock.Utility.Settings;
 using Rock.Web;
 using Rock.Web.Cache;
@@ -289,6 +290,25 @@ namespace Rock.WebStartup
             RegisterHttpModules();
             ShowDebugTimingMessage( "Register HTTP Modules" );
 
+            /*
+                10/15/2026 - MSE
+
+                Load the AI provider container so its component attributes
+                are updated and any plain text secret keys are encrypted.
+
+                Reason: Keep AI provider secret keys encrypted at rest.
+            */
+            try
+            {
+                LogStartupMessage( "Loading AI Providers" );
+                _ = Rock.AI.Provider.AIProviderContainer.Instance;
+                ShowDebugTimingMessage( "Load AI Providers" );
+            }
+            catch ( Exception ex )
+            {
+                ExceptionLogService.LogException( ex, null );
+            }
+
             // Initialize the Lava engine.
             LogStartupMessage( "Initializing Lava Engine" );
             InitializeLava();
@@ -353,17 +373,36 @@ namespace Rock.WebStartup
             sc.AddSingleton<IHostingSettings, HostingSettings>();
             sc.AddSingleton<IChatProvider, StreamChatProvider>();
             sc.AddSingleton<ICaptchaProvider, CaptchaProofOfWorkProvider>();
+            sc.AddSingleton<IHtmlAllowListSanitizer, HtmlAllowListSanitizer>();
             sc.AddSingleton<IRockRequestContextAccessor, RockRequestContextAccessor>();
             sc.AddSingleton<IUserAgentParser, UserAgentParser>();
             sc.AddSingleton<IWebHostEnvironment>( provider => new Utility.WebHostEnvironment
             {
                 WebRootPath = AppDomain.CurrentDomain.BaseDirectory
             } );
+
+            sc.AddSingleton<Configuration.ConnectedServices.ConnectedServicesProvider>();
             sc.AddSingleton<MetadataHelper>();
             sc.AddSingleton<ObsidianFingerprintManager>();
             sc.AddSingleton<CssProcessor>();
             sc.AddSingleton<ILavaEngineFactory, LavaEngineFactory>();
             sc.AddSingleton<DebugTraceObserver>();
+
+            // Distributed locking primitive. Registered as a singleton; the
+            // SQL Server implementation is the default. If the
+            // DisableDistributedLocking app setting is true, register the
+            // no-op provider instead. This is a break-glass fallback that
+            // restores Rock's pre-distributed-locking behavior (every acquire
+            // succeeds, no cross-node coordination) and is not intended for
+            // normal operation.
+            if ( ConfigurationManager.AppSettings["DisableDistributedLocking"].AsBoolean() )
+            {
+                sc.AddSingleton<Rock.Bus.Locking.IDistributedLockProvider, Rock.Bus.Locking.NoOpDistributedLockProvider>();
+            }
+            else
+            {
+                sc.AddSingleton<Rock.Bus.Locking.IDistributedLockProvider, Rock.Bus.Locking.SqlServerDistributedLockProvider>();
+            }
 
             sc.AddScoped<RockContext>();
 

@@ -16,6 +16,7 @@
 //
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Linq.Expressions;
 
@@ -50,14 +51,37 @@ namespace Rock.Model
         }
 
         /// <summary>
+        /// Gets a value indicating whether this instance is valid.
+        /// </summary>
+        /// <value>
+        ///   <c>true</c> if this instance is valid; otherwise, <c>false</c>.
+        /// </value>
+        public override bool IsValid
+        {
+            get
+            {
+                var result = base.IsValid;
+
+                if ( !string.IsNullOrWhiteSpace( this.QueryHint ) && QueryHintDbCommandInterceptor.GetSafeQueryHint( this.QueryHint ) == null )
+                {
+                    this.ValidationResults.Add( new ValidationResult( "Query Hint must be one or more of the following, separated by commas: RECOMPILE, OPTIMIZE FOR UNKNOWN, FORCE ORDER, MAXDOP n.", new[] { nameof( QueryHint ) } ) );
+                    result = false;
+                }
+
+                return result;
+            }
+        }
+
+        /// <summary>
         /// Gets the attribute value expression.
         /// </summary>
         /// <param name="attributeValues">The attribute values.</param>
         /// <param name="attributeValueParameter">The attribute value parameter.</param>
         /// <param name="parentIdProperty">The parent identifier property.</param>
         /// <param name="attributeId">The attribute identifier.</param>
+        /// <param name="usePersistedTextValue">When <c>true</c>, selects the attribute value's persisted display text as a string instead of the raw stored value.</param>
         /// <returns></returns>
-        private Expression GetAttributeValueExpression( IQueryable<AttributeValue> attributeValues, ParameterExpression attributeValueParameter, Expression parentIdProperty, int attributeId )
+        private Expression GetAttributeValueExpression( IQueryable<AttributeValue> attributeValues, ParameterExpression attributeValueParameter, Expression parentIdProperty, int attributeId, bool usePersistedTextValue = false )
         {
             MemberExpression attributeIdProperty = Expression.Property( attributeValueParameter, "AttributeId" );
             MemberExpression entityIdProperty = Expression.Property( attributeValueParameter, "EntityId" );
@@ -74,13 +98,23 @@ namespace Rock.Model
 
             Expression whereExpression = Expression.Call( typeof( Queryable ), "Where", new Type[] { typeof( AttributeValue ) }, match );
 
-            var attributeCache = AttributeCache.Get( attributeId );
             var attributeValueFieldName = "Value";
             Type attributeValueFieldType = typeof( string );
-            if ( attributeCache != null )
+
+            if ( usePersistedTextValue )
             {
-                attributeValueFieldName = attributeCache.FieldType.Field.AttributeValueFieldName;
-                attributeValueFieldType = attributeCache.FieldType.Field.AttributeValueFieldType;
+                // The persisted display text is always a string column and needs no
+                // field type resolution.
+                attributeValueFieldName = "PersistedTextValue";
+            }
+            else
+            {
+                var attributeCache = AttributeCache.Get( attributeId );
+                if ( attributeCache != null )
+                {
+                    attributeValueFieldName = attributeCache.FieldType.Field.AttributeValueFieldName;
+                    attributeValueFieldType = attributeCache.FieldType.Field.AttributeValueFieldType;
+                }
             }
 
             MemberExpression valueProperty = Expression.Property( attributeValueParameter, attributeValueFieldName );

@@ -255,6 +255,14 @@ namespace Rock.SystemKey
         public const string POPULATE_INTERACTION_SESSION_DATA_JOB_SETTINGS = "core_PopulateInteractionSessionDataJobSettings";
 
         /// <summary>
+        /// The most recent date (a <c>date</c>, not a <c>datetime</c>) for which the Rock Cleanup job's
+        /// Interaction Component Daily Count task has fully written aggregate rows. The next run picks up
+        /// from <c>(value + 1 day)</c> through yesterday. Null/missing means the task has never run and
+        /// the next run performs a full historical backfill.
+        /// </summary>
+        public const string INTERACTION_COMPONENT_DAILY_COUNT_LAST_PROCESSED_DATE = "core_InteractionComponentDailyCount_LastProcessedDate";
+
+        /// <summary>
         /// Number of minutes old the ROCK_SEGMENT_FILTERS cookie can be before it is considered stale and will be re-fetched from the database.
         /// </summary>
         public const string PERSONALIZATION_SEGMENT_COOKIE_AFFINITY_DURATION_MINUTES = "core_PersonalizationSegmentCookieAffinityDurationMinutes";
@@ -442,5 +450,40 @@ namespace Rock.SystemKey
         /// configuration options in the UI.
         /// </summary>
         public const string TRAILBLAZER_MODE = "core_TrailblazerMode";
+
+        /// <summary>
+        /// The legacy plain text location of the connected services manifest.
+        /// It is read once to migrate the value to
+        /// <see cref="CONNECTED_SERVICES_MANIFEST_ENCRYPTED"/> and then cleared.
+        /// </summary>
+        public const string CONNECTED_SERVICES_MANIFEST = "core_ConnectedServicesManifest";
+
+        /// <summary>
+        /// The legacy plain text location of the connected services
+        /// configuration. It is read once to migrate the value to
+        /// <see cref="CONNECTED_SERVICES_CONFIGURATION_ENCRYPTED"/> and then
+        /// cleared.
+        /// </summary>
+        public const string CONNECTED_SERVICES_CONFIGURATION = "core_ConnectedServicesConfiguration";
+
+        /// <summary>
+        /// The encrypted JSON that represents the connected services
+        /// authentication for linking the Rock installation to a Spark
+        /// organization.
+        /// </summary>
+        public const string CONNECTED_SERVICES_AUTH = "core_ConnectedServicesAuth";
+
+        /// <summary>
+        /// The encrypted JSON that represents the connected services manifest
+        /// for the Rock installation.
+        /// </summary>
+        internal const string CONNECTED_SERVICES_MANIFEST_ENCRYPTED = "core_ConnectedServicesManifestEncrypted";
+
+        /// <summary>
+        /// The encrypted JSON that represents the connected services
+        /// configuration for the Rock installation. The configuration contains
+        /// the data provided by the API service.
+        /// </summary>
+        internal const string CONNECTED_SERVICES_CONFIGURATION_ENCRYPTED = "core_ConnectedServicesConfigurationEncrypted";
     }
 }

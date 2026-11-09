@@ -1,4 +1,4 @@
-// <copyright>
+﻿// <copyright>
 // Copyright by the Spark Development Network
 //
 // Licensed under the Rock Community License (the "License");
@@ -255,6 +255,56 @@ namespace RockWeb.Blocks.Event
         #region Block Methods
 
         /// <summary>
+        /// Determines whether the current person can edit occurrences. This is the same
+        /// check used by <see cref="ShowDetail(int)"/> to decide whether to show the edit button.
+        /// </summary>
+        /// <param name="rockContext">The rock context.</param>
+        /// <returns><c>true</c> if the current person can edit occurrences; otherwise, <c>false</c>.</returns>
+        private bool CanEditOccurrence( RockContext rockContext )
+        {
+            if ( UserCanEdit )
+            {
+                return true;
+            }
+
+            var calendar = new EventCalendarService( rockContext ).GetNoTracking(
+                PageParameter( PageParameterKey.EventCalendarId ),
+                IsAllowingPredictableIds
+            );
+
+            return calendar != null && calendar.IsAuthorized( Authorization.EDIT, CurrentPerson );
+        }
+
+        /// <summary>
+        /// Determines whether the current person can edit, save or delete the occurrence in
+        /// the hidden field. The hidden field is client controlled, so an existing occurrence
+        /// must be the one in the page parameter, and the person must pass the same edit check
+        /// used to show the edit button.
+        /// </summary>
+        /// <param name="rockContext">The rock context.</param>
+        /// <returns><c>true</c> if the action is allowed; otherwise, <c>false</c>.</returns>
+        private bool IsOccurrenceActionAllowed( RockContext rockContext )
+        {
+            int eventItemOccurrenceId = hfEventItemOccurrenceId.ValueAsInt();
+            if ( eventItemOccurrenceId != 0 )
+            {
+                var pageOccurrenceId = new EventItemOccurrenceService( rockContext ).GetQueryableByKey(
+                    PageParameter( PageParameterKey.EventItemOccurrenceId ),
+                    IsAllowingPredictableIds
+                )
+                .Select( io => io.Id )
+                .FirstOrDefault();
+
+                if ( eventItemOccurrenceId != pageOccurrenceId )
+                {
+                    return false;
+                }
+            }
+
+            return CanEditOccurrence( rockContext );
+        }
+
+        /// <summary>
         /// Shows the detail.
         /// </summary>
         /// <param name="eventItemId">The eventItem identifier.</param>
@@ -263,8 +313,6 @@ namespace RockWeb.Blocks.Event
             pnlDetails.Visible = true;
 
             EventItemOccurrence eventItemOccurrence = null;
-            bool canEdit = UserCanEdit;
-
             using ( var rockContext = new RockContext() )
             {
                 if ( !eventItemOccurrenceId.Equals( 0 ) )
@@ -282,18 +330,7 @@ namespace RockWeb.Blocks.Event
                     pdAuditDetails.Visible = false;
                 }
 
-                if ( !canEdit )
-                {
-                    var calendar = new EventCalendarService( rockContext ).GetNoTracking(
-                        PageParameter( PageParameterKey.EventCalendarId ),
-                        IsAllowingPredictableIds
-                    );
-
-                    if ( calendar != null )
-                    {
-                        canEdit = calendar.IsAuthorized( Authorization.EDIT, CurrentPerson );
-                    }
-                }
+                bool canEdit = CanEditOccurrence( rockContext );
 
                 bool readOnly = false;
 
@@ -586,17 +623,34 @@ namespace RockWeb.Blocks.Event
                 {
                     var eventItemOccurrenceGroupMap = linkage.CloneWithoutIdentity();
                     eventItemOccurrenceGroupMap.EventItemOccurrenceId = 0;
-                    eventItemOccurrenceGroupMap.RegistrationInstance = linkage.RegistrationInstance != null ? linkage.RegistrationInstance.Clone( false ) : new RegistrationInstance();
                     eventItemOccurrenceGroupMap.RegistrationInstanceId = null;
-                    eventItemOccurrenceGroupMap.RegistrationInstance.Id = 0;
-                    eventItemOccurrenceGroupMap.RegistrationInstance.Guid = Guid.NewGuid();
 
-                    eventItemOccurrenceGroupMap.RegistrationInstance.RegistrationTemplate =
-                        linkage.RegistrationInstance != null && linkage.RegistrationInstance.RegistrationTemplate != null ?
-                        linkage.RegistrationInstance.RegistrationTemplate.Clone( false ) :
-                        new RegistrationTemplate();
+                    // A URL slug should be unique across all events, so it shouldn't be copied;
+                    // otherwise saving the copy without opening the linkage edit modal (which is where
+                    // slug uniqueness is validated) would silently persist a duplicate slug.
+                    eventItemOccurrenceGroupMap.UrlSlug = null;
 
-                    eventItemOccurrenceGroupMap.Group = linkage.Group != null ? linkage.Group.Clone( false ) : new Group();
+                    // Only clone a RegistrationInstance (and its RegistrationTemplate) when the source
+                    // linkage actually has one†. See https://github.com/SparkDevNetwork/Rock/issues/6980
+                    if ( linkage.RegistrationInstance != null )
+                    {
+                        eventItemOccurrenceGroupMap.RegistrationInstance = linkage.RegistrationInstance.Clone( false );
+                        eventItemOccurrenceGroupMap.RegistrationInstance.Id = 0;
+                        eventItemOccurrenceGroupMap.RegistrationInstance.Guid = Guid.NewGuid();
+
+                        eventItemOccurrenceGroupMap.RegistrationInstance.RegistrationTemplate =
+                            linkage.RegistrationInstance.RegistrationTemplate != null ?
+                            linkage.RegistrationInstance.RegistrationTemplate.Clone( false ) :
+                            null;
+                    }
+                    else
+                    {
+                        eventItemOccurrenceGroupMap.RegistrationInstance = null;
+                    }
+
+                    // † The same principle applies to Group: leave it null when the source had none rather
+                    // than attaching an empty Group.
+                    eventItemOccurrenceGroupMap.Group = linkage.Group != null ? linkage.Group.Clone( false ) : null;
 
                     eventItemOccurrence.Linkages.Add( eventItemOccurrenceGroupMap );
                 }
@@ -714,6 +768,12 @@ namespace RockWeb.Blocks.Event
         protected void btnEdit_Click( object sender, EventArgs e )
         {
             var rockContext = new RockContext();
+
+            if ( !IsOccurrenceActionAllowed( rockContext ) )
+            {
+                return;
+            }
+
             var eventItemOccurrence = new EventItemOccurrenceService( rockContext ).Get( hfEventItemOccurrenceId.Value.AsInteger() );
             ShowEditDetails( eventItemOccurrence );
         }
@@ -727,6 +787,11 @@ namespace RockWeb.Blocks.Event
         {
             using ( var rockContext = new RockContext() )
             {
+                if ( !IsOccurrenceActionAllowed( rockContext ) )
+                {
+                    return;
+                }
+
                 EventItemOccurrenceService eventItemOccurrenceService = new EventItemOccurrenceService( rockContext );
                 EventItemOccurrence eventItemOccurrence = eventItemOccurrenceService.Get( hfEventItemOccurrenceId.Value.AsInteger() );
 
@@ -791,6 +856,12 @@ namespace RockWeb.Blocks.Event
                 var eventItemOccurrenceGroupMapService = new EventItemOccurrenceGroupMapService( rockContext );
                 var registrationInstanceService = new RegistrationInstanceService( rockContext );
                 var scheduleService = new ScheduleService( rockContext );
+
+                if ( !IsOccurrenceActionAllowed( rockContext ) )
+                {
+                    nbEditModeMessage.Text = EditModeMessage.ReadOnlyEditActionNotAllowed( EventItemOccurrence.FriendlyTypeName );
+                    return;
+                }
 
                 int eventItemOccurrenceId = hfEventItemOccurrenceId.ValueAsInt();
                 if ( eventItemOccurrenceId != 0 )

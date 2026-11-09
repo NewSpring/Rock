@@ -73,10 +73,11 @@ import {
     VideoComponentAdapter,
     GlobalAdapterOnComponentAddedEvent,
 } from "./types.partial";
+import { RockColor } from "@Obsidian/Core/Utilities/rockColor";
 import { isElement, isHTMLElement, isHTMLTableElement, replaceTagName } from "@Obsidian/Utility/dom";
 import { newGuid, toGuidOrNull } from "@Obsidian/Utility/guid";
 import { Enumerable } from "@Obsidian/Utility/linq";
-import { splitCase, toTitleCase } from "@Obsidian/Utility/stringUtils";
+import { escapeHtml, splitCase, toTitleCase } from "@Obsidian/Utility/stringUtils";
 import { isNullish } from "@Obsidian/Utility/util";
 import { toNumberOrNull } from "@Obsidian/Utility/numberUtils";
 
@@ -120,6 +121,63 @@ export const RockCssClassContentEditable = `rock-content-editable` as const;
 export const RockRuntimeWrapperElementCssClass = "rock-runtime-wrapper-element" as const;
 
 export const SmallEmptyClass = `${RockRuntimeClassCssClassPrefix}-small` as const;
+
+/**
+ * Decodes browser-encoded entities inside every Lava block (`{% %}`, `{{ }}`,
+ * and `{[ ]}` shortcodes).
+ *
+ * Browsers automatically encode characters like `&`, `>` and `<` when HTML is
+ * serialized from the editor. That breaks Lava such as:
+ *
+ * `{% if Total > Threshold %}`            -> `{% if Total &gt; Threshold %}`
+ * `{% assign isBig = a > b %}`            -> `{% assign isBig = a &gt; b %}`
+ * `where:'IsActive == true && Id == 1'`   -> `where:'IsActive == true &amp;&amp; Id == 1'`
+ *
+ * Used both when serializing the final email HTML and when loading a
+ * component's markup back into the design-time code editor, so the editor
+ * shows the same Lava that will be sent.
+ *
+ * Scope is the entire contents of each Lava block; all other HTML is left
+ * untouched. Decoding is delimiter-scoped, so there is no ambiguity about
+ * whether a given `>` is Lava or markup — only characters inside `{% %}`,
+ * `{{ }}`, or `{[ ]}` are decoded.
+ */
+export function decodeLavaEncodedEntities(html: string): string {
+    // Matches a full {% ... %} command/tag, a {{ ... }} output block, or a
+    // {[ ... ]} shortcode tag. Lazy matching keeps each match to a single
+    // delimiter pair, so the content a block wraps is never decoded.
+    const lavaBlockRegex = /{%[\s\S]*?%}|{{[\s\S]*?}}|{\[[\s\S]*?\]}/g;
+
+    // A textarea decodes character references as RCDATA: entities like `&gt;`
+    // become `>`, but tag-like text (e.g. `<div>`) is preserved verbatim
+    // rather than parsed. A <template> would instead parse `<div>` as an
+    // element and drop it, mangling Lava that embeds HTML strings.
+    const decoder = document.createElement("textarea");
+
+    const decodeEntities = (value: string): string => {
+        if (!value.includes("&")) {
+            return value;
+        }
+
+        // Read (never assign) `.value`: assigning it sets the textarea's dirty
+        // value flag, which permanently decouples `.value` from `.innerHTML`,
+        // so every later block would decode to "". Reset via `.innerHTML`.
+        decoder.innerHTML = value;
+        const decoded = decoder.value;
+        decoder.innerHTML = ""; // Reset to avoid retaining references.
+
+        return decoded;
+    };
+
+    return html.replace(lavaBlockRegex, (block) => {
+        // Skip blocks with no entities to decode.
+        if (!block.includes("&")) {
+            return block;
+        }
+
+        return decodeEntities(block);
+    });
+}
 
 export function getComponentCssClass(componentTypeName: ComponentTypeName): string {
     return `component-${componentTypeName}`;
@@ -335,6 +393,114 @@ export const horizontalAlignmentConverter: ValueConverter<HorizontalAlignment | 
 // #endregion Converters
 
 // #region Functions
+
+/**
+ * Parses the HTML into a detached element of the inert document and removes
+ * script, active elements and script attributes from it.
+ *
+ * @param inertDocument A document with no browsing context.
+ * @param html The HTML to parse and clean.
+ *
+ * @returns The element that contains the cleaned nodes.
+ */
+function cleanInertHtml(inertDocument: Document, html: string): HTMLDivElement {
+    const container = inertDocument.createElement("div");
+    container.innerHTML = html;
+
+    container
+        .querySelectorAll("script, iframe, frame, frameset, object, embed, base, meta[http-equiv], animate, set, math, svg, mglyph, malignmark, noscript, template, noembed, noframes, xmp, plaintext")
+        .forEach(element => element.remove());
+
+    container.querySelectorAll("*").forEach(element => {
+        for (const attribute of Array.from(element.attributes)) {
+            const name = attribute.name.toLowerCase();
+            // Remove whitespace and control characters, which browsers ignore in URL schemes.
+            // eslint-disable-next-line no-control-regex
+            const value = attribute.value.toLowerCase().replace(/[\s\u0000-\u001f\u007f]/g, "");
+
+            if (name.startsWith("on")
+                || name === "srcdoc"
+                || value.startsWith("javascript:")
+                || value.startsWith("vbscript:")
+                || value.startsWith("data:text/html")) {
+                element.removeAttribute(attribute.name);
+            }
+        }
+    });
+
+    // The parser drops one leading newline in these elements and the
+    // serializer does not add it back, so add it here to let the markup
+    // settle when it is serialized and parsed again.
+    container.querySelectorAll("pre, textarea, listing").forEach(element => {
+        const firstChild = element.firstChild;
+
+        if (firstChild && firstChild.nodeType === Node.TEXT_NODE && firstChild.nodeValue?.startsWith("\n")) {
+            firstChild.nodeValue = `\n${firstChild.nodeValue}`;
+        }
+    });
+
+    return container;
+}
+
+/**
+ * Parses HTML in an inert document, removes active content, and imports
+ * the remaining nodes into the target document.
+ *
+ * Use this instead of assigning `innerHTML` on an element owned by a live
+ * document when the HTML comes from saved data or another window.
+ *
+ * @param targetDocument The document that will own the returned nodes.
+ * @param html The HTML to import.
+ * @returns A document fragment, owned by the target document, that contains the cleaned nodes.
+ */
+export function importInertHtml(targetDocument: Document, html: string): DocumentFragment {
+    /*
+        10/18/2026 - MSE
+
+        Email section markup is saved by any email editor user and inserted
+        into the editor iframe, which runs on the Rock origin. Assigning it
+        with innerHTML on an element of a live document runs event handlers
+        (for example an image error handler) even before the element is
+        attached. A document created with createHTMLDocument has no browsing
+        context, so nothing loads or runs while the markup is parsed and
+        cleaned there. Only the cleaned nodes are imported into the target.
+
+        The inert document parses with scripting disabled while the editor
+        parses with scripting enabled, and some markup changes shape when it
+        is serialized and parsed again (namespace confusion with math, svg
+        and mglyph, for example), such as when getHtml writes the editor
+        document again. So elements that parse differently in the two cases
+        (noscript, template, noembed, noframes, xmp, plaintext) and math and
+        svg are removed, and the markup is parsed and cleaned repeatedly
+        until it stops changing. Nothing is imported if it never settles.
+
+        Reason: Prevent saved email sections and messages from running script, including through a later serialize and reparse.
+    */
+    const inertDocument = document.implementation.createHTMLDocument("");
+    const maximumPasses = 5;
+    let container = cleanInertHtml(inertDocument, html);
+    let isStable = false;
+
+    for (let pass = 1; pass < maximumPasses && !isStable; pass++) {
+        const serialized = container.innerHTML;
+        const nextContainer = cleanInertHtml(inertDocument, serialized);
+
+        isStable = nextContainer.innerHTML === serialized;
+        container = nextContainer;
+    }
+
+    const fragment = targetDocument.createDocumentFragment();
+
+    if (!isStable) {
+        return fragment;
+    }
+
+    for (const node of Array.from(container.childNodes)) {
+        fragment.appendChild(targetDocument.importNode(node, true));
+    }
+
+    return fragment;
+}
 
 /** Uses an accordion group if one is set up. */
 export function useAccordionGroup(isExpanded: Ref<boolean>): void {
@@ -2060,7 +2226,7 @@ function createComponentAdapter<TProps, TVersion extends string>(
 }
 
 function createTextComponentAdapter(): TextComponentAdapter {
-    const componentVersions = ["v0", "v2-alpha", "v17.3-alpha"] as const;
+    const componentVersions = ["v0", "v2-alpha", "v17.3-alpha", "v19.3"] as const;
     type ComponentVersion = typeof componentVersions[number];
 
     // Local settings should only be used for per-component customization or where there isn't a global alternative.
@@ -2349,6 +2515,35 @@ function createTextComponentAdapter(): TextComponentAdapter {
                 setStylePaddingPx(marginWrapperForTextTd?.style, localProps.marginPx); // Use padding for "margin".
                 setStyleBorder(borderWrapperForTextTd?.style, localProps.border);
                 setStyleBorderRadiusPx(borderWrapperForTextTd?.style, localProps.borderRadiusPx);
+            }
+        },
+
+        /*
+            - Fixes the text component background `bgcolor` attribute. The
+              delegated version above writes it as `rgb()`, which some clients
+              (Outlook) coerce to the wrong color -- a white background renders
+              green -- so it is re-emitted here as hex. Existing text components
+              are repaired on load: the version bump makes migrateComponent
+              re-run this write.
+         */
+        "v19.3": {
+            version: "v19.3",
+
+            createComponentElement(emailDocument: Document): HTMLElement {
+                const componentElement = adapters["v17.3-alpha"].createComponentElement(emailDocument);
+                componentElement.setAttribute("data-version", "v19.3");
+                return componentElement;
+            },
+
+            readLocalProps(componentElement: HTMLElement): TextLocalProps {
+                return adapters["v17.3-alpha"].readLocalProps(componentElement);
+            },
+
+            writeLocalProps(componentElement: HTMLElement, localProps: TextLocalProps): void {
+                adapters["v17.3-alpha"].writeLocalProps(componentElement, localProps);
+
+                const paddingWrapperForTextTd = componentElement.querySelector(".padding-wrapper-for-text > tbody > tr > td") as HTMLTableCellElement | null;
+                setAttributePropertyValue(paddingWrapperForTextTd, "bgcolor", toHexBgcolorAttributeValue(localProps.backgroundColor));
             }
         }
     };
@@ -3927,18 +4122,28 @@ export function getSectionComponentHelper(): ComponentMigrationHelper & {
                     const borderWidth = componentElementStyle.borderWidth || "";
                     const borderColor = componentElementStyle.borderColor || "";
 
+                    /*
+                        10/18/2026 - MSE
+
+                        Style values read through element.style are not always plain colors
+                        and lengths. A declaration that uses var() keeps its fallback text as
+                        written, quotes and angle brackets included, so the values are escaped
+                        before being placed in the HTML template.
+
+                        Reason: Prevent script injection through component migration.
+                    */
                     // Create the inner structure.
                     newRoot.innerHTML = `
                         <tbody>
                             <tr><td>
                                 <table border="0" cellpadding="0" cellspacing="0" width="100%" role="presentation" class="border-wrapper" style="border-collapse: separate !important;">
-                                    <tbody><tr><td style="${backgroundColor ? `background-color: ${backgroundColor};` : ""}
-                                                    ${borderRadius ? `border-radius: ${borderRadius};` : ""}
-                                                    ${borderStyle ? `border-style: ${borderStyle};` : ""}
-                                                    ${borderWidth ? `border-width: ${borderWidth};` : ""}
-                                                    ${borderColor ? `border-color: ${borderColor};` : ""}">
+                                    <tbody><tr><td style="${backgroundColor ? `background-color: ${escapeHtml(backgroundColor)};` : ""}
+                                                    ${borderRadius ? `border-radius: ${escapeHtml(borderRadius)};` : ""}
+                                                    ${borderStyle ? `border-style: ${escapeHtml(borderStyle)};` : ""}
+                                                    ${borderWidth ? `border-width: ${escapeHtml(borderWidth)};` : ""}
+                                                    ${borderColor ? `border-color: ${escapeHtml(borderColor)};` : ""}">
                                         <table border="0" cellpadding="0" cellspacing="0" width="100%" role="presentation" class="padding-wrapper">
-                                            <tbody><tr><td ${padding ? `style="padding: ${padding};"` : ""}>
+                                            <tbody><tr><td ${padding ? `style="padding: ${escapeHtml(padding)};"` : ""}>
                                                 <table class="row section-row" cellpadding="0" cellspacing="0" border="0" role="presentation" style="width: 100%;">
                                                     <tbody><tr></tr></tbody>
                                                 </table>
@@ -3991,7 +4196,7 @@ export function getSectionComponentHelper(): ComponentMigrationHelper & {
                             const dropzoneBorderColor = oldColumnElement.style.borderColor || "";
                             const dropzonePadding = oldColumnElement.style.padding || "";
                             const textAlign = oldColumnElement.style.textAlign;
-                            const alignAttribute = oldColumnElement.style.textAlign ? `align="${oldColumnElement.style.textAlign}"` : "";
+                            const alignAttribute = oldColumnElement.style.textAlign ? `align="${escapeHtml(oldColumnElement.style.textAlign)}"` : "";
 
                             // Create new column
                             const newColumn = document.createElement("td");
@@ -3999,18 +4204,28 @@ export function getSectionComponentHelper(): ComponentMigrationHelper & {
                             newColumn.setAttribute("valign", "top");
                             newColumn.setAttribute("width", width);
 
+                            /*
+                                10/18/2026 - MSE
+
+                                Style values read through element.style are not always plain colors
+                                and lengths. A declaration that uses var() keeps its fallback text as
+                                written, quotes and angle brackets included, so the values are escaped
+                                before being placed in the HTML template.
+
+                                Reason: Prevent script injection through component migration.
+                            */
                             // Construct column content
                             newColumn.innerHTML = `
     <table border="0" cellpadding="0" cellspacing="0" width="100%" role="presentation" class="margin-wrapper" align="center">
         <tbody><tr><td>
             <table border="0" cellpadding="0" cellspacing="0" width="100%" role="presentation" class="border-wrapper" style="border-collapse: separate !important;">
-                <tbody><tr><td style="${dropzoneBackgroundColor ? `background-color: ${dropzoneBackgroundColor};` : ""}
-                                ${dropzoneBorderRadius ? `border-radius: ${dropzoneBorderRadius};` : ""}
-                                ${dropzoneBorderStyle ? `border-style: ${dropzoneBorderStyle};` : ""}
-                                ${dropzoneBorderWidth ? `border-width: ${dropzoneBorderWidth};` : ""}
-                                ${dropzoneBorderColor ? `border-color: ${dropzoneBorderColor};` : ""}">
+                <tbody><tr><td style="${dropzoneBackgroundColor ? `background-color: ${escapeHtml(dropzoneBackgroundColor)};` : ""}
+                                ${dropzoneBorderRadius ? `border-radius: ${escapeHtml(dropzoneBorderRadius)};` : ""}
+                                ${dropzoneBorderStyle ? `border-style: ${escapeHtml(dropzoneBorderStyle)};` : ""}
+                                ${dropzoneBorderWidth ? `border-width: ${escapeHtml(dropzoneBorderWidth)};` : ""}
+                                ${dropzoneBorderColor ? `border-color: ${escapeHtml(dropzoneBorderColor)};` : ""}">
                     <table border="0" cellpadding="0" cellspacing="0" width="100%" role="presentation" class="padding-wrapper">
-                        <tbody><tr><td style="${dropzonePadding ? `padding: ${dropzonePadding};` : ""} ${textAlign ? `text-align: ${textAlign};` : ""}" ${alignAttribute}>
+                        <tbody><tr><td style="${dropzonePadding ? `padding: ${escapeHtml(dropzonePadding)};` : ""} ${textAlign ? `text-align: ${escapeHtml(textAlign)};` : ""}" ${alignAttribute}>
                             <div class="dropzone"></div>
                         </td></tr></tbody>
                     </table>
@@ -4077,7 +4292,7 @@ function addOrUpdateMetaTag(emailDocument: Document, name: string, content: stri
 }
 
 function createBodyGlobalAdapter(): BodyGlobalAdapter {
-    const globalVersions = ["v0", "v17.3-alpha", "v18.2", "v19.1"] as const;
+    const globalVersions = ["v0", "v17.3-alpha", "v18.2", "v19.1", "v19.3"] as const;
     type BodyGlobalVersion = (typeof globalVersions)[number];
 
     const attributeValues = {
@@ -4392,6 +4607,32 @@ function createBodyGlobalAdapter(): BodyGlobalAdapter {
                 });
 
                 synchronizeRulesToDom(updatedRules);
+            }
+        },
+
+        /*
+            - Fixes the body background `bgcolor` attribute. The delegated
+              versions above write it as `rgb()`, which some clients (Outlook)
+              coerce to the wrong color -- a white body renders green -- so it is
+              re-emitted here as hex. Existing emails are repaired on load: the
+              version bump makes migrateGlobalProps re-run this write.
+         */
+        "v19.3": {
+            version: "v19.3",
+
+            readGlobalProps(emailDocument: Document): BodyGlobalProps {
+                return adapters["v19.1"].readGlobalProps(emailDocument);
+            },
+
+            writeGlobalProps(emailDocument: Document, globalProps: BodyGlobalProps): void {
+                adapters["v19.1"].writeGlobalProps(emailDocument, globalProps);
+
+                addOrUpdateMetaTag(emailDocument, attributeValues.META_NAME_GLOBAL_BODY_VERSION, "v19.3");
+
+                const bgcolorValue = toHexBgcolorAttributeValue(globalProps.backgroundColor);
+                emailDocument.querySelectorAll(`.component:not([data-component-background-color="true"]) .padding-wrapper-for-row`).forEach(element => {
+                    setAttributePropertyValue(element, "bgcolor", bgcolorValue);
+                });
             }
         }
     };
@@ -7016,6 +7257,51 @@ function toBgcolorAttributeValue(backgroundColor: string | null): string | null 
     }
 
     return backgroundColor;
+}
+
+/**
+ * Cache of hex `bgcolor` attribute values keyed by their source color. The same
+ * background color is applied to many elements per migration and recurs across
+ * emails, so this avoids constructing a RockColor for every write.
+ */
+const hexBgcolorAttributeValueByColor = new Map<string, string>();
+
+/**
+ * Converts a CSS color into a hex value the legacy `bgcolor` attribute can render.
+ *
+ * @param backgroundColor The color as stored by the editor. May be a hex value,
+ * a named color, or `rgb()`/`rgba()` notation.
+ * @returns A hex color without an alpha channel, the `transparent` keyword for a
+ * fully transparent color, or the original value when it is null or empty.
+ */
+function toHexBgcolorAttributeValue(backgroundColor: string | null): string | null {
+    if (isNullish(backgroundColor) || backgroundColor === "") {
+        return backgroundColor;
+    }
+
+    const cachedValue = hexBgcolorAttributeValueByColor.get(backgroundColor);
+    if (cachedValue !== undefined) {
+        return cachedValue;
+    }
+
+    /*
+        07/01/26 - JMH
+
+        bgcolor is parsed by the HTML "rules for parsing a legacy colour value",
+        which only understand hex and named colors. An rgb()/rgba() value isn't
+        rejected but silently coerced to the wrong color -- white supplied as
+        rgb(255, 255, 255) renders as dark green in Outlook -- so the color is
+        normalized to hex here. bgcolor has no alpha channel, so a fully
+        transparent color uses the "transparent" keyword instead.
+
+        Reason: Emit only bgcolor-safe values so clients render the intended color.
+    */
+    const color = new RockColor(backgroundColor);
+    const bgcolorValue = color.alpha === 0 ? "transparent" : color.toHex();
+
+    hexBgcolorAttributeValueByColor.set(backgroundColor, bgcolorValue);
+
+    return bgcolorValue;
 }
 
 export const bodyGlobalAdapter = createBodyGlobalAdapter();

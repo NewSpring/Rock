@@ -50,6 +50,8 @@ namespace Rock.Workflow.Action
     [TextField( "Message",
         Description = "The message content to process. <span class='tip tip-lava'></span>",
         IsRequired = true,
+        AllowHtml = true,
+        AllowLava = true,
         Order = 2 )]
     [WorkflowAttribute( "Error Attribute",
         Description = "Filled in by the SMS system if an error occurred processing the message. This error should generally be sent back to the original sender. Empty string is set if no error occurred.",
@@ -72,8 +74,8 @@ namespace Rock.Workflow.Action
 
             var mergeFields = GetMergeFields( action );
 
-            var fromNumber = GetAttributeValue( action, "FromNumber", true ).ResolveMergeFields( mergeFields ).Trim();
-            var toNumber = GetAttributeValue( action, "ToNumber", true ).ResolveMergeFields( mergeFields ).Trim();
+            var fromNumber = GetTextOrAttributeValue( action, "FromNumber", mergeFields ).Trim();
+            var toNumber = GetTextOrAttributeValue( action, "ToNumber", mergeFields ).Trim();
             var message = GetAttributeValue( action, "Message" ).ResolveMergeFields( mergeFields ).Trim();
             var attribute = AttributeCache.Get( GetAttributeValue( action, "ErrorAttribute" ).AsGuid(), rockContext );
 

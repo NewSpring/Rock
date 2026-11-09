@@ -98,12 +98,37 @@ namespace Rock.Blocks.Communication
 
         #endregion Keys
 
+        #region Fields
+
+        /// <summary>
+        /// The message shown when the requested person is someone the current person may not manage.
+        /// </summary>
+        private static readonly string NotAuthorizedMessage = "You are not authorized to manage other people's communication preferences.";
+
+        /// <summary>
+        /// The person requested by the person context or the PersonId page parameter, once loaded.
+        /// </summary>
+        private Person _requestedPerson;
+
+        /// <summary>
+        /// Whether <see cref="_requestedPerson" /> has already been loaded on this request.
+        /// </summary>
+        private bool _isRequestedPersonLoaded;
+
+        #endregion Fields
+
         #region Methods
 
         /// <inheritdoc/>
         public override object GetObsidianBlockInitialization()
         {
             var box = new CustomBlockBox<CommunicationListSubscribeBag, CommunicationListSubscribeOptionsBag>();
+
+            if ( IsRequestedPersonUnauthorized() )
+            {
+                box.ErrorMessage = NotAuthorizedMessage;
+                return box;
+            }
 
             var person = GetPerson();
 
@@ -118,24 +143,58 @@ namespace Rock.Blocks.Communication
         }
 
         /// <summary>
-        /// Gets the person whose subscriptions should be managed.
+        /// Gets the person whose subscriptions should be managed. A requested person other
+        /// than the current person is only used when the current person can edit this block.
         /// </summary>
-        /// <returns>The resolved person, or null if no person could be determined.</returns>
+        /// <returns>The resolved person, or null if no person could be determined or it is not allowed.</returns>
         private Person GetPerson()
         {
-            var person = RequestContext.GetContextEntity<Person>();
-            if ( person != null )
+            if ( IsRequestedPersonUnauthorized() )
             {
-                return person;
+                return null;
             }
 
-            var key = PageParameter( PageParameterKey.PersonId );
-            if ( key.IsNotNullOrWhiteSpace() )
+            return GetRequestedPerson() ?? RequestContext.CurrentPerson;
+        }
+
+        /// <summary>
+        /// Gets the person requested by the person context or the PersonId page parameter.
+        /// </summary>
+        /// <returns>The requested person, or null if none was requested.</returns>
+        private Person GetRequestedPerson()
+        {
+            if ( _isRequestedPersonLoaded )
             {
-                return new PersonService( RockContext ).Get( key, !PageCache.Layout.Site.DisablePredictableIds );
+                return _requestedPerson;
             }
 
-            return RequestContext.CurrentPerson;
+            _isRequestedPersonLoaded = true;
+            _requestedPerson = RequestContext.GetContextEntity<Person>();
+
+            if ( _requestedPerson == null )
+            {
+                var key = PageParameter( PageParameterKey.PersonId );
+                if ( key.IsNotNullOrWhiteSpace() )
+                {
+                    _requestedPerson = new PersonService( RockContext ).Get( key, !PageCache.Layout.Site.DisablePredictableIds );
+                }
+            }
+
+            return _requestedPerson;
+        }
+
+        /// <summary>
+        /// Determines whether a person other than the current person was requested and the
+        /// current person is not authorized to edit this block.
+        /// </summary>
+        /// <returns><c>true</c> if the requested person is not allowed; otherwise, <c>false</c>.</returns>
+        private bool IsRequestedPersonUnauthorized()
+        {
+            var requestedPerson = GetRequestedPerson();
+
+            return requestedPerson != null
+                && requestedPerson.Id != RequestContext.CurrentPerson?.Id
+                && !BlockCache.IsAuthorized( Rock.Security.Authorization.EDIT, RequestContext.CurrentPerson );
         }
 
         /// <summary>
@@ -155,51 +214,32 @@ namespace Rock.Blocks.Communication
             var communicationListGroupTypeDefaultRoleId = GroupTypeCache.Get( communicationListGroupTypeId ).DefaultGroupRoleId;
 
             // Get all group IDs the person is a member of.
-            var memberOfList = new GroupMemberService( RockContext )
+            var memberOfListQry = new GroupMemberService( RockContext )
                 .GetByPersonId( person.Id )
-                .Select( a => a.GroupId )
-                .ToList();
+                .Select( a => a.GroupId );
 
             // Get synced groups where the default role is synced and the person is NOT a member.
             // These groups should not be shown as subscribable.
-            var commGroupSyncsForDefaultRole = new GroupSyncService( RockContext ).Queryable()
+            var commGroupSyncsForDefaultRoleQry = new GroupSyncService( RockContext ).Queryable()
                 .Where( a => a.Group.GroupTypeId == communicationListGroupTypeId )
                 .Where( a => a.GroupTypeRoleId == communicationListGroupTypeDefaultRoleId )
-                .Where( a => !memberOfList.Contains( a.GroupId ) )
-                .Select( a => a.GroupId )
-                .ToList();
+                .Where( a => !memberOfListQry.Contains( a.GroupId ) )
+                .Select( a => a.GroupId );
 
-            var communicationLists = new GroupService( RockContext ).Queryable()
-                .Where( a => a.GroupTypeId == communicationListGroupTypeId && !commGroupSyncsForDefaultRole.Contains( a.Id ) && a.IsPublic )
+            var communicationListIds = new GroupService( RockContext ).Queryable()
+                .Where( a => a.GroupTypeId == communicationListGroupTypeId && !commGroupSyncsForDefaultRoleQry.Contains( a.Id ) && a.IsPublic )
                 .IsActive()
+                .Select( a => a.Id )
                 .ToList();
 
-            var categoryGuids = GetAttributeValue( AttributeKey.CommunicationListCategories ).SplitDelimitedValues().AsGuidList();
-            var viewableCommunicationLists = new List<Rock.Model.Group>();
+            var viewableCommunicationLists = new List<GroupCache>();
 
-            foreach ( var communicationList in communicationLists )
+            foreach ( var communicationListId in communicationListIds )
             {
-                communicationList.LoadAttributes( RockContext );
-
-                if ( !categoryGuids.Any() )
+                var communicationList = GroupCache.Get( communicationListId );
+                if ( IsAuthorizedCommunicationList( communicationList, person ) )
                 {
-                    // If no categories were specified, only show lists that the person has VIEW auth.
-                    if ( communicationList.IsAuthorized( Rock.Security.Authorization.VIEW, person ) )
-                    {
-                        viewableCommunicationLists.Add( communicationList );
-                    }
-                }
-                else
-                {
-                    var categoryGuid = communicationList.GetAttributeValue( "Category" ).AsGuidOrNull();
-                    if ( categoryGuid.HasValue && categoryGuids.Contains( categoryGuid.Value ) )
-                    {
-                        var category = CategoryCache.Get( categoryGuid.Value );
-                        if ( category != null && category.IsAuthorized( Rock.Security.Authorization.VIEW, person ) )
-                        {
-                            viewableCommunicationLists.Add( communicationList );
-                        }
-                    }
+                    viewableCommunicationLists.Add( communicationList );
                 }
             }
 
@@ -277,6 +317,100 @@ namespace Rock.Blocks.Communication
             } ).ToList();
         }
 
+        /// <summary>
+        /// Gets the communication list for the supplied unique identifier, but only when the person may subscribe or
+        /// manage their existing subscription to the communication list. Returns <c>null</c> for any other group.
+        /// </summary>
+        /// <param name="communicationListGuid">The unique identifier of the communication list.</param>
+        /// <param name="person">The person whose subscription is being managed.</param>
+        /// <returns>The authorized communication list, or <c>null</c> when it is not one the person may manage.</returns>
+        private GroupCache GetAuthorizedCommunicationList( Guid communicationListGuid, Person person )
+        {
+            var communicationList = GroupCache.Get( communicationListGuid );
+
+            return IsAuthorizedCommunicationList( communicationList, person ) ? communicationList : null;
+        }
+
+        /// <summary>
+        /// Determines whether the person may subscribe or manage their existing subscription to the communication list.
+        /// </summary>
+        /// <param name="communicationList">The communication list to check.</param>
+        /// <param name="person">The person whose subscription is being managed.</param>
+        /// <returns><c>true</c> if the person may manage their subscription to the list; otherwise, <c>false</c>.</returns>
+        private bool IsAuthorizedCommunicationList( GroupCache communicationList, Person person )
+        {
+            var communicationListGroupTypeId = GroupTypeCache.GetId( Rock.SystemGuid.GroupType.GROUPTYPE_COMMUNICATIONLIST.AsGuid() );
+
+            if ( communicationList == null
+                || communicationList.GroupTypeId != communicationListGroupTypeId
+                || !communicationList.IsActive
+                || communicationList.IsArchived
+                || !communicationList.IsPublic )
+            {
+                return false;
+            }
+
+            var categoryGuids = GetAttributeValue( AttributeKey.CommunicationListCategories ).SplitDelimitedValues().AsGuidList();
+            if ( !categoryGuids.Any() )
+            {
+                return communicationList.IsAuthorized( Rock.Security.Authorization.VIEW, person );
+            }
+
+            var categoryGuid = communicationList.GetAttributeValue( "Category" ).AsGuidOrNull();
+            if ( !categoryGuid.HasValue || !categoryGuids.Contains( categoryGuid.Value ) )
+            {
+                return false;
+            }
+
+            var category = CategoryCache.Get( categoryGuid.Value );
+            return category != null && category.IsAuthorized( Rock.Security.Authorization.VIEW, person );
+        }
+
+        /// <summary>
+        /// Determines whether the communication list passes the sync and campus
+        /// filters that <see cref="GetCommunicationListItems"/> applies when listing
+        /// the communication lists.
+        /// </summary>
+        /// <param name="communicationList">The communication list.</param>
+        /// <param name="hasMemberRecord"><c>true</c> if the person already has a group member record in the list.</param>
+        /// <returns><c>true</c> if the communication list would be offered to the person; otherwise, <c>false</c>.</returns>
+        private bool IsCommunicationListOffered( GroupCache communicationList, bool hasMemberRecord )
+        {
+            // A person who already has a membership record can always manage it.
+            // This also keeps a same-screen re-subscribe working for a list that
+            // is only shown because Always Include Subscribed Lists is enabled.
+            if ( hasMemberRecord )
+            {
+                return true;
+            }
+
+            // Lists whose default role is synced are hidden unless the person is already a member.
+            var defaultGroupRoleId = GroupTypeCache.Get( communicationList.GroupTypeId )?.DefaultGroupRoleId;
+            var isDefaultRoleSynced = new GroupSyncService( RockContext )
+                .Queryable()
+                .Any( a => a.GroupId == communicationList.Id && a.GroupTypeRoleId == defaultGroupRoleId );
+
+            if ( isDefaultRoleSynced )
+            {
+                return false;
+            }
+
+            // When filtering by campus, lists for other campuses are only allowed
+            // if the person already has a membership record in them.
+            var filterByCampus = GetAttributeValue( AttributeKey.FilterGroupsByCampusContext ).AsBoolean();
+            if ( !filterByCampus )
+            {
+                return true;
+            }
+
+            var contextCampus = RequestContext.GetContextEntity<Campus>();
+            var isOtherCampusList = contextCampus != null
+                && communicationList.CampusId != null
+                && communicationList.CampusId != contextCampus.Id;
+
+            return !isOtherCampusList;
+        }
+
         #endregion Methods
 
         #region Block Actions
@@ -291,6 +425,11 @@ namespace Rock.Blocks.Communication
         [BlockAction]
         public BlockActionResult UpdateSubscription( CommunicationListSubscribeRequestBag bag )
         {
+            if ( IsRequestedPersonUnauthorized() )
+            {
+                return ActionBadRequest( NotAuthorizedMessage );
+            }
+
             var person = GetPerson();
             if ( person == null )
             {
@@ -298,7 +437,7 @@ namespace Rock.Blocks.Communication
             }
 
             var groupMemberService = new GroupMemberService( RockContext );
-            var group = new GroupService( RockContext ).Get( bag.CommunicationListGuid );
+            var group = GetAuthorizedCommunicationList( bag.CommunicationListGuid, person );
             if ( group == null )
             {
                 return ActionBadRequest( "Communication list not found." );
@@ -307,6 +446,13 @@ namespace Rock.Blocks.Communication
             var existingGroupMembers = groupMemberService.Queryable()
                 .Where( a => a.GroupId == group.Id && a.PersonId == person.Id )
                 .ToList();
+
+            // Apply the same sync and campus filters that GetCommunicationListItems
+            // uses so a list that is not offered to the person cannot be joined.
+            if ( !IsCommunicationListOffered( group, existingGroupMembers.Any() ) )
+            {
+                return ActionBadRequest( "Communication list not found." );
+            }
 
             if ( existingGroupMembers.Any() )
             {
@@ -321,7 +467,7 @@ namespace Rock.Blocks.Communication
                             if ( existingGroupMember.Note == "Unsubscribed" )
                             {
                                 existingGroupMember.Note = string.Empty;
-                            }   
+                            }
                         }
                     }
                     else
@@ -382,13 +528,18 @@ namespace Rock.Blocks.Communication
         [BlockAction]
         public BlockActionResult UpdateCommunicationPreference( CommunicationListPreferenceRequestBag bag )
         {
+            if ( IsRequestedPersonUnauthorized() )
+            {
+                return ActionBadRequest( NotAuthorizedMessage );
+            }
+
             var person = GetPerson();
             if ( person == null )
             {
                 return ActionBadRequest( "Unable to determine the person." );
             }
 
-            var group = new GroupService( RockContext ).Get( bag.CommunicationListGuid );
+            var group = GetAuthorizedCommunicationList( bag.CommunicationListGuid, person );
             if ( group == null )
             {
                 return ActionBadRequest( "Communication list not found." );

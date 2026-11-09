@@ -120,6 +120,13 @@ namespace Rock.Blocks.Core
             SystemGuid.EntityType.SERVICE_JOB.AsGuid()
         } );
 
+        /// <summary>
+        /// The number of direct child categories for each listed category, keyed by
+        /// category Id. Populated in <see cref="GetListItems"/> so the grid can show
+        /// the child count without lazy-loading each row's ChildCategories collection.
+        /// </summary>
+        private Dictionary<int, int> _childCategoryCountByParentId = new Dictionary<int, int>();
+
         #endregion
 
         #region Properties
@@ -252,19 +259,15 @@ namespace Rock.Blocks.Core
                 categories appear for those links.
             */
 
-            var parentCategoryId = PageParameter( PageParameterKey.Category ).AsIntegerOrNull();
-            if ( parentCategoryId.HasValue )
+            var parentCategory = CategoryCache.Get( PageParameter( PageParameterKey.Category ), !PageCache.Layout.Site.DisablePredictableIds );
+            if ( parentCategory != null )
             {
-                var parentCategory = CategoryCache.Get( parentCategoryId.Value );
-                if ( parentCategory != null )
-                {
-                    _context = new EntityContext(
-                        parentCategory.EntityTypeId ?? 0,
-                        parentCategory.EntityTypeQualifierColumn,
-                        parentCategory.EntityTypeQualifierValue,
-                        parentCategoryId );
-                    return _context.Value;
-                }
+                _context = new EntityContext(
+                    parentCategory.EntityTypeId ?? 0,
+                    parentCategory.EntityTypeQualifierColumn,
+                    parentCategory.EntityTypeQualifierValue,
+                    parentCategory.Id );
+                return _context.Value;
             }
 
             var urlEntityTypeId = PageParameter( PageParameterKey.EntityType ).AsIntegerOrNull();
@@ -340,12 +343,44 @@ namespace Rock.Blocks.Core
             return queryable;
         }
 
+        /// <summary>
+        /// Determines whether the category is one of the categories this block
+        /// lists for the current scope. Block actions use this so a tampered
+        /// key can not be used to edit or delete a category of some other
+        /// entity type, qualifier or parent.
+        /// </summary>
+        /// <param name="category">The category to check.</param>
+        /// <returns><c>true</c> if the category is shown by this block; otherwise <c>false</c>.</returns>
+        private bool IsListedCategory( Category category )
+        {
+            return GetListQueryable( RockContext ).Any( c => c.Id == category.Id );
+        }
+
         /// <inheritdoc/>
         protected override IQueryable<Category> GetOrderedListQueryable( IQueryable<Category> queryable, RockContext rockContext )
         {
             return queryable
                 .OrderBy( c => c.Order )
                 .ThenBy( c => c.Name );
+        }
+
+        /// <inheritdoc/>
+        protected override List<Category> GetListItems( IQueryable<Category> queryable, RockContext rockContext )
+        {
+            var items = queryable.ToList();
+
+            // Pre-compute the direct child count for every listed category in a single
+            // grouped query instead of lazy-loading each category's ChildCategories
+            // collection
+            var categoryIds = items.Select( c => c.Id ).ToList();
+            _childCategoryCountByParentId = new CategoryService( rockContext )
+                .Queryable()
+                .Where( c => c.ParentCategoryId.HasValue && categoryIds.Contains( c.ParentCategoryId.Value ) )
+                .GroupBy( c => c.ParentCategoryId.Value )
+                .Select( g => new { ParentCategoryId = g.Key, Count = g.Count() } )
+                .ToDictionary( g => g.ParentCategoryId, g => g.Count );
+
+            return items;
         }
 
         /// <inheritdoc/>
@@ -358,8 +393,8 @@ namespace Rock.Blocks.Core
                 .AddTextField( "name", c => c.Name )
                 .AddTextField( "description", c => c.Description )
                 .AddTextField( "iconCssClass", c => c.IconCssClass )
-                .AddField( "childCount", c => c.ChildCategories.Count() )
-                .AddTextField( "entityTypeName", c => c.EntityType.Name )
+                .AddField( "childCount", c => _childCategoryCountByParentId.TryGetValue( c.Id, out var count ) ? count : 0 )
+                .AddTextField( "entityTypeName", c => EntityTypeCache.Get( c.EntityTypeId )?.Name )
                 .AddTextField( "entityQualifierField", c => c.EntityTypeQualifierColumn )
                 .AddTextField( "entityQualifierValue", c => c.EntityTypeQualifierValue )
                 .AddField( "isSystem", c => c.IsSystem );
@@ -461,13 +496,10 @@ namespace Rock.Blocks.Core
                 entityTypeName = entityType.FriendlyName;
             }
 
-            CategoryCache parentCategory = null;
-            var parentCategoryId = pageReference.GetPageParameter( PageParameterKey.Category ).AsIntegerOrNull();
-            if ( parentCategoryId.HasValue )
+            var parentCategory = CategoryCache.Get( pageReference.GetPageParameter( PageParameterKey.Category ), !PageCache.Layout.Site.DisablePredictableIds );
+            if ( parentCategory != null )
             {
-                parentCategory = CategoryCache.Get( parentCategoryId.Value );
-
-                if ( entityType == null && parentCategory?.EntityTypeId.HasValue == true )
+                if ( entityType == null && parentCategory.EntityTypeId.HasValue )
                 {
                     entityType = EntityTypeCache.Get( parentCategory.EntityTypeId.Value );
                     if ( entityType != null )
@@ -545,7 +577,7 @@ namespace Rock.Blocks.Core
             else
             {
                 category = new CategoryService( RockContext ).Get( key, !PageCache.Layout.Site.DisablePredictableIds );
-                if ( category == null )
+                if ( category == null || !IsListedCategory( category ) )
                 {
                     return ActionBadRequest( "Category not found." );
                 }
@@ -585,8 +617,11 @@ namespace Rock.Blocks.Core
             }
             else
             {
+                // Only categories in the current scope may be updated. This also
+                // keeps ApplyEntityTypeAssignment() from moving a category of
+                // another entity type into this block's entity type.
                 category = entityService.Get( bag.IdKey, !PageCache.Layout.Site.DisablePredictableIds );
-                if ( category == null )
+                if ( category == null || !IsListedCategory( category ) )
                 {
                     return ActionBadRequest( "Category not found." );
                 }
@@ -641,7 +676,7 @@ namespace Rock.Blocks.Core
             var entityService = new CategoryService( RockContext );
             var category = entityService.Get( key, !PageCache.Layout.Site.DisablePredictableIds );
 
-            if ( category == null )
+            if ( category == null || !IsListedCategory( category ) )
             {
                 return ActionBadRequest( "Category not found." );
             }

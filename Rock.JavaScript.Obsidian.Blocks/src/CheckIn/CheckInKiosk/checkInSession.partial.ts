@@ -365,7 +365,8 @@ export class CheckInSession {
                 searchTerm: this.searchTerm,
                 familyId: this.currentFamilyId
             },
-            requests: attendanceRequests
+            requests: attendanceRequests,
+            overridePinCode: this.overridePinCode,
         };
 
         const response = await this.http.post<SaveAttendanceResponseBag>(this.getApiUrl("/api/v2/checkin/SaveAttendance"), undefined, request);
@@ -1220,7 +1221,9 @@ export class CheckInSession {
             // that are valid.
             validAreaIds = this.attendeeOpportunities
                 .groups
-                ?.filter(g => !g.abilityLevelId || g.abilityLevelId === this.selectedAbilityLevel?.id)
+                ?.filter(g => (this.overridePinCode !== undefined && this.overridePinCode !== "")
+                    || !g.abilityLevelId
+                    || g.abilityLevelId === this.selectedAbilityLevel?.id)
                 .map(g => g.areaId as string) ?? [];
         }
         else {
@@ -1231,7 +1234,10 @@ export class CheckInSession {
                 .groups
                 ?.filter(g => g.locations
                     && g.locations.some(l => l.scheduleId === this.currentFamilyScheduleId)
-                    && (!g.abilityLevelId || g.abilityLevelId === this.selectedAbilityLevel?.id))
+                    && (
+                        (this.overridePinCode !== undefined && this.overridePinCode !== "")
+                        || !g.abilityLevelId
+                        || g.abilityLevelId === this.selectedAbilityLevel?.id))
                 .map(g => g.areaId as string) ?? [];
         }
 

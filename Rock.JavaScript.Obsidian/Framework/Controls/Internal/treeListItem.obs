@@ -1,16 +1,18 @@
 <!-- Copyright by the Spark Development Network; Licensed under the Rock Community License -->
 <template>
     <li :class="listItemClass">
-        <i v-if="hasChildren" :class="folderClass" @click.prevent.stop="onExpand"></i>
-        <span :class="itemNameClass" :title="itemName" @click.prevent.stop="onSelect">
-            <i :class="itemIconClass"></i>
-            {{ itemName }}
-            <span class="label label-tree" v-if="showChildCount && item.childCount">{{ item.childCount }}</span>
-        </span>
-        <i v-if="showSelectChildren && multiple && item.isFolder"
-           class="ti ti-chevrons-down icon-fw clickable select-children"
-           title="Select Children"
-           @click.prevent.stop="onSelectDescendants"></i>
+        <div>
+            <i v-if="hasChildren" :class="folderClass" @click.prevent.stop="onExpand"></i>
+            <span :class="itemNameClass" :title="itemName" @click.prevent.stop="onSelect">
+                <i :class="itemIconClass"></i>
+                {{ itemName }}
+                <span class="label label-tree" v-if="showChildCount && item.childCount">{{ item.childCount }}</span>
+            </span>
+            <i v-if="showSelectChildren && multiple && item.isFolder"
+               class="ti ti-chevrons-down icon-fw clickable select-children"
+               title="Select Children"
+               @click.prevent.stop="onSelectDescendants"></i>
+        </div>
 
         <ul v-if="hasChildrenLoaded" v-show="showChildren" class="rocktree-children">
             <treeListItem v-for="child in children"
@@ -408,8 +410,12 @@
 
     // #endregion
 
-    // Show Children on init if this item is in the initiallyExpanded list
+    // Show Children on init if this item is in the initiallyExpanded list. With a lazy provider the
+    // children are not loaded yet, so load them too; descendants that are themselves in the list
+    // cascade open as they mount, which reveals a deep-linked selection or expanded node. When the
+    // children are already loaded (eager provider) loadChildItems is a no-op.
     if (props.initiallyExpanded.length > 0 && props.initiallyExpanded.includes(props.item.value ?? "")) {
         showChildren.value = true;
+        loadChildItems(props.item);
     }
 </script>

@@ -24,6 +24,7 @@
 import { AgentType } from "@Obsidian/Enums/AI/Agent/agentType";
 import { AudienceType } from "@Obsidian/Enums/AI/Agent/audienceType";
 import { ModelServiceRole } from "@Obsidian/Enums/AI/Agent/modelServiceRole";
+import { ReasoningEffort } from "@Obsidian/Enums/AI/Agent/reasoningEffort";
 import { AgentSkillBag } from "@Obsidian/ViewModels/Blocks/AI/AIAgentDetail/agentSkillBag";
 import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
 import { PublicAttributeBag } from "@Obsidian/ViewModels/Utility/publicAttributeBag";
@@ -50,7 +51,7 @@ export type AIAgentBag = {
      * when a new user message is added. This only applies to persisted
      * sessions.
      */
-    autoSummarizeThreshold: number;
+    autoSummarizeThreshold?: number | null;
 
     /**
      * The binary file that contains the image to use as the avatar to
@@ -88,8 +89,21 @@ export type AIAgentBag = {
      */
     isExcludingSystemSkills: boolean;
 
+    /**
+     * Gets or sets a value indicating whether this agent is part of the
+     * Rock core system. System agents cannot be deleted and their
+     * instructions cannot be modified.
+     */
+    isSystem: boolean;
+
     /** The friendly name of the agent that will be used to identify it in the UI. */
     name?: string | null;
+
+    /**
+     * How much reasoning effort the language model should spend when
+     * this agent responds to a chat message.
+     */
+    reasoningEffort: ReasoningEffort;
 
     /** The role that this agent uses when determining which AI model to use. */
     role: ModelServiceRole;

@@ -117,6 +117,7 @@ namespace RockWeb.Blocks.Event
         {
             public const string RegistrationInstanceId = "RegistrationInstanceId";
             public const string RegistrationId = "RegistrationId";
+            public const string ReturnUrl = "ReturnUrl";
         }
 
         #endregion Page Parameter Keys
@@ -339,6 +340,34 @@ namespace RockWeb.Blocks.Event
             return key.AsIntegerOrNull() ?? Rock.Utility.IdHasher.Instance.GetId( key );
         }
 
+        /// <summary>
+        /// Navigates to the ReturnUrl page parameter if it is a safe redirect URL,
+        /// otherwise navigates to the parent page with the supplied query parameters.
+        /// </summary>
+        /// <param name="pageParams">The query parameters to use when falling back to the parent page.</param>
+        private void NavigateToReturnUrlOrParentPage( Dictionary<string, string> pageParams )
+        {
+            /*
+                6/5/26 - MSE
+
+                This block's parent page is the Registrations tab, so navigating to
+                the parent page loses the tab the individual came from (Registrants,
+                Payments, etc.). Linking blocks pass ReturnUrl so we can send them back.
+
+                Reason: Preserve the source tab when navigating away from this block.
+            */
+            var returnUrl = PageParameter( PageParameterKey.ReturnUrl );
+
+            if ( RockPage.Site.IsSafeRedirectUrl( returnUrl, Request.UrlProxySafe() ) )
+            {
+                Response.Redirect( returnUrl, false );
+                Context.ApplicationInstance.CompleteRequest();
+                return;
+            }
+
+            NavigateToParentPage( pageParams );
+        }
+
         #endregion Page Parameter Helpers
 
         #region Control Methods
@@ -546,7 +575,7 @@ namespace RockWeb.Blocks.Event
 
                     var pageParams = new Dictionary<string, string>();
                     pageParams.Add( "RegistrationInstanceId", RegistrationInstanceId.ToString() );
-                    NavigateToParentPage( pageParams );
+                    NavigateToReturnUrlOrParentPage( pageParams );
                 }
             }
         }
@@ -686,7 +715,7 @@ namespace RockWeb.Blocks.Event
                             Registration = GetRegistration( Registration.Id );
                         }
 
-                        lWizardRegistrationName.Text = Registration.ToString();
+                        lWizardRegistrationName.Text = Registration.ToString().EncodeHtml();
                         ShowReadonlyDetails( Registration );
                     }
                 }
@@ -704,7 +733,7 @@ namespace RockWeb.Blocks.Event
             {
                 var pageParams = new Dictionary<string, string>();
                 pageParams.Add( "RegistrationInstanceId", RegistrationInstanceId.ToString() );
-                NavigateToParentPage( pageParams );
+                NavigateToReturnUrlOrParentPage( pageParams );
             }
             else
             {
@@ -1186,7 +1215,8 @@ namespace RockWeb.Blocks.Event
                     // reload registration
                     Registration = GetRegistration( Registration.Id, rockContext );
 
-                    RockPage.UpdateBlocks( "~/Blocks/Finance/TransactionList.ascx" );
+
+                    //RockPage.UpdateBlocks( "~/Blocks/Finance/TransactionList.ascx" );
 
                     ShowReadonlyDetails( Registration );
 
@@ -1245,7 +1275,7 @@ namespace RockWeb.Blocks.Event
 
             // Reload registration
             Registration = GetRegistration( Registration.Id );
-            lWizardRegistrationName.Text = Registration.ToString();
+            lWizardRegistrationName.Text = Registration.ToString().EncodeHtml();
             ShowReadonlyDetails( Registration );
         }
 
@@ -1365,6 +1395,7 @@ namespace RockWeb.Blocks.Event
                             }
 
                             var sendErrorMessages = new List<string>();
+#pragma warning disable CS0618 // Type or member is obsolete
                             if ( new SignatureDocumentTemplateService( rockContext ).SendLegacyProviderDocument(
                                 signatureDocumentTemplateService.Get( Registration.RegistrationInstance.RegistrationTemplate.RequiredSignatureDocumentTemplateId.Value ),
                                 appliesTo,
@@ -1372,6 +1403,7 @@ namespace RockWeb.Blocks.Event
                                 Registration.RegistrationInstance.Name,
                                 email,
                                 out sendErrorMessages ) )
+#pragma warning restore CS0618 // Type or member is obsolete
                             {
                                 rockContext.SaveChanges();
                                 maSignatureRequestSent.Show( "A Signature Request Has Been Sent.", Rock.Web.UI.Controls.ModalAlertType.Information );
@@ -1509,12 +1541,18 @@ namespace RockWeb.Blocks.Event
                     Registration = GetRegistration( RegistrationId.Value, rockContext );
                     if ( Registration != null )
                     {
+                        if ( !CanViewRegistration( Registration ) )
+                        {
+                            ShowNotAuthorizedToView();
+                            return;
+                        }
+
                         Title = Registration.ToString();
                         RegistrationInstanceId = Registration.RegistrationInstanceId;
                         RegistrationTemplateId = Registration.RegistrationInstance.RegistrationTemplateId;
                         lWizardTemplateName.Text = Registration.RegistrationInstance.RegistrationTemplate.Name;
                         lWizardInstanceName.Text = Registration.RegistrationInstance.Name;
-                        lWizardRegistrationName.Text = Registration.ToString();
+                        lWizardRegistrationName.Text = Registration.ToString().EncodeHtml();
 
                         EditAllowed = EditAllowed ||
                             Registration.RegistrationInstance.IsAuthorized( "Register", CurrentPerson ) ||
@@ -1527,11 +1565,18 @@ namespace RockWeb.Blocks.Event
                 {
                     var registrationInstance = new RegistrationInstanceService( rockContext )
                         .Queryable()
-                        .Include( a => a.RegistrationTemplate ).AsNoTracking()
+                        .Include( a => a.RegistrationTemplate )
+                        .Include( a => a.RegistrationTemplate.Category ).AsNoTracking()
                         .Where( i => i.Id == RegistrationInstanceId.Value )
                         .FirstOrDefault();
                     if ( registrationInstance != null )
                     {
+                        if ( !CanViewRegistration( registrationInstance ) )
+                        {
+                            ShowNotAuthorizedToView();
+                            return;
+                        }
+
                         lWizardTemplateName.Text = registrationInstance.RegistrationTemplate.Name;
                         lWizardInstanceName.Text = registrationInstance.Name;
                         lWizardRegistrationName.Text = "New Registration";
@@ -1576,6 +1621,54 @@ namespace RockWeb.Blocks.Event
             return null;
         }
 
+        /// <summary>
+        /// Determines whether the current person can view the registration
+        /// (or the registration instance for a new registration).
+        /// </summary>
+        /// <param name="item">The registration or registration instance.</param>
+        /// <returns><c>true</c> if the current person can view it; otherwise <c>false</c>.</returns>
+        private bool CanViewRegistration( ISecured item )
+        {
+            /*
+                10/12/2026 - MSE
+
+                The registration is loaded from the page parameters, so any
+                person who could open this page could read registrations in a
+                template or category they can not view. Registrations inherit
+                security from the instance, template and category. Register,
+                Edit and Administrate are also accepted because this block and
+                the registrations list already let those people manage a
+                registration. Block edit rights do not bypass this check.
+
+                Reason: Enforce registration template security on this block.
+            */
+            return item != null
+                && ( item.IsAuthorized( Authorization.VIEW, CurrentPerson )
+                    || item.IsAuthorized( "Register", CurrentPerson )
+                    || item.IsAuthorized( Authorization.EDIT, CurrentPerson )
+                    || item.IsAuthorized( Authorization.ADMINISTRATE, CurrentPerson ) );
+        }
+
+        /// <summary>
+        /// Clears the registration state and shows the not authorized message.
+        /// </summary>
+        private void ShowNotAuthorizedToView()
+        {
+            Registration = null;
+            RegistrationId = null;
+            RegistrationInstanceId = null;
+            RegistrationTemplateId = 0;
+            _registrationTemplate = null;
+            EditAllowed = false;
+            Title = string.Empty;
+            lWizardTemplateName.Text = "Template";
+            lWizardInstanceName.Text = "Instance";
+            lWizardRegistrationName.Text = "Registration";
+            pnlDetails.Visible = false;
+            nbSecurityWarning.Text = EditModeMessage.NotAuthorizedToView( Rock.Model.Registration.FriendlyTypeName );
+            nbSecurityWarning.Visible = true;
+        }
+
         #endregion Load/Save Methods
 
         #region Display Methods
@@ -1614,6 +1707,12 @@ namespace RockWeb.Blocks.Event
 
             if ( Registration != null )
             {
+                if ( !CanViewRegistration( Registration ) )
+                {
+                    ShowNotAuthorizedToView();
+                    return;
+                }
+
                 RegistrationInstanceId = Registration.RegistrationInstanceId;
 
                 // render UI based on Authorized and IsSystem
@@ -1752,10 +1851,10 @@ namespace RockWeb.Blocks.Event
             }
             else
             {
-                lName.Text = string.Format( "{0} {1}", registration.FirstName, registration.LastName );
+                lName.Text = string.Format( "{0} {1}", registration.FirstName, registration.LastName ).EncodeHtml();
             }
 
-            lConfirmationEmail.Text = registration.ConfirmationEmail;
+            lConfirmationEmail.Text = registration.ConfirmationEmail.EncodeHtml();
             lConfirmationEmail.Visible = !string.IsNullOrWhiteSpace( registration.ConfirmationEmail );
             lbResendConfirmation.Visible = lConfirmationEmail.Visible;
 
@@ -1781,7 +1880,7 @@ namespace RockWeb.Blocks.Event
             avcDisplayAttributes.AddDisplayControls( registration );
 
             lDiscountCode.Visible = !string.IsNullOrWhiteSpace( registration.DiscountCode );
-            lDiscountCode.Text = registration.DiscountCode;
+            lDiscountCode.Text = registration.DiscountCode.EncodeHtml();
 
             lDiscountPercent.Visible = registration.DiscountPercentage > 0.0m;
             lDiscountPercent.Text = registration.DiscountPercentage.ToString( "P0" );
@@ -1825,10 +1924,32 @@ namespace RockWeb.Blocks.Event
 
             bool anyPayments = registration.PaymentPlanFinancialScheduledTransaction != null && registration.PaymentPlanFinancialScheduledTransaction.IsActive;
             hfHasPayments.Value = anyPayments.ToString();
-            foreach ( RockWeb.Blocks.Finance.TransactionList block in RockPage.RockBlocks.Where( a => a is RockWeb.Blocks.Finance.TransactionList ) )
-            {
-                block.SetVisible( anyPayments );
-            }
+
+            /*
+                6/23/26 - CH
+
+                The commented-out loop below was the legacy WebForms mechanism for toggling a sibling
+                Transaction List block on this same page: it reached into RockPage.RockBlocks, found any
+                instance of the WebForms TransactionList block, and showed/hid it based on whether the
+                registration had active payments. The strongly-typed cast required the
+                "<%@ Reference Control="~/Blocks/Finance/TransactionList.ascx" %>" directive in the .ascx,
+                which is why removing the chopped WebForms block broke the build.
+
+                In current Rock, no page places a Transaction List block alongside the Registration Detail
+                block, so this loop was already a no-op and has been left commented out for context.
+
+                When the Registration Detail block is itself converted to Obsidian, this cross-block
+                visibility coordination cannot be replicated with RockPage.RockBlocks (Obsidian blocks are
+                not WebForms controls). If we ever want to keep this behavior, the Obsidian-friendly
+                approach is the browser bus: Registration Detail would publish a message (e.g. a
+                "registration payments changed" event carrying the hasPayments flag) and an Obsidian
+                Transaction List block on the same page would subscribe and toggle its own visibility.
+            */
+
+            //foreach ( RockWeb.Blocks.Finance.TransactionList block in RockPage.RockBlocks.Where( a => a is RockWeb.Blocks.Finance.TransactionList ) )
+            //{
+            //    block.SetVisible( anyPayments );
+            //}
 
             lbAddRegistrant.Visible = EditAllowed;
 
@@ -1849,7 +1970,7 @@ namespace RockWeb.Blocks.Event
                 var balanceDue = registration.BalanceDue;
                 hlBalance.Visible = true;
                 hlBalance.Text = balanceDue.FormatAsCurrency();
-                
+
                 var isPaymentPlanActive = registration.IsPaymentPlanActive;
 
                 if ( balanceDue > 0.0m )
@@ -2314,7 +2435,7 @@ namespace RockWeb.Blocks.Event
 
             details.Add( txn.TransactionCode );
 
-            string formattedDetails = details.Where( d => d != null && d != string.Empty ).ToList().AsDelimited( "<br/>" );
+            string formattedDetails = details.Where( d => d != null && d != string.Empty ).Select( d => d.EncodeHtml() ).ToList().AsDelimited( "<br/>" );
             if ( txn.RefundDetails != null )
             {
                 return "<span class='label label-danger'>Refund</span> " + formattedDetails;
@@ -2380,7 +2501,10 @@ namespace RockWeb.Blocks.Event
                     var costSummary = new RegistrationCostSummaryInfo
                     {
                         Type = RegistrationCostSummaryType.Cost,
-                        Description = registrant.PersonName,
+                        // The fee summary repeater outputs Description as HTML. Only the
+                        // registrant name is encoded here because the fee descriptions
+                        // include the formatted currency symbol, which may be an HTML entity.
+                        Description = registrant.PersonName.EncodeHtml(),
                         RegistrationRegistrantGuid = registrant.Guid
                     };
 
@@ -2583,12 +2707,12 @@ namespace RockWeb.Blocks.Event
                     && a.TransactionDateTime.HasValue
                 )
                 .Max( t => ( DateTime? ) t.TransactionDateTime.Value );
-            
+
             // Use the financial gateway associated with the existing payment plan
             // instead of what's configured on the template, as the template's gateway may
             // have changed after the payment plan was created.
             var nextPaymentDate = registration.PaymentPlanFinancialScheduledTransaction.FinancialGateway?.GetGatewayComponent()?.GetNextPaymentDate( registration.PaymentPlanFinancialScheduledTransaction, lastTransactionDate );
-                
+
             if ( nextPaymentDate.HasValue )
             {
                 // Show the next payment date.
@@ -2646,7 +2770,7 @@ namespace RockWeb.Blocks.Event
             var h1Heading = new HtmlGenericControl( "h1" );
             h1Heading.AddCssClass( "panel-title" );
             h1Heading.AddCssClass( "pull-left" );
-            h1Heading.InnerHtml = "<i class='ti ti-user'></i> " + registrant.PersonName;
+            h1Heading.InnerHtml = "<i class='ti ti-user'></i> " + registrant.PersonName.EncodeHtml();
             divHeading.Controls.Add( h1Heading );
 
             var divLabels = new HtmlGenericControl( "div" );
@@ -2712,7 +2836,7 @@ namespace RockWeb.Blocks.Event
                 sb.AppendFormat(
                     "There is not a signed {0} for {1}",
                     template.RequiredSignatureDocumentTemplate.Name,
-                    registrant.GetFirstName( template ) );
+                    registrant.GetFirstName( template ).EncodeHtml() );
 
                 if ( registrant.SignatureDocumentLastSent.HasValue )
                 {
@@ -2787,7 +2911,7 @@ namespace RockWeb.Blocks.Event
                         var lbGroupMember = new LinkButton();
                         lbGroupMember.CausesValidation = false;
                         lbGroupMember.ID = string.Format( "lbGroupMember_{0}", registrant.Id );
-                        lbGroupMember.Text = string.Format( "Add {0} to Target Group", registrant.GetFirstName( this.RegistrationTemplate ) );
+                        lbGroupMember.Text = string.Format( "Add {0} to Target Group", registrant.GetFirstName( this.RegistrationTemplate ).EncodeHtml() );
                         lbGroupMember.Click += lbGroupMember_Click;
                         pGroupMember.Controls.Add( lbGroupMember );
 
@@ -3012,7 +3136,7 @@ namespace RockWeb.Blocks.Event
                     switch ( field.PersonFieldType )
                     {
                         case RegistrationPersonFieldType.MiddleName:
-                            rlField.Text = fieldValue.ToString() ?? string.Empty;
+                            rlField.Text = fieldValue.ToString().EncodeHtml() ?? string.Empty;
                             break;
 
                         case RegistrationPersonFieldType.Campus:
@@ -3022,11 +3146,11 @@ namespace RockWeb.Blocks.Event
 
                         case RegistrationPersonFieldType.Address:
                             var location = fieldValue.ToString();
-                            rlField.Text = location != null ? location.ToString() : string.Empty;
+                            rlField.Text = location != null ? location.EncodeHtml() : string.Empty;
                             break;
 
                         case RegistrationPersonFieldType.Email:
-                            rlField.Text = fieldValue.ToString();
+                            rlField.Text = fieldValue.ToString().EncodeHtml();
                             break;
 
                         case RegistrationPersonFieldType.Birthdate:
@@ -3202,7 +3326,7 @@ namespace RockWeb.Blocks.Event
         }
 
         #endregion Support Classes and Enumerations
-        
+
         #region Payment Plan Methods
 
         /// <summary>
@@ -3254,7 +3378,7 @@ namespace RockWeb.Blocks.Event
 
                 AmountForPaymentPlan = this.Registration.BalanceDue,
                 CurrencyPrecision = new RockCurrencyCodeInfo().DecimalPlaces,
-                
+
                 // Admins can choose whatever payment frequency and number of payments as long as there is at least one payment.
                 DesiredNumberOfPayments = this.Registration.PaymentPlanFinancialScheduledTransaction.NumberOfPayments ?? 0,
                 IsNumberOfPaymentsLimited = false,
@@ -3263,7 +3387,7 @@ namespace RockWeb.Blocks.Event
                 // The start date should default to tomorrow if the next payment date is not set.
                 DesiredStartDate = ( financialGatewayComponent.GetNextPaymentDate( this.Registration.PaymentPlanFinancialScheduledTransaction, lastTransactionDate )
                     ?? RockDateTime.Now.AddDays( 1 ) ).Date,
-                
+
                 // The Registration Instance payment deadline should have a value since it's a required field,
                 // but default to next year just in case it's missing.
                 EndDate = ( this.Registration.RegistrationInstance.PaymentDeadlineDate
@@ -3323,7 +3447,7 @@ namespace RockWeb.Blocks.Event
                 DesiredAllowedPaymentFrequencies = frequencyValueOptions,
 
                 // Admins can choose whatever payment frequency and number of payments as long as there is at least one payment.
-                IsNumberOfPaymentsLimited = false,                
+                IsNumberOfPaymentsLimited = false,
                 DesiredNumberOfPayments = nbUpdatePaymentPlanNumberOfPayments.IntegerValue ?? 0,
                 MinNumberOfPayments = 1,
 
@@ -3343,7 +3467,7 @@ namespace RockWeb.Blocks.Event
                 // Ensure the selected frequency value is one of the available options.
                 paymentPlanConfigurationOptions.DesiredPaymentFrequency = paymentPlanConfigurationOptions.DesiredAllowedPaymentFrequencies.FirstOrDefault( option => option.Id == frequencyValueId.Value );
             }
-        
+
             return new PaymentPlanConfigurationService().Get( paymentPlanConfigurationOptions );
         }
 
@@ -3386,7 +3510,7 @@ namespace RockWeb.Blocks.Event
             }
 
             if ( paymentPlanConfiguration.AmountPerPayment > 0 )
-            { 
+            {
                 pnlUpdatePaymentPlanSummary.Visible = true;
             }
             else
@@ -3430,7 +3554,7 @@ namespace RockWeb.Blocks.Event
                     .Include( f => f.FinancialPaymentDetail )
                     .Include( f => f.FinancialGateway )
                     .FirstOrDefault( f => f.Id == paymentPlanFinancialScheduledTransactionId.Value );
-                
+
                 // Use the financial gateway associated with the existing payment plan
                 // instead of what's configured on the template, as the template's gateway may
                 // have changed after the payment plan was created.
@@ -3490,8 +3614,8 @@ namespace RockWeb.Blocks.Event
                     /*
                         07/11/2025 - NA
 
-                        Some gateways do not properly populate the FinancialPaymentDetail record they create 
-                        during the UpdateScheduledPayment() method. To compensate, we're preserving existing 
+                        Some gateways do not properly populate the FinancialPaymentDetail record they create
+                        during the UpdateScheduledPayment() method. To compensate, we're preserving existing
                         values to restore them if needed.
 
                         Reason: Expedites resolution of issue #6367 by ensuring payment details remain complete.
@@ -3514,9 +3638,9 @@ namespace RockWeb.Blocks.Event
                     /*
                         07/11/2025 - NA
 
-                        After the transaction is processed, the gateway should populate the FinancialPaymentDetail 
-                        since it has more data than Rock (as the gateway collects the payment information directly). 
-                        However, if paymentPlanPaymentInfo contains additional values, we’ll attempt to merge those 
+                        After the transaction is processed, the gateway should populate the FinancialPaymentDetail
+                        since it has more data than Rock (as the gateway collects the payment information directly).
+                        However, if paymentPlanPaymentInfo contains additional values, we’ll attempt to merge those
                         into FinancialPaymentDetail.
 
                         Reason: This mirrors similar logic used in the TransactionEntryV2 block.
@@ -3693,7 +3817,7 @@ namespace RockWeb.Blocks.Event
         protected void dpPaymentPlanStartDate_SelectDate( object sender, EventArgs e )
         {
             var paymentPlanConfiguration = GetPaymentPlanConfigurationFromModal();
-            SetUpdatePaymentPlanModalConfiguration( paymentPlanConfiguration ); 
+            SetUpdatePaymentPlanModalConfiguration( paymentPlanConfiguration );
         }
 
         protected void ddlPaymentPlanNumberOfPayments_SelectedIndexChanged( object sender, EventArgs e )

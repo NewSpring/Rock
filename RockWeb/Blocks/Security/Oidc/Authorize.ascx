@@ -5,10 +5,10 @@
 
         <Rock:NotificationBox ID="nbNotificationBox" runat="server" NotificationBoxType="Danger" Visible="false" Title="Error" />
 
-        <div style="max-width: 360px; margin-left: auto; margin-right: auto;">
+        <div id="divContent" runat="server" style="max-width: 360px; margin-left: auto; margin-right: auto;">
             <div class="card">
                 <div class="card-body" style="display: flex; flex-direction: column; gap: var(--spacing-medium); padding: var(--spacing-large);">
-                    <h3 style="text-align: center;">Claude</h3>
+                    <h3 style="text-align: center;">Authorization</h3>
 
                     <p style="text-align: center;">
                         <strong><asp:Literal ID="lNickName" runat="server" />, <asp:Literal ID="lClientName" runat="server" /> is requesting access to your account.</strong>

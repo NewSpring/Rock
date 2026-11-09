@@ -61,13 +61,12 @@ namespace Rock.Blocks.Types.Mobile.Core
         Order = 1,
         Key = AttributeKey.NoteTypes )]
 
-    [FileField( Rock.SystemGuid.BinaryFiletype.DEFAULT,
+    [ImageField( Rock.SystemGuid.BinaryFiletype.DEFAULT,
         "Default Note Image",
         Description = "This image is displayed next to the note if the author has no profile image.",
         IsRequired = false,
         Key = AttributeKey.DefaultNoteImage,
-        Order = 2,
-        FieldTypeClass = "Rock.Field.Types.ImageFieldType" )]
+        Order = 2 )]
 
     [BooleanField( "Use Template",
         Description = "If enabled, notes will be displayed using the 'Notes Template', allowing you full customization of the layout.",
@@ -245,7 +244,7 @@ namespace Rock.Blocks.Types.Mobile.Core
         /// <value>
         /// The XAML template to parse on the shell.
         /// </value>
-        protected string NotesTemplate => Field.Types.BlockTemplateFieldType.GetTemplateContent( GetAttributeValue( AttributeKey.NotesTemplate ) );
+        protected string NotesTemplate => Field.Helper.GetBlockTemplateContent( GetAttributeValue( AttributeKey.NotesTemplate ) );
 
         /// <summary>
         /// When in template mode, this is the amount of notes retrieved, when in List mode, this
@@ -654,19 +653,50 @@ namespace Rock.Blocks.Types.Mobile.Core
         [BlockAction]
         public BlockActionResult GetNote( Guid noteGuid )
         {
+            if ( noteGuid == Guid.Empty )
+            {
+                return ActionBadRequest();
+            }
+
+            var entityType = EntityTypeCache.Get( ContextEntityType );
+            var entity = entityType != null ? RequestContext.GetContextEntity( entityType.GetEntityType() ) : null;
+            if ( entity == null )
+            {
+                return ActionNotFound();
+            }
+
+            var viewableNoteTypeIds = GetViewableNoteTypes().Select( t => t.Id ).ToList();
+            var currentPerson = RequestContext.CurrentPerson;
+
             using ( var rockContext = new RockContext() )
             {
+                /*
+                    10/16/2026 - MSE
 
-                if ( noteGuid == null )
-                {
-                    return ActionBadRequest();
-                }
+                    GetNote must only return a note that this block would list for the current
+                    person: one attached to the context entity, of a note type the block shows and
+                    the person can view, and visible to the person (private and approval rules).
+                    The note's own VIEW permission is then checked as GetViewableNotes does.
 
-                var note = new NoteService( rockContext ).Get( noteGuid );
+                    Reason: Prevent reading any note, including private notes, by Guid.
+                */
+                var note = new NoteService( rockContext ).Queryable()
+                    .Include( a => a.NoteType )
+                    .Include( a => a.CreatedByPersonAlias )
+                    .AreViewableBy( currentPerson?.Id )
+                    .Where( a => a.Guid == noteGuid
+                        && a.EntityId == entity.Id
+                        && viewableNoteTypeIds.Contains( a.NoteTypeId ) )
+                    .FirstOrDefault();
 
                 if ( note == null )
                 {
                     return ActionNotFound();
+                }
+
+                if ( !note.IsAuthorized( Authorization.VIEW, currentPerson ) )
+                {
+                    return ActionForbidden( "Not authorized to view note." );
                 }
 
                 return ActionOk( new Rock.Common.Mobile.Blocks.Core.Notes.Note

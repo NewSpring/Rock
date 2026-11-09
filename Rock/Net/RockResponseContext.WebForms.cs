@@ -145,7 +145,16 @@ namespace Rock.Net
             {
                 // If IsSecureConnection is false then check the scheme in case the web server is behind a load balancer.
                 // The server could use unencrypted traffic to the balancer, which would encrypt it before sending to the browser.
-                if ( _page.Request.IsSecureConnection || _page.Request.UrlProxySafe().Scheme == "https" )
+                /*
+                    10/26/2026 - MSE
+
+                    The Secure flag must follow the scheme the browser actually used. UrlProxySafe now uses the
+                    PublicApplicationRoot scheme on hosts that are not site domains, which would mark cookies
+                    Secure on a plain http request and the browser would drop them.
+
+                    Reason: Decide the Secure flag from the received scheme.
+                */
+                if ( _page.Request.IsSecureConnection || _page.Request.UrlForwardedUnvalidated().Scheme == "https" )
                 {
                     webFormsCookie.Secure = true;
                 }
@@ -260,6 +269,22 @@ namespace Rock.Net
         /// <inheritdoc/>
         public void RedirectToUrl( string url, bool permanent = false )
         {
+            /*
+                8/19/26 - CLAUDE
+
+                Response.Redirect uses Thread.Abort to short-circuit the page so no other
+                block on the page can render sensitive data after a security redirect. That
+                abort surfaces as a ThreadAbortException, which is expected control flow, not
+                a fault. We flag the request here so the global error handler can skip logging
+                that specific expected exception.
+
+                Reason: Silence the expected ThreadAbortException from intentional redirects.
+            */
+            if ( HttpContext.Current != null )
+            {
+                HttpContext.Current.Items["Rock:ExpectedRedirectAbort"] = true;
+            }
+
             if ( permanent )
             {
                 _page.Response.RedirectPermanent( url );

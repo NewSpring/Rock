@@ -16,8 +16,10 @@
 
 using System;
 
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.Owin;
+using Microsoft.Owin.BuilderProperties;
 
 using Owin;
 
@@ -74,6 +76,14 @@ namespace Rock.Oidc
                 return;
             }
 
+            var appName = new AppProperties( app.Properties ).AppName;
+            var legacyProvider = DataProtectionProvider.Create( appName );
+            var dataProtectionProvider = new RockEncryptionDataProtectionProvider( legacyProvider );
+
+            // This must run before the OIDC server so the cache policy is in
+            // place before any OIDC endpoint writes its response.
+            app.Use<PreventCachingMiddleware>();
+
             app.UseOpenIdConnectServer( options =>
             {
                 options.Provider = new AuthorizationProvider();
@@ -99,6 +109,8 @@ namespace Rock.Oidc
                 options.ApplicationCanDisplayErrors = System.Web.Hosting.HostingEnvironment.IsDevelopmentEnvironment;
                 options.AllowInsecureHttp = !isSecure || System.Web.Hosting.HostingEnvironment.IsDevelopmentEnvironment;
 
+                options.DataProtectionProvider = dataProtectionProvider;
+
                 var rockSigningCredentials = new RockOidcSigningCredentials( rockOidcSettings );
 
                 foreach ( var key in rockSigningCredentials.SigningKeys )
@@ -107,7 +119,10 @@ namespace Rock.Oidc
                 }
             } );
 
-            app.UseOAuthValidation();
+            app.UseOAuthValidation( options =>
+            {
+                options.DataProtectionProvider = dataProtectionProvider;
+            } );
 
             app.Use<DynamicRegistrationMiddleware>();
         }

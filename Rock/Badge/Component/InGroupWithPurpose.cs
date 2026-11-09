@@ -34,9 +34,19 @@ namespace Rock.Badge.Component
     [Export( typeof( BadgeComponent ) )]
     [ExportMetadata( "ComponentName", "In Group With Purpose" )]
 
-    [DefinedValueField( SystemGuid.DefinedType.GROUPTYPE_PURPOSE, "Group Type Purpose", "The purpose to filter on." )]
-    [TextField( "Badge Icon CSS", "The CSS icon to use for the badge.", true, "ti ti-users", key: "BadgeIconCss" )]
-    [TextField( "Badge Color", "The color of the badge (#ffffff).", true, "#0ab4dd" )]
+    [DefinedValueField( "Group Type Purpose",
+        DefinedTypeGuid = SystemGuid.DefinedType.GROUPTYPE_PURPOSE,
+        Description = "The purpose to filter on.",
+        IsRequired = true )]
+    [TextField( "Badge Icon CSS",
+        Description = "The CSS icon to use for the badge.",
+        IsRequired = true,
+        DefaultValue = "ti ti-users",
+        Key = "BadgeIconCss" )]
+    [TextField( "Badge Color",
+        Description = "The color of the badge (#ffffff).",
+        IsRequired = true,
+        DefaultValue = "#0ab4dd" )]
     [Rock.SystemGuid.EntityTypeGuid( "1844AC11-7117-4C91-8D82-A6340D50323E")]
     public class InGroupWithPurpose : BadgeComponent
     {
@@ -80,6 +90,16 @@ namespace Rock.Badge.Component
                 badgeColor = "#0ab4dd";
             }
 
+            /*
+                10/14/2026 - MSE
+
+                Badge tooltips are rendered as HTML (BadgeControl sets html: true), and the
+                person's nick name comes back raw from the REST call. A person can set their
+                own name (for example through a public signup form), so the values are HTML
+                escaped in the browser before they are added to the tooltip.
+
+                Reason: Prevent stored XSS through a person's name in the badge tooltip.
+            */
             return string.Format( @"
 $.ajax({{
     type: 'GET',
@@ -89,13 +109,17 @@ $.ajax({{
             var badgeHtml = '';
             var groupIcon = '{4}';
 
+            var encodeText = function (value) {{
+                return $('<div/>').text(value == null ? '' : String(value)).html();
+            }};
+
             if (data.PersonInGroup) {{
                 badgeHtml = '<i class=\'badge-icon ' + groupIcon + '\' style=\'color: {2}\'></i>';
-                var labelText = data.NickName + ' is in group with the ' + data.Purpose + ' purpose.';
+                var labelText = encodeText(data.NickName) + ' is in group with the ' + encodeText(data.Purpose) + ' purpose.';
             }} else {{
                 badgeHtml = '<i class=\'badge-icon badge-disabled ' + groupIcon + '\'></i>';
                 $('.rockbadge-ingroupwithpurpose.rockbadge-id-{3}').addClass('rockbadge-disabled');
-                var labelText = data.NickName + ' is not in a group with the ' + data.Purpose + ' purpose.';
+                var labelText = encodeText(data.NickName) + ' is not in a group with the ' + encodeText(data.Purpose) + ' purpose.';
             }}
             $('.rockbadge-ingroupwithpurpose.rockbadge-id-{3}').html(badgeHtml);
             $('.rockbadge-ingroupwithpurpose.rockbadge-id-{3}').attr('data-original-title', labelText);

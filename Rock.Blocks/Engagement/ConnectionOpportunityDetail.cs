@@ -92,10 +92,16 @@ namespace Rock.Blocks.Engagement
         {
             var box = new DetailBlockBox<ConnectionOpportunityBag, ConnectionOpportunityDetailOptionsBag>();
 
-            SetBoxInitialEntityState( box );
+            var initialEntity = SetBoxInitialEntityState( box );
 
             box.NavigationUrls = GetBoxNavigationUrls();
             box.Options = GetBoxOptions( box.IsEditable );
+
+            // Only show the Delete button to people the Delete action will allow.
+            box.Options.IsDeleteVisible = box.IsEditable
+                && initialEntity != null
+                && initialEntity.Id != 0
+                && IsAuthorizedToDelete( initialEntity );
 
             return box;
         }
@@ -440,14 +446,15 @@ namespace Rock.Blocks.Engagement
         /// ErrorMessage properties depending on the entity and permissions.
         /// </summary>
         /// <param name="box">The box to be populated.</param>
-        private void SetBoxInitialEntityState( DetailBlockBox<ConnectionOpportunityBag, ConnectionOpportunityDetailOptionsBag> box )
+        /// <returns>The initial entity that was loaded, or <c>null</c> if it was not found.</returns>
+        private ConnectionOpportunity SetBoxInitialEntityState( DetailBlockBox<ConnectionOpportunityBag, ConnectionOpportunityDetailOptionsBag> box )
         {
             var entity = GetInitialEntity();
 
             if ( entity == null )
             {
                 box.ErrorMessage = $"The {ConnectionOpportunity.FriendlyTypeName} was not found.";
-                return;
+                return null;
             }
 
             var isViewable = BlockCache.IsAuthorized( Authorization.VIEW, RequestContext.CurrentPerson );
@@ -483,6 +490,8 @@ namespace Rock.Blocks.Engagement
             }
 
             PrepareDetailBox( box, entity );
+
+            return entity;
         }
 
         /// <summary>
@@ -653,6 +662,15 @@ namespace Rock.Blocks.Engagement
                 } )
                 .ToList();
 
+            // The Activity Type qualifier dropdown uses ConnectionActivityType Guid values,
+            // but the QualifierValue column stores the integer Id (which is what the workflow
+            // launch transaction matches on), so map Ids to Guids for display.
+            var activityTypeIdToGuidMap = new ConnectionActivityTypeService( RockContext ).Queryable()
+                .Where( a => a.ConnectionTypeId == entity.ConnectionTypeId )
+                .Select( a => new { a.Id, a.Guid } )
+                .ToList()
+                .ToDictionary( a => a.Id, a => a.Guid );
+
             var workflows = new ConnectionWorkflowService( RockContext ).Queryable()
                 .AsNoTracking()
                 .Where( wf => wf.ConnectionOpportunityId == entity.Id && wf.WorkflowTypeId.HasValue )
@@ -665,7 +683,7 @@ namespace Rock.Blocks.Engagement
                         Guid = wf.Guid,
                         WorkflowType = wf.WorkflowType != null ? new ListItemBag { Value = wf.WorkflowType.Guid.ToString(), Text = wf.WorkflowType.Name } : null,
                         TriggerType = wf.TriggerType,
-                        QualifierValue = ParseQualifierValue( wf.QualifierValue ),
+                        QualifierValue = ConvertPrimaryQualifierIdToGuid( wf.TriggerType, wf.QualifierValue, activityTypeIdToGuidMap ),
                         ManualTriggerFilterConnectionStatusId = wf.ManualTriggerFilterConnectionStatusId,
                         AppliesToAgeClassification = ( int ) wf.AppliesToAgeClassification,
                         IncludeDataViewId = wf.IncludeDataView != null ? new ListItemBag { Value = wf.IncludeDataView.Guid.ToString(), Text = wf.IncludeDataView.Name } : null,
@@ -741,6 +759,142 @@ namespace Rock.Blocks.Engagement
             return $"|{primary}|{secondary}|";
         }
 
+        /*
+             8/20/2026 - MSE
+
+             The Activity Type qualifier dropdown for the Activity Added trigger uses
+             ConnectionActivityType Guid values, but the QualifierValue column stores the
+             integer Id because that is what ConnectionRequestActivityChangeTransaction
+             matches on when launching workflows. The two methods below translate between
+             those representations, mirroring the same conversion in ConnectionTypeDetail.
+             Status based triggers are not converted because their dropdowns in this block
+             already use Id values end-to-end.
+
+             Reason: Opportunity-level "Activity Added" workflows never fired when the
+             qualifier was stored as a Guid. (Fixes #6986)
+        */
+
+        /// <summary>
+        /// Converts the stored qualifier value into a structured bag, translating the primary
+        /// qualifier from a ConnectionActivityType Id to its Guid for Activity Added triggers
+        /// so the Activity Type dropdown can display the saved selection.
+        /// </summary>
+        /// <param name="triggerType">The workflow trigger type.</param>
+        /// <param name="qualifierValue">The stored qualifier value.</param>
+        /// <param name="activityTypeIdToGuidMap">Map of activity type Ids to their Guids.</param>
+        /// <returns>A structured qualifier value bag.</returns>
+        private ConnectionWorkflowQualifierValueBag ConvertPrimaryQualifierIdToGuid( ConnectionWorkflowTriggerType triggerType, string qualifierValue, Dictionary<int, Guid> activityTypeIdToGuidMap )
+        {
+            var qualifierValueBag = ParseQualifierValue( qualifierValue );
+
+            if ( triggerType == ConnectionWorkflowTriggerType.ActivityAdded
+                && int.TryParse( qualifierValueBag.PrimaryQualifier, out var activityTypeId )
+                && activityTypeIdToGuidMap.TryGetValue( activityTypeId, out var activityTypeGuid ) )
+            {
+                qualifierValueBag.PrimaryQualifier = activityTypeGuid.ToString();
+            }
+
+            return qualifierValueBag;
+        }
+
+        /// <summary>
+        /// Converts a structured qualifier value into the delimited storage format, translating
+        /// the primary qualifier from a ConnectionActivityType Guid to its Id for Activity Added
+        /// triggers so the workflow launch transaction can match it.
+        /// </summary>
+        /// <param name="triggerType">The workflow trigger type.</param>
+        /// <param name="qualifierValue">The structured qualifier value.</param>
+        /// <param name="activityTypeGuidToIdMap">Map of activity type Guids to their Ids.</param>
+        /// <returns>The delimited qualifier string.</returns>
+        private string ConvertPrimaryQualifierGuidToId( ConnectionWorkflowTriggerType triggerType, ConnectionWorkflowQualifierValueBag qualifierValue, Dictionary<Guid, int> activityTypeGuidToIdMap )
+        {
+            if ( qualifierValue == null )
+            {
+                return string.Empty;
+            }
+
+            if ( triggerType == ConnectionWorkflowTriggerType.ActivityAdded
+                && Guid.TryParse( qualifierValue.PrimaryQualifier, out var activityTypeGuid )
+                && activityTypeGuidToIdMap.TryGetValue( activityTypeGuid, out var activityTypeId ) )
+            {
+                var secondary = qualifierValue.SecondaryQualifier ?? string.Empty;
+
+                return $"|{activityTypeId}|{secondary}|";
+            }
+
+            return ToDelimitedQualifierValue( qualifierValue );
+        }
+
+        /// <summary>
+        /// Validates that any activity type referenced by an Activity Added workflow trigger
+        /// still exists on this opportunity's connection type. Mirrors the equivalent
+        /// validation in ConnectionTypeDetail so a save cannot persist a qualifier that
+        /// references a deleted activity type, which would result in a trigger that never fires.
+        /// </summary>
+        /// <param name="box">The box containing the incoming workflow values.</param>
+        /// <param name="entity">The connection opportunity being saved.</param>
+        /// <param name="errorMessage">The validation error message, if validation fails.</param>
+        /// <returns><c>true</c> if the workflows are valid; otherwise <c>false</c>.</returns>
+        private bool TryValidateConnectionWorkflows( ValidPropertiesBox<ConnectionOpportunityBag> box, ConnectionOpportunity entity, out string errorMessage )
+        {
+            errorMessage = null;
+
+            if ( !box.IsValidProperty( nameof( box.Bag.ConnectionWorkflows ) ) )
+            {
+                return true;
+            }
+
+            var activityAddedWorkflows = ( box.Bag.ConnectionWorkflows ?? new List<ConnectionWorkflowBag>() )
+                .Where( wf => wf != null && wf.TriggerType == ConnectionWorkflowTriggerType.ActivityAdded )
+                .ToList();
+
+            if ( !activityAddedWorkflows.Any() )
+            {
+                return true;
+            }
+
+            var activityTypeGuids = new HashSet<Guid>( new ConnectionActivityTypeService( RockContext ).Queryable()
+                .Where( a => a.ConnectionTypeId == entity.ConnectionTypeId )
+                .Select( a => a.Guid )
+                .ToList() );
+
+            var workflowErrors = new List<string>();
+
+            foreach ( var workflow in activityAddedWorkflows )
+            {
+                var workflowName = workflow.WorkflowType?.Text ?? "Workflow";
+
+                if ( IsInvalidActivityGuid( workflow.QualifierValue?.PrimaryQualifier, activityTypeGuids ) )
+                {
+                    workflowErrors.Add( $"• Workflow <strong>{workflowName}</strong> references an activity type that does not exist." );
+                }
+            }
+
+            if ( workflowErrors.Any() )
+            {
+                errorMessage = "One or more workflows are invalid:<br>" + string.Join( "<br>", workflowErrors );
+                return false;
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Determines whether the given value is an invalid or non-existent activity type GUID.
+        /// </summary>
+        /// <param name="value">The string value to check (expected to be a GUID).</param>
+        /// <param name="activityTypeGuids">The set of valid activity type GUIDs.</param>
+        /// <returns><c>true</c> if the value is non-empty and either not a valid GUID or not in the activity type set; otherwise <c>false</c>.</returns>
+        private bool IsInvalidActivityGuid( string value, HashSet<Guid> activityTypeGuids )
+        {
+            if ( string.IsNullOrWhiteSpace( value ) )
+            {
+                return false;
+            }
+
+            return !Guid.TryParse( value, out var guid ) || !activityTypeGuids.Contains( guid );
+        }
+
         /// <inheritdoc/>
         protected override bool UpdateEntityFromBox( ConnectionOpportunity entity, ValidPropertiesBox<ConnectionOpportunityBag> box )
         {
@@ -761,8 +915,16 @@ namespace Rock.Blocks.Engagement
             box.IfValidProperty( nameof( box.Bag.Name ),
                 () => entity.Name = box.Bag.Name );
 
-            box.IfValidProperty( nameof( box.Bag.Photo ),
-                () => entity.PhotoId = box.Bag.Photo.GetEntityId<BinaryFile>( RockContext ) );
+            box.IfValidProperty( nameof( box.Bag.Photo ), () =>
+            {
+                var photoId = box.Bag.Photo.GetEntityId<BinaryFile>( RockContext );
+
+                // Only accept the current photo or a new upload by the current person, otherwise keep the current photo.
+                if ( new BinaryFileService( RockContext ).IsUploadedBinaryFileAllowedForPerson( photoId, entity.PhotoId, RequestContext.CurrentPerson ) )
+                {
+                    entity.PhotoId = photoId;
+                }
+            } );
 
             box.IfValidProperty( nameof( box.Bag.PublicName ),
                 () => entity.PublicName = box.Bag.PublicName );
@@ -852,6 +1014,21 @@ namespace Rock.Blocks.Engagement
                 // If editing an existing entity then load it and make sure it
                 // was found and can still be edited.
                 entity = entityService.Get( idKey, !PageCache.Layout.Site.DisablePredictableIds );
+
+                // The posted key must be the opportunity from the page parameter
+                // so the authorization check below applies to the same entity
+                // that was evaluated when the block was initialized.
+                var initialEntity = GetInitialEntity();
+                var isInitialEntity = entity != null
+                    && initialEntity != null
+                    && initialEntity.Id == entity.Id;
+
+                if ( !isInitialEntity )
+                {
+                    entity = null;
+                    error = ActionBadRequest( $"{ConnectionOpportunity.FriendlyTypeName} not found." );
+                    return false;
+                }
             }
             else
             {
@@ -888,6 +1065,44 @@ namespace Rock.Blocks.Engagement
             }
 
             return true;
+        }
+
+        /// <summary>
+        /// Determines whether the current person is authorized to delete the
+        /// specified connection opportunity. This matches the rule used by the
+        /// Connection Opportunity List block.
+        /// </summary>
+        /// <param name="entity">The connection opportunity being deleted.</param>
+        /// <returns><c>true</c> if the current person is authorized to delete the opportunity; otherwise <c>false</c>.</returns>
+        private bool IsAuthorizedToDelete( ConnectionOpportunity entity )
+        {
+            /*
+                10/16/2026 - MSE
+
+                Editing is allowed with only VIEW on the opportunity to match the
+                WebForms block, but deleting is not. Delete requires block EDIT, EDIT
+                on the opportunity's own connection type, or EDIT on the opportunity,
+                the same as the Connection Opportunity List block. The connection type
+                comes from the opportunity, not from the page parameter, because the
+                page parameter is supplied by the client.
+
+                Reason: Prevent people with only VIEW from deleting opportunities.
+            */
+            var currentPerson = RequestContext.CurrentPerson;
+
+            if ( BlockCache.IsAuthorized( Authorization.EDIT, currentPerson ) )
+            {
+                return true;
+            }
+
+            var connectionType = ConnectionTypeCache.Get( entity.ConnectionTypeId );
+
+            if ( connectionType?.IsAuthorized( Authorization.EDIT, currentPerson ) == true )
+            {
+                return true;
+            }
+
+            return entity.IsAuthorized( Authorization.EDIT, currentPerson );
         }
 
         #endregion Methods
@@ -948,7 +1163,40 @@ namespace Rock.Blocks.Engagement
                 return ActionBadRequest( validationMessage );
             }
 
+            if ( !TryValidateConnectionWorkflows( box, entity, out var workflowValidationMessage ) )
+            {
+                return ActionBadRequest( workflowValidationMessage );
+            }
+
             var isNew = entity.Id == 0;
+
+            /*
+                10/16/2026 - MSE
+
+                The connection request attributes may only reference attributes that
+                are new or already belong to this opportunity. The attribute Guids come
+                from the browser, and Helper.SaveAttributeEdits() would otherwise load
+                any attribute by Guid and move it under this opportunity. This must run
+                before the transaction because the request attributes are saved after
+                it commits.
+
+                Reason: Prevent taking over unrelated attributes through a tampered Save.
+            */
+            if ( !PublicAttributeHelper.AreAttributeEditsAllowed( box.Bag.ConnectionRequestAttributes, new ConnectionRequest().TypeId, "ConnectionOpportunityId", isNew ? null : entity.Id.ToString(), RockContext ) )
+            {
+                return ActionBadRequest( "Invalid attribute." );
+            }
+
+            // A new photo is uploaded as a temporary file, so keep it now that it is in use.
+            if ( entity.PhotoId.HasValue && entity.PhotoId != originalPhotoId )
+            {
+                var newPhoto = new BinaryFileService( RockContext ).Get( entity.PhotoId.Value );
+
+                if ( newPhoto != null )
+                {
+                    newPhoto.IsTemporary = false;
+                }
+            }
 
             RockContext.WrapTransaction( () =>
             {
@@ -1112,6 +1360,15 @@ namespace Rock.Blocks.Engagement
                         bag.Guid = Guid.NewGuid();
                     }
 
+                    // The Activity Type qualifier dropdown uses ConnectionActivityType Guid
+                    // values, but the QualifierValue column must store the integer Id because
+                    // that is what the workflow launch transaction matches on.
+                    var activityTypeGuidToIdMap = new ConnectionActivityTypeService( RockContext ).Queryable()
+                        .Where( a => a.ConnectionTypeId == entity.ConnectionTypeId )
+                        .Select( a => new { a.Id, a.Guid } )
+                        .ToList()
+                        .ToDictionary( a => a.Guid, a => a.Id );
+
                     SyncRelatedEntities(
                         workflowService,
                         workflowService.Queryable().Where( wf => wf.ConnectionOpportunityId == entity.Id ),
@@ -1124,7 +1381,7 @@ namespace Rock.Blocks.Engagement
                             wf.ConnectionOpportunityId = entity.Id;
                             wf.WorkflowTypeId = bag.WorkflowType.GetEntityId<WorkflowType>( RockContext );
                             wf.TriggerType = bag.TriggerType;
-                            wf.QualifierValue = ToDelimitedQualifierValue( bag.QualifierValue );
+                            wf.QualifierValue = ConvertPrimaryQualifierGuidToId( bag.TriggerType, bag.QualifierValue, activityTypeGuidToIdMap );
 
                             if ( bag.TriggerType != ConnectionWorkflowTriggerType.Manual )
                             {
@@ -1221,6 +1478,17 @@ namespace Rock.Blocks.Engagement
             if ( !TryGetEntityForEditAction( key, out var entity, out var actionError ) )
             {
                 return actionError;
+            }
+
+            // An empty key creates a new, unsaved entity; there is nothing to delete.
+            if ( entity.Id == 0 )
+            {
+                return ActionBadRequest( $"{ConnectionOpportunity.FriendlyTypeName} not found." );
+            }
+
+            if ( !IsAuthorizedToDelete( entity ) )
+            {
+                return ActionBadRequest( $"Not authorized to delete {ConnectionOpportunity.FriendlyTypeName}." );
             }
 
             if ( !entityService.CanDelete( entity, out var errorMessage ) )

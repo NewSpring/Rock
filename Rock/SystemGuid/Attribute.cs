@@ -111,6 +111,11 @@ namespace Rock.SystemGuid
         public const string SAME_SITE_COOKIE_SETTING = "03F55022-C1E0-45F3-84E1-C2BE8C38E22B";
 
         /// <summary>
+        /// The Site attribute listing the external domains the browser may be redirected to (e.g. after login).
+        /// </summary>
+        public const string SITE_ALLOWED_REDIRECT_DOMAINS = "F2EAB603-7412-46BF-A13D-5A451C4D8E1C";
+
+        /// <summary>
         /// The Active attribute for the observability HTTP filter.
         /// </summary>
         [RockObsolete( "17.0" )]
@@ -1109,5 +1114,12 @@ namespace Rock.SystemGuid
         public const string GROUPTYPE_SIGNUP_GROUP_PROJECT_TYPE = "46FFBB10-6E4B-4B3A-A560-61B36C6B0E09";
 
         #endregion
+
+        /// <summary>
+        /// The "Default Component Daily Counts" attribute on the "Interaction Mediums" defined type.
+        /// Controls whether newly created <see cref="Rock.Model.InteractionChannel"/> records of a
+        /// given medium default to having <c>EnableComponentDailyCounts = true</c>.
+        /// </summary>
+        public const string DEFINED_TYPE_INTERACTION_MEDIUM_DEFAULT_COMPONENT_DAILY_COUNT = "813B4E21-D77F-45E8-B702-120EE7C90451";
     }
 }

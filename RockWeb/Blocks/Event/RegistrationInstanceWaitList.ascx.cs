@@ -113,6 +113,7 @@ namespace RockWeb.Blocks.Event
         private Dictionary<int, PhoneNumber> _homePhoneNumbers = new Dictionary<int, PhoneNumber>();
         private Dictionary<int, PhoneNumber> _workPhoneNumbers = new Dictionary<int, PhoneNumber>();
         private List<int> _waitListOrder = null;
+        private bool _isExporting = false;
 
         #endregion
 
@@ -156,7 +157,7 @@ namespace RockWeb.Blocks.Event
 
             RegistrantFields = ViewState[ViewStateKeyBase.RegistrantFields] as RegistrantFormField[];
 
-            SetUserPreferencePrefix( RegistrationTemplateId.Value );
+            SetUserPreferencePrefix( RegistrationTemplateId );
 
             // Don't set the dynamic control values if this is a postback from a grid 'ClearFilter'.
             bool setValues = this.Request.Params["__EVENTTARGET"] == null || !this.Request.Params["__EVENTTARGET"].EndsWith( "_lbClearFilter" );
@@ -728,7 +729,7 @@ namespace RockWeb.Blocks.Event
                 {
                     if ( registrant.PersonAlias != null && registrant.PersonAlias.Person != null )
                     {
-                        lWaitListIndividual.Text = registrant.PersonAlias.Person.FullNameReversed;
+                        lWaitListIndividual.Text = registrant.PersonAlias.Person.FullNameReversed.EncodeHtml();
                     }
                     else
                     {
@@ -773,7 +774,18 @@ namespace RockWeb.Blocks.Event
                 if ( lAddress != null && _homeAddresses.Count() > 0 && _homeAddresses.ContainsKey( registrant.PersonId.Value ) )
                 {
                     var location = _homeAddresses[registrant.PersonId.Value];
-                    lAddress.Text = location != null && location.FormattedAddress.IsNotNullOrWhiteSpace() ? location.FormattedAddress : string.Empty;
+                    var formattedAddress = location != null && location.FormattedAddress.IsNotNullOrWhiteSpace() ? location.FormattedAddress : string.Empty;
+
+                    /*
+                        10/18/2026 - MSE
+
+                        Addresses are HTML encoded for display. The Excel export reads the plain
+                        text of this cell and does not decode it, so leave the address raw
+                        while exporting so it does not export as HTML entities.
+
+                        Reason: Encode the address on screen without breaking export.
+                    */
+                    lAddress.Text = _isExporting ? formattedAddress : formattedAddress.EncodeHtml();
                 }
 
                 var mobileField = e.Row.FindControl( MOBILE_PHONE_GRID_COLUMN_ID ) as Literal;
@@ -833,6 +845,7 @@ namespace RockWeb.Blocks.Event
 
             if ( registrationInstance == null )
             {
+                pnlDetails.Visible = false;
                 return;
             }
 
@@ -873,7 +886,10 @@ namespace RockWeb.Blocks.Event
         /// <param name="isExporting">if set to <c>true</c> [is exporting].</param>
         private void BindWaitListGrid( bool isExporting = false )
         {
-            var instanceId = this.RegistrationInstanceId;
+            _isExporting = isExporting;
+
+            // Bind only from the instance that passed the VIEW check in the base block.
+            var instanceId = this.RegistrationInstance?.Id;
 
             if ( instanceId.HasValue )
             {
@@ -1358,6 +1374,12 @@ namespace RockWeb.Blocks.Event
         /// <param name="setValues"></param>
         private void AddDynamicControls( bool setValues )
         {
+            // There are no fields when the base block dropped the instance.
+            if ( this.RegistrantFields == null )
+            {
+                return;
+            }
+
             // Filter out the group member Attributes from Regisrant field
             AddRegistrationTemplateFieldsToGrid( this.RegistrantFields.Where( a => a.FieldSource != RegistrationFieldSource.GroupMemberAttribute ).ToArray(), phWaitListFormFieldFilters, gWaitList, fWaitList, setValues, false );
         }

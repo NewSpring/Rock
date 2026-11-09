@@ -248,7 +248,9 @@ namespace Rock.Blocks.AI
                 IsExcludingSystemSkills = entity.AgentType == AgentType.Chat
                     ? chatSettings.IsExcludingSystemSkills
                     : mcpSettings.IsExcludingSystemSkills,
+                IsSystem = entity.IsSystem,
                 Role = chatSettings.Role,
+                ReasoningEffort = chatSettings.ReasoningEffort ?? ReasoningEffort.Low,
                 CurrentPersonTemplate = chatSettings.CurrentPersonTemplate,
                 Slug = mcpSettings.Slug,
             };
@@ -306,11 +308,7 @@ namespace Rock.Blocks.AI
             {
                 var settings = agentSkill.GetAdditionalSettings<AgentSkillSettings>();
 
-                bag.EnabledTools = agentSkill.AISkill
-                    .AISkillTools
-                    .Select( f => f.Guid )
-                    .Where( g => !settings.DisabledTools.Contains( g ) )
-                    .ToList();
+                bag.EnabledTools = settings.EnabledTools;
 
                 if ( agentSkill.AISkill.CodeEntityTypeId.HasValue )
                 {
@@ -357,8 +355,14 @@ namespace Rock.Blocks.AI
             box.IfValidProperty( nameof( box.Bag.Name ),
                 () => entity.Name = box.Bag.Name );
 
-            box.IfValidProperty( nameof( box.Bag.Instructions ),
-                () => entity.Instructions = box.Bag.Instructions );
+            // The instructions of a system agent are owned by Rock and must
+            // not be changed through the UI, so silently ignore any value sent
+            // from the client for those agents.
+            if ( !entity.IsSystem )
+            {
+                box.IfValidProperty( nameof( box.Bag.Instructions ),
+                    () => entity.Instructions = box.Bag.Instructions );
+            }
 
             if ( entity.AgentType == AgentType.Chat )
             {
@@ -372,6 +376,9 @@ namespace Rock.Blocks.AI
 
                 box.IfValidProperty( nameof( box.Bag.Role ),
                     () => chatSettings.Role = box.Bag.Role );
+
+                box.IfValidProperty( nameof( box.Bag.ReasoningEffort ),
+                    () => chatSettings.ReasoningEffort = box.Bag.ReasoningEffort );
 
                 box.IfValidProperty( nameof( box.Bag.CurrentPersonTemplate ),
                     () => chatSettings.CurrentPersonTemplate = box.Bag.CurrentPersonTemplate );
@@ -441,6 +448,35 @@ namespace Rock.Blocks.AI
             if ( !entity.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson ) )
             {
                 error = ActionBadRequest( $"Not authorized to edit ${AIAgent.FriendlyTypeName}." );
+                return false;
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Gets the agent skill for an edit action and makes sure the current
+        /// person is allowed to edit the agent that the skill belongs to.
+        /// </summary>
+        /// <param name="agentSkillGuid">The unique identifier of the agent skill.</param>
+        /// <param name="agentSkill">On return, contains the agent skill.</param>
+        /// <param name="error">On return, contains the error to send to the client if the skill cannot be edited.</param>
+        /// <returns><c>true</c> if the agent skill can be edited; otherwise <c>false</c>.</returns>
+        private bool TryGetAgentSkillForEditAction( Guid agentSkillGuid, out AIAgentSkill agentSkill, out BlockActionResult error )
+        {
+            agentSkill = new AIAgentSkillService( RockContext ).Get( agentSkillGuid );
+            error = null;
+
+            if ( agentSkill == null )
+            {
+                error = ActionNotFound( "That skill was not found." );
+                return false;
+            }
+
+            if ( agentSkill.AIAgent == null || !agentSkill.AIAgent.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson ) )
+            {
+                error = ActionBadRequest( $"Not authorized to edit {AIAgent.FriendlyTypeName}." );
+                agentSkill = null;
                 return false;
             }
 
@@ -543,6 +579,11 @@ namespace Rock.Blocks.AI
                 return actionError;
             }
 
+            if ( entity.IsSystem )
+            {
+                return ActionBadRequest( $"This {AIAgent.FriendlyTypeName} is a system agent and cannot be deleted." );
+            }
+
             if ( !entityService.CanDelete( entity, out var errorMessage ) )
             {
                 return ActionBadRequest( errorMessage );
@@ -567,8 +608,11 @@ namespace Rock.Blocks.AI
         [BlockAction]
         public BlockActionResult EditSkill( Guid agentSkillGuid )
         {
-            var agentSkillService = new AIAgentSkillService( RockContext );
-            var agentSkill = agentSkillService.Get( agentSkillGuid );
+            if ( !TryGetAgentSkillForEditAction( agentSkillGuid, out var agentSkill, out var actionError ) )
+            {
+                return actionError;
+            }
+
             var response = new EditSkillResponseBag();
 
             if ( agentSkill.AISkill.CodeEntityType != null )
@@ -596,11 +640,10 @@ namespace Rock.Blocks.AI
         public BlockActionResult RemoveSkill( Guid agentSkillGuid )
         {
             var agentSkillService = new AIAgentSkillService( RockContext );
-            var agentSkill = agentSkillService.Get( agentSkillGuid );
 
-            if ( agentSkill == null )
+            if ( !TryGetAgentSkillForEditAction( agentSkillGuid, out var agentSkill, out var actionError ) )
             {
-                return ActionNotFound( "That skill was not found." );
+                return actionError;
             }
 
             agentSkillService.Delete( agentSkill );
@@ -630,6 +673,12 @@ namespace Rock.Blocks.AI
 
             var agentSkill = agentSkillService.Get( bag.Guid );
 
+            // An existing skill may only be updated on the agent it belongs to.
+            if ( agentSkill != null && agentSkill.AIAgentId != agent.Id )
+            {
+                return ActionBadRequest( "That skill was not found." );
+            }
+
             if ( agentSkill == null )
             {
                 var skill = skillService.Get( bag.SkillGuid );
@@ -646,11 +695,7 @@ namespace Rock.Blocks.AI
 
             var settings = agentSkill.GetAdditionalSettings<AgentSkillSettings>();
 
-            settings.DisabledTools = agentSkill.AISkill
-                .AISkillTools
-                .Select( f => f.Guid )
-                .Where( g => !bag.EnabledTools.Contains( g ) )
-                .ToList();
+            settings.EnabledTools = bag.EnabledTools;
 
             if ( agentSkill.AISkill.CodeEntityTypeId.HasValue )
             {

@@ -26,6 +26,7 @@ using Rock.Data;
 using Rock.Model;
 using Rock.Rest.Filters;
 using Rock.Utility;
+using Rock.Web.Cache;
 
 namespace Rock.Rest.Controllers
 {
@@ -90,11 +91,21 @@ namespace Rock.Rest.Controllers
 
                 string fileName = Path.GetFileName( uploadedFile.FileName );
 
+                // Clients often send images as application/octet-stream, which
+                // GetImage.ashx refuses to serve. When the client did not send an
+                // image type, use the type from the file's contents. Image types
+                // are kept because GetFileContentStream re-encodes the image in
+                // that format.
+                var isImageContentType = uploadedFile.ContentType?.StartsWith( "image/" ) == true;
+                var mimeType = isImageContentType
+                    ? uploadedFile.ContentType
+                    : FileUtilities.GetImageMimeType( uploadedFile.InputStream ) ?? uploadedFile.ContentType;
+
                 // Create the binary file.
                 var binaryFile = new BinaryFile
                 {
                     BinaryFileTypeId = documentType.BinaryFileTypeId,
-                    MimeType = uploadedFile.ContentType,
+                    MimeType = mimeType,
                     FileName = fileName,
                     FileSize = uploadedFile.ContentLength,
                     ContentStream = FileUtilities.GetFileContentStream( uploadedFile )
@@ -114,6 +125,12 @@ namespace Rock.Rest.Controllers
                 new DocumentService( rockContext ).Add( document );
 
                 // Save the object graph.
+                rockContext.SaveChanges();
+
+                // Make sure the associated BinaryFile is using the Document Entity for security.
+                binaryFile.ParentEntityTypeId = EntityTypeCache.GetId( Rock.SystemGuid.EntityType.DOCUMENT );
+                binaryFile.ParentEntityId = document.Id;
+
                 rockContext.SaveChanges();
 
                 // Return the ID of the newly-saved document.

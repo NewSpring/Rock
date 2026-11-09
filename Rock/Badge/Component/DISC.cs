@@ -36,7 +36,9 @@ namespace Rock.Badge.Component
     [Export( typeof( BadgeComponent ) )]
     [ExportMetadata( "ComponentName", "DISC" )]
 
-    [LinkedPage( "DISC Result Detail", "Page to show the details of the DISC assessment results. If blank no link is created.", false )]
+    [LinkedPage( "DISC Result Detail",
+        Description = "Page to show the details of the DISC assessment results. If blank no link is created.",
+        IsRequired = false )]
     [Rock.SystemGuid.EntityTypeGuid( "6D29DB44-EDC5-42AA-B42C-482BC0920AD0")]
     public class DISC : BadgeComponent
     {
@@ -113,7 +115,7 @@ namespace Rock.Badge.Component
                 if ( !String.IsNullOrEmpty( GetAttributeValue( badge, "DISCResultDetail" ) ) )
                 {
                     int pageId = PageCache.Get( Guid.Parse( GetAttributeValue( badge, "DISCResultDetail" ) ) ).Id;
-                    detailPageUrl = System.Web.VirtualPathUtility.ToAbsolute( String.Format( "~/page/{0}?Person={1}", pageId, person.UrlEncodedKey ) );
+                    detailPageUrl = System.Web.VirtualPathUtility.ToAbsolute( String.Format( "~/page/{0}?Person={1}", pageId, person.GetPersonActionIdentifier( "Assessment" ) ) );
                     writer.Write( "<a href='{0}'>", detailPageUrl );
                 }
 

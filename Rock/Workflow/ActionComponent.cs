@@ -183,7 +183,7 @@ namespace Rock.Workflow
                             }
                             else if ( attribute.FieldTypeId == FieldTypeCache.Get( SystemGuid.FieldType.SSN.AsGuid() ).Id )
                             {
-                                value = Rock.Field.Types.SSNFieldType.UnencryptAndClean( value );
+                                value = Rock.Field.Helper.UnencryptAndCleanSocialSecurityNumber( value );
                             }
                         }
                     }
@@ -207,6 +207,89 @@ namespace Rock.Workflow
         protected string GetAttributeValueFromWorkflowTextOrAttribute( WorkflowAction action, string key )
         {
             return GetAttributeValue( action, key, checkWorkflowAttributeValue:true );
+        }
+
+        /*
+            10/26/2026 - MSE
+
+            A text or attribute setting can either hold text the administrator typed or
+            select a workflow attribute. The selected attribute's value often comes from
+            untrusted input (entry forms, page parameters, webhooks, SMS), so it must be
+            used as data. Only text typed into the setting is rendered as Lava. Actions
+            should use GetTextOrAttributeValue instead of chaining GetAttributeValue( ...,
+            true ) with ResolveMergeFields.
+
+            Reason: Attribute values selected by an action setting must not run as Lava.
+        */
+        /// <summary>
+        /// Determines whether a text or attribute setting selects an attribute. When it does,
+        /// GetAttributeValue( action, key, true ) returns that attribute's value instead of
+        /// text the administrator typed into the setting.
+        /// </summary>
+        internal static bool IsAttributeSourcedSetting( WorkflowAction action, string key )
+        {
+            var attributeGuid = GetActionAttributeValue( action, key ).AsGuidOrNull();
+            return attributeGuid.HasValue && AttributeCache.Get( attributeGuid.Value ) != null;
+        }
+
+        /// <summary>
+        /// Gets the value of a text or attribute setting. Text typed into the setting is
+        /// rendered as Lava once. A value read from the selected attribute is data and is
+        /// returned without rendering.
+        /// </summary>
+        internal string GetTextOrAttributeValue( WorkflowAction action, string key, Dictionary<string, object> mergeFields )
+        {
+            if ( IsAttributeSourcedSetting( action, key ) )
+            {
+                return GetAttributeValue( action, key, checkWorkflowAttributeValue: true ) ?? string.Empty;
+            }
+
+            return GetActionAttributeValue( action, key ).ResolveMergeFields( mergeFields );
+        }
+
+        /// <summary>
+        /// Splits the delimited email addresses and returns only the valid ones.
+        /// Any skipped address is noted in the workflow log.
+        /// </summary>
+        /// <param name="delimitedEmails">The delimited email addresses.</param>
+        /// <param name="recipientTypePrefix">The recipient type prefix used in log entries, for example "CC ".</param>
+        /// <param name="action">The action.</param>
+        /// <returns>The valid email addresses.</returns>
+        internal static List<string> GetValidEmailAddresses( string delimitedEmails, string recipientTypePrefix, WorkflowAction action )
+        {
+            var validEmails = Rock.Communication.EmailAddressFieldValidator.GetValidEmailAddresses( delimitedEmails, out var hasLavaAddress, out var hasInvalidAddress );
+
+            if ( hasLavaAddress )
+            {
+                action.AddLogEntry( $"Email was not sent to a {recipientTypePrefix}recipient address that contains Lava.", true );
+            }
+
+            if ( hasInvalidAddress )
+            {
+                action.AddLogEntry( $"Email was not sent to a {recipientTypePrefix}recipient address that is not valid.", true );
+            }
+
+            return validEmails;
+        }
+
+        /// <summary>
+        /// Returns the value, or an empty string if it contains a Lava brace. A
+        /// skipped value is noted in the workflow log. Use this for email values
+        /// such as From or Reply To that the email transport renders as Lava.
+        /// </summary>
+        /// <param name="value">The value.</param>
+        /// <param name="fieldName">The name of the field used in the log entry.</param>
+        /// <param name="action">The action.</param>
+        /// <returns>The value, or an empty string.</returns>
+        internal static string GetValueWithoutLava( string value, string fieldName, WorkflowAction action )
+        {
+            if ( Rock.Communication.EmailAddressFieldValidator.ContainsLavaBrace( value ) )
+            {
+                action.AddLogEntry( $"The {fieldName} value contains Lava and was not used.", true );
+                return string.Empty;
+            }
+
+            return value;
         }
 
         /// <summary>
@@ -290,7 +373,7 @@ namespace Rock.Workflow
         */
 
         /// <summary>
-        /// Sets the workflow attribute value. If the attribute field type is an <see cref="Field.Types.EncryptedTextFieldType"/> the value will be encrypted.
+        /// Sets the workflow attribute value. If the attribute field type is an <c>Field.Types.EncryptedTextFieldType</c> the value will be encrypted.
         /// </summary>
         /// <param name="action">The action.</param>
         /// <param name="key">The key.</param>
@@ -306,7 +389,7 @@ namespace Rock.Workflow
         }
 
         /// <summary>
-        /// Sets the workflow attribute value. If the attribute field type is an <see cref="Field.Types.EncryptedTextFieldType"/> or <see cref="Field.Types.SSNFieldType"/> the value will be encrypted.
+        /// Sets the workflow attribute value. If the attribute field type is an <c>Field.Types.EncryptedTextFieldType</c> or <c>Field.Types.SSNFieldType</c> the value will be encrypted.
         /// </summary>
         /// <param name="action">The action.</param>
         /// <param name="guid">The unique identifier.</param>
@@ -316,7 +399,7 @@ namespace Rock.Workflow
             var attr = AttributeCache.Get( guid );
             if ( attr != null )
             {
-                if ( attr.FieldType.Field is Field.Types.EncryptedTextFieldType || attr.FieldType.Field is Field.Types.SSNFieldType )
+                if ( attr.FieldType.Guid == SystemGuid.FieldType.ENCRYPTED_TEXT.AsGuid() || attr.FieldType.Guid == SystemGuid.FieldType.SSN.AsGuid() )
                 {
                     value = Security.Encryption.EncryptString( value );
                 }
@@ -332,7 +415,7 @@ namespace Rock.Workflow
 
                      Reason: To address issue #6377 by storing only the Date portion of the value.
                 */
-                if ( attr.FieldType.Field.GetType() == typeof( Field.Types.DateFieldType ) )
+                if ( attr.FieldType.Guid == SystemGuid.FieldType.DATE.AsGuid() )
                 {
                     var dateValue = value.AsDateTime();
                     if ( dateValue != null )

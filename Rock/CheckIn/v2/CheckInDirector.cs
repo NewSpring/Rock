@@ -24,6 +24,7 @@ using System.Threading.Tasks;
 using Rock.Data;
 using Rock.Enums.Security;
 using Rock.Model;
+using Rock.Net;
 using Rock.Observability;
 using Rock.RealTime;
 using Rock.RealTime.Topics;
@@ -110,9 +111,43 @@ namespace Rock.CheckIn.v2
         /// <returns>A collection of <see cref="ConfigurationAreaBag"/> objects.</returns>
         public virtual List<ConfigurationAreaBag> GetCheckInAreaSummaries( DeviceCache kiosk, GroupTypeCache checkinTemplate )
         {
+            return GetCheckInAreaSummaries( kiosk, checkinTemplate, null );
+        }
+
+        /// <summary>
+        /// Gets the check in area summary bags for all valid check-in areas. If
+        /// a <paramref name="kiosk"/> or <paramref name="checkinTemplate"/> are
+        /// provided then they will be used to filter the results to only areas
+        /// valid for those items. Any areas identified by
+        /// <paramref name="additionalAreaIdKeys"/> that would otherwise be
+        /// filtered out are still included in the result, so that callers
+        /// editing a saved configuration can display selections that live
+        /// outside the current kiosk's scope (for example areas that belong to
+        /// a different campus on a shared saved kiosk template).
+        /// </summary>
+        /// <param name="kiosk">The optional kiosk to filter the results for.</param>
+        /// <param name="checkinTemplate">The optional check-in template to filter all areas to.</param>
+        /// <param name="additionalAreaIdKeys">
+        /// Additional area IdKeys that must always be present in the result,
+        /// even if the kiosk or template filter would exclude them. When
+        /// <c>null</c> or empty, no extra areas are forced in and this behaves
+        /// exactly like the two-parameter overload.
+        /// </param>
+        /// <returns>A collection of <see cref="ConfigurationAreaBag"/> objects.</returns>
+        public virtual List<ConfigurationAreaBag> GetCheckInAreaSummaries( DeviceCache kiosk, GroupTypeCache checkinTemplate, IEnumerable<string> additionalAreaIdKeys )
+        {
             var areas = new Dictionary<string, ConfigurationAreaBag>();
             List<GroupTypeCache> templates;
             HashSet<int> kioskGroupTypeIds = null;
+
+            // Normalize the additional area IdKeys once so we can do fast
+            // lookups while walking the template descendants below. Areas whose
+            // IdKey is in this set are always kept, even when the kiosk filter
+            // would otherwise exclude them. This is what preserves selections
+            // for other-campus areas on a shared saved kiosk template.
+            var additionalAreaIdKeySet = additionalAreaIdKeys != null
+                ? new HashSet<string>( additionalAreaIdKeys.Where( k => k.IsNotNullOrWhiteSpace() ) )
+                : new HashSet<string>();
 
             // If the caller specified a template, then we return areas for
             // only that primary template. Otherwise we include areas from
@@ -145,8 +180,16 @@ namespace Rock.CheckIn.v2
                     }
 
                     // If a kiosk was specified, limit the results to areas
-                    // that are valid for the kiosk.
-                    if ( kioskGroupTypeIds != null && !kioskGroupTypeIds.Contains( areaGroupType.Id ) )
+                    // that are valid for the kiosk. Areas explicitly requested
+                    // by the caller via additionalAreaIdKeys bypass this
+                    // filter so their existing selection state remains visible
+                    // to the admin. We track whether the area survived only
+                    // because of that bypass so the UI can flag it as being
+                    // outside the current kiosk's scope.
+                    var isOutOfScope = kioskGroupTypeIds != null
+                        && !kioskGroupTypeIds.Contains( areaGroupType.Id );
+
+                    if ( isOutOfScope && !additionalAreaIdKeySet.Contains( areaGroupType.IdKey ) )
                     {
                         continue;
                     }
@@ -161,7 +204,8 @@ namespace Rock.CheckIn.v2
                         {
                             Id = areaGroupType.IdKey,
                             Name = areaGroupType.Name,
-                            PrimaryTemplateIds = new List<string> { cfg.IdKey }
+                            PrimaryTemplateIds = new List<string> { cfg.IdKey },
+                            IsOutOfScope = isOutOfScope
                         } );
                     }
                 }
@@ -636,7 +680,17 @@ namespace Rock.CheckIn.v2
             // A local function to centralize the saving of a history login record.
             void SaveHistoryLoginIfNeeded( LoginFailureReason? reason = null, string message = null )
             {
-                if ( !saveHistoryLogin )
+                /*
+                    10/15/2026 - MSE
+
+                    Failed attempts are always saved so that PIN guessing leaves a
+                    trace in login history. Successful attempts are still only saved
+                    when requested, since the supervisor actions send the PIN again
+                    on every call.
+
+                    Reason: Record every failed check-in PIN attempt.
+                */
+                if ( !saveHistoryLogin && !reason.HasValue )
                 {
                     return;
                 }
@@ -654,6 +708,27 @@ namespace Rock.CheckIn.v2
                 SaveHistoryLoginIfNeeded( LoginFailureReason.Other, $"{pinAuthProviderName} is not active." );
 
                 errorMessage = "Sorry, we couldn't find an account matching that PIN.";
+                return false;
+            }
+
+            /*
+                10/15/2026 - MSE
+
+                Count the attempt before the PIN is looked up so that a correct
+                guess made after too many wrong ones is still refused. The check
+                and the count happen in one step so parallel requests cannot go
+                over the limit. Attempts that turn out not to be wrong guesses
+                are given back below.
+
+                Reason: Prevent check-in PINs from being guessed by brute force.
+            */
+            var clientIpAddress = RockRequestContextAccessor.Current?.ClientInformation?.IpAddress ?? string.Empty;
+
+            if ( !PinAttemptLimiter.TryReserveAttempt( clientIpAddress ) )
+            {
+                SaveHistoryLoginIfNeeded( LoginFailureReason.LockedOut, "Too many failed PIN attempts." );
+
+                errorMessage = "Too many failed PIN attempts. Please wait a few minutes and try again.";
                 return false;
             }
 
@@ -696,6 +771,9 @@ namespace Rock.CheckIn.v2
 
             if ( !( userLogin.IsConfirmed ?? true ) )
             {
+                // The PIN matched a real login, so this is not a wrong guess.
+                PinAttemptLimiter.ReleaseAttempt( clientIpAddress );
+
                 SaveHistoryLoginIfNeeded( LoginFailureReason.UserNotConfirmed );
 
                 errorMessage = "Sorry, account needs to be confirmed.";
@@ -703,6 +781,9 @@ namespace Rock.CheckIn.v2
             }
             else if ( userLogin.IsLockedOut ?? false )
             {
+                // The PIN matched a real login, so this is not a wrong guess.
+                PinAttemptLimiter.ReleaseAttempt( clientIpAddress );
+
                 SaveHistoryLoginIfNeeded( LoginFailureReason.LockedOut );
 
                 errorMessage = "Sorry, account is locked-out.";
@@ -710,6 +791,8 @@ namespace Rock.CheckIn.v2
             }
             else
             {
+                PinAttemptLimiter.Reset( clientIpAddress );
+
                 SaveHistoryLoginIfNeeded();
 
                 errorMessage = string.Empty;

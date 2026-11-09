@@ -4,7 +4,7 @@
         <template #default>
             <div v-if="!isInputHidden" class="control-wrapper">
                 <div class="picker picker-select person-picker">
-                    <a class="picker-label" href="#" @click.prevent.stop="togglePopup">
+                    <a class="picker-label form-control" href="#" @click.prevent.stop="togglePopup">
                         <i class="ti ti-user ti-fw"></i>
                         <span class="selected-name">{{ selectedName }}</span>
                         <button role="button" type="button" aria-label="Clear selection" v-if="showClear" class="btn picker-select-none" @click.prevent.stop="onClear">
@@ -16,7 +16,7 @@
             </div>
 
             <teleport to="body" v-if="showPopup">
-                <div class="backdrop" @keydown.esc.stop="onCancel">
+                <div class="backdrop person-picker-popup" @keydown.esc.stop="onCancel">
                     <div class="absolute-panel picker">
                         <div class="action-header d-flex align-items-center justify-content-between">
                             <h4>Person Search</h4>
@@ -199,6 +199,7 @@
     import { sleep } from "@Obsidian/Utility/promiseUtils";
     import { BtnSize } from "@Obsidian/Enums/Controls/btnSize";
     import { EntityTagListTagBag } from "@Obsidian/ViewModels/Rest/Controls/entityTagListTagBag";
+    import { escapeHtml } from "@Obsidian/Utility/stringUtils";
 
     const enum AgeClassification {
         Unknown = 0,
@@ -406,8 +407,18 @@
      */
     function getSubInformation(result: PersonSearchResult): string {
         const text: string[] = [];
+
+        /*
+            10/19/2026 - MSE
+
+            The returned text is rendered with v-html, and the spouse name and
+            record status arrive as raw text, so they are escaped here. The
+            Deceased label below is fixed markup and stays HTML.
+
+            Reason: Stored names must not render as HTML.
+        */
         if (result.spouseName) {
-            text.push(`Spouse: ${result.spouseName}`);
+            text.push(`Spouse: ${escapeHtml(result.spouseName)}`);
         }
 
         if (result.isBusiness) {
@@ -415,7 +426,7 @@
         }
 
         if (!result.isActive && result.recordStatus) {
-            text.push("(" + result.recordStatus + ")");
+            text.push("(" + escapeHtml(result.recordStatus) + ")");
         }
 
         if (result.isDeceased) {

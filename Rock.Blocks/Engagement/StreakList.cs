@@ -99,8 +99,9 @@ namespace Rock.Blocks.Engagement
             var box = new ListBlockBox<StreakListOptionsBag>();
             var builder = GetGridBuilder();
 
-            box.IsAddEnabled = GetIsAddEnabled();
-            box.IsDeleteEnabled = BlockCache.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson );
+            var isAddOrDeleteEnabled = GetIsAddOrDeleteEnabled();
+            box.IsAddEnabled = isAddOrDeleteEnabled;
+            box.IsDeleteEnabled = isAddOrDeleteEnabled;
             box.ExpectedRowCount = null;
             box.NavigationUrls = GetBoxNavigationUrls();
             box.Options = GetBoxOptions();
@@ -116,26 +117,40 @@ namespace Rock.Blocks.Engagement
         private StreakListOptionsBag GetBoxOptions()
         {
             var streakType = GetStreakType();
+            var canView = GetCanView();
 
             var options = new StreakListOptionsBag()
             {
-                StreakTypeName = streakType?.Name,
-                StreakTypeIdKey = streakType?.IdKey
+                StreakTypeName = canView ? streakType?.Name : null,
+                StreakTypeIdKey = canView ? streakType?.IdKey : null,
+                IsBlockVisible = canView
             };
 
             return options;
         }
 
         /// <summary>
-        /// Determines if the add button should be enabled in the grid.
+        /// Determines if the add and delete actions should be enabled in the grid.
         /// <summary>
-        /// <returns>A boolean value that indicates if the add button should be enabled.</returns>
-        private bool GetIsAddEnabled()
+        /// <returns>A boolean value that indicates if the add and delete actions should be enabled.</returns>
+        private bool GetIsAddOrDeleteEnabled()
         {
             var streakType = GetStreakType();
 
-            return streakType?.IsAuthorized( Authorization.EDIT, GetCurrentPerson() ) == true
+            return BlockCache.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson )
+                || streakType?.IsAuthorized( Authorization.EDIT, GetCurrentPerson() ) == true
                 || streakType?.IsAuthorized( Authorization.MANAGE_MEMBERS, GetCurrentPerson() ) == true;
+        }
+
+        /// <summary>
+        /// Determines if the current person can view the streak type's enrollments.
+        /// </summary>
+        /// <returns>A boolean value that indicates if the block should be visible.</returns>
+        private bool GetCanView()
+        {
+            var streakType = GetStreakType();
+
+            return streakType?.IsAuthorized( Authorization.VIEW, GetCurrentPerson() ) == true;
         }
 
         /// <summary>
@@ -167,7 +182,17 @@ namespace Rock.Blocks.Engagement
         {
             var streakType = GetStreakType();
 
-            if ( streakType != null )
+            /*
+                10/16/2026 - MSE
+
+                The streak type comes from the page parameter, so a person could
+                swap in the IdKey of a streak type they are not allowed to see and
+                get every enrollment for it. Rows are only returned when the person
+                passes the same VIEW check that shows the block.
+
+                Reason: Streak List skipped VIEW on the streak type.
+            */
+            if ( streakType != null && GetCanView() )
             {
                 var query = new StreakService( RockContext ).Queryable()
                     .Include( se => se.PersonAlias.Person )
@@ -272,7 +297,17 @@ namespace Rock.Blocks.Engagement
                 return ActionBadRequest( $"{Streak.FriendlyTypeName} not found." );
             }
 
-            if ( !BlockCache.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson ) )
+            // The grid only lists streaks of the page's streak type, and the permission
+            // check below is evaluated against that streak type. Reject streaks of any
+            // other type so rights on one streak type cannot delete enrollments of another.
+            var streakType = GetStreakType();
+
+            if ( streakType == null || entity.StreakTypeId != streakType.Id )
+            {
+                return ActionBadRequest( $"{Streak.FriendlyTypeName} not found." );
+            }
+
+            if ( !GetIsAddOrDeleteEnabled() )
             {
                 return ActionBadRequest( $"Not authorized to delete {Streak.FriendlyTypeName}." );
             }

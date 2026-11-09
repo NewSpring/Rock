@@ -18,6 +18,9 @@ module.exports = {
     testEnvironmentOptions: {
         customExportConditions: ["node", "node-addons"]
     },
+    setupFilesAfterEnv: [
+        "<rootDir>/tests/setup.ts"
+    ],
     testMatch: [
         "./**/?(*.)+(spec|test).ts"
     ],
@@ -25,8 +28,7 @@ module.exports = {
         "^.+\\.ts$": [
             "ts-jest",
             {
-                tsconfig: "./Tests/tsconfig.json",
-                isolatedModules: true,
+                tsconfig: "./Tests/tsconfig.json"
             }
         ],
         "^.+\\.obs$": [
@@ -38,6 +40,9 @@ module.exports = {
     moduleFileExtensions: ["js", "jsx", "ts", "tsx", "json", "node", "d.ts", "obs"],
     moduleNameMapper: {
         "^vue$": __dirname + "/node_modules/vue/index",
+        // marked only ships an ES module build to Node, which Jest can't
+        // load without a transform, so use its UMD build instead.
+        "^marked$": __dirname + "/../Rock.JavaScript.Obsidian/node_modules/marked/lib/marked.umd.js",
         ...pathsToModuleNameMapper(paths, { prefix: __dirname })
     }
 };

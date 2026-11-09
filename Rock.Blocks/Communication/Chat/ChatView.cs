@@ -43,7 +43,7 @@ namespace Rock.Blocks.Communication.Chat
         Description = "Only show channels that match the individual's campus or have no campus set.",
         DefaultBooleanValue = false,
         Key = AttributeKey.FilterSharedChannelsByCampus,
-        ControlType = Field.Types.BooleanFieldType.BooleanControlType.Checkbox,
+        BooleanControlType = Rock.Enums.Controls.BooleanControlType.Checkbox,
         Order = 1 )]
 
     [IntegerField( "Minimum Age",
@@ -550,6 +550,18 @@ namespace Rock.Blocks.Communication.Chat
             if ( currentPerson == null )
             {
                 return ActionUnauthorized( "You must be logged in to update your birth date." );
+            }
+
+            // Age verification only asks for a birth date when the person does
+            // not already have one, so don't allow an existing one to be replaced.
+            if ( currentPerson.Age != null )
+            {
+                return ActionBadRequest( "Your birth date has already been provided." );
+            }
+
+            if ( birthDate == null )
+            {
+                return ActionBadRequest( "A birth date is required." );
             }
 
             var birthDateTime = new DateTime( birthDate.Year, birthDate.Month, birthDate.Day );

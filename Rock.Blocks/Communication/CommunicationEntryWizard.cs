@@ -213,7 +213,8 @@ namespace Rock.Blocks.Communication
     #endregion Block Attributes
 
     [Rock.SystemGuid.EntityTypeGuid( "26917C58-C8A2-4BF5-98CB-378A02761CD7" )]
-    [Rock.SystemGuid.BlockTypeGuid( "9FFC7A4F-2061-4F30-AF79-D68C85EE9F27" )]
+    // Was [Rock.SystemGuid.BlockTypeGuid( "9FFC7A4F-2061-4F30-AF79-D68C85EE9F27" )]
+    [Rock.SystemGuid.BlockTypeGuid( "F7D464E2-5F7C-47BA-84DB-7CC7B0B623C0" )]
     public class CommunicationEntryWizard : RockBlockType
     {
         #region Attribute Keys
@@ -423,6 +424,7 @@ namespace Rock.Blocks.Communication
                 box.IsUsingRockMobilePushTransport = GetIsUsingRockMobilePushTransport( mediumBags );
                 box.MaxSmsImageWidth = this.MaxSmsImageWidth;
                 box.Mediums = mediumBags;
+                box.StandaloneMediums = GetStandalonePickerMediumBags( currentPerson );
                 box.MergeFields = GetCommunicationMergeFields( communication );
                 box.MinimumShortLinkTokenLength = this.MinimumShortLinkTokenLength;
                 box.NavigationUrls = GetBoxNavigationUrls();
@@ -492,7 +494,23 @@ namespace Rock.Blocks.Communication
                 return ActionBadRequest( validationResult.ErrorMessage );
             }
 
-            SendTestCommunication( bag, out var errorMessage );
+            if ( !CanEditCommunication( bag ) )
+            {
+                return ActionForbidden( "You don't have edit access to this communication." );
+            }
+
+            var optionsErrorMessage = GetCommunicationOptionsErrorMessage( bag );
+            if ( optionsErrorMessage != null )
+            {
+                return ActionBadRequest( optionsErrorMessage );
+            }
+
+            string errorMessage;
+
+            using ( PersonTokenScope.RestrictTo( GetCurrentPerson() ) )
+            {
+                SendTestCommunication( bag, out errorMessage );
+            }
 
             if ( errorMessage.IsNotNullOrWhiteSpace() )
             {
@@ -513,6 +531,17 @@ namespace Rock.Blocks.Communication
             if ( !IsValid( bag, out var validationResult ) )
             {
                 return ActionBadRequest( validationResult.ErrorMessage );
+            }
+
+            if ( !CanEditCommunication( bag ) )
+            {
+                return ActionForbidden( "You don't have edit access to this communication." );
+            }
+
+            var optionsErrorMessage = GetCommunicationOptionsErrorMessage( bag );
+            if ( optionsErrorMessage != null )
+            {
+                return ActionBadRequest( optionsErrorMessage );
             }
 
             var currentPerson = GetCurrentPerson();
@@ -609,6 +638,12 @@ namespace Rock.Blocks.Communication
                 return ActionBadRequest( validationResult.ErrorMessage );
             }
 
+            var optionsErrorMessage = GetCommunicationOptionsErrorMessage( bag );
+            if ( optionsErrorMessage != null )
+            {
+                return ActionBadRequest( optionsErrorMessage );
+            }
+
             var recipientBags = GetRecipientBags( this.RockContext, bag );
 
             return ActionOk( recipientBags );
@@ -698,6 +733,17 @@ namespace Rock.Blocks.Communication
                 return ActionBadRequest( validationResult.ErrorMessage );
             }
 
+            if ( !CanEditCommunication( bag ) )
+            {
+                return ActionForbidden( "You don't have edit access to this communication." );
+            }
+
+            var optionsErrorMessage = GetCommunicationOptionsErrorMessage( bag );
+            if ( optionsErrorMessage != null )
+            {
+                return ActionBadRequest( optionsErrorMessage );
+            }
+
             ProcessCommunicationSend( bag );
 
             var responseBag = new CommunicationEntryWizardSendResponseBag
@@ -721,7 +767,18 @@ namespace Rock.Blocks.Communication
             {
                 return ActionBadRequest( validationResult.ErrorMessage );
             }
+
+            if ( !CanEditCommunication( bag ) )
+            {
+                return ActionForbidden( "You don't have edit access to this communication." );
+            }
             
+            var optionsErrorMessage = GetCommunicationOptionsErrorMessage( bag );
+            if ( optionsErrorMessage != null )
+            {
+                return ActionBadRequest( optionsErrorMessage );
+            }
+
             var communication = CreatePreviewCommunication( RockContext, bag );
             var currentPerson = GetCurrentPerson();
             var sampleCommunicationRecipientResult = GetSampleCommunicationRecipient( RockContext, communication, bag, currentPerson, previewAsPersonAliasGuid, previewAsPersonalizationSegmentId );
@@ -732,7 +789,12 @@ namespace Rock.Blocks.Communication
             var commonMergeFields = RequestContext.GetCommonMergeFields( communicationCreatorOrLoggedInPerson );
             var mergeFields = sampleCommunicationRecipient.CommunicationMergeValues( commonMergeFields );
 
-            var previewHtml = GenerateEmailHtmlPreview( communication, communicationCreatorOrLoggedInPerson, mergeFields );
+            string previewHtml;
+
+            using ( PersonTokenScope.RestrictTo( currentPerson ) )
+            {
+                previewHtml = GenerateEmailHtmlPreview( communication, communicationCreatorOrLoggedInPerson, mergeFields );
+            }
 
             return ActionOk( new CommunicationEntryWizardGetPreviewBag
             {
@@ -754,7 +816,18 @@ namespace Rock.Blocks.Communication
             {
                 return ActionBadRequest( validationResult.ErrorMessage );
             }
+
+            if ( !CanEditCommunication( bag ) )
+            {
+                return ActionForbidden( "You don't have edit access to this communication." );
+            }
             
+            var optionsErrorMessage = GetCommunicationOptionsErrorMessage( bag );
+            if ( optionsErrorMessage != null )
+            {
+                return ActionBadRequest( optionsErrorMessage );
+            }
+
             var communication = CreatePreviewCommunication( RockContext, bag );
             var currentPerson = GetCurrentPerson();
             var sampleCommunicationRecipientResult = GetSampleCommunicationRecipient( RockContext, communication, bag, currentPerson, previewAsPersonAliasGuid, previewAsPersonalizationSegmentId );
@@ -765,7 +838,12 @@ namespace Rock.Blocks.Communication
             var commonMergeFields = RequestContext.GetCommonMergeFields( communicationCreatorOrLoggedInPerson );
             var mergeFields = sampleCommunicationRecipient.CommunicationMergeValues( commonMergeFields );
 
-            var messagePreview = GeneratePushPreview( communication, communicationCreatorOrLoggedInPerson, mergeFields );
+            string messagePreview;
+
+            using ( PersonTokenScope.RestrictTo( currentPerson ) )
+            {
+                messagePreview = GeneratePushPreview( communication, communicationCreatorOrLoggedInPerson, mergeFields );
+            }
 
             return ActionOk( new CommunicationEntryWizardGetPreviewBag
             {
@@ -788,6 +866,17 @@ namespace Rock.Blocks.Communication
                 return ActionBadRequest( validationResult.ErrorMessage );
             }
 
+            if ( !CanEditCommunication( bag ) )
+            {
+                return ActionForbidden( "You don't have edit access to this communication." );
+            }
+
+            var optionsErrorMessage = GetCommunicationOptionsErrorMessage( bag );
+            if ( optionsErrorMessage != null )
+            {
+                return ActionBadRequest( optionsErrorMessage );
+            }
+
             var communication = CreatePreviewCommunication( this.RockContext, bag );
             var currentPerson = GetCurrentPerson();
             var sampleCommunicationRecipientResult = GetSampleCommunicationRecipient( RockContext, communication, bag, currentPerson, previewAsPersonAliasGuid, previewAsPersonalizationSegmentId );
@@ -798,7 +887,12 @@ namespace Rock.Blocks.Communication
             var commonMergeFields = this.RequestContext.GetCommonMergeFields( communicationCreatorOrLoggedInPerson );
             var mergeFields = sampleCommunicationRecipient.CommunicationMergeValues( commonMergeFields );
 
-            var messagePreview = GenerateSmsPreview( communication, communicationCreatorOrLoggedInPerson, mergeFields );
+            string messagePreview;
+
+            using ( PersonTokenScope.RestrictTo( currentPerson ) )
+            {
+                messagePreview = GenerateSmsPreview( communication, communicationCreatorOrLoggedInPerson, mergeFields );
+            }
 
             return ActionOk( new CommunicationEntryWizardGetPreviewBag
             {
@@ -1200,10 +1294,30 @@ namespace Rock.Blocks.Communication
         {
             var securityGrant = new SecurityGrant();
 
-            securityGrant.AddRule( new AssetAndFileManagerSecurityGrantRule( Authorization.VIEW ) );
-            securityGrant.AddRule( new AssetAndFileManagerSecurityGrantRule( Authorization.EDIT ) );
-            securityGrant.AddRule( new AssetAndFileManagerSecurityGrantRule( Authorization.DELETE ) );
+            // The asset manager endpoints trust this token alone. Anyone who
+            // can view the block may browse and select existing files within
+            // the block's root folder. Only block editors may upload, rename,
+            // move or delete files and folders.
+            if ( IsAssetManagerViewAuthorized() )
+            {
+                securityGrant.AddRule( new AssetAndFileManagerSecurityGrantRule( Authorization.VIEW ) );
+            }
+
+            if ( IsAssetManagerEditAuthorized() )
+            {
+                securityGrant.AddRule( new AssetAndFileManagerSecurityGrantRule( Authorization.EDIT ) );
+                securityGrant.AddRule( new AssetAndFileManagerSecurityGrantRule( Authorization.DELETE ) );
+
+                // Uploads are checked separately from the asset manager, so
+                // allow uploads to the default folder and to providers.
+                securityGrant.AddRule( new FileUploadSecurityGrantRule( "~/Content" ) );
+                securityGrant.AddRule( FileUploadSecurityGrantRule.ForAssetStorageProviders() );
+            }
+
             securityGrant.AddRule( new EmailEditorSecurityGrantRule() );
+
+            // Allow the group picker used by the RSVP email component.
+            securityGrant.AddRule( new GroupPickerSecurityGrantRule() );
 
             if ( GetAttributeValue( AttributeKey.AllowUnrestrictedUploads ).AsBoolean() )
             {
@@ -1213,6 +1327,36 @@ namespace Rock.Blocks.Communication
             }
 
             return securityGrant.ToToken();
+        }
+
+        /// <summary>
+        /// Determines whether the current person may browse and select
+        /// existing files with the asset manager. Requires VIEW, EDIT or
+        /// ADMINISTRATE on the block.
+        /// </summary>
+        /// <returns><c>true</c> if the current person may browse the asset manager; otherwise <c>false</c>.</returns>
+        private bool IsAssetManagerViewAuthorized()
+        {
+            var currentPerson = GetCurrentPerson();
+
+            return currentPerson != null
+                && ( BlockCache.IsAuthorized( Authorization.VIEW, currentPerson )
+                    || IsAssetManagerEditAuthorized() );
+        }
+
+        /// <summary>
+        /// Determines whether the current person may upload, rename, move
+        /// and delete files and folders with the asset manager. Requires EDIT
+        /// or ADMINISTRATE on the block.
+        /// </summary>
+        /// <returns><c>true</c> if the current person may manage files in the asset manager; otherwise <c>false</c>.</returns>
+        private bool IsAssetManagerEditAuthorized()
+        {
+            var currentPerson = GetCurrentPerson();
+
+            return currentPerson != null
+                && ( BlockCache.IsAuthorized( Authorization.EDIT, currentPerson )
+                    || BlockCache.IsAuthorized( Authorization.ADMINISTRATE, currentPerson ) );
         }
 
         /// <summary>
@@ -1304,7 +1448,7 @@ namespace Rock.Blocks.Communication
             // and the template supports the Email Wizard
             if ( communicationTemplateInfo?.CommunicationTemplate != null
                 && communicationTemplateInfo.CommunicationTemplate.IsAuthorized( Authorization.VIEW, currentPerson )
-                && communicationTemplateInfo.CommunicationTemplate.SupportsEmailWizard() )
+                && GetSupportsEmailWizard( communicationTemplateInfo.CommunicationTemplate ) )
             {
                 shouldApplyTemplateToCommunication = hasTemplateToApply;
                 return GetCommunicationTemplateDetailBag( communicationTemplateInfo );
@@ -1329,11 +1473,24 @@ namespace Rock.Blocks.Communication
         private CommunicationEntryWizardCommunicationTemplateDetailBag GetCommunicationTemplateDetailBag( CommunicationEntryWizardTemplateInfo communicationTemplateInfo )
         {
             var mergeFields = this.RequestContext.GetCommonMergeFields();
+            string fromEmail;
+            string fromName;
+            string replyToEmail;
+            string message;
+
+            // The template renders into the message body before any recipient is known, so no one's token belongs in it.
+            using ( PersonTokenScope.RestrictTo( null ) )
+            {
+                fromEmail = communicationTemplateInfo.CommunicationTemplate.FromEmail?.ResolveMergeFields( mergeFields );
+                fromName = communicationTemplateInfo.CommunicationTemplate.FromName?.ResolveMergeFields( mergeFields );
+                replyToEmail = communicationTemplateInfo.CommunicationTemplate.ReplyToEmail?.ResolveMergeFields( mergeFields );
+                message = communicationTemplateInfo.CommunicationTemplate.Message?.ResolveMergeFields( mergeFields );
+            }
 
             return new CommunicationEntryWizardCommunicationTemplateDetailBag
             {
                 Guid = communicationTemplateInfo.CommunicationTemplate.Guid,
-                IsWizardSupported = communicationTemplateInfo.CommunicationTemplate.SupportsEmailWizard(),
+                IsWizardSupported = GetSupportsEmailWizard( communicationTemplateInfo.CommunicationTemplate ),
                 Name = communicationTemplateInfo.CommunicationTemplate.Name,
                 ImageFile = communicationTemplateInfo.ImageFile,
                 Category = communicationTemplateInfo.Category,
@@ -1342,13 +1499,13 @@ namespace Rock.Blocks.Communication
                 IsSystem = communicationTemplateInfo.CommunicationTemplate.IsSystem,
 
                 // Email fields
-                FromEmail = communicationTemplateInfo.CommunicationTemplate.FromEmail?.ResolveMergeFields( mergeFields ),
-                FromName = communicationTemplateInfo.CommunicationTemplate.FromName?.ResolveMergeFields( mergeFields ),
-                ReplyToEmail = communicationTemplateInfo.CommunicationTemplate.ReplyToEmail?.ResolveMergeFields( mergeFields ),
+                FromEmail = fromEmail,
+                FromName = fromName,
+                ReplyToEmail = replyToEmail,
                 CcEmails = communicationTemplateInfo.CommunicationTemplate.CCEmails,
                 BccEmails = communicationTemplateInfo.CommunicationTemplate.BCCEmails,
                 Subject = communicationTemplateInfo.CommunicationTemplate.Subject,
-                Message = communicationTemplateInfo.CommunicationTemplate.Message?.ResolveMergeFields( mergeFields ),
+                Message = message,
                 EmailAttachmentBinaryFiles = communicationTemplateInfo.CommunicationTemplate.GetAttachments( CommunicationType.Email )?.Select( cta => cta.BinaryFile )?.ToListItemBagList(),
 
                 // SMS fields
@@ -1495,12 +1652,15 @@ namespace Rock.Blocks.Communication
                 }
                 else
                 {
-                    var individualRecipientPersonAliasIds = new CommunicationRecipientService( rockContext )
-                        .Queryable()
-                        .AsNoTracking()
-                        .Where( r => r.CommunicationId == c.Id && r.PersonAliasId.HasValue )
-                        .Select( a => a.PersonAliasId.Value )
-                        .ToList();
+                    // A new communication (Id 0) cannot have recipient records yet, so skip the query.
+                    var individualRecipientPersonAliasIds = c.Id > 0
+                        ? new CommunicationRecipientService( rockContext )
+                            .Queryable()
+                            .AsNoTracking()
+                            .Where( r => r.CommunicationId == c.Id && r.PersonAliasId.HasValue )
+                            .Select( a => a.PersonAliasId.Value )
+                            .ToList()
+                        : new List<int>();
 
                     if ( GetAttributeValue( AttributeKey.EnablePersonParameter ).AsBoolean() )
                     {
@@ -1544,10 +1704,14 @@ namespace Rock.Blocks.Communication
                 if ( c.Status == CommunicationStatus.Transient )
                 {
                     var bulkEmailThreshold = GetBulkEmailThreshold();
-                    var recipientCount = new CommunicationRecipientService( rockContext )
-                        .Queryable()
-                        .Where( cr => cr.CommunicationId == c.Id )
-                        .Count();
+
+                    // A new communication (Id 0) cannot have recipient records yet, so skip the query.
+                    var recipientCount = c.Id > 0
+                        ? new CommunicationRecipientService( rockContext )
+                            .Queryable()
+                            .Where( cr => cr.CommunicationId == c.Id )
+                            .Count()
+                        : 0;
 
                     var isBulkCommunicationForced = bulkEmailThreshold.HasValue && recipientCount > bulkEmailThreshold.Value;
 
@@ -1785,22 +1949,46 @@ namespace Rock.Blocks.Communication
                 templateQuery = queryFilter( templateQuery );
             }
 
-            var communicationQuery = new CommunicationService( rockContext ).Queryable().AsNoTracking();
-            var communicationTemplateInfoList = templateQuery
-                .GroupJoin(
-                    communicationQuery,
-                    communicationTemplate => communicationTemplate.Id,
-                    communication => communication.CommunicationTemplateId,
-                    ( communicationTemplate, communications ) => new CommunicationEntryWizardTemplateInfo
-                    {
-                        CommunicationTemplate = communicationTemplate,
-                        CommunicationCount = communications.Count(),
-                        Category = !communicationTemplate.CategoryId.HasValue ? null : new ListItemBag { Value = communicationTemplate.Category.Guid.ToString(), Text = communicationTemplate.Category.Name },
-                        ImageFile = !communicationTemplate.ImageFileId.HasValue ? null : new ListItemBag { Value = communicationTemplate.ImageFile.Guid.ToString(), Text = communicationTemplate.ImageFile.FileName },
-                        PushImageBinaryFileGuid = communicationTemplate.PushImageBinaryFile.Guid,
-                        SmsFromSystemPhoneNumberGuid = communicationTemplate.SmsFromSystemPhoneNumber.Guid
-                    }
-                ).ToList();
+            /*
+                06/10/26 - JMH
+
+                The Category, ImageFile, and PushImageBinaryFile navigations are eagerly loaded here
+                because materializing the templates through a projection would drop the eager loading
+                and leave the navigations unloaded. The per-template IsAuthorized check below reads
+                the Category navigation (via CommunicationTemplate.ParentAuthorityPre), which would
+                then lazy-load one Category per template on every page load.
+
+                Reason: Avoid per-template lazy-load queries during the authorization check.
+            */
+            var communicationTemplates = templateQuery
+                .Include( a => a.Category )
+                .Include( a => a.ImageFile )
+                .Include( a => a.PushImageBinaryFile )
+                .ToList();
+
+            // Get the usage count for every template with a single grouped query.
+            var communicationTemplateIds = communicationTemplates.Select( a => a.Id ).ToList();
+            var communicationCountByTemplateId = new CommunicationService( rockContext )
+                .Queryable()
+                .AsNoTracking()
+                .Where( c => c.CommunicationTemplateId.HasValue && communicationTemplateIds.Contains( c.CommunicationTemplateId.Value ) )
+                .GroupBy( c => c.CommunicationTemplateId.Value )
+                .Select( g => new { CommunicationTemplateId = g.Key, CommunicationCount = g.Count() } )
+                .ToDictionary( a => a.CommunicationTemplateId, a => a.CommunicationCount );
+
+            var communicationTemplateInfoList = communicationTemplates
+                .Select( communicationTemplate => new CommunicationEntryWizardTemplateInfo
+                {
+                    CommunicationTemplate = communicationTemplate,
+                    CommunicationCount = communicationCountByTemplateId.GetValueOrDefault( communicationTemplate.Id, 0 ),
+                    Category = communicationTemplate.Category == null ? null : new ListItemBag { Value = communicationTemplate.Category.Guid.ToString(), Text = communicationTemplate.Category.Name },
+                    ImageFile = communicationTemplate.ImageFile == null ? null : new ListItemBag { Value = communicationTemplate.ImageFile.Guid.ToString(), Text = communicationTemplate.ImageFile.FileName },
+                    PushImageBinaryFileGuid = communicationTemplate.PushImageBinaryFile?.Guid,
+                    SmsFromSystemPhoneNumberGuid = communicationTemplate.SmsFromSystemPhoneNumberId.HasValue
+                        ? SystemPhoneNumberCache.GetGuid( communicationTemplate.SmsFromSystemPhoneNumberId.Value )
+                        : null
+                } )
+                .ToList();
 
             // Get templates that the currently logged in person is authorized to view.
             communicationTemplateInfoList = communicationTemplateInfoList
@@ -1852,7 +2040,7 @@ namespace Rock.Blocks.Communication
             return new CommunicationEntryWizardCommunicationTemplateListItemBag
             {
                 CategoryGuid = communicationTemplateInfo.Category?.Value.AsGuidOrNull(),
-                IsEmailSupported = communicationTemplateInfo.CommunicationTemplate.SupportsEmailWizard(),
+                IsEmailSupported = GetSupportsEmailWizard( communicationTemplateInfo.CommunicationTemplate ),
                 IsSmsSupported = communicationTemplateInfo.CommunicationTemplate.HasSMSTemplate()
                     || communicationTemplateInfo.CommunicationTemplate.Guid == SystemGuid.Communication.COMMUNICATION_TEMPLATE_BLANK.AsGuid()
                     || communicationTemplateInfo.CommunicationTemplate.Guid == "6280214C-404E-4F4E-BC33-7A5D4CDF8DBC".AsGuid(), // TODO Replace with SystemGuid once preview status is removed.
@@ -1865,6 +2053,29 @@ namespace Rock.Blocks.Communication
                 IsStarter = communicationTemplateInfo.CommunicationTemplate.IsStarter,
                 CommunicationCount = communicationTemplateInfo.CommunicationCount,
             };
+        }
+
+        /// <summary>
+        /// Determines whether a communication template supports the email wizard, caching the result per person and template version.
+        /// </summary>
+        /// <param name="communicationTemplate">The communication template to check.</param>
+        /// <returns><see langword="true"/> if the template supports the email wizard; otherwise, <see langword="false"/>.</returns>
+        private bool GetSupportsEmailWizard( CommunicationTemplate communicationTemplate )
+        {
+            /*
+                06/10/26 - JMH
+
+                SupportsEmailWizard() resolves the Lava in the template's full message HTML and parses
+                the result just to detect a dropzone element. Calling it for every template on every
+                page load is expensive, and any database-querying Lava inside a template runs once per
+                template per request. The result only changes when the template is modified, so it is
+                cached per person (the Lava can reference the current person) and per template version.
+
+                Reason: Avoid re-rendering every template's Lava on every page load.
+            */
+            var cacheKey = $"{nameof( CommunicationEntryWizard )}:SupportsEmailWizard:{GetCurrentPerson()?.Id ?? 0}:{communicationTemplate.Id}:{communicationTemplate.ModifiedDateTime?.Ticks ?? 0}";
+
+            return ( bool ) RockCache.GetOrAddExisting( cacheKey, null, () => communicationTemplate.SupportsEmailWizard(), TimeSpan.FromMinutes( 10 ) );
         }
 
         /// <summary>
@@ -2274,6 +2485,152 @@ namespace Rock.Blocks.Communication
         }
 
         /// <summary>
+        /// Determines whether the current person may save changes to the communication a request targets.
+        /// </summary>
+        /// <param name="bag">The communication request to check.</param>
+        /// <returns><see langword="true"/> if the request targets a new communication or one the current person may edit; otherwise, <see langword="false"/>.</returns>
+        private bool CanEditCommunication( CommunicationEntryWizardCommunicationBag bag )
+        {
+            var communicationService = new CommunicationService( this.RockContext );
+            Model.Communication communication = null;
+
+            // Match the lookup order in CreateOrUpdateCommunication so the check covers the record that will be saved.
+            if ( bag.CommunicationId.GetValueOrDefault( 0 ) > 0 )
+            {
+                communication = communicationService.Get( bag.CommunicationId.Value );
+            }
+            else if ( !bag.CommunicationGuid.IsEmpty() )
+            {
+                communication = communicationService.Get( bag.CommunicationGuid );
+            }
+
+            return communication == null || !IsCommunicationHidden( communication, GetCurrentPerson() );
+        }
+
+        /// <summary>
+        /// Gets the existing communication a request targets, using the same
+        /// lookup order as <see cref="CanEditCommunication(CommunicationEntryWizardCommunicationBag)"/>.
+        /// </summary>
+        /// <param name="rockContext">The database context used for querying data.</param>
+        /// <param name="bag">The communication request.</param>
+        /// <returns>The existing <see cref="Model.Communication"/> or <see langword="null"/> if the request is for a new communication.</returns>
+        private Model.Communication GetExistingCommunication( RockContext rockContext, CommunicationEntryWizardCommunicationBag bag )
+        {
+            var communicationService = new CommunicationService( rockContext );
+
+            if ( bag.CommunicationId.GetValueOrDefault( 0 ) > 0 )
+            {
+                return communicationService.Get( bag.CommunicationId.Value );
+            }
+            else if ( !bag.CommunicationGuid.IsEmpty() )
+            {
+                return communicationService.Get( bag.CommunicationGuid );
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Gets the template information for the template selected in the request,
+        /// if it passes the same active and VIEW filter used by the template list.
+        /// </summary>
+        /// <param name="rockContext">The database context used for querying data.</param>
+        /// <param name="communicationTemplateGuid">The communication template unique identifier.</param>
+        /// <returns>The <see cref="CommunicationEntryWizardTemplateInfo"/> or <see langword="null"/> if not found or not allowed.</returns>
+        private CommunicationEntryWizardTemplateInfo GetAuthorizedTemplateInfo( RockContext rockContext, Guid? communicationTemplateGuid )
+        {
+            if ( !communicationTemplateGuid.HasValue || communicationTemplateGuid.Value.IsEmpty() )
+            {
+                return null;
+            }
+
+            var templateGuid = communicationTemplateGuid.Value;
+
+            return GetCommunicationTemplateInfoList(
+                rockContext,
+                query => query.Where( t => t.Guid == templateGuid ).Take( 1 ) )
+                .FirstOrDefault();
+        }
+
+        /// <summary>
+        /// Validates the communication list and SMS from number in a request
+        /// against the options this block offers. The value already stored on
+        /// an editable communication (and, for the SMS number, the selected
+        /// template's number) is also allowed.
+        /// </summary>
+        /// <param name="bag">The communication request.</param>
+        /// <returns>An error message, or <see langword="null"/> if the request is valid.</returns>
+        private string GetCommunicationOptionsErrorMessage( CommunicationEntryWizardCommunicationBag bag )
+        {
+            var currentPerson = GetCurrentPerson();
+            var existingCommunication = GetExistingCommunication( this.RockContext, bag );
+
+            if ( existingCommunication != null && IsCommunicationHidden( existingCommunication, currentPerson ) )
+            {
+                // Values from a communication the person cannot edit are not trusted.
+                existingCommunication = null;
+            }
+
+            if ( bag.CommunicationListGroupGuid.HasValue && !bag.CommunicationListGroupGuid.Value.IsEmpty() )
+            {
+                var listGroupGuid = bag.CommunicationListGroupGuid.Value;
+                var isCurrentList = existingCommunication?.ListGroupId.HasValue == true
+                    && GroupCache.GetId( listGroupGuid ) == existingCommunication.ListGroupId;
+
+                if ( !isCurrentList )
+                {
+                    // Same filter as GetCommunicationListGroupBags.
+                    var communicationListGroupTypeId = GroupTypeCache.Get( SystemGuid.GroupType.GROUPTYPE_COMMUNICATIONLIST.AsGuid() ).Id;
+                    var listGroup = new GroupService( this.RockContext ).Get( listGroupGuid );
+
+                    if ( listGroup == null
+                         || listGroup.GroupTypeId != communicationListGroupTypeId
+                         || !listGroup.IsActive
+                         || !listGroup.IsAuthorized( Authorization.VIEW, currentPerson ) )
+                    {
+                        return "Invalid communication list.";
+                    }
+                }
+            }
+
+            if ( bag.SmsFromSystemPhoneNumberGuid.HasValue && !bag.SmsFromSystemPhoneNumberGuid.Value.IsEmpty() )
+            {
+                var smsFromNumberGuid = bag.SmsFromSystemPhoneNumberGuid.Value;
+                var isOffered = GetSmsFromNumberBags( currentPerson ).Any( n => n.Value.AsGuid() == smsFromNumberGuid );
+                var isCurrentNumber = existingCommunication?.SmsFromSystemPhoneNumberId.HasValue == true
+                    && SystemPhoneNumberCache.GetGuid( existingCommunication.SmsFromSystemPhoneNumberId.Value ) == smsFromNumberGuid;
+
+                if ( !isOffered && !isCurrentNumber )
+                {
+                    var templateInfo = GetAuthorizedTemplateInfo( this.RockContext, bag.CommunicationTemplateGuid );
+
+                    if ( templateInfo?.SmsFromSystemPhoneNumberGuid != smsFromNumberGuid )
+                    {
+                        return "Invalid SMS from number.";
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Determines whether a binary file sent by the client may be attached to
+        /// the communication. It must already be on the communication, belong to
+        /// the selected template, or be a file the current person uploaded.
+        /// </summary>
+        /// <param name="binaryFileService">The binary file service.</param>
+        /// <param name="binaryFileId">The binary file identifier.</param>
+        /// <param name="allowedBinaryFileIds">The identifiers of files already on the communication or the template.</param>
+        /// <param name="currentPerson">The currently logged-in person.</param>
+        /// <returns><see langword="true"/> if the file may be attached; otherwise, <see langword="false"/>.</returns>
+        private static bool IsBinaryFileAllowed( BinaryFileService binaryFileService, int binaryFileId, ICollection<int> allowedBinaryFileIds, Person currentPerson )
+        {
+            return allowedBinaryFileIds.Contains( binaryFileId )
+                || binaryFileService.IsUploadedBinaryFileAllowedForPerson( binaryFileId, null, currentPerson );
+        }
+
+        /// <summary>
         /// Retrieves a list of SMS sender numbers available to the current person, filtered by authorization and allowed numbers.
         /// </summary>
         /// <param name="currentPerson">The currently logged-in person for authorization checks.</param>
@@ -2336,8 +2693,14 @@ namespace Rock.Blocks.Communication
         /// <summary>
         /// Retrieves the allowed communication types based on block configuration and preferences.
         /// </summary>
+        /// <param name="expandRecipientPreference">
+        /// When <c>true</c> (the default), selecting "Recipient Preference" also includes Email and SMS,
+        /// because recipient-preference delivery resolves to those mediums. When <c>false</c> (used to
+        /// build the standalone picker options), the result contains only the types explicitly enabled
+        /// in the block setting, so the picker reflects exactly what the admin chose.
+        /// </param>
         /// <returns>A list of <see cref="CommunicationType"/> values representing the allowed communication types.</returns>
-        private List<CommunicationType> GetAllowedCommunicationTypes()
+        private List<CommunicationType> GetAllowedCommunicationTypes( bool expandRecipientPreference = true )
         {
             /*
                 JME 8/20/2021
@@ -2358,7 +2721,7 @@ namespace Rock.Blocks.Communication
             var communicationTypes = this.GetAttributeValue( AttributeKey.CommunicationTypes ).SplitDelimitedValues( false );
 
             var result = new List<CommunicationType>();
-            if ( communicationTypes.Contains( "Recipient Preference" ) )
+            if ( expandRecipientPreference && communicationTypes.Contains( "Recipient Preference" ) )
             {
                 result.Add( CommunicationType.RecipientPreference );
 
@@ -2387,6 +2750,11 @@ namespace Rock.Blocks.Communication
                 if ( communicationTypes.Contains( "Push" ) )
                 {
                     result.Add( CommunicationType.PushNotification );
+                }
+
+                if ( communicationTypes.Contains( "Recipient Preference" ) )
+                {
+                    result.Add( CommunicationType.RecipientPreference );
                 }
             }
             else
@@ -2523,6 +2891,69 @@ namespace Rock.Blocks.Communication
 
             // Only add recipient preference if at least two options exists.
             if ( isRecipientPreferenceEnabled && mediums.Count >= 2 )
+            {
+                mediums.Add( new ListItemBag
+                {
+                    // If this hard-coded value is changed, then the Obsidian client code should be updated too.
+                    Value = "Recipient Preference",
+                    Text = "Recipient Preference"
+                } );
+            }
+
+            return mediums;
+        }
+
+        /// <summary>
+        /// Retrieves the standalone medium options the sender may directly choose, honoring exactly the
+        /// communication types enabled in the block setting (without expanding Recipient Preference into
+        /// Email and SMS). This drives the medium picker, and differs from <see cref="GetCommunicationMediumBags"/>,
+        /// which returns the full set of mediums Recipient Preference composes and delivers.
+        /// </summary>
+        /// <param name="currentPerson">The currently logged-in person for authorization checks.</param>
+        /// <returns>A list of <see cref="ListItemBag"/> objects representing the selectable standalone mediums.</returns>
+        private List<ListItemBag> GetStandalonePickerMediumBags( Person currentPerson )
+        {
+            var mediums = new List<ListItemBag>();
+
+            // Honor exactly what the admin enabled, so do not expand Recipient Preference into Email/SMS here.
+            var allowedCommunicationTypes = GetAllowedCommunicationTypes( expandRecipientPreference: false );
+
+            var hasEmailTransport = MediumContainer.HasActiveAndAuthorizedEmailTransport( currentPerson );
+            var hasSmsTransport = MediumContainer.HasActiveAndAuthorizedSmsTransport( currentPerson );
+            var hasPushTransport = MediumContainer.HasActiveAndAuthorizedPushTransport( currentPerson );
+
+            if ( hasEmailTransport && allowedCommunicationTypes.Contains( CommunicationType.Email ) )
+            {
+                mediums.Add( new ListItemBag
+                {
+                    Value = SystemGuid.EntityType.COMMUNICATION_MEDIUM_EMAIL,
+                    Text = "Email"
+                } );
+            }
+
+            if ( hasSmsTransport && allowedCommunicationTypes.Contains( CommunicationType.SMS ) )
+            {
+                mediums.Add( new ListItemBag
+                {
+                    Value = SystemGuid.EntityType.COMMUNICATION_MEDIUM_SMS,
+                    Text = "SMS"
+                } );
+            }
+
+            if ( hasPushTransport && allowedCommunicationTypes.Contains( CommunicationType.PushNotification ) )
+            {
+                mediums.Add( new ListItemBag
+                {
+                    Value = SystemGuid.EntityType.COMMUNICATION_MEDIUM_PUSH_NOTIFICATION,
+                    Text = "Push"
+                } );
+            }
+
+            // Recipient Preference resolves to a recipient's Email or SMS, so offer it whenever it is
+            // enabled and at least one of those transports is active, regardless of whether Email or SMS
+            // are also enabled as standalone options. This lets a "Recipient Preference only" setting
+            // still present the Recipient Preference option.
+            if ( allowedCommunicationTypes.Contains( CommunicationType.RecipientPreference ) && ( hasEmailTransport || hasSmsTransport ) )
             {
                 mediums.Add( new ListItemBag
                 {
@@ -3319,6 +3750,23 @@ namespace Rock.Blocks.Communication
 
             communicationInfo.ExcludeDuplicateRecipientAddress = bag.ExcludeDuplicateRecipientAddress;
 
+            // Attachments and the push image must already be on the communication,
+            // belong to the selected template, or be files the current person uploaded.
+            var binaryFileService = new BinaryFileService( rockContext );
+            var existingCommunication = GetExistingCommunication( rockContext, bag );
+            var templateInfo = GetAuthorizedTemplateInfo( rockContext, bag.CommunicationTemplateGuid );
+            var allowedBinaryFileIds = new HashSet<int>();
+
+            if ( existingCommunication != null )
+            {
+                allowedBinaryFileIds.UnionWith( existingCommunication.Attachments.Select( a => a.BinaryFileId ) );
+            }
+
+            if ( templateInfo?.CommunicationTemplate?.Attachments != null )
+            {
+                allowedBinaryFileIds.UnionWith( templateInfo.CommunicationTemplate.Attachments.Select( a => a.BinaryFileId ) );
+            }
+
             var emailAttachmentBinaryFileGuids = bag.EmailAttachmentBinaryFiles
                 ?.Select( b => b.Value.AsGuidOrNull() )
                 .Where( g => g.HasValue )
@@ -3328,6 +3776,8 @@ namespace Rock.Blocks.Communication
             {
                 communicationInfo.EmailBinaryFiles = new BinaryFileService( rockContext )
                     .GetByGuids( emailAttachmentBinaryFileGuids )
+                    .ToList()
+                    .Where( b => IsBinaryFileAllowed( binaryFileService, b.Id, allowedBinaryFileIds, currentPerson ) )
                     .ToList();
             }
 
@@ -3340,6 +3790,8 @@ namespace Rock.Blocks.Communication
             {
                 communicationInfo.SmsBinaryFiles = new BinaryFileService( rockContext )
                     .GetByGuids( smsAttachmentBinaryFileGuids )
+                    .ToList()
+                    .Where( b => IsBinaryFileAllowed( binaryFileService, b.Id, allowedBinaryFileIds, currentPerson ) )
                     .ToList();
             }
 
@@ -3385,6 +3837,19 @@ namespace Rock.Blocks.Communication
                     .GetQueryableByKey( bag.PushImageBinaryFileGuid.Value.ToString() )
                     .Select( b => b.Id )
                     .FirstOrDefault();
+
+                var pushImageBinaryFileId = details.PushImageBinaryFileId.Value;
+                var isCurrentPushImage = existingCommunication?.PushImageBinaryFileId == pushImageBinaryFileId;
+                var isTemplatePushImage = templateInfo?.CommunicationTemplate?.PushImageBinaryFileId == pushImageBinaryFileId;
+
+                if ( pushImageBinaryFileId != 0
+                     && !isCurrentPushImage
+                     && !isTemplatePushImage
+                     && !binaryFileService.IsUploadedBinaryFileAllowedForPerson( pushImageBinaryFileId, null, currentPerson ) )
+                {
+                    // Keep the current image instead of the posted one.
+                    details.PushImageBinaryFileId = existingCommunication?.PushImageBinaryFileId;
+                }
             }
 
             if ( bag.PushOpenAction.HasValue )

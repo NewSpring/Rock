@@ -55,7 +55,7 @@ namespace Rock.Blocks.Engagement
     [SystemGuid.BlockTypeGuid( "B5FAF2A4-8195-4972-AA09-F65615939EA8" )]
 
     public class ConnectionOperationalSnapshot : RockBlockType
-    {   
+    {
         #region Keys
 
         private static class AttributeKey
@@ -119,6 +119,43 @@ namespace Rock.Blocks.Engagement
             }
         }
 
+        private HashSet<int> _selfAssignedOpportunityIds = null;
+        /// <summary>
+        /// Gets the identifiers of opportunities within the connection type for which the current person is a connector.
+        /// Empty unless the connection type has request security enabled.
+        /// </summary>
+        private HashSet<int> SelfAssignedOpportunityIds
+        {
+            get
+            {
+                if ( _selfAssignedOpportunityIds == null )
+                {
+                    var personId = GetCurrentPerson()?.Id;
+
+                    if ( ConnectionType?.EnableRequestSecurity != true || !personId.HasValue )
+                    {
+                        _selfAssignedOpportunityIds = new HashSet<int>();
+                    }
+                    else
+                    {
+                        var connectionTypeId = ConnectionType.Id;
+
+                        _selfAssignedOpportunityIds = new ConnectionRequestService( RockContext )
+                            .Queryable()
+                            .Where( cr =>
+                                cr.ConnectionOpportunity.ConnectionTypeId == connectionTypeId
+                                && cr.ConnectorPersonAlias.PersonId == personId.Value
+                            )
+                            .Select( cr => cr.ConnectionOpportunityId )
+                            .Distinct()
+                            .ToHashSet();
+                    }
+                }
+
+                return _selfAssignedOpportunityIds;
+            }
+        }
+
         #endregion
 
         public override object GetObsidianBlockInitialization()
@@ -152,6 +189,11 @@ namespace Rock.Blocks.Engagement
         [BlockAction]
         public BlockActionResult GetRowData( GetMetricsBag bag )
         {
+            if ( !IsConnectionOpportunityAllowed( bag ) )
+            {
+                return ActionBadRequest( "Connection opportunity not found." );
+            }
+
             var builder = GetGridBuilder();
             var gridDataBag = builder.Build( GetConnectors( bag ) );
 
@@ -161,6 +203,11 @@ namespace Rock.Blocks.Engagement
         [BlockAction]
         public BlockActionResult GetMetrics( GetMetricsBag bag )
         {
+            if ( !IsConnectionOpportunityAllowed( bag ) )
+            {
+                return ActionBadRequest( "Connection opportunity not found." );
+            }
+
             var metrics = new MetricsBag
             {
                 CompletionMetrics = GetCompletionMetrics( bag ),
@@ -178,9 +225,64 @@ namespace Rock.Blocks.Engagement
             return ActionOk( completionMetrics );
         }
 
+        /// <summary>
+        /// Creates an entity set for the subset of selected rows in the grid.
+        /// </summary>
+        /// <remarks>
+        /// This block derives from <see cref="RockBlockType"/> rather than
+        /// <see cref="RockListBlockType{T}"/>, so it does not inherit the standard
+        /// entity-set action. It is provided here so grid actions such as Launch
+        /// Workflow and Merge Template can operate on the selected rows.
+        /// </remarks>
+        /// <param name="entitySet">The bag that describes the entity set to create.</param>
+        /// <returns>An action result that contains the identifier of the entity set.</returns>
+        [BlockAction]
+        public BlockActionResult CreateGridEntitySet( GridEntitySetBag entitySet )
+        {
+            if ( entitySet == null )
+            {
+                return ActionBadRequest( "No entity set data was provided." );
+            }
+
+            var rockEntitySet = GridHelper.CreateEntitySet( entitySet );
+
+            if ( rockEntitySet == null )
+            {
+                return ActionBadRequest( "No entities were found to create the set." );
+            }
+
+            return ActionOk( rockEntitySet.Id.ToString() );
+        }
+
         #endregion Block Actions
 
         #region Private Methods
+
+        /// <summary>
+        /// Determines whether the connection opportunity filter posted in the bag
+        /// is one the current person was offered when the block was initialized.
+        /// This keeps the block actions from returning connector and metric data
+        /// for opportunities that <see cref="GetConnectionOpportunities"/> filters
+        /// out of the opportunity picker.
+        /// </summary>
+        /// <param name="bag">The bag that contains the posted filter values.</param>
+        /// <returns><c>true</c> if no opportunity was posted or the posted opportunity is allowed; otherwise <c>false</c>.</returns>
+        private bool IsConnectionOpportunityAllowed( GetMetricsBag bag )
+        {
+            var connectionOpportunityGuid = bag?.ConnectionOpportunityGuid;
+
+            // No opportunity filter means the type-wide data, which is what
+            // the block shows on initialization.
+            if ( !connectionOpportunityGuid.HasValue )
+            {
+                return true;
+            }
+
+            var connectionOpportunityGuidText = connectionOpportunityGuid.Value.ToString();
+
+            return GetConnectionOpportunities()
+                .Any( co => co.Value.Equals( connectionOpportunityGuidText, StringComparison.OrdinalIgnoreCase ) );
+        }
 
         /// <summary>
         /// Determines whether the specified box is valid and provides an error message if it is not.
@@ -268,12 +370,28 @@ namespace Rock.Blocks.Engagement
 
         private List<IdKeyListItemBag> GetConnectionOpportunities()
         {
+            var currentPerson = GetCurrentPerson();
+
+            // Ensure the connection type is tracked by EF so it'll get wired up
+            // to each opportunity for the inherited security checks below.
+            if ( ConnectionType == null )
+            {
+                return new List<IdKeyListItemBag>();
+            }
+
             return ConnectionTypeQuery
+                // Don't add .AsNoTracking() here or the type won't get wired up to the opportunities.
                 .SelectMany( ct => ct.ConnectionOpportunities )
                 .Where( co => co.IsActive )
                 .OrderBy( co => co.Order )
                 .ThenBy( co => co.PublicName )
                 .ToList()
+                // Only include opportunities that the current person is authorized to view.
+                .Where( co =>
+                    co.IsAuthorized( Authorization.VIEW, currentPerson )
+                    || co.IsAuthorized( Authorization.EDIT, currentPerson )
+                    || SelfAssignedOpportunityIds.Contains( co.Id )
+                )
                 .Select( co => new IdKeyListItemBag
                 {
                     // Use IdKeys instead of guid so they can be used as page parameters when navigating to the Connections Hub
@@ -406,7 +524,7 @@ namespace Rock.Blocks.Engagement
 
             return new RequestTimelineBag
             {
-                 UpcomingFollowUps = upcomingFollowUps
+                UpcomingFollowUps = upcomingFollowUps
             };
         }
 

@@ -32,8 +32,13 @@ namespace Rock.Badge.Component
     [Export( typeof( BadgeComponent ) )]
     [ExportMetadata( "ComponentName", "Geofenced By Group" )]
 
-    [GroupTypeField( "Group Type", "The type of group to use.", true )]
-    [TextField( "Badge Color", "The color of the badge (#ffffff).", true, "#0ab4dd" )]
+    [GroupTypeField( "Group Type",
+        Description = "The type of group to use.",
+        IsRequired = true )]
+    [TextField( "Badge Color",
+        Description = "The color of the badge (#ffffff).",
+        IsRequired = true,
+        DefaultValue = "#0ab4dd" )]
     [Rock.SystemGuid.EntityTypeGuid( "CD6477C8-F567-4313-980E-CC63D46EAE84")]
     public class GeofencedByGroup : BadgeComponent
     {
@@ -75,6 +80,17 @@ namespace Rock.Badge.Component
                 return null;
             }
 
+            /*
+                10/14/2026 - MSE
+
+                The leader names and group names come back raw from the REST call and are
+                added to the badge with .html(). Leader names are person names, which a
+                person can set (for example through a public signup form), so the values
+                are HTML escaped in the browser (including double quotes, because the
+                leader names go in a title attribute).
+
+                Reason: Prevent stored XSS through a person or group name in the badge.
+            */
             return string.Format( @"
 $.ajax({{
     type: 'GET',
@@ -84,11 +100,15 @@ $.ajax({{
             var $badge = $('.rockbadge-geofencing-group.rockbadge-id-{2}');
             var badgeHtml = '';
 
+            var encodeText = function (value) {{
+                return $('<div/>').text(value == null ? '' : String(value)).html().replace(/""/g, '&quot;');
+            }};
+
             $.each(data, function() {{
                 if ( badgeHtml != '' ) {{
                     badgeHtml += ' | ';
                 }}
-                badgeHtml += '<span title=""' + this.LeaderNames + '"" data-toggle=""tooltip"">' + this.GroupName + '</span>';
+                badgeHtml += '<span title=""' + encodeText(this.LeaderNames) + '"" data-toggle=""tooltip"">' + encodeText(this.GroupName) + '</span>';
             }});
 
             if (badgeHtml != '') {{

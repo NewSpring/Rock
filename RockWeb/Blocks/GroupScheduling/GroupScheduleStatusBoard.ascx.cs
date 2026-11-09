@@ -132,8 +132,6 @@ namespace RockWeb.Blocks.GroupScheduling
         /// <param name="e">The <see cref="T:System.EventArgs" /> object that contains the event data.</param>
         protected override void OnLoad( EventArgs e )
         {
-            RockPage.AddCSSLink( "~/Themes/Rock/Styles/group-scheduler.css", true );
-
             if ( !this.IsPostBack )
             {
                 ApplyBlockSettings();
@@ -173,7 +171,7 @@ namespace RockWeb.Blocks.GroupScheduling
         private Group GetGroupFromParameter( GroupService groupService )
         {
             var groupGuid = PageParameter( PageParameterKey.GroupGuid ).AsGuidOrNull();
-            var groupId = PageParameter( PageParameterKey.GroupId ).AsIntegerOrNull();
+            var groupId = PageParameter( PageParameterKey.GroupId ).AsIntegerOrNull() ?? Rock.Utility.IdHasher.Instance.GetId( PageParameter( PageParameterKey.GroupId ) );
             if ( groupGuid.HasValue )
             {
                 return groupService.Get( groupGuid.Value );

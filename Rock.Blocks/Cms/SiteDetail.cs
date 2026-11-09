@@ -18,7 +18,6 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.IO;
 using System.Linq;
 
 using Rock.Attribute;
@@ -30,6 +29,7 @@ using Rock.ViewModels.Blocks;
 using Rock.ViewModels.Blocks.Cms.SiteDetail;
 using Rock.ViewModels.Utility;
 using Rock.Web.Cache;
+using Rock.Web.UI;
 
 namespace Rock.Blocks.Cms
 {
@@ -104,19 +104,18 @@ namespace Rock.Blocks.Cms
         {
             var options = new SiteDetailOptionsBag();
 
-            options.Themes = new List<ListItemBag>();
-
-            var sites = SiteCache.All()
-                .Where( s => !string.IsNullOrWhiteSpace( s.Theme ) )
-                .DistinctBy( s => s.Theme )
-                .OrderBy( s => s.Theme )
-                .Select( s => new ListItemBag
+            // Enumerate the theme folders directly so that every installed theme
+            // is selectable, including ones that have just been added and are not
+            // yet assigned to any site. Deriving the list from existing sites
+            // hid any theme that was not already in use.
+            options.Themes = RockTheme.GetThemes()
+                .OrderBy( t => t.Name )
+                .Select( t => new ListItemBag
                 {
-                    Text = s.Theme,
-                    Value = s.Theme
-                } );
-
-            options.Themes.AddRange( sites );
+                    Text = t.Name,
+                    Value = t.Name
+                } )
+                .ToList();
 
             var siteEntityType = EntityTypeCache.Get( "Rock.Model.Site" );
             options.IsIndexingEnabled = siteEntityType != null && siteEntityType.IsIndexingEnabled;
@@ -739,6 +738,23 @@ namespace Rock.Blocks.Cms
 
             var isNew = entity.Id == 0;
 
+            // Make sure the image files are either the current ones or newly
+            // uploaded files.
+            var uploadedFileService = new BinaryFileService( RockContext );
+
+            if ( !uploadedFileService.IsUploadedBinaryFileAllowedForPerson( entity.FavIconBinaryFileId, existingIconId, RequestContext.CurrentPerson )
+                || !uploadedFileService.IsUploadedBinaryFileAllowedForPerson( entity.SiteLogoBinaryFileId, existingLogoId, RequestContext.CurrentPerson ) )
+            {
+                return ActionBadRequest( "Invalid file." );
+            }
+
+            // Make sure the page attributes are either new or already belong
+            // to this site.
+            if ( !PublicAttributeHelper.AreAttributeEditsAllowed( box.Bag.SiteAttributes, new Page().TypeId, "SiteId", isNew ? null : entity.Id.ToString(), RockContext ) )
+            {
+                return ActionBadRequest( "Invalid attribute." );
+            }
+
             RockContext.WrapTransaction( () =>
             {
                 RockContext.SaveChanges();
@@ -789,6 +805,8 @@ namespace Rock.Blocks.Cms
                 interactionChannelForSite = new InteractionChannel();
                 interactionChannelForSite.ChannelTypeMediumValueId = channelMediumWebsiteValueId;
                 interactionChannelForSite.ChannelEntityId = entity.Id;
+                // Website page views are tied to browser sessions; enable session listing in Interactions.
+                interactionChannelForSite.UsesSession = true;
                 interactionChannelService.Add( interactionChannelForSite );
             }
 

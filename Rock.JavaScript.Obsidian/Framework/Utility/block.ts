@@ -30,6 +30,8 @@ import { debounce } from "./util";
 import { BrowserBus, useBrowserBus } from "./browserBus";
 import { ICancellationToken } from "./cancellation";
 import { BlockRole, BlockRoleDescription } from "@Obsidian/Enums/Cms/blockRole";
+import { postForBlob } from "./http";
+import { downloadFile } from "./file";
 
 const blockReloadSymbol = Symbol();
 const blockRoleActionsSymbol = Symbol("block-role-actions");
@@ -71,6 +73,10 @@ export function useInvokeBlockAction(): InvokeBlockActionFunc {
 /**
  * Gets the function that will return the URL for a block action.
  *
+ * The block action endpoint only accepts POST requests. Navigating to this
+ * URL or using it as a link returns 405 Method Not Allowed. Use
+ * useDownloadBlockAction() to download a file from a block action.
+ *
  * @returns A function that can be called to determine the URL for a block action.
  */
 export function useBlockActionUrl(): (actionName: string) => string {
@@ -81,6 +87,45 @@ export function useBlockActionUrl(): (actionName: string) => string {
     }
 
     return result;
+}
+
+/**
+ * Gets the function that will download a file from a block action. The
+ * action is called with a POST request and the file it returns is saved by
+ * the browser. This must be called during setup, like the other use
+ * functions.
+ *
+ * Page parameters are not sent to the block action, so anything the action
+ * needs must be included in the data.
+ *
+ * @returns A function that can be called to download a file from a block action.
+ */
+export function useDownloadBlockAction(): (actionName: string, data?: HttpBodyData, fallbackFileName?: string) => Promise<HttpResult<null>> {
+    const blockActionUrl = useBlockActionUrl();
+
+    return async (actionName: string, data?: HttpBodyData, fallbackFileName?: string): Promise<HttpResult<null>> => {
+        const result = await postForBlob(blockActionUrl(actionName), data);
+
+        if (!result.isSuccess || !result.data) {
+            return {
+                data: null,
+                isError: true,
+                isSuccess: false,
+                statusCode: result.statusCode,
+                errorMessage: result.errorMessage
+            };
+        }
+
+        await downloadFile(result.data, result.fileName ?? fallbackFileName ?? "download");
+
+        return {
+            data: null,
+            isError: false,
+            isSuccess: true,
+            statusCode: result.statusCode,
+            errorMessage: null
+        };
+    };
 }
 
 /**
@@ -232,7 +277,10 @@ export function provideConfigurationValuesChanged(): { invoke: () => void, reset
  * @param callback The function to be called when the configuration values have changed.
  */
 export function onConfigurationValuesChanged(callback: () => void): void {
-    const callbacks = inject<(() => void)[]>(configurationValuesChangedSymbol);
+    // Provide an explicit undefined default so Vue does not emit an
+    // "injection not found" warning when a block is mounted without the
+    // configuration-changed provider (e.g. inside a unit test).
+    const callbacks = inject<(() => void)[] | undefined>(configurationValuesChangedSymbol, undefined);
 
     if (callbacks !== undefined) {
         callbacks.push(callback);
@@ -588,7 +636,10 @@ export function provideSecurityGrant(grant: SecurityGrant): void {
  * @returns A string reference that contains the security grant token.
  */
 export function useSecurityGrantToken(): Ref<string | null> {
-    const grant = inject<SecurityGrant>(securityGrantSymbol);
+    // Provide an explicit undefined default so Vue does not emit an
+    // "injection not found" warning when no parent has supplied a security
+    // grant (e.g. a control mounted on its own or inside a unit test).
+    const grant = inject<SecurityGrant | undefined>(securityGrantSymbol, undefined);
 
     return grant ? grant.token : ref(null);
 }

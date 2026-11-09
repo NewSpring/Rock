@@ -478,6 +478,11 @@ namespace Rock.Blocks.Prayer
         [BlockAction( "Save" )]
         public BlockActionResult Save( PrayerRequestEntrySaveRequestBag bag )
         {
+        	if ( IsContextPersonUnauthorized() )
+            {
+                return ActionBadRequest( NotAuthorizedMessage );
+            }
+
             bool disableCaptcha = Captcha.CaptchaService.ShouldDisableCaptcha( GetAttributeValue( AttributeKey.DisableCaptchaSupport ).AsBoolean() );
             if ( !disableCaptcha && !RequestContext.IsCaptchaValid )
             {
@@ -555,7 +560,7 @@ namespace Rock.Blocks.Prayer
                 prayerRequest.CategoryId = category?.Id;
                 prayerRequest.Category = category;
 
-                var personContext = this.RequestContext.GetContextEntity<Person>();
+                var personContext = GetAuthorizedContextPerson();
                 if ( personContext == null )
                 {
                     Person person = null;
@@ -725,6 +730,44 @@ namespace Rock.Blocks.Prayer
         #region Private Methods
 
         /// <summary>
+        /// The message shown when the context person is someone the current person may not enter a request for.
+        /// </summary>
+        private static readonly string NotAuthorizedMessage = "You are not authorized to enter prayer requests for other people.";
+
+        /// <summary>
+        /// Gets the context person if the current person is that person or is
+        /// authorized to edit this block. Otherwise returns <c>null</c>.
+        /// </summary>
+        /// <returns>The authorized context person or <c>null</c>.</returns>
+        private Person GetAuthorizedContextPerson()
+        {
+            var contextPerson = this.RequestContext.GetContextEntity<Person>();
+
+            if ( contextPerson == null )
+            {
+                return null;
+            }
+
+            if ( contextPerson.Id == this.RequestContext.CurrentPerson?.Id
+                || BlockCache.IsAuthorized( Rock.Security.Authorization.EDIT, this.RequestContext.CurrentPerson ) )
+            {
+                return contextPerson;
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Determines whether there is a context person that the current person may not
+        /// enter a prayer request for.
+        /// </summary>
+        /// <returns><c>true</c> if the context person is not allowed; otherwise, <c>false</c>.</returns>
+        private bool IsContextPersonUnauthorized()
+        {
+            return this.RequestContext.GetContextEntity<Person>() != null && GetAuthorizedContextPerson() == null;
+        }
+
+        /// <summary>
         /// Gets the defined value for a given <paramref name="definedValueGuid"/>.
         /// </summary>
         private DefinedValueCache GetDefinedValue( Guid definedValueGuid )
@@ -737,6 +780,14 @@ namespace Rock.Blocks.Prayer
         /// </summary>
         private PrayerRequestEntryInitializationBox GetInitializationBox()
         {
+            if ( IsContextPersonUnauthorized() )
+            {
+                return new PrayerRequestEntryInitializationBox
+                {
+                    ErrorMessage = NotAuthorizedMessage
+                };
+            }
+
             var currentPerson = this.GetCurrentPerson();
 
             var box = new PrayerRequestEntryInitializationBox
@@ -751,7 +802,7 @@ namespace Rock.Blocks.Prayer
                 IsPageRedirectedToParentOnSave = this.IsPageRedirectedToParentOnSave,
                 IsPageRefreshedOnSave = this.IsPageRefreshedOnSave,
                 IsPublicDefaultValue = this.IsPublicDefaultValue,
-                IsRequesterInfoShown = this.RequestContext.GetContextEntity<Person>() == null,
+                IsRequesterInfoShown = GetAuthorizedContextPerson() == null,
                 IsUrgentShown = this.IsUrgentShown,
                 ParentPageUrl = this.IsPageRedirectedToParentOnSave ? this.GetParentPageUrl() : null,
                 DefaultRequest = this.RequestPageParameter,

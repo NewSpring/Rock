@@ -25,6 +25,7 @@ using Rock.Attribute;
 using Rock.Data;
 using Rock.Model;
 using Rock.Net;
+using Rock.Obsidian.UI.GridField;
 using Rock.ViewModels.Controls;
 
 namespace Rock.Reporting.DataSelect.Group
@@ -36,7 +37,8 @@ namespace Rock.Reporting.DataSelect.Group
     [Export( typeof( DataSelectComponent ) )]
     [ExportMetadata( "ComponentName", "Select Group Name" )]
 
-    [BooleanField( "Show As Link", "", true )]
+    [BooleanField( "Show As Link",
+        DefaultBooleanValue = true )]
     [Rock.SystemGuid.EntityTypeGuid( "CACA75F2-29FE-4A52-AD4D-22E7314A35EB" )]
     public class GroupLinkSelect : DataSelectComponent
     {
@@ -165,11 +167,36 @@ namespace Rock.Reporting.DataSelect.Group
         /// <returns></returns>
         public override System.Web.UI.WebControls.DataControlField GetGridField( Type entityType, string selection )
         {
+            bool showAsLink = this.GetAttributeValueFromSelection( "ShowAsLink", selection ).AsBooleanOrNull() ?? false;
+
+            /*
+                10/27/26 - JMH
+
+                When the value is a link, the markup (and the encoded name inside it) is built in
+                GetExpression, so the grid must not encode it again. Otherwise the value is the raw
+                name, so the grid encodes it.
+
+                Reason: Display group names as text in reports.
+            */
             var result = new BoundField();
-            result.HtmlEncode = false;
+            result.HtmlEncode = !showAsLink;
             return result;
         }
 #endif
+
+        /// <inheritdoc/>
+        public override ObsidianGridField GetObsidianGridField( Type entityType, string selection, RockContext rockContext, RockRequestContext requestContext )
+        {
+            bool showAsLink = this.GetAttributeValueFromSelection( "ShowAsLink", selection ).AsBooleanOrNull() ?? false;
+
+            // Only the link markup built in GetExpression is safe to render as HTML; a plain name must render as text.
+            if ( showAsLink )
+            {
+                return new HtmlObsidianGridField();
+            }
+
+            return new TextObsidianGridField();
+        }
 
         /// <summary>
         /// Comma-delimited list of the Entity properties that should be used for Sorting. Normally, you should leave this as null which will make it sort on the returned field
@@ -201,8 +228,17 @@ namespace Rock.Reporting.DataSelect.Group
 
             if ( showAsLink )
             {
+                /*
+                    10/27/26 - JMH
+
+                    The link markup is built in SQL, so the name is HTML encoded there (with REPLACE)
+                    before it is placed inside the anchor, so the grid does not encode it again.
+                    Only &, < and > are encoded because the name is element content and the href is built from the Id only.
+
+                    Reason: Display group names as text in reports.
+                */
                 // return string in format: <a href='/group/{groupId}'>Name</a>
-                groupLinkQry = groupQry.Select( p => "<a href='" + baseGroupUrl + p.Id.ToString() + "'>" + p.Name + "</a>" );
+                groupLinkQry = groupQry.Select( p => "<a href='" + baseGroupUrl + p.Id.ToString() + "'>" + p.Name.Replace( "&", "&amp;" ).Replace( "<", "&lt;" ).Replace( ">", "&gt;" ) + "</a>" );
             }
             else
             {

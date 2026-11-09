@@ -43,6 +43,8 @@ namespace Rock.Workflow.Action
     [TextField("Title",
         Description = "The title of the content channel item. <span class='tip tip-lava'></span>",
         IsRequired = true,
+        AllowHtml = true,
+        AllowLava = true,
         Order = 2 )]
     [WorkflowTextOrAttribute( "Start Date Time",
         "Attribute Value",
@@ -245,7 +247,7 @@ namespace Rock.Workflow.Action
             }
             else
             {
-                contentChannelItem.Content = content.ResolveMergeFields( mergeFields );
+                contentChannelItem.Content = IsAttributeSourcedSetting( action, "Content" ) ? content : content.ResolveMergeFields( mergeFields );
             }
 
             contentChannelItem.StartDateTime = startDateTime;

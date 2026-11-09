@@ -22,6 +22,7 @@ using System.Data.Entity;
 using System.Linq;
 
 using Rock.Attribute;
+using Rock.Cms.Utm;
 using Rock.Configuration;
 using Rock.Data;
 using Rock.Enums.Cms;
@@ -159,6 +160,7 @@ namespace Rock.Blocks.Cms
     [WorkflowTypeField(
         "Workflow Type",
         Description = "The workflow type to launch when the content is viewed.",
+        IsRequired = false,
         Category = "CustomSetting",
         Key = AttributeKey.WorkflowType )]
 
@@ -296,6 +298,12 @@ Guid - ContentChannelItem Guid";
         /// </summary>
         private static readonly TimeSpan InteractionTokenLifetime = TimeSpan.FromHours( 4 );
 
+        /// <summary>
+        /// Purpose that binds the interaction token to this block, so a tampered
+        /// or foreign token fails verification.
+        /// </summary>
+        private const string InteractionTokenEncryptionPurpose = "Rock.Blocks.Cms.ContentChannelItemView.InteractionToken";
+
         private enum LaunchWorkflowCondition
         {
             Always = 0,
@@ -318,6 +326,18 @@ Guid - ContentChannelItem Guid";
             public int ItemId { get; set; }
 
             public DateTime ExpiresAt { get; set; }
+
+            /// <summary>
+            /// The friendly referrer name read at render time, when the Referer header is still the
+            /// visitor's true referrer rather than this page.
+            /// </summary>
+            public string Referrer { get; set; }
+
+            /// <summary>
+            /// The page URL read at render time so the registration action can parse the
+            /// UTM parameters the visitor actually arrived with.
+            /// </summary>
+            public string PageUrl { get; set; }
         }
 
         #endregion Keys and Constants
@@ -523,8 +543,18 @@ Guid - ContentChannelItem Guid";
                 InteractionOperation = "View",
                 PersonAliasId = RequestContext.CurrentPerson?.PrimaryAliasId,
                 UserAgent = RequestContext?.ClientInformation?.UserAgent,
-                IPAddress = RequestContext?.ClientInformation?.IpAddress
+                IPAddress = RequestContext?.ClientInformation?.IpAddress,
+                // Captured when the token was issued, matching the page view convention of storing
+                // the friendly referrer name in ChannelCustomIndexed1.
+                InteractionChannelCustomIndexed1 = payload.Referrer,
+                // The page URL captured when the token was issued; CreateInteraction parses the
+                // utm_ parameters from it, matching how page view interactions are recorded.
+                InteractionData = payload.PageUrl
             };
+
+            // The UTM cookie is only a fallback for fields the page URL did not supply.
+            var utmInfo = UtmHelper.GetUtmCookieDataFromRequest( RequestContext );
+            UtmHelper.AddUtmInfoToInteractionTransactionInfo( info, utmInfo );
 
             new InteractionTransaction( info ).Enqueue();
 
@@ -642,16 +672,30 @@ Guid - ContentChannelItem Guid";
                 return bag;
             }
 
+            // The Referer header is only correct on this navigation request. The registration block
+            // action that actually writes the interaction sees this page as its own referrer, so the
+            // value is captured here and carried forward inside the token.
+            var referrerUrl = RequestContext.GetHeader( "Referer" ).FirstOrDefault();
+            var referrer = Uri.TryCreate( referrerUrl, UriKind.Absolute, out var referrerUri )
+                ? ReferrerHelper.GetFriendlyReferrerNameFromHost( referrerUri.Host )
+                : null;
+
+            // The registration block action's own URL is the API endpoint, so the page URL with its
+            // utm_ parameters has to be captured here and carried forward inside the token.
+            var pageUrl = RequestContext.RequestUri?.ToString();
+
             // Encrypting the payload (rather than sending Item Id + Guid as separate fields) means
             // the client cannot point the registration at a different item or extend the lifetime.
             var payload = new InteractionTokenPayload
             {
                 Guid = Guid.NewGuid(),
                 ItemId = contentChannelItem.Id,
-                ExpiresAt = RockDateTime.Now.Add( InteractionTokenLifetime )
+                ExpiresAt = RockDateTime.Now.Add( InteractionTokenLifetime ),
+                Referrer = referrer,
+                PageUrl = pageUrl
             };
 
-            bag.InteractionToken = Rock.Security.Encryption.EncryptString( payload.ToJson() );
+            bag.InteractionToken = Rock.Security.Encryption.EncryptStringForPurpose( payload.ToJson(), InteractionTokenEncryptionPurpose );
             bag.InteractionTokenLifetimeSeconds = ( int ) InteractionTokenLifetime.TotalSeconds;
 
             return bag;
@@ -671,7 +715,7 @@ Guid - ContentChannelItem Guid";
             string json;
             try
             {
-                json = Rock.Security.Encryption.DecryptString( token );
+                json = Rock.Security.Encryption.DecryptStringForPurpose( token, InteractionTokenEncryptionPurpose );
             }
             catch
             {

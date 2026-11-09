@@ -47,12 +47,12 @@
                             <div>
                                 <%# Eval("NumberFormatted") %>
                                 <span class="d-block text-sm text-muted leading-snug">
-                                    <%# Eval("NumberTypeValue.Value") %>
+                                    <%# Eval("NumberType") %>
                                 </span>
                             </div>
                             <div class="text-right">
                                 <asp:LinkButton ID="btnSms" runat="server" Visible="false" OnClick="btnSms_Click" CssClass="btn btn-sm btn-square btn-default my-spacing-tiny" Text="<i class='ti ti-device-mobile-message'></i>" />
-                                <a class="btn btn-sm btn-square btn-default my-spacing-tiny" href="tel:<%# Eval("Number") %>"><i class="ti ti-phone"></i></a>
+                                <a class="btn btn-sm btn-square btn-default my-spacing-tiny<%# ( bool ) Eval( "IsUnlisted" ) ? " disabled" : "" %>" href="tel:<%# Eval("Number") %>"><i class="ti ti-phone"></i></a>
                             </div>
                         </div>
                     </ItemTemplate>
@@ -76,7 +76,7 @@
                 <ItemTemplate>
                     <a class="group-member text-sm text-center text-color rounded p-spacing-xs" href='<%# Eval("Url") %>'>
                         <asp:Literal ID="lFamilyPhoto" runat="server" />
-                        <span><%# Eval("NickName") %></span>
+                        <span><%#: Eval("NickName") %></span>
                     </a>
                 </ItemTemplate>
             </asp:Repeater>
@@ -88,7 +88,7 @@
                 <ItemTemplate>
                     <a class="group-member text-sm text-center text-color rounded p-spacing-xs" href='<%# Eval("Url") %>'>
                         <asp:Literal ID="lRelationshipPhoto" runat="server" />
-                        <span><%# Eval("NickName") %></span>
+                        <span><%#: Eval("NickName") %></span>
                         <small><asp:Literal ID="lRelationshipName" runat="server" /></small>
                     </a>
                 </ItemTemplate>

@@ -43,7 +43,6 @@ using Rock.Configuration;
 #if WEBFORMS
 using BadRequestErrorMessageResult = System.Web.Http.Results.BadRequestErrorMessageResult;
 using FromBodyAttribute = System.Web.Http.FromBodyAttribute;
-using HttpGetAttribute = System.Web.Http.HttpGetAttribute;
 using HttpPostAttribute = System.Web.Http.HttpPostAttribute;
 using IActionResult = System.Web.Http.IHttpActionResult;
 using NakedBodyAttribute = System.Web.Http.NakedBodyAttribute;
@@ -91,23 +90,6 @@ namespace Rock.Rest.v2
         #endregion
 
         #region API Methods
-
-        /// <summary>
-        /// Executes an action handler on a specific block.
-        /// </summary>
-        /// <param name="pageGuid">The page unique identifier.</param>
-        /// <param name="blockGuid">The block unique identifier.</param>
-        /// <param name="actionName">Name of the action.</param>
-        /// <returns></returns>
-        [HttpGet]
-        [Route( "{pageGuid:guid}/{blockGuid:guid}/{actionName}" )]
-        [Authenticate]
-        [ExcludeSecurityActions( Security.Authorization.EXECUTE_READ, Security.Authorization.EXECUTE_WRITE, Security.Authorization.EXECUTE_UNRESTRICTED_READ, Security.Authorization.EXECUTE_UNRESTRICTED_WRITE )]
-        [Rock.SystemGuid.RestActionGuid( "CC3DE0C2-8703-4925-A16C-F47A31FE9C69" )]
-        public async Task<IActionResult> BlockAction( Guid pageGuid, Guid blockGuid, string actionName )
-        {
-            return await ProcessAction( this, pageGuid, blockGuid, actionName, null, _serviceProvider );
-        }
 
         /// <summary>
         /// Executes an action handler on a specific block.
@@ -163,6 +145,22 @@ namespace Rock.Rest.v2
         /// <returns>The result of the block action method.</returns>
         internal static async Task<IActionResult> ProcessAction( ApiControllerBase controller, Guid? pageGuid, Guid? blockGuid, string actionName, JToken parameters, IServiceProvider serviceProvider )
         {
+            /*
+                10/13/2026 - MSE
+
+                Block actions only run from a POST. A GET can be started by a
+                link or redirect from another site, and the browser still sends
+                the SameSite=Lax authentication cookie with it, so a GET would
+                run the action with the signed in person's rights. The GET
+                routes were removed; this check also covers any route added later.
+
+                Reason: Block actions could be run from a cross-site GET link (CSRF).
+            */
+            if ( controller.Request.Method != HttpMethod.Post )
+            {
+                return new StatusCodeResult( HttpStatusCode.MethodNotAllowed, controller );
+            }
+
             try
             {
                 BlockCache blockCache = null;
@@ -195,6 +193,16 @@ namespace Rock.Rest.v2
                 }
 
                 if ( blockCache == null || pageCache == null )
+                {
+                    return new NotFoundResult( controller );
+                }
+                
+                // Matches how PageCache.Blocks gathers page, layout and site blocks.
+                var isBlockOnPage = blockCache.PageId == pageCache.Id
+                    || ( blockCache.LayoutId.HasValue && blockCache.LayoutId.Value == pageCache.LayoutId )
+                    || ( blockCache.SiteId.HasValue && blockCache.SiteId.Value == pageCache.SiteId );
+
+                if ( !isBlockOnPage )
                 {
                     return new NotFoundResult( controller );
                 }
@@ -337,7 +345,49 @@ namespace Rock.Rest.v2
                     actionParameters.AddOrReplace( q.Key, JToken.FromObject( q.Value.ToString() ) );
                 }
 
-                requestContext.PrepareRequestForPage( pageCache );
+                /*
+                    8/24/2026 - NA
+
+                    Block-action requests don't go through RockPage, so the RockRequestContext
+                    has no idea which named route (if any) was used to originally load the page
+                    that hosts this block. Use the HTTP Referrer header, when present, to
+                    reconstruct a PageReference for the page URL and carry its RouteId forward.
+                    We only trust the referring reference when it resolves to the same page as
+                    this block so a stale or unrelated referrer cannot poison the route lookup.
+
+                    Reason: Allow GetCurrentPageUrl() to preserve the page's friendly
+                    named route when rebuilding the current page URL from a block action.
+                    https://github.com/SparkDevNetwork/Rock/issues/6988
+                */
+                Rock.Web.PageReference pageReference = null;
+                var referringUri = controller.Request?.Headers?.Referrer;
+                if ( referringUri != null )
+                {
+                    try
+                    {
+#if WEBFORMS
+                        var applicationPath = System.Web.HttpContext.Current?.Request?.ApplicationPath;
+#else
+#error Not implemented yet.
+#endif
+                        var referringReference = new Rock.Web.PageReference( referringUri, applicationPath );
+
+                        if ( referringReference.PageId == pageCache.Id && referringReference.RouteId > 0 )
+                        {
+                            pageReference = new Rock.Web.PageReference(
+                                pageCache.Id,
+                                referringReference.RouteId,
+                                requestContext.GetPageParameters() as Dictionary<string, string> ?? new Dictionary<string, string>( requestContext.GetPageParameters() ) );
+                        }
+                    }
+                    catch
+                    {
+                        // A malformed or unresolvable referer should not fail the block
+                        // action; fall through and use the default page reference.
+                    }
+                }
+
+                requestContext.PrepareRequestForPage( pageCache, pageReference );
 
                 return await InvokeAction( controller, rockBlock, actionName, actionParameters, parameters );
             }

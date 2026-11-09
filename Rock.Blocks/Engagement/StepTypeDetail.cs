@@ -892,8 +892,9 @@ namespace Rock.Blocks.Engagement
             var attributes = attributeService.GetByEntityTypeQualifier( entityTypeId, qualifierColumn, qualifierValue, true ).ToList();
 
             // Delete any of those attributes that were removed in the UI
+            // except System attributes (IsSystem = true).
             var selectedAttributeGuids = viewStateAttributes.Select( a => a.Guid );
-            var attributesToDelete = attributes.Where( a => !selectedAttributeGuids.Contains( a.Guid ) );
+            var attributesToDelete = attributes.Where( a => !a.IsSystem && !selectedAttributeGuids.Contains( a.Guid ) );
 
             foreach ( var attr in attributesToDelete )
             {
@@ -1036,7 +1037,10 @@ namespace Rock.Blocks.Engagement
                 .AddTextField( "idKey", a => a.Attribute.Guid.ToString() )
                 .AddTextField( "attributeName", a => a.Attribute.Name )
                 .AddTextField( "fieldType", a => a.FieldType )
-                .AddField( "allowSearch", a => a.Attribute.IsAllowSearch );
+                .AddField( "allowSearch", a => a.Attribute.IsAllowSearch )
+                // Include IsSystem so the framework DeleteColumn disables the
+                // delete button as needed.
+                .AddField( "isSystem", a => a.Attribute.IsSystem );
         }
 
         /// <summary>
@@ -1289,6 +1293,13 @@ namespace Rock.Blocks.Engagement
             }
 
             var isNew = entity.Id == 0;
+
+            // Make sure the step attributes are either new or already
+            // belong to this step type.
+            if ( !PublicAttributeHelper.AreAttributeEditsAllowed( box.Bag.StepAttributes?.ConvertAll( e => e.Attribute ), new Step().TypeId, "StepTypeId", isNew ? null : entity.Id.ToString(), RockContext ) )
+            {
+                return ActionBadRequest( "Invalid attribute." );
+            }
 
             // Workflow Triggers: Remove deleted triggers.
             var uiWorkflows = box.Bag.Workflows.Select( l => l.Guid );
@@ -1546,7 +1557,15 @@ namespace Rock.Blocks.Engagement
 
             var targetStepProgram = StepProgramCache.Get( transferBag.TargetStepProgramGuid.Value );
 
-            if ( targetStepProgram == null )
+            // Only allow the same programs that GetStepPrograms() offers.
+            var targetStepProgramEntity = targetStepProgram != null
+                ? new StepProgramService( RockContext ).Get( targetStepProgram.Id )
+                : null;
+
+            if ( targetStepProgramEntity == null
+                || !targetStepProgramEntity.IsActive
+                || targetStepProgramEntity.Id == stepType.StepProgramId
+                || !targetStepProgramEntity.IsAuthorized( Authorization.VIEW, RequestContext.CurrentPerson ) )
             {
                 return ActionBadRequest( "Target Step Program not found." );
             }
